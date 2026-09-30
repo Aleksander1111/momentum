@@ -30,7 +30,7 @@ classDiagram
     name
     responsibility
     definition
-    triggers
+    trigger
   }
   class run {
     id

@@ -264,7 +264,7 @@ The two states are independent. Verification belongs to the attention layer; rej
 
 | Field | Description |
 |---|---|
-| name | Exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization or chat |
+| name | Exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, card or chat |
 | responsibility | Responsibility that defines the automation |
 | definition | Path of the definition entity in the harness workspace |
 | trigger | Path of the trigger entity in this workspace; none for an automation that runs only as a step inside others |
