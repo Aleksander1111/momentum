@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Momentum pages</title>
+<style>
+  :root {
+    --ink: #2F3E46; --muted: #52606A; --accent: #B85042; --ok: #3F6B52; --no: #A0402F;
+    --screen: #F7F5F0; --line: #D5D9D3; --card: #EEF1EC; --white: #FFFFFF;
+    --wash-no: #F4DCD6; --wash-warn: #EFE8D2; --warn: #8A6D2B; --wash-ok: #DCE7DF;
+    --head: Cambria, Georgia, "Times New Roman", serif;
+    --body: Calibri, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; color: var(--ink); font-family: var(--body); }
+  body.gallery { padding: 32px; }
+  h1.gallery-title { font-family: var(--head); font-weight: 400; font-size: 28px; margin: 0 0 24px; background: var(--ink); color: #fff; display: inline-block; padding: 10px 22px; }
+  .row { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; margin-bottom: 56px; }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .caption { font-family: var(--head); font-style: italic; color: var(--accent); font-size: 15px; }
+
+  /* devices */
+  .device { position: relative; overflow: hidden; background: var(--screen); container-type: inline-size; container-name: screen; }
+  .device.phone { width: 400px; height: 860px; border: 12px solid var(--ink); border-radius: 48px; }
+  .device.phone::before { content: ""; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 108px; height: 26px; background: var(--ink); border-radius: 13px; z-index: 5; }
+  .device.desktop { width: 1280px; height: 800px; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 18px rgba(30,41,59,.14); }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .device.phone .screen { padding-top: 44px; }
+
+  /* navigation */
+  .nav { display: flex; justify-content: space-around; align-items: center; background: var(--white); border-top: 1px solid var(--line); padding: 10px 6px 16px; flex: none; order: 2; }
+  .nav a { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--muted); font-size: 11.5px; text-decoration: none; }
+  .nav a svg { width: 24px; height: 24px; fill: currentColor; }
+  .nav a.on { color: var(--accent); font-weight: 700; }
+  .main { flex: 1; overflow: hidden; position: relative; order: 1; }
+  @container screen (min-width: 700px) {
+    .screen { flex-direction: row; }
+    .nav { order: 0; flex-direction: column; justify-content: flex-start; gap: 22px; width: 92px; border-top: 0; border-right: 1px solid var(--line); padding: 28px 0; }
+    .nav a { font-size: 12px; }
+    .nav a svg { width: 26px; height: 26px; }
+    .main { order: 1; }
+  }
+
+  /* shared pieces */
+  .label { font-family: var(--body); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .title { font-family: var(--head); font-weight: 700; font-size: 24px; line-height: 1.15; margin: 8px 0 10px; }
+  .desc { color: var(--muted); font-size: 15px; line-height: 1.4; margin: 0 0 10px; }
+  ul.bul { margin: 0 0 14px; padding-left: 18px; color: var(--ink); font-size: 14.5px; line-height: 1.45; }
+  ul.bul li { margin: 2px 0; }
+  table.tbl { border-collapse: collapse; width: 100%; font-size: 13px; margin: 6px 0 14px; }
+  table.tbl th, table.tbl td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+  table.tbl th { background: var(--card); font-weight: 700; }
+  .diagram { display: flex; align-items: center; justify-content: center; margin: 6px 0 10px; }
+  .diagram svg { max-width: 100%; }
+  .diagram text { font-family: var(--body); font-size: 13px; fill: var(--ink); }
+  .diagram rect { fill: #fff; stroke: var(--ink); stroke-width: 1; }
+  .diagram line, .diagram path { stroke: var(--ink); stroke-width: 1.2; fill: none; }
+  .state { display: inline-flex; align-items: center; gap: 6px; font-family: var(--head); font-weight: 700; font-size: 14px; }
+  .states { display: inline-flex; align-items: center; gap: 10px; flex: none; margin-left: auto; }
+  .state.unverified { color: var(--warn); } .state.verified { color: var(--ok); }
+  .state.synced { color: var(--muted); } .state.ahead { color: var(--accent); } .state.stale { color: var(--warn); } .state.updating { color: var(--accent); }
+  .state i { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; font-style: normal; font-size: 11px; font-family: var(--body); }
+  .state i::before { content: attr(data-g); color: #fff; }
+  .state.unverified i { background: var(--warn); } .state.verified i { background: var(--ok); }
+  .state.synced i { background: var(--muted); } .state.ahead i { background: var(--accent); } .state.stale i { background: var(--warn); } .state.updating i { background: var(--accent); }
+  .field { display: flex; align-items: center; gap: 10px; background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; font-size: 15px; color: var(--muted); }
+  .field svg { width: 18px; height: 18px; fill: var(--muted); flex: none; }
+  .field .val { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 12px 22px; font-size: 15px; font-weight: 700; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+  .pick { display: inline-flex; align-items: center; gap: 6px; font-family: var(--head); font-weight: 700; font-size: 17px; color: var(--ink); }
+  .pick::after { content: ""; width: 7px; height: 7px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: translateY(-2px) rotate(45deg); }
+  .sect { font-family: var(--head); font-weight: 700; font-size: 16px; color: var(--ink); margin: 22px 0 8px; }
+  .sect:first-child { margin-top: 0; }
+  .list { background: var(--white); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--line); font-size: 15px; }
+  .li:first-child { border-top: 0; }
+  .li .grow { flex: 1; min-width: 0; }
+  .li .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .li .r { color: var(--muted); font-size: 13.5px; white-space: nowrap; }
+  .li .chev { width: 8px; height: 8px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); flex: none; }
+  .li.sel { background: var(--card); }
+  .switch { width: 42px; height: 24px; border-radius: 12px; background: var(--line); position: relative; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch.on { background: var(--ok); } .switch.on::after { left: 21px; }
+  .count { background: var(--card); color: var(--muted); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+  .scroll { padding: 12px 16px 24px; height: 100%; overflow: hidden; }
+  .back { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+  .back::before { content: ""; width: 8px; height: 8px; border-left: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); }
+  .path { color: var(--muted); font-size: 12.5px; margin-bottom: 4px; }
+  .path b { color: var(--ink); font-weight: 400; }
+
+  /* session */
+  .session { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 32px; gap: 18px; }
+  .wordmark { font-family: var(--head); font-size: 34px; letter-spacing: .04em; color: var(--ink); margin-bottom: 26px; }
+  .session .field, .session .btn { width: 100%; max-width: 340px; }
+
+  /* feed */
+  .stack { position: relative; height: 100%; padding: 14px 16px 12px; }
+  .card { position: absolute; left: 16px; right: 16px; top: 14px; bottom: 12px; background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 20px 20px 16px; box-shadow: 0 2px 8px rgba(30,41,59,.14); overflow: hidden; }
+  .card.b1 { transform: translateY(-8px) scale(.965); background: #FBFAF7; box-shadow: none; }
+  .card.b2 { transform: translateY(-16px) scale(.93); background: #F3F1EC; box-shadow: none; }
+  @container screen (min-width: 700px) {
+    .stack { padding: 40px 0; }
+    .card { left: 50%; right: auto; width: 560px; transform: translateX(-50%); top: 40px; bottom: 40px; }
+    .card.b1 { transform: translate(-50%, -10px) scale(.965); }
+    .card.b2 { transform: translate(-50%, -20px) scale(.93); }
+  }
+  .sheet-dim { position: absolute; inset: 0; background: rgba(30,41,59,.55); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 26px 26px 0 0; padding: 12px 18px 22px; box-shadow: 0 -4px 14px rgba(30,41,59,.2); }
+  .sheet .grip { width: 44px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 14px; }
+  .sheet h3 { font-family: var(--head); font-size: 22px; margin: 0 0 12px; }
+  .sheet .comment { border: 1.5px solid var(--accent); border-radius: 12px; background: #FBF4F2; padding: 12px 14px; font-size: 14.5px; line-height: 1.4; margin-bottom: 14px; }
+  .sheet .actions { display: flex; gap: 12px; }
+  .sheet .actions .btn { flex: 1; }
+  @container screen (min-width: 700px) {
+    .sheet { left: 50%; right: auto; width: 560px; transform: translateX(-50%); bottom: 40px; border-radius: 18px; }
+  }
+  .stamp { position: absolute; font-family: var(--body); font-weight: 700; letter-spacing: .2em; font-size: 15px; padding: 8px 16px; border: 3px solid; border-radius: 6px; background: #fff; }
+  .stamp.ok { color: var(--ok); border-color: var(--ok); transform: rotate(-6deg); }
+  .stamp.no { color: var(--no); border-color: var(--no); transform: rotate(6deg); }
+
+  /* explorer */
+  .split { display: flex; height: 100%; }
+  .split > .pane { flex: 1; min-width: 0; padding: 12px 16px 24px; overflow: hidden; }
+  .split > .pane.detail { display: none; }
+  @container screen (min-width: 700px) {
+    .split > .pane.tree { flex: 0 0 420px; border-right: 1px solid var(--line); }
+    .split > .pane.detail { display: block; padding: 28px 40px; }
+  }
+  .tree .li { padding-left: 14px; }
+  .tree .li.d1 { padding-left: 30px; }
+  .tree .li.d2 { padding-left: 46px; font-size: 14.5px; }
+  .tree .li .tri { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--muted); flex: none; }
+  .tree .li .tri.closed { transform: rotate(-90deg); }
+  .agent { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 12px; padding: 11px 14px; margin: 10px 0 14px; font-size: 14.5px; }
+  .agent svg { width: 20px; height: 20px; fill: var(--ink); }
+
+  /* chat */
+  .msgs { display: flex; flex-direction: column; gap: 10px; padding: 12px 0; }
+  .msg { max-width: 84%; padding: 10px 14px; border-radius: 16px; font-size: 14.5px; line-height: 1.4; }
+  .msg.me { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.ai { align-self: flex-start; background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .msg.ai ul { margin: 6px 0 0; padding-left: 18px; }
+  .runhead { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 12px; padding: 10px 14px; font-size: 13.5px; }
+  .runhead .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
+  .runhead .dot.pulse { box-shadow: 0 0 0 3px var(--wash-ok); }
+  .runhead code { font-family: Consolas, monospace; font-size: 12.5px; color: var(--muted); display: block; margin-top: 2px; }
+  .composer { display: flex; align-items: center; gap: 10px; }
+  .composer .field { flex: 1; }
+  .composer .send { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
+  .composer .send svg { width: 18px; height: 18px; fill: #fff; }
+  .col { display: flex; flex-direction: column; height: 100%; }
+  .col .fill { flex: 1; overflow: hidden; }
+  .split > .pane.chats { flex: 0 0 380px; }
+  .split > .pane.conv { display: none; }
+  @container screen (min-width: 700px) {
+    .split > .pane.conv { display: block; padding: 20px 40px 24px; }
+  }
+
+  /* metrics */
+  .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @container screen (min-width: 700px) { .grid { grid-template-columns: 1fr 1fr; gap: 16px; } }
+  .panel { background: var(--white); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .panel .ph { font-family: var(--head); font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .stat { display: flex; align-items: baseline; justify-content: space-between; padding: 5px 0; border-top: 1px dashed var(--line); font-size: 13.5px; color: var(--muted); }
+  .stat:first-of-type { border-top: 0; }
+  .stat b { color: var(--ink); font-size: 15px; font-weight: 700; }
+  .stat svg { width: 90px; height: 22px; margin-left: auto; margin-right: 12px; }
+  .stat svg polyline { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+  .stat svg polyline.ok { stroke: var(--ok); } .stat svg polyline.no { stroke: var(--no); }
+  .cost { display: flex; gap: 10px; }
+  .cost .c { flex: 1; background: var(--card); border-radius: 10px; padding: 8px 10px; }
+  .cost .c small { display: block; color: var(--muted); font-size: 11.5px; }
+  .cost .c b { font-size: 18px; font-family: var(--head); }
+
+  /* settings */
+  .num { margin-left: auto; background: var(--card); border-radius: 8px; padding: 3px 10px; font-size: 14px; }
+  @container screen (min-width: 700px) {
+    .settings { max-width: 720px; padding: 28px 40px; }
+    .scroll.wide { max-width: 860px; padding: 28px 40px; }
+  }
+</style>
+</head>
+<body class="gallery">
+
+<h1 class="gallery-title">Momentum pages</h1>
+<div id="gallery"></div>
+
+<!-- ============ shared ============ -->
+<template id="t-nav">
+  <nav class="nav">
+    <a data-tab="feed"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5zm-7.6 8.4L2 12.6l10 5 10-5-2.4-1.2L12 15.2zm0 4.2L2 16.8l10 5 10-5-2.4-1.2L12 19.4z"/></svg>Feed</a>
+    <a data-tab="explorer"><svg viewBox="0 0 24 24"><path d="M5 3h5v5H5zm9 0h5v5h-5zM9.5 16h5v5h-5zM7.5 8v3h9V8h-1.5v1.5h-6V8zM11.25 11h1.5v5h-1.5z"/></svg>Explorer</a>
+    <a data-tab="chat"><svg viewBox="0 0 24 24"><path d="M3 4h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8l-4 3v-3H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm16 4h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-1v3l-4-3h-6a2 2 0 0 1-2-2v-1h7a4 4 0 0 0 4-4z"/></svg>Chat</a>
+    <a data-tab="metrics"><svg viewBox="0 0 24 24"><path d="M3 3h2v16h16v2H3zm4 12 4-5 3 3 6-8 1.5 1.2-7.5 10-3-3-2.5 3z"/></svg>Metrics</a>
+    <a data-tab="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.7 7.7 0 0 0-1.7-1L15 3H9l-.3 2.9a7.7 7.7 0 0 0-1.7 1l-2.5-1-2 3.5L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.7 7.7 0 0 0 1.7 1L9 21h6l.3-2.9a7.7 7.7 0 0 0 1.7-1l2.5 1 2-3.5zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>Settings</a>
+  </nav>
+</template>
+
+<template id="t-summary-body">
+  <span class="label">Decision · momentum</span>
+  <h2 class="title">Remote access over a private mesh</h2>
+  <p class="desc">No port is exposed to the public internet; clients reach the machine through a WireGuard mesh.</p>
+  <ul class="bul">
+    <li>API listens only on the mesh</li>
+    <li>One key per enrolled device</li>
+    <li>Lost devices revoked centrally</li>
+    <li>No shared secret in clients</li>
+  </ul>
+  <table class="tbl">
+    <tr><th>Layer</th><th>Protection</th></tr>
+    <tr><td>Tunnel</td><td>End-to-end encryption</td></tr>
+    <tr><td>API</td><td>Per-user session</td></tr>
+    <tr><td>Edge</td><td>No inbound firewall rule</td></tr>
+  </table>
+  <div class="diagram">
+    <svg width="300" height="60" viewBox="0 0 300 60">
+      <rect x="2" y="15" width="72" height="30"/><text x="38" y="35" text-anchor="middle">Client</text>
+      <line x1="74" y1="30" x2="110" y2="30"/><path d="M104 25l6 5-6 5"/>
+      <rect x="112" y="15" width="72" height="30"/><text x="148" y="35" text-anchor="middle">Mesh</text>
+      <line x1="184" y1="30" x2="220" y2="30"/><path d="M214 25l6 5-6 5"/>
+      <rect x="222" y="15" width="72" height="30"/><text x="258" y="35" text-anchor="middle">API</text>
+    </svg>
+  </div>
+</template>
+
+<!-- ============ pages ============ -->
+<template id="p-session">
+  <div class="main">
+    <div class="session">
+      <div class="wordmark">momentum</div>
+      <div class="field"><svg viewBox="0 0 24 24"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2zm-7-2a2 2 0 0 1 4 0v2h-4z"/></svg>Password</div>
+      <div class="btn primary">Sign in</div>
+    </div>
+  </div>
+</template>
+
+<template id="p-feed">
+  <div class="main">
+    <div class="stack">
+      <div class="card b2"></div>
+      <div class="card b1"></div>
+      <div class="card">
+        <span class="label">DevTask · momentum</span>
+        <h2 class="title">Consistency guard on every change</h2>
+        <p class="desc">Reacts to every change in the knowledge base so it stays consistent at all times, despite free access.</p>
+        <ul class="bul">
+          <li>Groups related changes into a transaction</li>
+          <li>Validates the card limit and references</li>
+          <li>Raises what it cannot fix as an issue</li>
+          <li>Updates the index and metrics database</li>
+        </ul>
+        <div class="diagram">
+          <svg width="320" height="150" viewBox="0 0 320 150">
+            <rect x="2" y="10" width="86" height="40"/><text x="45" y="35" text-anchor="middle">Run</text>
+            <line x1="88" y1="30" x2="116" y2="30"/><path d="M110 25l6 5-6 5"/>
+            <rect x="118" y="10" width="86" height="40"/><text x="161" y="35" text-anchor="middle">Guard</text>
+            <line x1="204" y1="30" x2="232" y2="30"/><path d="M226 25l6 5-6 5"/>
+            <rect x="234" y="10" width="84" height="40"/><text x="276" y="35" text-anchor="middle">Main line</text>
+            <line x1="161" y1="50" x2="161" y2="98"/><path d="M156 92l5 6 5-6"/>
+            <rect x="118" y="100" width="86" height="40"/><text x="161" y="125" text-anchor="middle">Issue</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-feed-approve">
+  <div class="main">
+    <div class="stack" style="background: var(--wash-ok);">
+      <div class="card b2"></div>
+      <div class="card b1"></div>
+      <div class="card" style="transform: translateX(34px) rotate(3deg);">
+        <div class="stamp ok" style="right: 22px; top: 210px;">APPROVE</div>
+        <div data-fill="summary"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-feed-sendback">
+  <div class="main">
+    <div class="stack" style="background: var(--wash-no);">
+      <div class="card b2"></div>
+      <div class="card b1"></div>
+      <div class="card" style="transform: translateX(-14px) rotate(-2deg);">
+        <div class="stamp no" style="right: 18px; top: 330px;">DISAPPROVE</div>
+        <span class="label">UserStory · momentum</span>
+        <h2 class="title">Attention feed ranking</h2>
+        <p class="desc">Ranks what should be done right now so the product ends up the best it can be.</p>
+        <ul class="bul">
+          <li>One feed across enabled projects</li>
+          <li>Items are entities of any type</li>
+          <li>No project priority</li>
+          <li>Read straight from the index</li>
+        </ul>
+      </div>
+      <div class="sheet-dim"></div>
+      <div class="sheet">
+        <div class="grip"></div>
+        <h3>Disapprove</h3>
+        <div class="comment">Rank by the Importance Rank instead: dependencies, stability, performance, priority and velocity.</div>
+        <div class="actions"><div class="btn ghost">Cancel</div><div class="btn primary">Send back</div></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-entity">
+  <div class="main">
+    <div class="scroll wide">
+      <div class="back">Explorer</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px 12px; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div class="path">knowledge-graph / Governance / Decision / remote-access / <b>private-mesh</b></div>
+        <span class="states"><span class="state unverified"><i data-g="?"></i>Unverified</span><span class="state synced"><i data-g="="></i>Synced</span></span>
+      </div>
+      <div data-fill="summary"></div>
+      <div class="sect">References</div>
+      <div class="list">
+        <div class="li"><div class="grow">Session on the API<div class="sub">depends_on · Architecture / Api</div></div><div class="chev"></div></div>
+        <div class="li"><div class="grow">Enrolled device key<div class="sub">realized_by · Security / EncryptionKey</div></div><div class="chev"></div></div>
+        <div class="li"><div class="grow">Public edge exposure<div class="sub">mitigates · Security / Threat</div></div><div class="chev"></div></div>
+      </div>
+      <div class="sect">Artifacts</div>
+      <div class="list">
+        <div class="li"><div class="grow">chats/2026-09-30-remote-access.jsonl<div class="sub">Chat</div></div><div class="chev"></div></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-explorer">
+  <div class="main">
+    <div class="split">
+      <div class="pane tree">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><span class="pick">momentum</span><span class="count">412 entities</span></div>
+        <div class="field"><svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 0 1 6.3 12.9l5.4 5.4-1.4 1.4-5.4-5.4A8 8 0 1 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/></svg>Search entities</div>
+        <div class="agent"><svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-1.2l-2.3 3-1.6-1.2 1.4-1.8H9.7l1.4 1.8-1.6 1.2-2.3-3H6a3 3 0 0 1-3-3v-5a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v1h6V7a3 3 0 0 0-3-3zM9 12a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>Explore through an agent</div>
+        <div class="list tree">
+          <div class="li"><span class="tri closed"></span><div class="grow">Product</div><span class="count">96</span></div>
+          <div class="li"><span class="tri"></span><div class="grow">Governance</div><span class="count">38</span></div>
+          <div class="li d1"><span class="tri closed"></span><div class="grow">Requirement</div><span class="count">14</span></div>
+          <div class="li d1"><span class="tri"></span><div class="grow">Decision</div><span class="count">11</span></div>
+          <div class="li d2 sel"><div class="grow">Remote access over a private mesh</div><span class="states"><span class="state unverified"><i data-g="?"></i></span><span class="state synced"><i data-g="="></i></span></span></div>
+          <div class="li d2"><div class="grow">One back-end deployable</div><span class="states"><span class="state verified"><i data-g="✓"></i></span><span class="state ahead"><i data-g="→"></i></span></span></div>
+          <div class="li d2"><div class="grow">SQLite per workspace</div><span class="states"><span class="state verified"><i data-g="✓"></i></span><span class="state synced"><i data-g="="></i></span></span></div>
+          <div class="li d2"><div class="grow">Polling instead of push</div><span class="states"><span class="state verified"><i data-g="✓"></i></span><span class="state updating"><i data-g="↻"></i></span></span></div>
+          <div class="li d1"><span class="tri closed"></span><div class="grow">Constraint</div><span class="count">6</span></div>
+          <div class="li d1"><span class="tri closed"></span><div class="grow">Risk</div><span class="count">7</span></div>
+          <div class="li"><span class="tri closed"></span><div class="grow">Architecture</div><span class="count">73</span></div>
+          <div class="li"><span class="tri closed"></span><div class="grow">Code</div><span class="count">120</span></div>
+          <div class="li"><span class="tri closed"></span><div class="grow">Data</div><span class="count">31</span></div>
+          <div class="li"><span class="tri closed"></span><div class="grow">Infrastructure</div><span class="count">27</span></div>
+          <div class="li"><span class="tri closed"></span><div class="grow">Testing</div><span class="count">19</span></div>
+          <div class="li"><span class="tri closed"></span><div class="grow">Harness</div><span class="count">20</span></div>
+        </div>
+      </div>
+      <div class="pane detail">
+        <div style="display:flex; flex-wrap:wrap; gap:6px 12px; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div class="path">knowledge-graph / Governance / Decision / remote-access / <b>private-mesh</b></div>
+          <span class="states"><span class="state unverified"><i data-g="?"></i>Unverified</span><span class="state synced"><i data-g="="></i>Synced</span></span>
+        </div>
+        <div data-fill="summary"></div>
+        <div class="sect">References</div>
+        <div class="list">
+          <div class="li"><div class="grow">Session on the API<div class="sub">depends_on · Architecture / Api</div></div><div class="chev"></div></div>
+          <div class="li"><div class="grow">Enrolled device key<div class="sub">realized_by · Security / EncryptionKey</div></div><div class="chev"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-chats">
+  <div class="main">
+    <div class="split">
+      <div class="pane chats">
+        <div class="col">
+          <div class="fill">
+            <div class="sect">momentum</div>
+            <div class="list">
+              <div class="li sel"><div class="grow">Steer the mesh implementation<div class="sub">Implementation run · running · 4 min ago</div></div><span class="states"><span class="state unverified"><i data-g="?"></i></span><span class="state updating"><i data-g="↻"></i></span></span></div>
+              <div class="li"><div class="grow">Why is polling preferred?<div class="sub">Chat · finished · yesterday</div></div><span class="states"><span class="state verified"><i data-g="✓"></i></span><span class="state synced"><i data-g="="></i></span></span></div>
+            </div>
+            <div class="sect">altruiq</div>
+            <div class="list">
+              <div class="li"><div class="grow">Split the onboarding epic<div class="sub">Chat · finished · Mon</div></div><span class="states"><span class="state verified"><i data-g="✓"></i></span><span class="state synced"><i data-g="="></i></span></span></div>
+              <div class="li"><div class="grow">Validation failed on billing<div class="sub">Validation run · held · Mon</div></div><span class="states"><span class="state unverified"><i data-g="?"></i></span><span class="state stale"><i data-g="←"></i></span></span></div>
+            </div>
+          </div>
+          <div class="composer" style="padding-top:12px;"><div class="field">Ask momentum</div><div class="send"><svg viewBox="0 0 24 24"><path d="M3 11 21 3l-8 18-2-8z"/></svg></div></div>
+        </div>
+      </div>
+      <div class="pane conv">
+        <div class="col">
+          <div class="runhead"><span class="dot pulse"></span><div><div>Implementation · running 14 min</div><code>momentum/implementation/4f2a</code></div></div>
+          <div class="fill">
+            <div class="msgs">
+              <div class="msg me">Bind the API to the Tailscale interface only, not 0.0.0.0.</div>
+              <div class="msg ai">Switching the listen address to the tailnet IP read from <code>tailscale ip -4</code>. Two files change:<ul><li>apps/backend/src/server.ts</li><li>apps/backend/src/config.ts</li></ul>The entity "Remote access over a private mesh" gains an implements reference from this change.</div>
+              <div class="msg me">Also fail startup when the interface is missing.</div>
+              <div class="msg ai">Added. Startup now exits with a clear error if no tailnet address is found. Validation run queued on this branch.</div>
+            </div>
+          </div>
+          <div class="composer"><div class="field">Message</div><div class="send"><svg viewBox="0 0 24 24"><path d="M3 11 21 3l-8 18-2-8z"/></svg></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-chat">
+  <div class="main">
+    <div class="scroll">
+      <div class="col">
+        <div class="back">Chats</div>
+        <div class="runhead"><span class="dot pulse"></span><div><div>Implementation · running 14 min</div><code>momentum/implementation/4f2a</code></div></div>
+        <div class="fill">
+          <div class="msgs">
+            <div class="msg me">Bind the API to the Tailscale interface only, not 0.0.0.0.</div>
+            <div class="msg ai">Switching the listen address to the tailnet IP read from <code>tailscale ip -4</code>. Two files change:<ul><li>apps/backend/src/server.ts</li><li>apps/backend/src/config.ts</li></ul>The entity "Remote access over a private mesh" gains an implements reference from this change.</div>
+            <div class="msg me">Also fail startup when the interface is missing.</div>
+            <div class="msg ai">Added. Startup now exits with a clear error if no tailnet address is found. Validation run queued on this branch.</div>
+          </div>
+        </div>
+        <div class="composer"><div class="field">Message</div><div class="send"><svg viewBox="0 0 24 24"><path d="M3 11 21 3l-8 18-2-8z"/></svg></div></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-metrics">
+  <div class="main">
+    <div class="scroll wide">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><span class="pick">momentum</span><span class="count">last 30 days</span></div>
+      <div class="panel" style="margin-bottom:12px;">
+        <div class="ph">Usage</div>
+        <div class="cost">
+          <div class="c"><small>Rolling 5 hours</small><b>38%</b></div>
+          <div class="c"><small>Rolling week</small><b>61%</b></div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="panel">
+          <div class="ph">Attention</div>
+          <div class="stat">Time per item<svg viewBox="0 0 90 22"><polyline points="0,18 15,14 30,15 45,10 60,9 75,6 90,5"/></svg><b>48 s</b></div>
+          <div class="stat">Approved<svg viewBox="0 0 90 22"><polyline class="ok" points="0,16 15,15 30,12 45,12 60,8 75,7 90,4"/></svg><b>131</b></div>
+          <div class="stat">Rejected<svg viewBox="0 0 90 22"><polyline class="no" points="0,6 15,8 30,7 45,12 60,14 75,15 90,17"/></svg><b>9</b></div>
+          <div class="stat">Sent back<svg viewBox="0 0 90 22"><polyline points="0,10 15,12 30,9 45,11 60,10 75,12 90,11"/></svg><b>22</b></div>
+          <div class="stat">Patterns automated<b>3</b></div>
+        </div>
+        <div class="panel">
+          <div class="ph">Understanding</div>
+          <div class="stat">Consistency<svg viewBox="0 0 90 22"><polyline class="ok" points="0,14 15,13 30,11 45,10 60,7 75,6 90,4"/></svg><b>0.94</b></div>
+          <div class="stat">Open issues<svg viewBox="0 0 90 22"><polyline points="0,8 15,10 30,7 45,12 60,13 75,15 90,16"/></svg><b>4</b></div>
+        </div>
+        <div class="panel">
+          <div class="ph">Agents</div>
+          <div class="stat">Misalignments<svg viewBox="0 0 90 22"><polyline class="ok" points="0,5 15,7 30,9 45,10 60,13 75,15 90,17"/></svg><b>2</b></div>
+          <div class="stat">Recurring issues<svg viewBox="0 0 90 22"><polyline points="0,9 15,11 30,10 45,13 60,12 75,14 90,15"/></svg><b>5</b></div>
+          <div class="stat">Runs this week<svg viewBox="0 0 90 22"><polyline points="0,14 15,12 30,13 45,9 60,10 75,7 90,8"/></svg><b>67</b></div>
+          <div class="stat">Variant · summarizer<b>B</b></div>
+        </div>
+        <div class="panel">
+          <div class="ph">Implementation</div>
+          <div class="stat">Outstanding issues<svg viewBox="0 0 90 22"><polyline points="0,7 15,9 30,8 45,11 60,12 75,14 90,15"/></svg><b>11</b></div>
+          <div class="stat">Bugs<svg viewBox="0 0 90 22"><polyline class="ok" points="0,6 15,8 30,10 45,12 60,13 75,15 90,17"/></svg><b>3</b></div>
+          <div class="stat">Defects<svg viewBox="0 0 90 22"><polyline class="no" points="0,15 15,13 30,14 45,11 60,9 75,10 90,7"/></svg><b>6</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="p-settings">
+  <div class="main">
+    <div class="scroll settings">
+      <div class="sect">Included projects</div>
+      <div class="list">
+        <div class="li"><div class="grow">momentum<div class="sub">C:\Projects\momentum</div></div><span class="switch on"></span></div>
+        <div class="li"><div class="grow">altruiq<div class="sub">C:\Projects\altruiq</div></div><span class="switch on"></span></div>
+        <div class="li"><div class="grow">stock-fly<div class="sub">C:\Projects\stock-fly</div></div><span class="switch"></span></div>
+        <div class="li"><div class="grow">voice-commands<div class="sub">C:\Projects\voice-commands</div></div><span class="switch on"></span></div>
+      </div>
+      <div class="sect">Feed size</div>
+      <div class="list"><div class="li"><div class="grow">Items before loops pause</div><span class="num">40</span></div></div>
+      <div class="sect">Cards</div>
+      <div class="list">
+        <div class="li"><div class="grow">Character limit<div class="sub">Sized so a card fits on a mobile screen</div></div><span class="num">700</span></div>
+        <div class="li"><div class="grow">Presentation rules</div><div class="chev"></div></div>
+      </div>
+      <div class="sect">Lifetimes</div>
+      <div class="list">
+        <div class="li"><div class="grow">DevTask<div class="sub">30 days after resolved, unless referenced</div></div><div class="chev"></div></div>
+        <div class="li"><div class="grow">Research<div class="sub">60 days after delivered</div></div><div class="chev"></div></div>
+        <div class="li"><div class="grow">Decision<div class="sub">kept while referenced</div></div><div class="chev"></div></div>
+      </div>
+      <div class="sect">Agents</div>
+      <div class="list">
+        <div class="li"><div class="grow">Concurrent runs per project</div><span class="num">2</span></div>
+        <div class="li"><div class="grow">Concurrent runs in total</div><span class="num">8</span></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  const PAGES = [
+    { id: 'session', tab: null, caption: 'Session' },
+    { id: 'feed', tab: 'feed', caption: 'Feed' },
+    { id: 'feed-approve', tab: 'feed', caption: 'Feed · swipe right to approve' },
+    { id: 'feed-sendback', tab: 'feed', caption: 'Feed · swipe left to disapprove with a comment' },
+    { id: 'entity', tab: 'explorer', caption: 'Entity' },
+    { id: 'explorer', tab: 'explorer', caption: 'Explorer' },
+    { id: 'chats', tab: 'chat', caption: 'Chat' },
+    { id: 'chat', tab: 'chat', caption: 'Chat · conversation', phoneOnly: true },
+    { id: 'metrics', tab: 'metrics', caption: 'Metrics' },
+    { id: 'settings', tab: 'settings', caption: 'Settings' },
+  ];
+  const q = new URLSearchParams(location.search);
+  const only = q.get('page'), dev = q.get('device');
+
+  function build(page, device) {
+    const d = document.createElement('div');
+    d.className = 'device ' + device;
+    const s = document.createElement('div');
+    s.className = 'screen';
+    s.append(document.getElementById('p-' + page.id).content.cloneNode(true));
+    s.querySelectorAll('[data-fill="summary"]').forEach(el => el.replaceWith(document.getElementById('t-summary-body').content.cloneNode(true)));
+    if (page.tab) {
+      const nav = document.getElementById('t-nav').content.cloneNode(true);
+      nav.querySelector(`[data-tab="${page.tab}"]`).classList.add('on');
+      s.append(nav);
+    }
+    d.append(s);
+    return d;
+  }
+
+  const g = document.getElementById('gallery');
+  if (only && dev) {
+    document.body.className = '';
+    document.querySelector('h1.gallery-title').remove(); g.remove();
+    const page = PAGES.find(p => p.id === only);
+    document.body.append(build(page, dev));
+  } else {
+    for (const page of PAGES) {
+      const row = document.createElement('div'); row.className = 'row';
+      for (const device of ['phone', 'desktop']) {
+        if (device === 'desktop' && page.phoneOnly) continue;
+        const f = document.createElement('div'); f.className = 'frame';
+        f.append(build(page, device));
+        const c = document.createElement('div'); c.className = 'caption'; c.textContent = page.caption + (device === 'desktop' ? ' · web' : ' · mobile');
+        f.append(c);
+        row.append(f);
+      }
+      g.append(row);
+    }
+  }
+</script>
+</body>
+</html>
