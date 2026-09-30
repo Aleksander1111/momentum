@@ -8,6 +8,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "backend": "pnpm --filter @momentum/backend start",
+    "dev": "node scripts/dev.mjs",
     "momentum": "pnpm --filter @momentum/backend cli"
   },
   "devDependencies": {

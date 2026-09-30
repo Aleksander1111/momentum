@@ -60,7 +60,8 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
   });
 
   const spa = existsSync(config.appDist);
-  if (spa) await app.register(fastifyStatic, { root: config.appDist, wildcard: false });
+  // Files are resolved per request, so a fresh web build is served without a restart
+  if (spa) await app.register(fastifyStatic, { root: config.appDist, wildcard: true });
 
   // Page loads of the web app get the app; the app's own requests get the API
   app.addHook('onRequest', async (req, reply) => {

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "cli": "tsx src/cli.ts",
     "typecheck": "tsc -p ."
   },
