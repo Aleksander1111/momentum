@@ -117,16 +117,20 @@ export class Guard {
       if (!branch && !onMain.has(path)) await ws.index.remove(path);
     }
     await this.settings.setIndexedCommit(ws.name, commit);
-    for (const f of artifactFiles) await this.artifactChanged(ws, f);
+    for (const f of artifactFiles) await this.artifactChanged(ws, f, changed);
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
     }
     await this.recordMetrics(ws);
   }
 
-  /** The artifact under an entity changed: artifact_ahead, and summarization rewrites the card */
-  async artifactChanged(ws: Workspace, artifactPath: string): Promise<void> {
+  /**
+   * The artifact under an entity changed: artifact_ahead, and summarization rewrites the card. An entity that changed in
+   * the same commits as its artifact agrees with it already, for example a definition edited together with its agent file.
+   */
+  async artifactChanged(ws: Workspace, artifactPath: string, changedEntities: Set<string> | null = null): Promise<void> {
     for (const path of await ws.index.byArtifact(artifactPath)) {
+      if (changedEntities?.has(path)) continue;
       await ws.index.setSync(path, 'artifact_ahead');
       this.bus.emit('artifact_ahead', { workspace: ws.name, path });
     }

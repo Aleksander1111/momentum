@@ -8,6 +8,8 @@ if (!(await m.auth.hasPassword())) {
   console.error('No password set. Run: pnpm momentum set-password');
   process.exit(1);
 }
+// Only the server recovers runs: the CLI shares the database with a server whose runs are alive
+await m.runner.recover();
 // The harness workspace is indexed first: it holds the definitions every workspace uses
 await m.guard.indexMainLine(await m.workspaces.harness());
 for (const ws of await m.workspaces.enabled()) await m.automations.materialize(ws);

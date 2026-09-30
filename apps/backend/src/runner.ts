@@ -215,6 +215,26 @@ export class Runner {
     return r?.at ?? null;
   }
 
+  /**
+   * Runs a restart left `running`: their processes are gone. What they wrote still passes the guard and reaches the
+   * feed; the run itself is failed, and a chat resumes its session on the next message.
+   */
+  async recover(): Promise<void> {
+    const refs = await this.workspaces.sql<{ workspace: string }[]>`select distinct workspace from harness.run_ref`;
+    for (const { workspace } of refs) {
+      const ws = await this.workspaces.get(workspace).catch(() => null);
+      if (!ws) continue;
+      const rows = await ws.index.sql<RunRow[]>`select * from ${this.t(ws, 'run')} where status = 'running'`;
+      for (const r of rows) {
+        if (this.active.has(r.id)) continue;
+        const ref: RunRef = { id: r.id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: r.target_path };
+        if (existsSync(r.checkout)) await this.guard.transaction(ref).catch((e) => console.error(`recover ${r.id}:`, e));
+        await this.setStatus(ws, r.id, 'failed', { ended_at: new Date(), error: 'lost at restart' });
+        console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart`);
+      }
+    }
+  }
+
   /** Starts a queued run: own checkout, own branch, one Claude Code process */
   async start(id: string): Promise<void> {
     const ws = await this.workspaceOf(id);
