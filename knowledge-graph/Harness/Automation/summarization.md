@@ -12,8 +12,9 @@ artifacts:
 ---
 # Summarization
 
-Summarizes repository artifacts: chats, plans, results implemented by AI.
+Summarizes repository artifacts: chats, plans, results implemented by AI, mapped documents.
 
-- Runs as a step inside the other automations
-- Writes each summary before the user reads the work
-- Each summary is an entity with its artifacts listed
+- Started by the harness when a run ends, on the run's branch, and when an artifact changes
+- The only writer of summaries: runs never summarize their own artifacts
+- Each summary is an entity with its artifacts listed; the entity is its card
+- Skips the path patterns the user excludes

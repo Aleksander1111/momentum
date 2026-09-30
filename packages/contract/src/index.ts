@@ -196,7 +196,6 @@ export const AutomationName = z.enum([
   'validation',
   'optimization',
   'summarization',
-  'card',
   'chat',
   'mapping',
 ]);
@@ -392,6 +391,10 @@ export const Settings = z.object({
   cards: z.object({
     characterLimit: z.number().int().positive(),
     presentationRules: z.string(),
+  }),
+  /** Path patterns summarization never summarizes, relative to the repository root */
+  summarization: z.object({
+    exclude: z.array(z.string().min(1)),
   }),
   lifetimes: z.array(LifetimeRule),
   agents: z.object({

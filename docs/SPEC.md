@@ -13,8 +13,7 @@
 - **Attention feed**: A single feed where everything that needs the user's attention shows up; its items are entities, of any type
 - **Automation**: A background loop, per project, defined by its responsibility alone; its definition is an entity in the harness workspace, its triggers an entity in each project
 - **Attention ranking**: The feed order, derived from the entities themselves by impact on the product, impact on the timeline, and how much the work unlocks
-- **Card**: The concise representation of an entity, written by the card automation; no fixed structure, only a configured character limit, in the form that presents the entity best
-- **Card automation**: Writes the card of every entity by the user's configuration; the configuration sets at least a character limit sized so a card fits on a mobile screen
+- **Card**: The concise representation of an entity; the entity is its card. No fixed structure, only a configured character limit, in the form that presents the entity best
 - **Chat tool**: Asks a question or steers a run directly, without waiting for the feed
 - **Consistency guard**: Reacts to every change in the knowledge base, groups related changes into a transaction and validates them before they land on the main line
 - **Dedicated machine**: The one resource-rich machine that runs the back-end, the agents and the knowledge base
@@ -105,7 +104,7 @@ Starts and supervises the background automation loops, per project. It ships in 
 - The unit is the entity; it is standalone and needs no artifact behind it
 - A summary is a flavour of entity: an entity with underlying artifacts, written by summarization
 - Entities arrive by three origins: added by the user directly, requested by the user and written by an automation, or raised by an automation on its own; every origin reaches the main line through the feed
-- Every entity is shown as a card, written by the card automation; a card has no fixed structure
+- Every entity is its card, written by whoever writes the entity; a card has no fixed structure
   - The user configures how cards are written; the one rule the configuration always sets is a character limit
   - The limit is sized so a card fits on a mobile screen; within it a card can be anything
   - The form follows the entity type and the underlying artifact types: a paragraph, bullets, a table or a diagram, whichever presents the entity best
@@ -159,8 +158,8 @@ AI is not the default. Each responsibility is split into steps and every step is
   - A project whose goals are all met goes idle
 - Preparation
   - Finds tasks, issues, research and other action points that can be started
-  - Prepares plans for the user to accept
-  - Plans are summaries too, so they stay short and quick to read and approve
+  - Writes plans as files under `plans/`, with no length limit
+  - Summarization turns each plan into a plan entity for the user to accept
 - Consistency check
   - Runs as a background loop and on demand
   - Checks consistency across all entities in the knowledge base
@@ -187,15 +186,12 @@ AI is not the default. Each responsibility is split into steps and every step is
   - Each approved definition is materialized into the workspaces that use it, so Claude Code picks it up locally with no indirection
   - Competing implementations of a skill or sub-agent are compared on the collected metrics
 - Summarization
-  - Summarizes artifacts from the repository: chats, plans, results implemented by AI
-  - Runs as a step inside the other automations, so none of them is limited by how much it can read
+  - Summarizes artifacts from the repository: chats, plans, results implemented by AI, documents found by mapping
+  - Started by the harness when a run ends, on the run's branch, for every artifact the run added, changed or deleted; runs never summarize their own artifacts, so none of them is limited by the card
   - Writes each summary before the user reads the work
   - Each summary is an entity like any other, a separate markdown document, at `knowledge-graph/type/sub-type/parent-name/name`
-- Card
-  - Writes the card of every entity, following the user's configuration
-  - The configuration sets at least a character limit, sized so a card fits on a mobile screen; it may say more about how cards are written, but never prescribes a fixed structure
-  - Chooses the form per entity type and per underlying artifact type, so the presentation is the best one for what lies behind the card
-  - Runs as a step inside the other automations, like summarization, so every entity has its card before it reaches the feed
+  - The card follows the user's configuration: at least a character limit, sized so a card fits on a mobile screen; it may say more about how cards are written, but never prescribes a fixed structure. The form is chosen per entity type and per underlying artifact type
+  - The user sets path patterns that are never summarized
 - Chat
   - The direct chat is an automation too, started by the user instead of by the schedule
   - Runs on the same machinery as every other automation: its own process, checkout and branch
@@ -274,7 +270,7 @@ The two states are independent. Verification belongs to the attention layer; rej
 
 | Field | Description |
 |---|---|
-| name | Exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, card, chat or mapping |
+| name | Exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat or mapping |
 | responsibility | Responsibility that defines the automation |
 | definition | Path of the definition entity in the harness workspace |
 | trigger | Path of the trigger entity in this workspace; none for an automation that runs only as a step inside others |

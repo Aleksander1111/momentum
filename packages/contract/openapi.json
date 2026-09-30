@@ -954,7 +954,6 @@
                               "validation",
                               "optimization",
                               "summarization",
-                              "card",
                               "chat",
                               "mapping"
                             ]
@@ -1190,7 +1189,6 @@
                         "validation",
                         "optimization",
                         "summarization",
-                        "card",
                         "chat",
                         "mapping"
                       ]
@@ -1879,7 +1877,6 @@
                                   "validation",
                                   "optimization",
                                   "summarization",
-                                  "card",
                                   "chat",
                                   "mapping"
                                 ]
@@ -2706,6 +2703,22 @@
                       ],
                       "additionalProperties": false
                     },
+                    "summarization": {
+                      "type": "object",
+                      "properties": {
+                        "exclude": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      },
+                      "required": [
+                        "exclude"
+                      ],
+                      "additionalProperties": false
+                    },
                     "lifetimes": {
                       "type": "array",
                       "items": {
@@ -2791,7 +2804,6 @@
                             "validation",
                             "optimization",
                             "summarization",
-                            "card",
                             "chat",
                             "mapping"
                           ]
@@ -2828,6 +2840,7 @@
                     "projects",
                     "feedSize",
                     "cards",
+                    "summarization",
                     "lifetimes",
                     "agents",
                     "models"
@@ -2927,6 +2940,21 @@
                       "presentationRules"
                     ]
                   },
+                  "summarization": {
+                    "type": "object",
+                    "properties": {
+                      "exclude": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "required": [
+                      "exclude"
+                    ]
+                  },
                   "lifetimes": {
                     "type": "array",
                     "items": {
@@ -3010,7 +3038,6 @@
                           "validation",
                           "optimization",
                           "summarization",
-                          "card",
                           "chat",
                           "mapping"
                         ]
@@ -3102,6 +3129,22 @@
                       ],
                       "additionalProperties": false
                     },
+                    "summarization": {
+                      "type": "object",
+                      "properties": {
+                        "exclude": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      },
+                      "required": [
+                        "exclude"
+                      ],
+                      "additionalProperties": false
+                    },
                     "lifetimes": {
                       "type": "array",
                       "items": {
@@ -3187,7 +3230,6 @@
                             "validation",
                             "optimization",
                             "summarization",
-                            "card",
                             "chat",
                             "mapping"
                           ]
@@ -3224,6 +3266,7 @@
                     "projects",
                     "feedSize",
                     "cards",
+                    "summarization",
                     "lifetimes",
                     "agents",
                     "models"

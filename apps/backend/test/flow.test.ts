@@ -209,6 +209,7 @@ Every minute.
       },
       queued: async () => queue.filter((q) => !started.includes(q.id)),
       activeCount: () => started.length,
+      branchBusy: () => false,
       start: async (id: string) => void started.push(id),
     };
     const o = new Orchestrator(m.workspaces, m.settings, m.guard, stub as never, m.automations, createBus());
@@ -221,6 +222,30 @@ Every minute.
     await o.tick();
     expect(created.sort()).toEqual(['exploration', 'preparation', 'retention']);
     expect(started).toHaveLength(2); // two runs per project
+  });
+
+  it('starts the runs on one branch one after another', async () => {
+    const { Orchestrator } = await import('../src/orchestrator.ts');
+    const { createBus } = await import('../src/events.ts');
+    const branch = 'momentum/implementation/abc';
+    const queue = [
+      { workspace: 'alpha', id: 'summarization', automation: 'summarization', branch },
+      { workspace: 'alpha', id: 'validation', automation: 'validation', branch },
+    ];
+    const started: string[] = [];
+    const stub = {
+      hasOpenRun: async () => true,
+      hasOpenRunOnBranch: async () => true,
+      lastStart: async () => new Date(),
+      create: async () => '',
+      queued: async () => queue.filter((q) => !started.includes(q.id)),
+      activeCount: () => 0,
+      branchBusy: (_: string, b: string) => queue.some((q) => q.branch === b && started.includes(q.id)),
+      start: async (id: string) => void started.push(id),
+    };
+    const o = new Orchestrator(m.workspaces, m.settings, m.guard, stub as never, m.automations, createBus());
+    await o.tick();
+    expect(started).toEqual(['summarization']); // validation waits for the result summarization writes
   });
 
   it('builds the knowledge graph of an enabled project while the feed has room, until the user stops it', async () => {

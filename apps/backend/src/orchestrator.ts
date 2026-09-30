@@ -233,6 +233,7 @@ export class Orchestrator {
         if (!names.has(q.workspace)) continue;
         if (this.runner.activeCount() >= values.agents.concurrentTotal) break;
         if (this.runner.activeCount(q.workspace) >= values.agents.concurrentPerProject) continue;
+        if (this.runner.branchBusy(q.workspace, q.branch)) continue;
         await this.runner.start(q.id);
       }
     } catch (e) {

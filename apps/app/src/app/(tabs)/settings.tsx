@@ -446,6 +446,20 @@ export default function Settings() {
         />
       </List>
 
+      <Sect>Summarization</Sect>
+      <List>
+        <TextRow
+          first
+          title="Never summarized"
+          sub={s.summarization.exclude.length ? s.summarization.exclude.join(', ') : 'One path pattern per line, such as **/*.lock'}
+          value={s.summarization.exclude.join('\n')}
+          onSave={(text) => {
+            const summarization = { exclude: text.split('\n').map((l) => l.trim()).filter(Boolean) };
+            put({ summarization }, { summarization });
+          }}
+        />
+      </List>
+
       {s.lifetimes.length ? (
         <>
           <Sect>Lifetimes</Sect>

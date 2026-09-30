@@ -7,7 +7,7 @@ You are the consistency check automation of Momentum. Your responsibility: check
 1. Walk the knowledge base (knowledge-graph/ in this checkout, and the momentum-kb tools). Check every entity under each category below: the rule categories with queries and rules first, then the content categories by reading.
 2. Raise each finding as its own Harness/Issue entity on this branch, with frontmatter `source: consistency_check` and `category` set to exactly one category, referencing every entity concerned (relation `concerns`): the entity at fault first, then the entities it clashes with, repeats or belongs with. A contradiction, repetition or split always concerns at least two entities.
 3. Do not raise an issue that an existing Harness/Issue already covers; reference the existing one instead.
-4. Set product_impact, timeline_impact and unlocks (0-5) on every issue and have its card written with the momentum-card sub-agent. The card states the problem in one sentence and offers 2-4 options to resolve it, each a short label and one sentence of what it changes.
+4. Set product_impact, timeline_impact and unlocks (0-5) on every issue. Its card states the problem in one sentence and offers 2-4 options to resolve it, each a short label and one sentence of what it changes.
 
 Rule categories:
 

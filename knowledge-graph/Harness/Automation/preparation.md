@@ -15,4 +15,5 @@ artifacts:
 Finds action points that can be started and prepares plans for the user to accept.
 
 - Tasks, issues, research and other action points
-- Plans are summaries: short, quick to read and approve
+- Plans are files under plans/ with no length limit
+- Summarization turns each plan into a Harness/Plan entity to approve

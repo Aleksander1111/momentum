@@ -9,6 +9,7 @@ import { config } from './config.ts';
 const DEFAULTS = {
   feedSize: 40,
   cards: { characterLimit: 700, presentationRules: '' },
+  summarization: { exclude: [] as string[] },
   lifetimes: [
     { type: 'Product/DevTask', rule: '30 days after resolved, unless referenced' },
     { type: 'Harness/Research', rule: '60 days after delivered' },
@@ -109,9 +110,14 @@ export class HarnessSettings {
     const rows = await this.sql<{ key: Key; value: never }[]>`select key, value from harness.setting`;
     const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     this.cache = { ...DEFAULTS, ...stored };
-    // An automation added after the models were stored starts on the default
+    // An automation added after the models were stored starts on the default; a removed one is dropped
     const models = stored.models as ModelSettings | undefined;
-    if (models) this.cache.models = { ...models, perAutomation: { ...DEFAULTS.models.perAutomation, ...models.perAutomation } };
+    if (models) {
+      const perAutomation = Object.fromEntries(
+        AutomationName.options.map((a) => [a, models.perAutomation[a] ?? DEFAULTS.models.perAutomation[a]]),
+      ) as Record<AutomationName, ModelChoice>;
+      this.cache.models = { ...models, perAutomation };
+    }
     return this.cache;
   }
 

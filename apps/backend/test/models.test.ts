@@ -6,14 +6,14 @@ const models = (mode: ModelSettings['mode']): ModelSettings =>
   ({
     mode,
     single: 'sonnet',
-    perAutomation: { implementation: 'opus', card: 'haiku' },
+    perAutomation: { implementation: 'opus', summarization: 'haiku' },
     risk: { low: 'haiku', medium: 'sonnet', high: 'opus' },
   }) as ModelSettings;
 
 describe('models', () => {
   it('takes the one model, or the automation’s own', () => {
-    expect(setModel(models('single'), 'card')).toBe('sonnet');
-    expect(setModel(models('per_automation'), 'card')).toBe('haiku');
+    expect(setModel(models('single'), 'summarization')).toBe('sonnet');
+    expect(setModel(models('per_automation'), 'summarization')).toBe('haiku');
     expect(setModel(models('risk'), 'implementation')).toBe('opus');
   });
 
