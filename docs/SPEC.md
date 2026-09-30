@@ -187,7 +187,8 @@ AI is not the default. Each responsibility is split into steps and every step is
   - Competing implementations of a skill or sub-agent are compared on the collected metrics
 - Summarization
   - Summarizes artifacts from the repository: chats, plans, results implemented by AI, documents found by mapping
-  - Started by the harness when a run ends, on the run's branch, for every artifact the run added, changed or deleted; runs never summarize their own artifacts, so none of them is limited by the card
+  - A Claude Code Stop hook hands every artifact a run added, changed or deleted to the summarization sub-agent before the run ends; no automation summarizes by itself, so none of them is limited by the card
+  - A hook, not a trigger: triggered loops pause at the feed limit, and work must never wait unsummarized
   - Writes each summary before the user reads the work
   - Each summary is an entity like any other, a separate markdown document, at `knowledge-graph/type/sub-type/parent-name/name`
   - The card follows the user's configuration: at least a character limit, sized so a card fits on a mobile screen; it may say more about how cards are written, but never prescribes a fixed structure. The form is chosen per entity type and per underlying artifact type

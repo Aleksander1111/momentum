@@ -1,3 +1,4 @@
+import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
 import { AutomationName, TriggerFields } from '@momentum/contract';
 import { parseEntity } from '@momentum/entity';
 import { show } from '@momentum/runs';
@@ -9,6 +10,8 @@ import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
 export const DEFINITION_TYPE = 'Harness/Automation';
 export const TRIGGER_TYPE = 'Harness/Trigger';
+/** Automations that run as a step inside the others, as sub-agents of every run */
+export const STEPS: AutomationName[] = ['summarization'];
 /** The user's rules for the risk of an implementation, an artifact of the implementation definition */
 export const RISK_RULES = 'automations/implementation/risk.md';
 
@@ -118,6 +121,18 @@ export class Automations {
     const harness = await this.workspaces.harness();
     const text = await show(harness.path, `refs/heads/${harness.main}`, RISK_RULES);
     return text?.trim() || null;
+  }
+
+  /** Sub-agents available to every run: the steps, each on its own model when one is set for it */
+  async subAgents(ws: Workspace, model: (step: AutomationName) => string | undefined = () => undefined): Promise<Record<string, AgentDefinition>> {
+    const agents: Record<string, AgentDefinition> = {};
+    for (const name of STEPS) {
+      const file = join(ws.path, '.claude', 'agents', `momentum-${name}.md`);
+      if (!existsSync(file)) continue;
+      const { description, prompt } = agentFile(await readFile(file, 'utf8'));
+      agents[`momentum-${name}`] = { description, prompt, model: model(name) };
+    }
+    return agents;
   }
 
   /** Approved trigger entities of a workspace */

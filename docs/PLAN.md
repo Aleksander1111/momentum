@@ -56,7 +56,7 @@ momentum/
 
 A definition entity at `knowledge-graph/Harness/Automation/<name>.md` has its Claude Code files in `automations/<name>/` as artifacts; on approval of the entity they are materialized into every workspace that uses it, under `<workspace>\.claude\`, kept out of git by `.git\info\exclude`. `automations/<name>/trigger.md` is the automation's default trigger entity.
 
-Every run gets its automation's agent file as instructions and no sub-agents. When a run ends, the harness queues a summarization run on the same branch for the artifacts it added, changed or deleted outside `knowledge-graph/`, and the documents a mapping run listed, minus the path patterns the user excludes. Runs on one branch share its checkout, so they start one after another: a validation waits for the summarization that writes the implementation's result, and a chat message waits for the chat's summarization.
+Every run gets its automation's agent file as instructions and the summarization definition as a sub-agent. When the run stops by itself, its Stop hook blocks once and hands it the artifacts it added, changed or deleted outside `knowledge-graph/` (a chat's transcript included) and the documents a mapping run listed, minus the path patterns the user excludes, for the summarization sub-agent. A hook, not a trigger: triggered loops pause at the feed limit.
 
 ## Entity file format
 
@@ -116,7 +116,7 @@ Relations the harness acts on: `implements` (sync), `retires` (retention), `conc
 | 5 | Consistency guard | 2, 3, 4 | Hooks and watcher per run, transaction grouping, validation, issue entities, sync state, index update, ranking |
 | 6 | Orchestrator | 4, 5 | Loops per enabled project, schedule, event and on-demand triggers read from each workspace's trigger entities, feed-size bound, concurrency semaphore, chat runs |
 | 7 | API | 1, 3, 6 | Session, feed, approve, send back, entities, search, chats, runs, metrics, settings; MCP surface over the same handlers |
-| 8 | Automations | 3, 4 | Ten definition entities in `knowledge-graph/Harness/Automation/` with artifacts in `automations/`: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, mapping; a default trigger entity for each of the eight automations that start by schedule, event or on demand (the harness starts summarization, mapping starts with enabling, so they have none), proposed on a setup branch when a workspace is enabled; materialization on approval |
+| 8 | Automations | 3, 4 | Ten definition entities in `knowledge-graph/Harness/Automation/` with artifacts in `automations/`: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, mapping; a default trigger entity for each of the eight automations that start by schedule, event or on demand (summarization runs from the Stop hook, mapping starts with enabling, so they have none), proposed on a setup branch when a workspace is enabled; materialization on approval |
 | 9 | App | 1, 7 | Seven pages below, web and mobile |
 | 10 | Metrics | 3, 5, 7 | Attention, understanding, agents, implementation metrics; usage as percentage points of the rolling 5-hour and weekly limits; attention patterns |
 | 11 | End-to-end validation | all | The harness repository runs as a workspace on the machine: loops produce feed items, approval lands on the main line, metrics fill |
@@ -160,7 +160,7 @@ Appearance: light and dark palettes in `apps/app/src/ui/theme.ts`. Settings offe
 | Dedicated agents beyond the automations | None; sub-agents are artifacts of the definition entities, proposed by the optimization automation |
 | Where user edits of automations land | Definitions are entities at `knowledge-graph/Harness/Automation/<name>` in the harness workspace, with the Claude Code files in `automations/<name>/` as artifacts; triggers are entities at `knowledge-graph/Harness/Trigger/<name>` in each workspace. Edits and proposals go through a branch, the guard and the feed; the orchestrator reads triggers from each workspace's index; materialization runs on approval of a definition |
 | Form of validation per kind of work | Chosen by the validation automation from the change's entity type; the four forms are review, test suite run, exploratory pass, consistency check |
-| Sync with sources | Runs read the repository directly; the mapping automation builds the initial graph from the repository when a project is enabled, and the summarization run the harness starts after each run writes summaries from its artifacts on the run branch |
+| Sync with sources | Runs read the repository directly; the mapping automation builds the initial graph from the repository when a project is enabled, and the Stop hook has the summarization sub-agent write summaries from the run's artifacts on the run branch |
 | Claude Code integration surface | Agent SDK for runs, `momentum-kb` MCP for the knowledge base, definitions materialized under `<workspace>\.claude\` on approval |
 | Offline mobile | Last polled feed and entities cached by TanStack Query; reactions queue until the mesh is reachable |
 
@@ -169,7 +169,7 @@ Appearance: light and dark palettes in `apps/app/src/ui/theme.ts`. Settings offe
 | Area | Decision |
 |---|---|
 | Default triggers | Exploration every two hours; preparation every two hours at half past; validation at 02:00 and on `implementation_finished`; consistency check at 03:00; retention at 04:00; optimization at 05:00; implementation on `entity_ahead`; chat when the user writes; every one also on demand. A trigger counts once approved |
-| Artifact change | Starts a summarization run directly: the harness starts summarization, so it has no trigger entity |
+| Artifact change | Starts a summarization run directly: summarization has no trigger entity |
 | Chat | A chat stays open for ten minutes after its last answer; a later message resumes the session on the same checkout. The transcript is committed as `chats/<run-id>.jsonl` on the chat's branch |
 | Checkouts | Removed with their branch once nothing on it waits for approval or a merge |
 | Usage per workspace | The sum of its runs' usage, each read from Claude Code before and after the run, over the rolling 5 hours and week |

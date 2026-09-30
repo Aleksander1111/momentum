@@ -14,7 +14,7 @@ artifacts:
 
 Summarizes repository artifacts: chats, plans, results implemented by AI, mapped documents.
 
-- Started by the harness when a run ends, on the run's branch, and when an artifact changes
+- A sub-agent of every run: a Stop hook hands it the run's artifacts before the run ends; a run of its own when an artifact changes
 - The only writer of summaries: runs never summarize their own artifacts
 - Each summary is an entity with its artifacts listed; the entity is its card
 - Skips the path patterns the user excludes

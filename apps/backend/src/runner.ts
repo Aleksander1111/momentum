@@ -5,7 +5,6 @@ import { createKbServer, type Embed } from '@momentum/kb';
 import {
   addWorktree,
   ask,
-  changes,
   commitAll,
   deleteBranch,
   head,
@@ -13,6 +12,7 @@ import {
   mergeKeeping,
   removeWorktree,
   startSession,
+  workingChanges,
   type SessionHandle,
   type SessionResult,
   type Usage,
@@ -172,11 +172,11 @@ export class Runner {
     return id;
   }
 
-  async queued(): Promise<{ workspace: string; id: string; automation: AutomationName; branch: string }[]> {
-    const out: { workspace: string; id: string; automation: AutomationName; branch: string }[] = [];
+  async queued(): Promise<{ workspace: string; id: string; automation: AutomationName }[]> {
+    const out: { workspace: string; id: string; automation: AutomationName }[] = [];
     for (const ws of await this.workspaces.enabled()) {
-      const rows = await ws.index.sql<{ id: string; automation: AutomationName; branch: string }[]>`
-        select id, automation, branch from ${this.t(ws, 'run')} where status = 'queued' order by created_at`;
+      const rows = await ws.index.sql<{ id: string; automation: AutomationName }[]>`
+        select id, automation from ${this.t(ws, 'run')} where status = 'queued' order by created_at`;
       out.push(...rows.map((r) => ({ workspace: ws.name, ...r })));
     }
     return out;
@@ -188,11 +188,6 @@ export class Runner {
 
   isActive(id: string): boolean {
     return this.active.has(id);
-  }
-
-  /** Runs on one branch share its checkout, so they run one after another */
-  branchBusy(workspace: string, branch: string): boolean {
-    return [...this.active.values()].some((a) => a.ref.workspace === workspace && a.ref.branch === branch);
   }
 
   async hasOpenRun(workspace: string, automation: AutomationName): Promise<boolean> {
@@ -310,7 +305,7 @@ export class Runner {
         ),
         tool(
           'report_mapping',
-          'Report the progress of mapping this repository into the knowledge base: what is covered, what the next run should take up, and the share of the repository covered so far (0–1), which estimates the full build. Set complete once the repository is covered; the mapping then stops. List in documents the repository files to summarize; the harness summarizes them after the run.',
+          'Report the progress of mapping this repository into the knowledge base: what is covered, what the next run should take up, and the share of the repository covered so far (0–1), which estimates the full build. Set complete once the repository is covered; the mapping then stops. List in documents the repository files to summarize; they are handed to the summarization sub-agent when you stop.',
           {
             complete: z.boolean(),
             progress: z.string(),
@@ -334,8 +329,9 @@ export class Runner {
       cwd: r.checkout,
       prompt: resume ? prompt : this.firstPrompt(r, prompt),
       instructions,
+      agents: await this.automations.subAgents(ws, (step) => (models.mode === 'single' ? undefined : sdkModel(models.perAutomation[step]))),
       mcpServers: { 'momentum-kb': kb, 'momentum-run': harnessTools },
-      hooks: guardHooks(this.guard, ref),
+      hooks: guardHooks(this.guard, ref, () => this.summaryRequest(ws, r, entry)),
       resume: resume ?? undefined,
       model: sdkModel(model),
       interactiveIdleMs: r.automation === 'chat' ? config.chatIdleMs : undefined,
@@ -401,7 +397,7 @@ export class Runner {
 - Frontmatter: type, origin (user | requested | automation), verification (always unverified when you write), sync, product_impact, timeline_impact, unlocks (integers 0–5: impact on the product, impact on the timeline, how much the work unlocks — they rank the feed), references (to: entity path, relation: snake_case verb such as depends_on, implements, concerns, retires), artifacts (repository paths the entity summarizes).
 - The body starts with "# <title>" and then the card: free-form markdown within ${limit} characters, in whatever form presents the entity best (paragraph, bullets, table, mermaid diagram). The entity is its card. An entity that does not fit is split into entities that reference each other.
 - Card presentation rules from the user: ${rules.trim() || 'none beyond the character limit'}
-- Artifacts are repository files outside knowledge-graph/. When this run ends, the harness summarizes every artifact it added, changed or deleted into entities: never write summaries of your own artifacts.
+- Artifacts are repository files outside knowledge-graph/. Never write summaries of them yourself: when you stop, a harness hook lists the artifacts this run added, changed or deleted, for the momentum-summarization sub-agent.
 - Lifetimes per entity type: ${lifetimes.map((l) => `${l.type}: ${l.rule}`).join('; ') || 'none set'}
 - Every reference must resolve to an existing entity on this branch.`;
   }
@@ -417,12 +413,6 @@ export class Runner {
     const entry = this.active.get(id);
     if (entry?.handle.send(text)) return;
     const r = await this.row(ws, id);
-    // Another run holds the branch's checkout, such as the chat's summarization: resume once it has ended
-    if (await this.hasOpenRunOnBranch(ws.name, r.branch)) {
-      const prompt = r.status === 'queued' ? `${r.prompt}\n\n${text}` : text;
-      await this.setStatus(ws, id, 'queued', { prompt, ended_at: null, error: null });
-      return;
-    }
     const ref: RunRef = { id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: r.target_path };
     await addWorktree(ws.path, r.checkout, r.branch, `refs/heads/${ws.main}`);
     await this.setStatus(ws, id, 'running', { ended_at: null, error: null });
@@ -454,15 +444,7 @@ export class Runner {
         ...usage,
       })}`;
       if (r.automation === 'mapping') await this.afterMapping(ws, status, entry.mapping);
-      // Queued before the validation below, so validation finds the result entity summarization writes
-      if (r.automation === 'summarization') await this.linkChats(ws);
-      else if (status !== 'killed') await this.queueSummarization(ws, r, entry.mapping?.documents ?? []);
-      if (
-        r.branch.startsWith('momentum/implementation/') &&
-        r.automation !== 'validation' &&
-        r.automation !== 'summarization' &&
-        status === 'finished'
-      ) {
+      if (r.branch.startsWith('momentum/implementation/') && r.automation !== 'validation' && status === 'finished') {
         this.bus.emit('implementation_finished', { workspace: ws.name, runId: id, branch: r.branch, targetPath: r.target_path });
       }
       if (r.automation === 'validation') await this.afterValidation(ws, r, entry.validation);
@@ -484,48 +466,42 @@ export class Runner {
     }
   }
 
-  /** The chat is stored as an artifact; summarization writes its summary entity after the run */
+  /** The chat is stored as an artifact of its summary entity */
   private async writeTranscript(ws: Workspace, r: RunRow): Promise<void> {
+    await this.writeTranscriptFile(ws, r);
+    await commitAll(r.checkout, `momentum: chat ${r.id}`);
+    const [summary] = await ws.index.sql<{ entity_path: string }[]>`
+      select entity_path from ${this.t(ws, 'entity_artifact')} where artifact_path = ${`chats/${r.id}.jsonl`}`;
+    if (summary) await ws.index.sql`update ${this.t(ws, 'chat')} set entity_path = ${summary.entity_path} where run_id = ${r.id}`;
+  }
+
+  private async writeTranscriptFile(ws: Workspace, r: RunRow): Promise<void> {
     const messages = await ws.index.sql<{ role: string; text: string; at: Date }[]>`
       select role, text, at from ${this.t(ws, 'run_message')} where run_id = ${r.id} order by seq`;
     const file = join(r.checkout, 'chats', `${r.id}.jsonl`);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf8');
-    await commitAll(r.checkout, `momentum: chat ${r.id}`);
-  }
-
-  /** Each chat points at the summary entity of its transcript, once summarization has written it */
-  private async linkChats(ws: Workspace): Promise<void> {
-    await ws.index.sql`update ${this.t(ws, 'chat')} c set entity_path = a.entity_path
-      from ${this.t(ws, 'entity_artifact')} a
-      where a.artifact_path = 'chats/' || c.run_id || '.jsonl' and c.entity_path is distinct from a.entity_path`;
   }
 
   /**
-   * Summarization is the harness's step, not the run's: the artifacts a run added, changed or deleted, and the documents
-   * a mapping run listed, are summarized by a summarization run on the same branch, minus the user's exclusions
+   * What the Stop hook hands the summarization sub-agent: the artifacts the run added, changed or deleted and the
+   * documents a mapping run listed, minus the knowledge graph and the user's exclusions; null when there are none
    */
-  private async queueSummarization(ws: Workspace, r: RunRow, documents: string[]): Promise<void> {
+  private async summaryRequest(ws: Workspace, r: RunRow, entry: Active): Promise<string | null> {
+    if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
     const { summarization } = await this.settings.values();
     const excluded = (path: string) =>
       path.startsWith('knowledge-graph/') || summarization.exclude.some((pattern) => posix.matchesGlob(path, pattern));
-    const changed = r.base_commit ? await changes(r.checkout, r.base_commit, 'HEAD') : [];
+    const base = (await this.row(ws, r.id)).base_commit;
     const artifacts = new Map<string, string>();
-    for (const c of changed) {
+    for (const c of base ? await workingChanges(r.checkout, base) : []) {
       if (!excluded(c.path)) artifacts.set(c.path, c.status === 'A' ? 'added' : c.status === 'D' ? 'deleted' : 'changed');
     }
-    for (const d of documents) if (!excluded(d) && !artifacts.has(d)) artifacts.set(d, 'to map');
-    if (artifacts.size === 0) return;
+    for (const d of entry.mapping?.documents ?? []) if (!excluded(d) && !artifacts.has(d)) artifacts.set(d, 'to map');
+    if (artifacts.size === 0) return null;
     const list = [...artifacts].map(([path, what]) => `- ${path} (${what})`).join('\n');
-    const target = r.target_path ? ` Its target entity is ${r.target_path}.` : '';
-    await this.create({
-      workspace: ws.name,
-      automation: 'summarization',
-      trigger: 'event',
-      branch: r.branch,
-      title: r.title ? `Summary: ${r.title}` : undefined,
-      prompt: `The ${r.automation} run ${r.id} on this branch ended.${target} Summarize these artifacts:\n\n${list}`,
-    });
+    const target = r.target_path ? ` The run's target entity is ${r.target_path}.` : '';
+    return `Before you finish, have the momentum-summarization sub-agent summarize these artifacts into entities on this branch, passing it the character limit and presentation rules from your instructions.${target}\n\n${list}`;
   }
 
   /** Validation gates the merge: a passed branch is merged into the main line; a failed one is held */

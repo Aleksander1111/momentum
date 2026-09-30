@@ -20,8 +20,13 @@ function writtenFile(run: RunRef, input: HookInput): string | null {
 /**
  * Claude Code hooks that put the consistency guard inside the run: every write to the knowledge base is checked as it
  * happens, and the run cannot end with changes the guard would not accept until it has had a chance to fix them.
+ * Before that, the Stop hook hands the run's artifacts to summarization: `summarize` returns what to summarize, or null.
  */
-export function guardHooks(guard: Guard, run: RunRef): Partial<Record<HookEvent, HookCallbackMatcher[]>> {
+export function guardHooks(
+  guard: Guard,
+  run: RunRef,
+  summarize: () => Promise<string | null> = async () => null,
+): Partial<Record<HookEvent, HookCallbackMatcher[]>> {
   let blocks = 0;
   return {
     PostToolUse: [
@@ -47,7 +52,13 @@ export function guardHooks(guard: Guard, run: RunRef): Partial<Record<HookEvent,
       {
         hooks: [
           async (input): Promise<SyncHookJSONOutput> => {
-            if (input.hook_event_name !== 'Stop' || blocks >= MAX_STOP_BLOCKS) return {};
+            if (input.hook_event_name !== 'Stop') return {};
+            // Once per stop the run reaches by itself, so summarizing never loops
+            if (!input.stop_hook_active) {
+              const request = await summarize();
+              if (request) return { decision: 'block', reason: request };
+            }
+            if (blocks >= MAX_STOP_BLOCKS) return {};
             const { issues } = await guard.check(run);
             if (issues.length === 0) return {};
             blocks++;
