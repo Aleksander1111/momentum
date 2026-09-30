@@ -1,9 +1,10 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
-import type { AutomationName, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
+import type { AutomationName, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
 import {
   addWorktree,
+  ask,
   commitAll,
   deleteBranch,
   head,
@@ -26,6 +27,7 @@ import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { guardHooks } from './hooks.ts';
+import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
 import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
 interface RunRow {
@@ -46,6 +48,9 @@ interface RunRow {
   ended_at: Date | null;
   usage_five_hour: number | null;
   usage_week: number | null;
+  /** Chosen when the run first starts and kept when its session resumes */
+  model: ModelChoice | null;
+  risk: Risk | null;
 }
 
 export interface NewRun {
@@ -265,7 +270,8 @@ export class Runner {
 
   private async launch(ws: Workspace, r: RunRow, ref: RunRef, prompt: string, resume: string | null): Promise<void> {
     const definition = await this.automations.definition(ws, r.automation);
-    const { cards, lifetimes } = await this.settings.values();
+    const { cards, lifetimes, models } = await this.settings.values();
+    const model = r.model ?? (await this.chooseModel(ws, r, models));
     const entry: Active = { ref, handle: null as unknown as SessionHandle };
     const kb = createKbServer({
       index: ws.index,
@@ -317,10 +323,11 @@ export class Runner {
       cwd: r.checkout,
       prompt: resume ? prompt : this.firstPrompt(r, prompt),
       instructions,
-      agents: await this.automations.subAgents(ws),
+      agents: await this.automations.subAgents(ws, (step) => (models.mode === 'single' ? undefined : sdkModel(models.perAutomation[step]))),
       mcpServers: { 'momentum-kb': kb, 'momentum-run': harnessTools },
       hooks: guardHooks(this.guard, ref),
       resume: resume ?? undefined,
+      model: sdkModel(model),
       interactiveIdleMs: r.automation === 'chat' ? config.chatIdleMs : undefined,
       limits: config.limits,
       procgov: config.procgov,
@@ -337,6 +344,38 @@ export class Runner {
     });
     this.active.set(r.id, entry);
     entry.finished = entry.handle.done.then((result) => this.finish(ws, r.id, entry, result));
+  }
+
+  /** The model a run starts on; in risk mode an implementation gets the one set for its estimated risk */
+  private async chooseModel(ws: Workspace, r: RunRow, models: ModelSettings): Promise<ModelChoice> {
+    let model = setModel(models, r.automation);
+    let risk: Risk | null = null;
+    if (models.mode === 'risk' && r.automation === 'implementation') {
+      risk = await this.estimateRisk(ws, r).catch((e) => {
+        console.error(`risk of run ${r.id}:`, e);
+        return null;
+      });
+      if (risk) model = models.risk[risk];
+    }
+    await ws.index.sql`update ${this.t(ws, 'run')} set model = ${model}, risk = ${risk} where id = ${r.id}`;
+    console.log(`run ${r.id} (${r.automation}, ${ws.name}) on ${model}${risk ? `, ${risk} risk` : ''}`);
+    return model;
+  }
+
+  /** The user's risk rules applied to the target and its plans; null without rules or a target */
+  private async estimateRisk(ws: Workspace, r: RunRow): Promise<Risk | null> {
+    const rules = await this.automations.riskRules();
+    const target = r.target_path ? await ws.index.row(r.target_path) : null;
+    if (!rules || !target) return null;
+    const plans = [];
+    for (const ref of await ws.index.neighbours(target.path)) {
+      if (ref.direction !== 'in' || ref.relation !== 'plans') continue;
+      const plan = await ws.index.row(ref.path);
+      if (plan) plans.push(plan);
+    }
+    const q = riskQuestion(rules, target, plans);
+    const answer = await ask({ cwd: r.checkout, ...q, model: ESTIMATOR, limits: config.limits, procgov: config.procgov });
+    return parseRisk(answer);
   }
 
   /** Harness facts every run needs: where it works and the rules of the knowledge base */

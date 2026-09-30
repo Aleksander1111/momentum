@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { MappingState, PutSettings, Settings as SettingsT } from '@momentum/contract';
+import { AutomationName, Risk } from '@momentum/contract';
+import type { MappingState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT } from '@momentum/contract';
 import { api } from '../../lib/api';
-import { durationMs, usagePct } from '../../lib/format';
+import { automationLabel, durationMs, usagePct } from '../../lib/format';
 import { C, F, useTheme, useWide, type Appearance } from '../../ui/theme';
 import { Btn, Chevron, List, Row, RowText, Sect } from '../../ui/parts';
 import { T } from '../../ui/Text';
@@ -128,29 +129,42 @@ function TextRow({
   );
 }
 
-const APPEARANCES: { value: Appearance; label: string }[] = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-];
-
-/** Segmented choice of the colour scheme; kept on this device, not on the server. */
-function AppearancePicker() {
-  const { appearance, setAppearance } = useTheme();
+/** Segmented choice; stretch fills the width with equal segments instead of sitting at the row's end. */
+function Segmented<V extends string>({
+  options,
+  value,
+  onChange,
+  stretch,
+}: {
+  options: { value: V; label: string }[];
+  value: V;
+  onChange: (v: V) => void;
+  stretch?: boolean;
+}) {
   return (
     <View
       accessibilityRole="radiogroup"
-      style={{ marginLeft: 'auto', flexDirection: 'row', backgroundColor: C.card, borderRadius: 8, padding: 2, flexShrink: 0 }}
+      style={{
+        marginLeft: stretch ? undefined : 'auto',
+        flex: stretch ? 1 : undefined,
+        flexDirection: 'row',
+        backgroundColor: C.card,
+        borderRadius: 8,
+        padding: 2,
+        flexShrink: 0,
+      }}
     >
-      {APPEARANCES.map((a) => {
-        const on = a.value === appearance;
+      {options.map((o) => {
+        const on = o.value === value;
         return (
           <Pressable
-            key={a.value}
-            onPress={() => setAppearance(a.value)}
+            key={o.value}
+            onPress={() => onChange(o.value)}
             accessibilityRole="radio"
             accessibilityState={{ checked: on }}
             style={{
+              flex: stretch ? 1 : undefined,
+              alignItems: 'center',
               paddingVertical: 4,
               paddingHorizontal: 10,
               borderRadius: 6,
@@ -158,11 +172,105 @@ function AppearancePicker() {
               boxShadow: on ? '0 1px 2px rgba(0,0,0,.15)' : undefined,
             }}
           >
-            <T style={{ fontSize: 13.5, fontWeight: on ? '700' : '400', color: on ? C.ink : C.muted }}>{a.label}</T>
+            <T style={{ fontSize: 13.5, fontWeight: on ? '700' : '400', color: on ? C.ink : C.muted }}>{o.label}</T>
           </Pressable>
         );
       })}
     </View>
+  );
+}
+
+const APPEARANCES: { value: Appearance; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+/** Colour scheme; kept on this device, not on the server. */
+function AppearancePicker() {
+  const { appearance, setAppearance } = useTheme();
+  return <Segmented options={APPEARANCES} value={appearance} onChange={setAppearance} />;
+}
+
+const MODES: { value: ModelMode; label: string }[] = [
+  { value: 'single', label: 'One model' },
+  { value: 'per_automation', label: 'Per automation' },
+  { value: 'risk', label: 'By risk' },
+];
+
+const MODELS: { value: ModelChoice; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'fable', label: 'Fable' },
+  { value: 'opus', label: 'Opus' },
+  { value: 'sonnet', label: 'Sonnet' },
+  { value: 'haiku', label: 'Haiku' },
+];
+
+const modelLabel = (m: ModelChoice) => MODELS.find((x) => x.value === m)!.label;
+
+/** Row showing a model; opens the choice beneath it. */
+function ModelRow({
+  first,
+  title,
+  value,
+  onSave,
+}: {
+  first?: boolean;
+  title: string;
+  value: ModelChoice;
+  onSave: (m: ModelChoice) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Row first={first} onPress={() => setOpen((o) => !o)}>
+        <RowText title={title} sub={modelLabel(value)} />
+        <Chevron open={open} />
+      </Row>
+      {open ? (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 14, paddingBottom: 12 }}>
+          <Segmented stretch options={MODELS} value={value} onChange={onSave} />
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The model runs start on: one for all, one per automation, or by risk, where an implementation's risk is estimated
+ * from the user's rules just before it starts and every other automation keeps its own model.
+ */
+function Models({ m, onSave }: { m: ModelSettings; onSave: (m: ModelSettings) => void }) {
+  const automations = AutomationName.options.filter((a) => m.mode === 'per_automation' || a !== 'implementation');
+  return (
+    <List>
+      <Row first>
+        <Segmented stretch options={MODES} value={m.mode} onChange={(mode) => onSave({ ...m, mode })} />
+      </Row>
+      {m.mode === 'single' ? (
+        <ModelRow title="All runs" value={m.single} onSave={(single) => onSave({ ...m, single })} />
+      ) : null}
+      {m.mode === 'risk'
+        ? Risk.options.map((r) => (
+            <ModelRow
+              key={r}
+              title={`Implementation, ${r} risk`}
+              value={m.risk[r]}
+              onSave={(choice) => onSave({ ...m, risk: { ...m.risk, [r]: choice } })}
+            />
+          ))
+        : null}
+      {m.mode !== 'single'
+        ? automations.map((a) => (
+            <ModelRow
+              key={a}
+              title={automationLabel(a)}
+              value={m.perAutomation[a]}
+              onSave={(choice) => onSave({ ...m, perAutomation: { ...m.perAutomation, [a]: choice } })}
+            />
+          ))
+        : null}
+    </List>
   );
 }
 
@@ -382,6 +490,15 @@ export default function Settings() {
           />
         </Row>
       </List>
+
+      <Sect>Models</Sect>
+      <Models m={s.models} onSave={(models) => put({ models }, { models })} />
+      {s.models.mode === 'risk' ? (
+        <T style={{ color: C.muted, fontSize: 12.5, marginTop: 8 }}>
+          Risk rules: automations/implementation/risk.md in the harness, listed among the artifacts of the Implementation
+          definition. Without them, implementation keeps its own model.
+        </T>
+      ) : null}
     </ScrollView>
   );
 }

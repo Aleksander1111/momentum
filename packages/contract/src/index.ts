@@ -352,6 +352,27 @@ export const ProjectSetting = z.object({
 });
 export type ProjectSetting = z.infer<typeof ProjectSetting>;
 
+/** A Claude model by alias, so it follows the latest version; default leaves the choice to Claude Code */
+export const ModelChoice = z.enum(['default', 'fable', 'opus', 'sonnet', 'haiku']);
+export type ModelChoice = z.infer<typeof ModelChoice>;
+
+/** How runs get their model: one for all, one per automation, or by the risk estimated before an implementation */
+export const ModelMode = z.enum(['single', 'per_automation', 'risk']);
+export type ModelMode = z.infer<typeof ModelMode>;
+
+export const Risk = z.enum(['low', 'medium', 'high']);
+export type Risk = z.infer<typeof Risk>;
+
+export const ModelSettings = z.object({
+  mode: ModelMode,
+  single: ModelChoice,
+  /** Used in per_automation mode, and in risk mode by every automation but implementation */
+  perAutomation: z.record(AutomationName, ModelChoice),
+  /** Implementation runs in risk mode, by the risk estimated from automations/implementation/risk.md */
+  risk: z.record(Risk, ModelChoice),
+});
+export type ModelSettings = z.infer<typeof ModelSettings>;
+
 export const Settings = z.object({
   projects: z.array(ProjectSetting),
   feedSize: z.number().int().positive(),
@@ -364,6 +385,7 @@ export const Settings = z.object({
     concurrentPerProject: z.number().int().positive(),
     concurrentTotal: z.number().int().positive(),
   }),
+  models: ModelSettings,
 });
 export type Settings = z.infer<typeof Settings>;
 

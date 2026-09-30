@@ -12,6 +12,8 @@ export const DEFINITION_TYPE = 'Harness/Automation';
 export const TRIGGER_TYPE = 'Harness/Trigger';
 /** Automations that run as a step inside the others, as sub-agents of every run */
 export const STEPS: AutomationName[] = ['summarization', 'card'];
+/** The user's rules for the risk of an implementation, an artifact of the implementation definition */
+export const RISK_RULES = 'automations/implementation/risk.md';
 
 export interface Definition {
   name: AutomationName;
@@ -66,7 +68,7 @@ export class Automations {
     for (const def of await this.approved()) {
       for (const artifact of def.artifacts) {
         const prefix = `automations/${def.name}/`;
-        if (!artifact.startsWith(prefix) || artifact.endsWith('trigger.md')) continue;
+        if (!artifact.startsWith(prefix) || artifact.endsWith('trigger.md') || artifact === RISK_RULES) continue;
         const content = await show(harness.path, `refs/heads/${harness.main}`, artifact);
         if (content === null) continue;
         const target = join(ws.path, '.claude', artifact.slice(prefix.length));
@@ -112,14 +114,23 @@ export class Automations {
     return { name, description, instructions: prompt, variant };
   }
 
-  /** Sub-agents available to every run: the steps */
-  async subAgents(ws: Workspace): Promise<Record<string, AgentDefinition>> {
+  /** The risk rules on the harness main line, once the implementation definition lists them among its artifacts */
+  async riskRules(): Promise<string | null> {
+    const def = (await this.approved()).find((d) => d.name === 'implementation');
+    if (!def?.artifacts.includes(RISK_RULES)) return null;
+    const harness = await this.workspaces.harness();
+    const text = await show(harness.path, `refs/heads/${harness.main}`, RISK_RULES);
+    return text?.trim() || null;
+  }
+
+  /** Sub-agents available to every run: the steps, each on its own model when one is set for it */
+  async subAgents(ws: Workspace, model: (step: AutomationName) => string | undefined = () => undefined): Promise<Record<string, AgentDefinition>> {
     const agents: Record<string, AgentDefinition> = {};
     for (const name of STEPS) {
       const file = join(ws.path, '.claude', 'agents', `momentum-${name}.md`);
       if (!existsSync(file)) continue;
       const { description, prompt } = agentFile(await readFile(file, 'utf8'));
-      agents[`momentum-${name}`] = { description, prompt };
+      agents[`momentum-${name}`] = { description, prompt, model: model(name) };
     }
     return agents;
   }

@@ -9,6 +9,7 @@ unlocks: 0
 references: []
 artifacts:
   - automations/implementation/agents/momentum-implementation.md
+  - automations/implementation/risk.md
 ---
 # Implementation
 

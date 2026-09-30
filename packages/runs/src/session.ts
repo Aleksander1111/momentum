@@ -114,6 +114,40 @@ function assistantText(m: SDKMessage): string | null {
   return parts.length ? parts.join('\n\n') : null;
 }
 
+export interface AskSpec {
+  cwd: string;
+  system: string;
+  prompt: string;
+  model: string;
+  limits: ResourceLimits;
+  procgov: string;
+}
+
+/** One question answered in one turn, with no tools and no project settings; the answer's text */
+export async function ask(spec: AskSpec): Promise<string> {
+  const q = query({
+    prompt: spec.prompt,
+    options: {
+      cwd: spec.cwd,
+      systemPrompt: spec.system,
+      settingSources: [],
+      tools: [],
+      maxTurns: 1,
+      persistSession: false,
+      model: spec.model,
+      spawnClaudeCodeProcess: spawnLimited({ limits: spec.limits, procgov: spec.procgov }),
+    },
+  });
+  let text = '';
+  for await (const m of q) {
+    if (m.type === 'result') {
+      if (m.subtype !== 'success' || m.is_error) throw new Error(m.subtype === 'success' ? m.result : m.subtype);
+      text = m.result;
+    }
+  }
+  return text;
+}
+
 /** One Claude Code process per run, through the Agent SDK, with the run's checkout as cwd */
 export function startSession(spec: SessionSpec): SessionHandle {
   const input = new InputQueue();

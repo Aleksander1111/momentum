@@ -1,4 +1,5 @@
-import type { LifetimeRule, MappingState, ProjectSetting, PutSettings, Settings } from '@momentum/contract';
+import { AutomationName } from '@momentum/contract';
+import type { LifetimeRule, MappingState, ModelChoice, ModelSettings, ProjectSetting, PutSettings, Settings } from '@momentum/contract';
 import type { Sql } from '@momentum/kb';
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -14,6 +15,12 @@ const DEFAULTS = {
     { type: 'Governance/Decision', rule: 'kept while referenced' },
   ] satisfies LifetimeRule[],
   agents: { concurrentPerProject: 2, concurrentTotal: 8 },
+  models: {
+    mode: 'single',
+    single: 'default',
+    perAutomation: Object.fromEntries(AutomationName.options.map((a) => [a, 'default'])) as Record<AutomationName, ModelChoice>,
+    risk: { low: 'haiku', medium: 'sonnet', high: 'opus' },
+  } satisfies ModelSettings,
 };
 
 type Key = keyof typeof DEFAULTS;
@@ -102,6 +109,9 @@ export class HarnessSettings {
     const rows = await this.sql<{ key: Key; value: never }[]>`select key, value from harness.setting`;
     const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     this.cache = { ...DEFAULTS, ...stored };
+    // An automation added after the models were stored starts on the default
+    const models = stored.models as ModelSettings | undefined;
+    if (models) this.cache.models = { ...models, perAutomation: { ...DEFAULTS.models.perAutomation, ...models.perAutomation } };
     return this.cache;
   }
 

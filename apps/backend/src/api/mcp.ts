@@ -65,7 +65,7 @@ function createServer(m: Momentum): McpServer {
     m.metrics(a.workspace),
   );
   t('settings', 'Read the harness settings.', {}, () => m.getSettings());
-  t('update_settings', 'Change harness settings: enabled projects, feed size, cards, lifetimes, agents.', PutSettings.shape, (a) =>
+  t('update_settings', 'Change harness settings: enabled projects, feed size, cards, lifetimes, agents, models.', PutSettings.shape, (a) =>
     m.putSettings(a as PutSettings),
   );
   return server;

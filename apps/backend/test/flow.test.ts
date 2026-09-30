@@ -77,6 +77,19 @@ beforeAll(async () => {
 afterAll(async () => {
   await m?.sql.end();
   rmSync(root, { recursive: true, force: true });
+
+describe('model settings', () => {
+  it('keeps what was set and fills an automation stored without one', async () => {
+    const before = (await m.settings.get()).models;
+    expect(before.mode).toBe('single');
+    const { chat: _, ...perAutomation } = before.perAutomation;
+    await m.settings.put({ models: { ...before, mode: 'risk', perAutomation: perAutomation as typeof before.perAutomation } });
+    const after = (await m.settings.get()).models;
+    expect(after.mode).toBe('risk');
+    expect(after.perAutomation.chat).toBe('default');
+    await m.settings.put({ models: before });
+  });
+});
 });
 
 describe('guard, feed and approval', () => {

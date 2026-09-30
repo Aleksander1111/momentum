@@ -109,6 +109,8 @@ create table if not exists ${s}.run (
 create index if not exists run_status on ${s}.run (status);
 alter table ${s}.run add column if not exists usage_five_hour real;
 alter table ${s}.run add column if not exists usage_week real;
+alter table ${s}.run add column if not exists model text;
+alter table ${s}.run add column if not exists risk text;
 create table if not exists ${s}.run_message (
   run_id text not null references ${s}.run (id) on delete cascade,
   seq int not null,

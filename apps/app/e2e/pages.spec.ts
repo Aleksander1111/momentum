@@ -49,3 +49,11 @@ test('the explorer opens an entity with its states', async ({ page }) => {
   await page.getByText(domain.children[0].entities[0].title, { exact: true }).first().click();
   await expect(page.getByText(/Unverified|Verified/).first()).toBeVisible();
 });
+
+test('settings choose the model runs start on', async ({ page }) => {
+  await page.getByText('Settings', { exact: true }).first().click();
+  await expect(page.getByText('Models', { exact: true })).toBeVisible();
+  for (const mode of ['One model', 'Per automation', 'By risk']) {
+    await expect(page.getByRole('radio', { name: mode })).toBeVisible();
+  }
+});
