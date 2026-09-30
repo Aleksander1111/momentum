@@ -170,6 +170,14 @@ create table if not exists ${s}.agent_metric (
   usage_week real,
   recorded_at timestamptz not null default now()
 );
+create table if not exists ${s}.usage_share (
+  run_id text not null,
+  automation text not null,
+  five_hour real not null default 0,
+  week real not null default 0,
+  recorded_at timestamptz not null default now()
+);
+create index if not exists usage_share_at on ${s}.usage_share (recorded_at);
 create table if not exists ${s}.implementation_metric (
   outstanding_issues int not null,
   bugs int not null,

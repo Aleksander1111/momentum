@@ -9,6 +9,7 @@ import {
   ErrorResponse,
   FeedResponse,
   GraphBuildStatus,
+  MetricsRange,
   MetricsResponse,
   PostRunMessage,
   PutGraphBuild,
@@ -164,8 +165,10 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
     },
   );
 
-  app.get('/workspaces/:ws/metrics', { schema: { params: ws, response: { 200: MetricsResponse, ...errors } } }, (req) =>
-    momentum.metrics(req.params.ws),
+  app.get(
+    '/workspaces/:ws/metrics',
+    { schema: { params: ws, querystring: z.object({ range: MetricsRange.default('30d') }), response: { 200: MetricsResponse, ...errors } } },
+    (req) => momentum.metrics(req.params.ws, req.query.range),
   );
 
   app.get('/workspaces/:ws/graph-build', { schema: { params: ws, response: { 200: GraphBuildStatus, ...errors } } }, (req) =>

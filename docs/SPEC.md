@@ -138,7 +138,7 @@ The queryable side of the knowledge base: indices over entities, automations and
   - Understanding: how consistent the knowledge base is and how that consistency moves
   - Agents: misalignments found in chats, issues that recur, and how the automations behave run over run
   - Implementation: the state of the project itself: outstanding issues, bugs and defects
-- Tracks usage continuously: consumption is known at any moment, as percentage points of the rolling 5-hour and weekly limits, per workspace and per run
+- Tracks usage continuously: consumption is known at any moment, as percentage points of the rolling 5-hour and weekly limits, per workspace and per run; the limits are shared by the account, so each rise between readings is split evenly among the runs running at both
 - Holds the attention ranking, computed as the indices are updated; the API reads the ranking and the feed order straight from it, with no work per poll
 
 #### Automations
@@ -331,6 +331,15 @@ The two states are independent. Verification belongs to the attention layer; rej
 | variant | Skill or sub-agent variant in use, for comparing competing implementations |
 | usage | Share of the rolling 5-hour and weekly limits used by the run, in percentage points |
 | recorded_at | Time of measurement |
+
+### usage_share
+
+| Field | Description |
+|---|---|
+| run_id | Run the share belongs to |
+| automation | Automation of the run |
+| usage | The run's share of a rise in the rolling 5-hour and weekly limits, in percentage points |
+| recorded_at | Time of the reading that showed the rise |
 
 ### implementation_metric
 

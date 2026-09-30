@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import type { AutomationMetrics, AutomationName } from '@momentum/contract';
 import { automationLabel } from '../lib/format';
 import { C, useTheme, type Scheme } from './theme';
+import type { ChartSeries } from './TimeChart';
 import { T } from './Text';
 
 /**
@@ -26,16 +27,24 @@ export function useAutomationColor(): (a: AutomationName) => string {
   };
 }
 
-/** Segments of one usage window in slot order, with Other taking whatever the slotted automations do not account for. */
+/**
+ * Segments of one limit in slot order: each automation's share of the rolling window, Other for the automations without a
+ * slot, and Outside runs for the rest of the account's reading, used outside Momentum or rolled into the window before.
+ */
 export function useSegments(automations: AutomationMetrics[], window: 'fiveHour' | 'week', total: number | null): Segment[] {
   const color = useAutomationColor();
+  const used = (a: AutomationMetrics | undefined) => a?.rolling[window] ?? 0;
   const slotted = SLOTTED.flatMap((name) => {
-    const a = automations.find((x) => x.automation === name);
-    const value = a?.usage[window] ?? 0;
+    const value = used(automations.find((x) => x.automation === name));
     return value > 0 ? [{ key: name, label: automationLabel(name), color: color(name), value }] : [];
   });
-  const other = (total ?? 0) - slotted.reduce((s, x) => s + x.value, 0);
-  return other > 0.05 ? [...slotted, { key: 'other', label: 'Other', color: C.muted, value: other }] : slotted;
+  const other = automations.filter((a) => !SLOTTED.includes(a.automation)).reduce((s, a) => s + used(a), 0);
+  const outside = (total ?? 0) - slotted.reduce((s, x) => s + x.value, 0) - other;
+  return [
+    ...slotted,
+    ...(other > 0.05 ? [{ key: 'other', label: 'Other', color: C.muted, value: other }] : []),
+    ...(outside > 0.05 ? [{ key: 'outside', label: 'Outside runs', color: C.faint, value: outside }] : []),
+  ];
 }
 
 /** A stacked bar of the rolling limit: each automation's share, the rest of the track unused. */
@@ -70,4 +79,25 @@ export function UsageLegend({ segments }: { segments: Segment[] }) {
       ))}
     </View>
   );
+}
+
+/**
+ * One chart series per automation in slot order, from `pick`; with `fold`, the automations without a slot are summed
+ * into one Other series, as in the meters.
+ */
+export function useAutomationSeries(
+  automations: AutomationMetrics[],
+  pick: (a: AutomationMetrics) => (number | null)[],
+  fold: boolean,
+): ChartSeries[] {
+  const color = useAutomationColor();
+  const slotted = SLOTTED.flatMap((name) => {
+    const a = automations.find((x) => x.automation === name);
+    return a ? [{ key: name, label: automationLabel(name), color: color(name), values: pick(a) }] : [];
+  });
+  const rest = automations.filter((a) => !SLOTTED.includes(a.automation));
+  if (!fold) return [...slotted, ...rest.map((a) => ({ key: a.automation, label: automationLabel(a.automation), color: C.muted, values: pick(a) }))];
+  if (!rest.length) return slotted;
+  const values = pick(rest[0]!).map((_, i) => rest.reduce((s, a) => s + (pick(a)[i] ?? 0), 0));
+  return [...slotted, { key: 'other', label: 'Other', color: C.muted, values }];
 }

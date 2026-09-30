@@ -4,6 +4,7 @@ import type {
   EntityDetail,
   FeedResponse,
   GraphBuildStatus,
+  MetricsRange,
   MetricsResponse,
   PutSettings,
   RunDetail,
@@ -181,8 +182,8 @@ export class Momentum {
     return graphBuildStatus(await this.workspaces.get(workspace), this.settings);
   }
 
-  async metrics(workspace: string): Promise<MetricsResponse> {
-    return workspaceMetrics(await this.workspaces.get(workspace), this.automations);
+  async metrics(workspace: string, range: MetricsRange = '30d'): Promise<MetricsResponse> {
+    return workspaceMetrics(await this.workspaces.get(workspace), this.automations, range);
   }
 
   getSettings(): Promise<Settings> {

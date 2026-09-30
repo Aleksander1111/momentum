@@ -6,6 +6,7 @@ import {
   EntityDetail,
   FeedResponse,
   GraphBuildStatus,
+  MetricsRange,
   MetricsResponse,
   RunDetail,
   SearchResult,
@@ -141,7 +142,7 @@ export const api = {
   async killRun(id: string): Promise<void> {
     await request('POST', `/runs/${seg(id)}/kill`);
   },
-  metrics: (ws: string) => get(`/workspaces/${seg(ws)}/metrics`, MetricsResponse),
+  metrics: (ws: string, range: MetricsRange) => get(`/workspaces/${seg(ws)}/metrics?range=${range}`, MetricsResponse),
   graphBuild: (ws: string) => get(`/workspaces/${seg(ws)}/graph-build`, GraphBuildStatus),
   async putGraphBuild(ws: string, req: PutGraphBuild): Promise<GraphBuildStatus> {
     const res = await request('PUT', `/workspaces/${seg(ws)}/graph-build`, req);

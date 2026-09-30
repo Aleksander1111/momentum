@@ -301,34 +301,44 @@ export type PutGraphBuild = z.infer<typeof PutGraphBuild>;
 
 // Metrics, SPEC.md → Index and metrics database
 
-export const Series = z.array(z.object({ at: z.string(), value: z.number() }));
+/** The span the metrics cover: hourly points over a day, or daily points over a week or a month */
+export const MetricsRange = z.enum(['24h', '7d', '30d']);
+export type MetricsRange = z.infer<typeof MetricsRange>;
+
+/** One point per hour or day of the range, oldest first; null where there is nothing to show, such as an average of nothing */
+export const Series = z.array(z.object({ at: z.string(), value: z.number().nullable() }));
 export type Series = z.infer<typeof Series>;
 
-export const MetricValue = z.object({ value: z.number(), series: Series });
+/** The figure over the whole range (a total, an average or the latest level) and its points in time */
+export const MetricValue = z.object({ value: z.number().nullable(), series: Series });
 export type MetricValue = z.infer<typeof MetricValue>;
 
-/** One automation over the last 7 days; usage over the rolling 5 hours and week, as in `MetricsResponse.usage` */
+/** One automation over the range; usage in percentage points of each limit, split among the runs running together */
 export const AutomationMetrics = z.object({
   automation: AutomationName,
-  runs: z.number(),
-  failed: z.number(),
-  /** Mean time from start to end of the runs that ended; null when none did */
-  avgSeconds: z.number().nullable(),
-  usage: Usage,
   variant: z.string().nullable(),
+  runs: MetricValue,
+  failed: MetricValue,
+  /** Mean time from start to end of the runs that ended */
+  avgSeconds: MetricValue,
+  usage: z.object({ fiveHour: MetricValue, week: MetricValue }),
+  /** What the automation used within the rolling 5 hours and week, the windows of the limits */
+  rolling: Usage,
 });
 export type AutomationMetrics = z.infer<typeof AutomationMetrics>;
 
 export const MetricsResponse = z.object({
   workspace: z.string(),
+  range: MetricsRange,
   since: z.string(),
-  usage: Usage,
+  /** The account's share of each limit: the latest reading and the readings over the range */
+  usage: z.object({ fiveHour: MetricValue, week: MetricValue }),
   attention: z.object({
     timePerItemSeconds: MetricValue,
     approved: MetricValue,
     rejected: MetricValue,
     sentBack: MetricValue,
-    patternsAutomated: z.number(),
+    patternsAutomated: MetricValue,
   }),
   understanding: z.object({
     consistency: MetricValue,
@@ -337,8 +347,8 @@ export const MetricsResponse = z.object({
   agents: z.object({
     misalignments: MetricValue,
     recurringIssues: MetricValue,
-    runsThisWeek: MetricValue,
-    /** Each automation that ran in the last 7 days, the most used first */
+    runs: MetricValue,
+    /** Each automation that ran or used anything in the range, the most used first */
     automations: z.array(AutomationMetrics),
   }),
   implementation: z.object({

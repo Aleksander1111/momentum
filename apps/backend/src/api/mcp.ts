@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { AutomationName, PutSettings } from '@momentum/contract';
+import { AutomationName, MetricsRange, PutSettings } from '@momentum/contract';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Momentum } from '../momentum.ts';
@@ -61,8 +61,8 @@ function createServer(m: Momentum): McpServer {
     { workspace: z.string() },
     (a) => m.resetProject(a.workspace),
   );
-  t('metrics', 'Attention, understanding, agents and implementation metrics and usage of a workspace.', { workspace: z.string() }, (a) =>
-    m.metrics(a.workspace),
+  t('metrics', 'Attention, understanding, agents and implementation metrics and usage of a workspace.', { workspace: z.string(), range: MetricsRange.optional() }, (a) =>
+    m.metrics(a.workspace, a.range),
   );
   t('settings', 'Read the harness settings.', {}, () => m.getSettings());
   t('update_settings', 'Change harness settings: enabled projects, feed size, cards, lifetimes, agents, models.', PutSettings.shape, (a) =>

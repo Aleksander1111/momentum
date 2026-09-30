@@ -26,6 +26,8 @@ const LIGHT = {
   /** Backdrop of diagrams, which are drawn dark on light. */
   diagram: 'transparent',
   dim: 'rgba(30,41,59,.55)',
+  /** A second neutral for charts, told apart from `muted`. */
+  faint: '#A7B0B5',
 };
 
 type Palette = { readonly [K in keyof typeof LIGHT]: string };
@@ -49,6 +51,7 @@ const DARK: Palette = {
   commentBg: '#2F2523',
   diagram: '#EEF1EC',
   dim: 'rgba(0,0,0,.6)',
+  faint: '#5E6B72',
 };
 
 export const PALETTES: Record<Scheme, Palette> = { light: LIGHT, dark: DARK };

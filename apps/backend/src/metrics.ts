@@ -1,131 +1,198 @@
-import { AutomationName, type AutomationMetrics, type MetricsResponse, type MetricValue, type Series } from '@momentum/contract';
+import { AutomationName, type AutomationMetrics, type MetricsRange, type MetricsResponse, type MetricValue, type Series } from '@momentum/contract';
 import type { Automations } from './automations.ts';
 import type { Workspace } from './workspaces.ts';
 
-const DAYS = 30;
 const PATTERN_WINDOW = 10;
+
+const RANGES: Record<MetricsRange, { unit: 'hour' | 'day'; points: number }> = {
+  '24h': { unit: 'hour', points: 24 },
+  '7d': { unit: 'day', points: 7 },
+  '30d': { unit: 'day', points: 30 },
+};
 
 type Agg = 'avg' | 'sum' | 'count' | 'last';
 
-/** Daily series over the last 30 days of one column of a metrics table */
-async function series(ws: Workspace, table: string, column: string, agg: Agg, where = 'true'): Promise<Series> {
+/** The hours or days of a range, and the queries that read a table into them */
+class Span {
+  readonly unit: 'hour' | 'day';
+  /** SQL for the start of the first bucket */
+  readonly start: string;
+
+  private constructor(
+    private readonly ws: Workspace,
+    range: MetricsRange,
+    readonly buckets: Date[],
+  ) {
+    const { unit, points } = RANGES[range];
+    this.unit = unit;
+    this.start = `date_trunc('${unit}', now()) - interval '${points - 1} ${unit}s'`;
+  }
+
+  static async of(ws: Workspace, range: MetricsRange): Promise<Span> {
+    const { unit, points } = RANGES[range];
+    const rows = await ws.index.sql.unsafe<{ b: Date }[]>(
+      `select generate_series(date_trunc('${unit}', now()) - interval '${points - 1} ${unit}s', date_trunc('${unit}', now()), interval '1 ${unit}') as b`,
+    );
+    return new Span(ws, range, rows.map((r) => r.b));
+  }
+
+  private expr(agg: Agg, column: string, at: string): string {
+    if (agg === 'last') return `(array_agg(${column} order by ${at} desc))[1]`;
+    if (agg === 'count') return 'count(*)';
+    return `${agg}(${column})`;
+  }
+
+  /** Aggregates per bucket and, with `by`, per value of that column */
+  private rows(table: string, at: string, expr: string, where: string, by?: string) {
+    return this.ws.index.sql.unsafe<{ b: Date; k: string | null; v: number | null }[]>(
+      `select date_trunc('${this.unit}', ${at}) as b, ${by ?? 'null'}::text as k, (${expr})::float8 as v from ${table}
+       where ${at} >= ${this.start} and ${where} group by 1, 2`,
+    );
+  }
+
+  /** Counts and sums are 0 where nothing happened, averages null, levels carry the last one forward */
+  private fill(rows: { b: Date; v: number | null }[], agg: Agg, carry: number | null): Series {
+    const byTime = new Map(rows.map((r) => [r.b.getTime(), r.v]));
+    return this.buckets.map((b) => {
+      let value = byTime.get(b.getTime()) ?? null;
+      if (agg === 'last') value = carry = value ?? carry;
+      else if (agg !== 'avg') value ??= 0;
+      return { at: b.toISOString(), value };
+    });
+  }
+
+  async series(table: string, column: string, agg: Agg, where = 'true', at = 'recorded_at'): Promise<Series> {
+    const rows = await this.rows(table, at, this.expr(agg, column, at), where);
+    let carry: number | null = null;
+    if (agg === 'last') {
+      const [r] = await this.ws.index.sql.unsafe<{ v: number | null }[]>(
+        `select (${column})::float8 as v from ${table} where ${at} < ${this.start} and ${where} order by ${at} desc limit 1`,
+      );
+      carry = r?.v ?? null;
+    }
+    return this.fill(rows, agg, carry);
+  }
+
+  /** One series per value of `by` */
+  async seriesBy(table: string, by: string, column: string, agg: Exclude<Agg, 'last'>, where = 'true', at = 'recorded_at') {
+    const rows = await this.rows(table, at, this.expr(agg, column, at), where, by);
+    const keys = new Set(rows.map((r) => r.k ?? ''));
+    return new Map([...keys].map((k) => [k, this.fill(rows.filter((r) => r.k === k), agg, null)]));
+  }
+
+  /** `expr` over the whole range, per value of `by` */
+  async figureBy(table: string, by: string, expr: string, where = 'true', at = 'recorded_at') {
+    const rows = await this.ws.index.sql.unsafe<{ k: string; v: number | null }[]>(
+      `select ${by}::text as k, (${expr})::float8 as v from ${table} where ${at} >= ${this.start} and ${where} group by 1`,
+    );
+    return new Map(rows.map((r) => [r.k, r.v]));
+  }
+
+  async figure(table: string, expr: string, where = 'true', at = 'recorded_at'): Promise<number | null> {
+    const [r] = await this.ws.index.sql.unsafe<{ v: number | null }[]>(
+      `select (${expr})::float8 as v from ${table} where ${at} >= ${this.start} and ${where}`,
+    );
+    return r?.v ?? null;
+  }
+}
+
+const total = (s: Series): number => s.reduce((a, p) => a + (p.value ?? 0), 0);
+const latest = (s: Series): number | null => s.at(-1)?.value ?? null;
+const metric = (value: number | null, series: Series): MetricValue => ({ value, series });
+const summed = (series: Series): MetricValue => metric(total(series), series);
+
+const DURATION = 'extract(epoch from ended_at - started_at)';
+
+/** Runs, failures, time and usage of each automation over the range */
+async function perAutomation(ws: Workspace, span: Span, automations: Automations): Promise<AutomationMetrics[]> {
   const s = ws.index.schema;
-  const at = table.endsWith('_metric') ? 'recorded_at' : 'created_at';
-  const expr =
-    agg === 'last'
-      ? `(array_agg(${column} order by ${at} desc))[1]`
-      : agg === 'count'
-        ? 'count(*)'
-        : `${agg}(${column})`;
-  const rows = await ws.index.sql.unsafe<{ day: Date; value: number | null }[]>(
-    `select d.day, x.value::float8 as value
-     from generate_series(date_trunc('day', now()) - interval '${DAYS - 1} days', date_trunc('day', now()), interval '1 day') as d(day)
-     left join (
-       select date_trunc('day', ${at}) as day, ${expr} as value from ${s}.${table}
-       where ${at} > now() - interval '${DAYS} days' and ${where} group by 1
-     ) x on x.day = d.day order by d.day`,
-  );
-  let carry: number | null = null;
-  return rows.map((r) => {
-    let value = r.value;
-    if (agg === 'last') value = carry = value ?? carry;
-    return { at: r.day.toISOString(), value: value ?? 0 };
-  });
-}
-
-function total(s: Series): number {
-  return s.reduce((a, p) => a + p.value, 0);
-}
-
-function latest(s: Series): number {
-  return s.at(-1)?.value ?? 0;
-}
-
-const metric = (value: number, s: Series): MetricValue => ({ value, series: s });
-
-/** Runs, failures, time and usage of each automation over the last 7 days */
-async function perAutomation(ws: Workspace, automations: Automations): Promise<AutomationMetrics[]> {
-  const s = ws.index.schema;
-  const runs = await ws.index.sql.unsafe<{ automation: string; runs: number; failed: number; avg_seconds: number | null }[]>(
-    `select automation, count(*)::int as runs, count(*) filter (where status = 'failed')::int as failed,
-            avg(extract(epoch from ended_at - started_at))::float8 as avg_seconds
-     from ${s}.run where created_at > now() - interval '7 days' group by 1`,
-  );
-  const usage = await ws.index.sql.unsafe<{ automation: string; five_hour: number | null; week: number | null }[]>(
-    `select automation, (sum(usage_five_hour) filter (where recorded_at > now() - interval '5 hours'))::float8 as five_hour,
-            sum(usage_week)::float8 as week
-     from ${s}.agent_metric where recorded_at > now() - interval '7 days' group by 1`,
+  const runs = await span.seriesBy(`${s}.run`, 'automation', '1', 'count', 'true', 'created_at');
+  const failed = await span.seriesBy(`${s}.run`, 'automation', '1', 'count', `status = 'failed'`, 'created_at');
+  const time = await span.seriesBy(`${s}.run`, 'automation', DURATION, 'avg', 'started_at is not null', 'ended_at');
+  const avg = await span.figureBy(`${s}.run`, 'automation', `avg(${DURATION})`, 'started_at is not null', 'ended_at');
+  const fiveHour = await span.seriesBy(`${s}.usage_share`, 'automation', 'five_hour', 'sum');
+  const week = await span.seriesBy(`${s}.usage_share`, 'automation', 'week', 'sum');
+  const rolling = await ws.index.sql.unsafe<{ automation: string; five_hour: number | null; week: number | null }[]>(
+    `select automation, (sum(five_hour) filter (where recorded_at > now() - interval '5 hours'))::float8 as five_hour,
+            sum(week)::float8 as week
+     from ${s}.usage_share where recorded_at > now() - interval '7 days' group by 1`,
   );
   const variants = new Map((await automations.approved()).map((d) => [d.name, d.variant]));
-  const names = new Set([...runs.map((r) => r.automation), ...usage.map((u) => u.automation)]);
+  const zeros = span.buckets.map((b) => ({ at: b.toISOString(), value: 0 }));
+  const gaps = span.buckets.map((b) => ({ at: b.toISOString(), value: null }));
+  const names = new Set([...runs.keys(), ...week.keys(), ...fiveHour.keys()]);
   return [...names]
     .filter((n): n is AutomationName => AutomationName.safeParse(n).success)
     .map((automation) => {
-      const r = runs.find((x) => x.automation === automation);
-      const u = usage.find((x) => x.automation === automation);
+      const r = rolling.find((x) => x.automation === automation);
       return {
         automation,
-        runs: r?.runs ?? 0,
-        failed: r?.failed ?? 0,
-        avgSeconds: r?.avg_seconds ?? null,
-        usage: { fiveHour: u?.five_hour ?? null, week: u?.week ?? null },
         variant: variants.get(automation) ?? null,
+        runs: summed(runs.get(automation) ?? zeros),
+        failed: summed(failed.get(automation) ?? zeros),
+        avgSeconds: metric(avg.get(automation) ?? null, time.get(automation) ?? gaps),
+        usage: { fiveHour: summed(fiveHour.get(automation) ?? zeros), week: summed(week.get(automation) ?? zeros) },
+        rolling: { fiveHour: r?.five_hour ?? null, week: r?.week ?? null },
       };
     })
-    .sort((a, b) => (b.usage.week ?? 0) - (a.usage.week ?? 0) || b.runs - a.runs);
+    .sort((a, b) => (b.usage.week.value ?? 0) - (a.usage.week.value ?? 0) || (b.runs.value ?? 0) - (a.runs.value ?? 0));
 }
 
-export async function workspaceMetrics(ws: Workspace, automations: Automations): Promise<MetricsResponse> {
+export async function workspaceMetrics(ws: Workspace, automations: Automations, range: MetricsRange): Promise<MetricsResponse> {
   const s = ws.index.schema;
-  const sql = ws.index.sql;
-  const [usage] = await sql.unsafe<{ five_hour: number | null; week: number | null }[]>(
-    `select (select sum(usage_five_hour) from ${s}.agent_metric where recorded_at > now() - interval '5 hours')::float8 as five_hour,
-            (select sum(usage_week) from ${s}.agent_metric where recorded_at > now() - interval '7 days')::float8 as week`,
-  );
-  const [avg] = await sql.unsafe<{ seconds: number | null }[]>(
-    `select avg(time_spent_ms) / 1000.0 as seconds from ${s}.attention_metric where recorded_at > now() - interval '${DAYS} days'`,
-  );
-  const [patterns] = await sql.unsafe<{ n: number }[]>(`select count(*)::int as n from ${s}.attention_pattern`);
-  const [understanding] = await sql.unsafe<{ consistency: number }[]>(
-    `select consistency from ${s}.understanding_metric order by recorded_at desc limit 1`,
-  );
-  const [runsWeek] = await sql.unsafe<{ n: number }[]>(
-    `select count(*)::int as n from ${s}.run where created_at > now() - interval '7 days' and automation <> 'setup'`,
-  );
+  const span = await Span.of(ws, range);
+  const attention = `${s}.attention_metric`;
 
-  const timePerItem = (await series(ws, 'attention_metric', 'time_spent_ms', 'avg')).map((p) => ({ ...p, value: p.value / 1000 }));
-  const approved = await series(ws, 'attention_metric', '1', 'count', `reaction = 'approved'`);
-  const rejected = await series(ws, 'attention_metric', '1', 'count', `reaction = 'rejected'`);
-  const sentBack = await series(ws, 'attention_metric', '1', 'count', `reaction = 'sent_back'`);
-  const consistency = await series(ws, 'understanding_metric', 'consistency', 'last');
-  const openIssues = await series(ws, 'understanding_metric', 'open_issues', 'last');
-  const misalignments = await series(ws, 'agent_metric', 'misalignments', 'sum');
-  const recurring = await series(ws, 'agent_metric', 'recurring_issues', 'sum');
-  const runs = await series(ws, 'run', '1', 'count', `automation <> 'setup'`);
-  const outstanding = await series(ws, 'implementation_metric', 'outstanding_issues', 'last');
-  const bugs = await series(ws, 'implementation_metric', 'bugs', 'last');
-  const defects = await series(ws, 'implementation_metric', 'defects', 'last');
+  /** The account's reading of one limit: the latest within its window, and the last reading of each bucket */
+  const usage = async (column: string, window: string): Promise<MetricValue> => {
+    const series = await span.series('harness.usage_sample', column, 'last', `${column} is not null`, 'at');
+    const [r] = await ws.index.sql.unsafe<{ v: number | null }[]>(
+      `select ${column}::float8 as v from harness.usage_sample where at > now() - interval '${window}' and ${column} is not null
+       order by at desc limit 1`,
+    );
+    return metric(r?.v ?? null, series);
+  };
+
+  const timePerItem = await span.series(attention, 'time_spent_ms / 1000.0', 'avg');
+  const approved = await span.series(attention, '1', 'count', `reaction = 'approved'`);
+  const rejected = await span.series(attention, '1', 'count', `reaction = 'rejected'`);
+  const sentBack = await span.series(attention, '1', 'count', `reaction = 'sent_back'`);
+  // Patterns only accumulate: the count standing at the end of each bucket
+  const newPatterns = await span.series(`${s}.attention_pattern`, '1', 'count', 'true', 'detected_at');
+  let patterns = (await ws.index.sql.unsafe<{ n: number }[]>(
+    `select count(*)::int as n from ${s}.attention_pattern where detected_at < ${span.start}`,
+  ))[0]!.n;
+  const patternsAutomated = newPatterns.map((p) => ({ at: p.at, value: (patterns += p.value ?? 0) }));
+  const consistency = await span.series(`${s}.understanding_metric`, 'consistency', 'last');
+  const openIssues = await span.series(`${s}.understanding_metric`, 'open_issues', 'last');
+  const misalignments = await span.series(`${s}.agent_metric`, 'misalignments', 'sum');
+  const recurring = await span.series(`${s}.agent_metric`, 'recurring_issues', 'sum');
+  const runs = await span.series(`${s}.run`, '1', 'count', `automation <> 'setup'`, 'created_at');
+  const outstanding = await span.series(`${s}.implementation_metric`, 'outstanding_issues', 'last');
+  const bugs = await span.series(`${s}.implementation_metric`, 'bugs', 'last');
+  const defects = await span.series(`${s}.implementation_metric`, 'defects', 'last');
 
   return {
     workspace: ws.name,
-    since: new Date(Date.now() - DAYS * 86_400_000).toISOString(),
-    usage: { fiveHour: usage?.five_hour ?? null, week: usage?.week ?? null },
+    range,
+    since: span.buckets[0]!.toISOString(),
+    usage: { fiveHour: await usage('five_hour', '5 hours'), week: await usage('week', '7 days') },
     attention: {
-      timePerItemSeconds: metric(Math.round(avg?.seconds ?? 0), timePerItem),
-      approved: metric(total(approved), approved),
-      rejected: metric(total(rejected), rejected),
-      sentBack: metric(total(sentBack), sentBack),
-      patternsAutomated: patterns?.n ?? 0,
+      timePerItemSeconds: metric(await span.figure(attention, 'round(avg(time_spent_ms) / 1000.0)'), timePerItem),
+      approved: summed(approved),
+      rejected: summed(rejected),
+      sentBack: summed(sentBack),
+      patternsAutomated: metric(patterns, patternsAutomated),
     },
     understanding: {
-      consistency: metric(understanding?.consistency ?? 1, consistency),
+      consistency: metric(latest(consistency), consistency),
       openIssues: metric(latest(openIssues), openIssues),
     },
     agents: {
-      misalignments: metric(total(misalignments), misalignments),
-      recurringIssues: metric(total(recurring), recurring),
-      runsThisWeek: metric(runsWeek?.n ?? 0, runs.slice(-7)),
-      automations: await perAutomation(ws, automations),
+      misalignments: summed(misalignments),
+      recurringIssues: summed(recurring),
+      runs: summed(runs),
+      automations: await perAutomation(ws, span, automations),
     },
     implementation: {
       outstandingIssues: metric(latest(outstanding), outstanding),

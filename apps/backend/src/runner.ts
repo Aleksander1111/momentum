@@ -28,6 +28,7 @@ import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { guardHooks } from './hooks.ts';
+import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
 import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
@@ -69,7 +70,13 @@ export interface NewRun {
 
 interface Active {
   ref: RunRef;
+  ws: Workspace;
   handle: SessionHandle;
+  /** Whether a reading of the limits arrived while the run was running, so the next rise can be partly its own */
+  seen: boolean;
+  /** What the run used in earlier sessions, and its share of the rises in this one */
+  base: Rise;
+  usage: Rise;
   validation?: { passed: boolean; form: string; summary: string };
   graphBuild?: { complete: boolean; progress: string; coverage: number; documents?: string[] };
   /** Settles once the run's changes have passed the guard and its status is recorded */
@@ -77,10 +84,10 @@ interface Active {
 }
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
-const delta = (a: number | null, b: number | null) => (a !== null && b !== null ? Math.max(0, b - a) : null);
-
 export class Runner {
   private active = new Map<string, Active>();
+  /** The latest account-wide reading of the limits, from whichever run reported it */
+  private reading: Usage = { fiveHour: null, week: null };
 
   constructor(
     private readonly workspaces: Workspaces,
@@ -273,7 +280,14 @@ export class Runner {
     const definition = await this.automations.definition(ws, r.automation);
     const { cards, lifetimes, models } = await this.settings.values();
     const model = r.model ?? (await this.chooseModel(ws, r, models));
-    const entry: Active = { ref, handle: null as unknown as SessionHandle };
+    const entry: Active = {
+      ref,
+      ws,
+      handle: null as unknown as SessionHandle,
+      seen: false,
+      base: { fiveHour: r.usage_five_hour ?? 0, week: r.usage_week ?? 0 },
+      usage: { fiveHour: 0, week: 0 },
+    };
     const kb = createKbServer({
       index: ws.index,
       embed: this.embed,
@@ -323,8 +337,6 @@ export class Runner {
       definition.instructions,
       this.context(ws, r, cards.characterLimit, cards.presentationRules, lifetimes),
     ].join('\n\n');
-    let latest: Usage = { fiveHour: null, week: null };
-    let first: Usage | null = null;
     entry.handle = startSession({
       cwd: r.checkout,
       prompt: resume ? prompt : this.firstPrompt(r, prompt),
@@ -339,14 +351,7 @@ export class Runner {
       procgov: config.procgov,
       onSessionId: (sid) => void this.setStatus(ws, r.id, 'running', { session_id: sid }),
       onAssistantText: (text) => void this.addMessage(ws, r.id, 'assistant', text),
-      onUsage: (u) => {
-        latest = { fiveHour: u.fiveHour ?? latest.fiveHour, week: u.week ?? latest.week };
-        first = { fiveHour: first?.fiveHour ?? latest.fiveHour, week: first?.week ?? latest.week };
-        void this.workspaces.sql`insert into harness.usage_sample ${this.workspaces.sql({ five_hour: latest.fiveHour, week: latest.week })}`;
-        // What the run has used so far, visible while it runs
-        void ws.index.sql`update ${this.t(ws, 'run')} set usage_five_hour = ${delta(first.fiveHour, latest.fiveHour)},
-          usage_week = ${delta(first.week, latest.week)} where id = ${r.id} and status = 'running'`;
-      },
+      onUsage: (u) => void this.onReading(u).catch((e) => console.error(`usage reading of run ${r.id}:`, e)),
     });
     this.active.set(r.id, entry);
     entry.finished = entry.handle.done.then((result) => this.finish(ws, r.id, entry, result));
@@ -424,6 +429,33 @@ export class Runner {
     this.active.get(id)?.handle.kill();
   }
 
+  /**
+   * A reading of the account's limits reported by any run. The limits are shared, so the rise since the last reading is
+   * split evenly among the runs that were running at both; each run's share is recorded and shown while it runs.
+   */
+  private async onReading(u: Usage): Promise<void> {
+    const next = merge(this.reading, u);
+    const up = rise(this.reading, next);
+    this.reading = next;
+    const sharing = [...this.active.values()].filter((a) => a.seen);
+    for (const a of this.active.values()) a.seen = true;
+    const share = { fiveHour: up.fiveHour / (sharing.length || 1), week: up.week / (sharing.length || 1) };
+    const writes = up.fiveHour || up.week ? sharing : [];
+    for (const a of writes) {
+      a.usage.fiveHour += share.fiveHour;
+      a.usage.week += share.week;
+    }
+    await this.workspaces.sql`insert into harness.usage_sample ${this.workspaces.sql({ five_hour: next.fiveHour, week: next.week })}`;
+    await Promise.all(
+      writes.map(async (a) => {
+        const sql = a.ws.index.sql;
+        await sql`insert into ${this.t(a.ws, 'usage_share')} ${sql({ run_id: a.ref.id, automation: a.ref.automation, five_hour: share.fiveHour, week: share.week })}`;
+        await sql`update ${this.t(a.ws, 'run')} set usage_five_hour = ${a.base.fiveHour + a.usage.fiveHour},
+          usage_week = ${a.base.week + a.usage.week} where id = ${a.ref.id}`;
+      }),
+    );
+  }
+
   private async finish(ws: Workspace, id: string, entry: Active, result: SessionResult): Promise<void> {
     this.active.delete(id);
     const r = await this.row(ws, id);
@@ -431,17 +463,19 @@ export class Runner {
       if (r.automation === 'chat') await this.writeTranscript(ws, r);
       await this.guard.transaction(entry.ref);
       const status: RunStatus = result.error === 'killed' ? 'killed' : result.ok ? 'finished' : 'failed';
-      const usage = {
-        usage_five_hour: delta(result.usageBefore.fiveHour, result.usageAfter.fiveHour) ?? r.usage_five_hour,
-        usage_week: delta(result.usageBefore.week, result.usageAfter.week) ?? r.usage_week,
-      };
-      await this.setStatus(ws, id, status, { ended_at: new Date(), error: result.ok ? null : result.error, ...usage });
+      await this.setStatus(ws, id, status, {
+        ended_at: new Date(),
+        error: result.ok ? null : result.error,
+        usage_five_hour: entry.base.fiveHour + entry.usage.fiveHour,
+        usage_week: entry.base.week + entry.usage.week,
+      });
       const variant = (await this.automations.approved()).find((d) => d.name === r.automation)?.variant ?? null;
       await ws.index.sql`insert into ${this.t(ws, 'agent_metric')} ${ws.index.sql({
         run_id: id,
         automation: r.automation,
         variant,
-        ...usage,
+        usage_five_hour: entry.usage.fiveHour,
+        usage_week: entry.usage.week,
       })}`;
       if (r.automation === 'graph-build') await this.afterGraphBuild(ws, status, entry.graphBuild);
       if (r.branch.startsWith('momentum/implementation/') && r.automation !== 'validation' && status === 'finished') {

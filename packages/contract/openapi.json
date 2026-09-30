@@ -1505,6 +1505,20 @@
         "parameters": [
           {
             "schema": {
+              "default": "30d",
+              "type": "string",
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ]
+            },
+            "in": "query",
+            "name": "range",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "string"
             },
             "in": "path",
@@ -1523,6 +1537,14 @@
                     "workspace": {
                       "type": "string"
                     },
+                    "range": {
+                      "type": "string",
+                      "enum": [
+                        "24h",
+                        "7d",
+                        "30d"
+                      ]
+                    },
                     "since": {
                       "type": "string"
                     },
@@ -1530,12 +1552,72 @@
                       "type": "object",
                       "properties": {
                         "fiveHour": {
-                          "nullable": true,
-                          "type": "number"
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
                         },
                         "week": {
-                          "nullable": true,
-                          "type": "number"
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -1551,6 +1633,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1562,6 +1645,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1583,6 +1667,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1594,6 +1679,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1615,6 +1701,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1626,6 +1713,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1647,6 +1735,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1658,6 +1747,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1676,7 +1766,38 @@
                           "additionalProperties": false
                         },
                         "patternsAutomated": {
-                          "type": "number"
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -1695,6 +1816,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1706,6 +1828,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1727,6 +1850,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1738,6 +1862,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1769,6 +1894,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1780,6 +1906,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1801,6 +1928,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1812,6 +1940,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1829,10 +1958,11 @@
                           ],
                           "additionalProperties": false
                         },
-                        "runsThisWeek": {
+                        "runs": {
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1844,6 +1974,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1881,17 +2012,191 @@
                                   "graph-build"
                                 ]
                               },
+                              "variant": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "runs": {
-                                "type": "number"
+                                "type": "object",
+                                "properties": {
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  },
+                                  "series": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "at": {
+                                          "type": "string"
+                                        },
+                                        "value": {
+                                          "nullable": true,
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "at",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "value",
+                                  "series"
+                                ],
+                                "additionalProperties": false
                               },
                               "failed": {
-                                "type": "number"
+                                "type": "object",
+                                "properties": {
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  },
+                                  "series": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "at": {
+                                          "type": "string"
+                                        },
+                                        "value": {
+                                          "nullable": true,
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "at",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "value",
+                                  "series"
+                                ],
+                                "additionalProperties": false
                               },
                               "avgSeconds": {
-                                "nullable": true,
-                                "type": "number"
+                                "type": "object",
+                                "properties": {
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  },
+                                  "series": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "at": {
+                                          "type": "string"
+                                        },
+                                        "value": {
+                                          "nullable": true,
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "at",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "value",
+                                  "series"
+                                ],
+                                "additionalProperties": false
                               },
                               "usage": {
+                                "type": "object",
+                                "properties": {
+                                  "fiveHour": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "nullable": true,
+                                        "type": "number"
+                                      },
+                                      "series": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "at": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "nullable": true,
+                                              "type": "number"
+                                            }
+                                          },
+                                          "required": [
+                                            "at",
+                                            "value"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "value",
+                                      "series"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "week": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "nullable": true,
+                                        "type": "number"
+                                      },
+                                      "series": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "at": {
+                                              "type": "string"
+                                            },
+                                            "value": {
+                                              "nullable": true,
+                                              "type": "number"
+                                            }
+                                          },
+                                          "required": [
+                                            "at",
+                                            "value"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "value",
+                                      "series"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "fiveHour",
+                                  "week"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "rolling": {
                                 "type": "object",
                                 "properties": {
                                   "fiveHour": {
@@ -1908,19 +2213,16 @@
                                   "week"
                                 ],
                                 "additionalProperties": false
-                              },
-                              "variant": {
-                                "nullable": true,
-                                "type": "string"
                               }
                             },
                             "required": [
                               "automation",
+                              "variant",
                               "runs",
                               "failed",
                               "avgSeconds",
                               "usage",
-                              "variant"
+                              "rolling"
                             ],
                             "additionalProperties": false
                           }
@@ -1929,7 +2231,7 @@
                       "required": [
                         "misalignments",
                         "recurringIssues",
-                        "runsThisWeek",
+                        "runs",
                         "automations"
                       ],
                       "additionalProperties": false
@@ -1941,6 +2243,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1952,6 +2255,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -1973,6 +2277,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -1984,6 +2289,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -2005,6 +2311,7 @@
                           "type": "object",
                           "properties": {
                             "value": {
+                              "nullable": true,
                               "type": "number"
                             },
                             "series": {
@@ -2016,6 +2323,7 @@
                                     "type": "string"
                                   },
                                   "value": {
+                                    "nullable": true,
                                     "type": "number"
                                   }
                                 },
@@ -2044,6 +2352,7 @@
                   },
                   "required": [
                     "workspace",
+                    "range",
                     "since",
                     "usage",
                     "attention",
