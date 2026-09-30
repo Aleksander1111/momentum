@@ -308,6 +308,18 @@ export type Series = z.infer<typeof Series>;
 export const MetricValue = z.object({ value: z.number(), series: Series });
 export type MetricValue = z.infer<typeof MetricValue>;
 
+/** One automation over the last 7 days; usage over the rolling 5 hours and week, as in `MetricsResponse.usage` */
+export const AutomationMetrics = z.object({
+  automation: AutomationName,
+  runs: z.number(),
+  failed: z.number(),
+  /** Mean time from start to end of the runs that ended; null when none did */
+  avgSeconds: z.number().nullable(),
+  usage: Usage,
+  variant: z.string().nullable(),
+});
+export type AutomationMetrics = z.infer<typeof AutomationMetrics>;
+
 export const MetricsResponse = z.object({
   workspace: z.string(),
   since: z.string(),
@@ -327,7 +339,8 @@ export const MetricsResponse = z.object({
     misalignments: MetricValue,
     recurringIssues: MetricValue,
     runsThisWeek: MetricValue,
-    variants: z.array(z.object({ automation: z.string(), variant: z.string() })),
+    /** Each automation that ran in the last 7 days, the most used first */
+    automations: z.array(AutomationMetrics),
   }),
   implementation: z.object({
     outstandingIssues: MetricValue,

@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { MetricValue } from '@momentum/contract';
+import type { AutomationMetrics, MetricValue } from '@momentum/contract';
 import { api } from '../../lib/api';
+import { automationLabel, usagePct } from '../../lib/format';
 import { useCurrentWorkspace } from '../../lib/workspace';
 import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { Count, Pick } from '../../ui/parts';
 import { Sparkline } from '../../ui/Sparkline';
+import { UsageLegend, UsageMeter, useAutomationColor, useSegments, type Segment } from '../../ui/UsageMeter';
 
 function Panel({ title, children, style }: { title: string; children: ReactNode; style?: object }) {
   return (
@@ -59,11 +61,73 @@ function Stat({
   );
 }
 
-function UsageTile({ label, pct }: { label: string; pct: number | null }) {
+function UsageTile({ label, pct, segments }: { label: string; pct: number | null; segments: Segment[] }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.card, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 }}>
       <T style={{ color: C.muted, fontSize: 11.5 }}>{label}</T>
       <T style={{ fontSize: 18, fontFamily: F.head, fontWeight: '700' }}>{pct === null ? '—' : `${Math.round(pct)}%`}</T>
+      <UsageMeter segments={segments} />
+    </View>
+  );
+}
+
+/** "<1 min", "14 min", "2 h 5 min"; a dash when no run ended. */
+function avgTime(seconds: number | null): string {
+  if (seconds === null) return '—';
+  const min = Math.round(seconds / 60);
+  if (min < 1) return '<1 min';
+  if (min < 60) return `${min} min`;
+  return min % 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min / 60} h`;
+}
+
+const COLS = [
+  { label: 'Runs', width: 40 },
+  { label: 'Failed', width: 44 },
+  { label: 'Avg time', width: 62 },
+  { label: '5 h', width: 42 },
+  { label: 'Week', width: 46 },
+];
+
+function Cell({ i, children, head }: { i: number; children: string; head?: boolean }) {
+  return (
+    <T style={{ width: COLS[i]!.width, textAlign: 'right', fontSize: head ? 11.5 : 13.5, color: head ? C.muted : C.ink }}>
+      {children}
+    </T>
+  );
+}
+
+function AutomationTable({ automations }: { automations: AutomationMetrics[] }) {
+  const color = useAutomationColor();
+  if (!automations.length) return <T style={{ color: C.muted, fontSize: 13.5 }}>No runs in the last 7 days</T>;
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', paddingBottom: 4 }}>
+        <T style={{ flex: 1, color: C.muted, fontSize: 11.5 }}>Last 7 days</T>
+        {COLS.map((c, i) => (
+          <Cell key={c.label} i={i} head>
+            {c.label}
+          </Cell>
+        ))}
+      </View>
+      {automations.map((a) => (
+        <View
+          key={a.automation}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderTopWidth: 1, borderTopColor: C.line, borderStyle: 'dashed' }}
+        >
+          <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color(a.automation) }} />
+            <T style={{ color: C.muted, fontSize: 13.5, flexShrink: 1 }}>
+              {automationLabel(a.automation)}
+              {a.variant ? <T style={{ fontSize: 12 }}>{` · variant ${a.variant}`}</T> : null}
+            </T>
+          </View>
+          <Cell i={0}>{String(a.runs)}</Cell>
+          <Cell i={1}>{String(a.failed)}</Cell>
+          <Cell i={2}>{avgTime(a.avgSeconds)}</Cell>
+          <Cell i={3}>{usagePct(a.usage.fiveHour)}</Cell>
+          <Cell i={4}>{usagePct(a.usage.week)}</Cell>
+        </View>
+      ))}
     </View>
   );
 }
@@ -75,6 +139,10 @@ export default function Metrics() {
   const wide = useWide();
   const [ws, setWs, names] = useCurrentWorkspace();
   const { data: m } = useQuery({ queryKey: ['metrics', ws], queryFn: () => api.metrics(ws as string), enabled: !!ws });
+
+  const five = useSegments(m?.agents.automations ?? [], 'fiveHour', m?.usage.fiveHour ?? null);
+  const week = useSegments(m?.agents.automations ?? [], 'week', m?.usage.week ?? null);
+  const legend = [...week, ...five.filter((f) => !week.some((w) => w.key === f.key))];
 
   const days = m ? Math.max(1, Math.round((Date.now() - new Date(m.since).getTime()) / 86_400_000)) : null;
 
@@ -98,9 +166,6 @@ export default function Metrics() {
       <Stat label="Misalignments" value={int(m.agents.misalignments)} metric={m.agents.misalignments} color={C.ok} />
       <Stat label="Recurring issues" value={int(m.agents.recurringIssues)} metric={m.agents.recurringIssues} />
       <Stat label="Runs this week" value={int(m.agents.runsThisWeek)} metric={m.agents.runsThisWeek} />
-      {m.agents.variants.map((v) => (
-        <Stat key={v.automation} label={`Variant · ${v.automation}`} value={v.variant} />
-      ))}
     </Panel>
   ) : null;
   const implementation = m ? (
@@ -131,9 +196,10 @@ export default function Metrics() {
         <>
           <Panel title="Usage" style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <UsageTile label="Rolling 5 hours" pct={m.usage.fiveHour} />
-              <UsageTile label="Rolling week" pct={m.usage.week} />
+              <UsageTile label="Rolling 5 hours" pct={m.usage.fiveHour} segments={five} />
+              <UsageTile label="Rolling week" pct={m.usage.week} segments={week} />
             </View>
+            <UsageLegend segments={legend} />
           </Panel>
           {wide ? (
             <View style={{ gap }}>
@@ -154,6 +220,9 @@ export default function Metrics() {
               {implementation}
             </View>
           )}
+          <Panel title="Automations" style={{ marginTop: gap }}>
+            <AutomationTable automations={m.agents.automations} />
+          </Panel>
         </>
       ) : null}
     </ScrollView>

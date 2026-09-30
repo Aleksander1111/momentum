@@ -1863,20 +1863,66 @@
                           ],
                           "additionalProperties": false
                         },
-                        "variants": {
+                        "automations": {
                           "type": "array",
                           "items": {
                             "type": "object",
                             "properties": {
                               "automation": {
-                                "type": "string"
+                                "type": "string",
+                                "enum": [
+                                  "exploration",
+                                  "preparation",
+                                  "consistency-check",
+                                  "retention",
+                                  "implementation",
+                                  "validation",
+                                  "optimization",
+                                  "summarization",
+                                  "card",
+                                  "chat",
+                                  "mapping"
+                                ]
+                              },
+                              "runs": {
+                                "type": "number"
+                              },
+                              "failed": {
+                                "type": "number"
+                              },
+                              "avgSeconds": {
+                                "nullable": true,
+                                "type": "number"
+                              },
+                              "usage": {
+                                "type": "object",
+                                "properties": {
+                                  "fiveHour": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  },
+                                  "week": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "fiveHour",
+                                  "week"
+                                ],
+                                "additionalProperties": false
                               },
                               "variant": {
+                                "nullable": true,
                                 "type": "string"
                               }
                             },
                             "required": [
                               "automation",
+                              "runs",
+                              "failed",
+                              "avgSeconds",
+                              "usage",
                               "variant"
                             ],
                             "additionalProperties": false
@@ -1887,7 +1933,7 @@
                         "misalignments",
                         "recurringIssues",
                         "runsThisWeek",
-                        "variants"
+                        "automations"
                       ],
                       "additionalProperties": false
                     },
@@ -2702,6 +2748,80 @@
                         "concurrentTotal"
                       ],
                       "additionalProperties": false
+                    },
+                    "models": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "single",
+                            "per_automation",
+                            "risk"
+                          ]
+                        },
+                        "single": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "fable",
+                            "opus",
+                            "sonnet",
+                            "haiku"
+                          ]
+                        },
+                        "perAutomation": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "default",
+                              "fable",
+                              "opus",
+                              "sonnet",
+                              "haiku"
+                            ]
+                          },
+                          "required": [
+                            "exploration",
+                            "preparation",
+                            "consistency-check",
+                            "retention",
+                            "implementation",
+                            "validation",
+                            "optimization",
+                            "summarization",
+                            "card",
+                            "chat",
+                            "mapping"
+                          ]
+                        },
+                        "risk": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "default",
+                              "fable",
+                              "opus",
+                              "sonnet",
+                              "haiku"
+                            ]
+                          },
+                          "required": [
+                            "low",
+                            "medium",
+                            "high"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "single",
+                        "perAutomation",
+                        "risk"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -2709,7 +2829,8 @@
                     "feedSize",
                     "cards",
                     "lifetimes",
-                    "agents"
+                    "agents",
+                    "models"
                   ],
                   "additionalProperties": false
                 }
@@ -2846,6 +2967,79 @@
                       "concurrentPerProject",
                       "concurrentTotal"
                     ]
+                  },
+                  "models": {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "single",
+                          "per_automation",
+                          "risk"
+                        ]
+                      },
+                      "single": {
+                        "type": "string",
+                        "enum": [
+                          "default",
+                          "fable",
+                          "opus",
+                          "sonnet",
+                          "haiku"
+                        ]
+                      },
+                      "perAutomation": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "fable",
+                            "opus",
+                            "sonnet",
+                            "haiku"
+                          ]
+                        },
+                        "required": [
+                          "exploration",
+                          "preparation",
+                          "consistency-check",
+                          "retention",
+                          "implementation",
+                          "validation",
+                          "optimization",
+                          "summarization",
+                          "card",
+                          "chat",
+                          "mapping"
+                        ]
+                      },
+                      "risk": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "fable",
+                            "opus",
+                            "sonnet",
+                            "haiku"
+                          ]
+                        },
+                        "required": [
+                          "low",
+                          "medium",
+                          "high"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "single",
+                      "perAutomation",
+                      "risk"
+                    ]
                   }
                 }
               }
@@ -2950,6 +3144,80 @@
                         "concurrentTotal"
                       ],
                       "additionalProperties": false
+                    },
+                    "models": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "single",
+                            "per_automation",
+                            "risk"
+                          ]
+                        },
+                        "single": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "fable",
+                            "opus",
+                            "sonnet",
+                            "haiku"
+                          ]
+                        },
+                        "perAutomation": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "default",
+                              "fable",
+                              "opus",
+                              "sonnet",
+                              "haiku"
+                            ]
+                          },
+                          "required": [
+                            "exploration",
+                            "preparation",
+                            "consistency-check",
+                            "retention",
+                            "implementation",
+                            "validation",
+                            "optimization",
+                            "summarization",
+                            "card",
+                            "chat",
+                            "mapping"
+                          ]
+                        },
+                        "risk": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "default",
+                              "fable",
+                              "opus",
+                              "sonnet",
+                              "haiku"
+                            ]
+                          },
+                          "required": [
+                            "low",
+                            "medium",
+                            "high"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "single",
+                        "perAutomation",
+                        "risk"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -2957,7 +3225,8 @@
                     "feedSize",
                     "cards",
                     "lifetimes",
-                    "agents"
+                    "agents",
+                    "models"
                   ],
                   "additionalProperties": false
                 }

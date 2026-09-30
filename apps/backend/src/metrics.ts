@@ -1,4 +1,4 @@
-import type { MetricsResponse, MetricValue, Series } from '@momentum/contract';
+import { AutomationName, type AutomationMetrics, type MetricsResponse, type MetricValue, type Series } from '@momentum/contract';
 import type { Automations } from './automations.ts';
 import type { Workspace } from './workspaces.ts';
 
@@ -42,6 +42,38 @@ function latest(s: Series): number {
 }
 
 const metric = (value: number, s: Series): MetricValue => ({ value, series: s });
+
+/** Runs, failures, time and usage of each automation over the last 7 days */
+async function perAutomation(ws: Workspace, automations: Automations): Promise<AutomationMetrics[]> {
+  const s = ws.index.schema;
+  const runs = await ws.index.sql.unsafe<{ automation: string; runs: number; failed: number; avg_seconds: number | null }[]>(
+    `select automation, count(*)::int as runs, count(*) filter (where status = 'failed')::int as failed,
+            avg(extract(epoch from ended_at - started_at))::float8 as avg_seconds
+     from ${s}.run where created_at > now() - interval '7 days' group by 1`,
+  );
+  const usage = await ws.index.sql.unsafe<{ automation: string; five_hour: number | null; week: number | null }[]>(
+    `select automation, (sum(usage_five_hour) filter (where recorded_at > now() - interval '5 hours'))::float8 as five_hour,
+            sum(usage_week)::float8 as week
+     from ${s}.agent_metric where recorded_at > now() - interval '7 days' group by 1`,
+  );
+  const variants = new Map((await automations.approved()).map((d) => [d.name, d.variant]));
+  const names = new Set([...runs.map((r) => r.automation), ...usage.map((u) => u.automation)]);
+  return [...names]
+    .filter((n): n is AutomationName => AutomationName.safeParse(n).success)
+    .map((automation) => {
+      const r = runs.find((x) => x.automation === automation);
+      const u = usage.find((x) => x.automation === automation);
+      return {
+        automation,
+        runs: r?.runs ?? 0,
+        failed: r?.failed ?? 0,
+        avgSeconds: r?.avg_seconds ?? null,
+        usage: { fiveHour: u?.five_hour ?? null, week: u?.week ?? null },
+        variant: variants.get(automation) ?? null,
+      };
+    })
+    .sort((a, b) => (b.usage.week ?? 0) - (a.usage.week ?? 0) || b.runs - a.runs);
+}
 
 export async function workspaceMetrics(ws: Workspace, automations: Automations): Promise<MetricsResponse> {
   const s = ws.index.schema;
@@ -93,9 +125,7 @@ export async function workspaceMetrics(ws: Workspace, automations: Automations):
       misalignments: metric(total(misalignments), misalignments),
       recurringIssues: metric(total(recurring), recurring),
       runsThisWeek: metric(runsWeek?.n ?? 0, runs.slice(-7)),
-      variants: (await automations.approved())
-        .filter((d) => d.variant)
-        .map((d) => ({ automation: d.name, variant: d.variant! })),
+      automations: await perAutomation(ws, automations),
     },
     implementation: {
       outstandingIssues: metric(latest(outstanding), outstanding),
