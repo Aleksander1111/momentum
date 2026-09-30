@@ -191,6 +191,7 @@ export const AutomationName = z.enum([
   'summarization',
   'card',
   'chat',
+  'mapping',
 ]);
 export type AutomationName = z.infer<typeof AutomationName>;
 
@@ -199,6 +200,13 @@ export type RunTrigger = z.infer<typeof RunTrigger>;
 
 export const RunStatus = z.enum(['queued', 'running', 'finished', 'failed', 'killed', 'held']);
 export type RunStatus = z.infer<typeof RunStatus>;
+
+/** Share of the rolling 5-hour and weekly limits, in percentage points */
+export const Usage = z.object({
+  fiveHour: z.number().nullable(),
+  week: z.number().nullable(),
+});
+export type Usage = z.infer<typeof Usage>;
 
 export const Run = z.object({
   id: z.string(),
@@ -212,6 +220,8 @@ export const Run = z.object({
   startedAt: z.string().nullable(),
   endedAt: z.string().nullable(),
   error: z.string().nullable(),
+  /** What the run has used so far, read from Claude Code while it runs and when it ends */
+  usage: Usage,
 });
 export type Run = z.infer<typeof Run>;
 
@@ -251,6 +261,30 @@ export const CreateChatRequest = z.object({
 });
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 
+// Mapping: the knowledge graph of a workspace built from its repository
+
+export const MappingState = z.enum(['building', 'stopped', 'complete']);
+export type MappingState = z.infer<typeof MappingState>;
+
+export const MappingStatus = z.object({
+  workspace: z.string(),
+  /** null until the project is enabled for the first time */
+  state: MappingState.nullable(),
+  /** Progress reported by the last mapping run, given to the next one */
+  progress: z.string().nullable(),
+  since: z.string().nullable(),
+  runs: z.number(),
+  /** Entities the mapping runs wrote so far, approved or waiting in the feed */
+  entities: z.number(),
+  /** Everything the mapping runs used so far */
+  usage: Usage,
+  activeRunId: z.string().nullable(),
+});
+export type MappingStatus = z.infer<typeof MappingStatus>;
+
+export const PutMapping = z.object({ building: z.boolean() });
+export type PutMapping = z.infer<typeof PutMapping>;
+
 // Metrics, SPEC.md → Index and metrics database
 
 export const Series = z.array(z.object({ at: z.string(), value: z.number() }));
@@ -262,10 +296,7 @@ export type MetricValue = z.infer<typeof MetricValue>;
 export const MetricsResponse = z.object({
   workspace: z.string(),
   since: z.string(),
-  usage: z.object({
-    fiveHour: z.number().nullable(),
-    week: z.number().nullable(),
-  }),
+  usage: Usage,
   attention: z.object({
     timePerItemSeconds: MetricValue,
     approved: MetricValue,

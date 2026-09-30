@@ -5,6 +5,7 @@ import {
   ChatsResponse,
   EntityDetail,
   FeedResponse,
+  MappingStatus,
   MetricsResponse,
   RunDetail,
   SearchResult,
@@ -15,6 +16,7 @@ import {
   type ApproveRequest,
   type CreateChatRequest,
   type PostRunMessage,
+  type PutMapping,
   type PutSettings,
   type SendBackRequest,
   type SessionRequest,
@@ -136,7 +138,15 @@ export const api = {
   async postMessage(id: string, req: PostRunMessage): Promise<void> {
     await request('POST', `/runs/${seg(id)}/messages`, req);
   },
+  async killRun(id: string): Promise<void> {
+    await request('POST', `/runs/${seg(id)}/kill`);
+  },
   metrics: (ws: string) => get(`/workspaces/${seg(ws)}/metrics`, MetricsResponse),
+  mapping: (ws: string) => get(`/workspaces/${seg(ws)}/mapping`, MappingStatus),
+  async putMapping(ws: string, req: PutMapping): Promise<MappingStatus> {
+    const res = await request('PUT', `/workspaces/${seg(ws)}/mapping`, req);
+    return MappingStatus.parse(await res.json());
+  },
   settings: () => get('/settings', Settings),
   async putSettings(req: PutSettings): Promise<Settings> {
     const res = await request('PUT', '/settings', req);

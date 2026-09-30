@@ -176,6 +176,7 @@ Every minute.
     const queue: { workspace: string; id: string; automation: string }[] = [];
     const stub = {
       hasOpenRun: async () => false,
+      hasOpenRunOnBranch: async () => false,
       lastStart: async () => null,
       create: async (r: { automation: string }) => {
         created.push(r.automation);
@@ -196,6 +197,68 @@ Every minute.
     await o.tick();
     expect(created.sort()).toEqual(['exploration', 'preparation', 'retention']);
     expect(started).toHaveLength(2); // two runs per project
+  });
+
+  it('builds the knowledge graph of an enabled project while the feed has room, until the user stops it', async () => {
+    const { Orchestrator } = await import('../src/orchestrator.ts');
+    const { createBus } = await import('../src/events.ts');
+    const created: { automation: string; branch?: string | null; prompt: string }[] = [];
+    const stopped: string[] = [];
+    const stub = {
+      hasOpenRun: async (_ws: string, automation: string) => created.some((r) => r.automation === automation),
+      hasOpenRunOnBranch: async () => false,
+      lastStart: async () => new Date(), // scheduled loops are not due
+      create: async (r: { automation: string; branch?: string | null; prompt: string }) => {
+        created.push(r);
+        return r.automation;
+      },
+      stopAutomation: async (_ws: string, automation: string) => {
+        stopped.push(automation);
+        return [];
+      },
+      queued: async () => [],
+      activeCount: () => 0,
+      start: async () => undefined,
+    };
+    const o = new Orchestrator(m.workspaces, m.settings, m.guard, stub as never, m.automations, createBus());
+    const ws = await m.workspaces.get('alpha');
+
+    expect((await m.momentum.mapping('alpha')).state).toBeNull(); // nothing until the project is enabled
+    await o.tick();
+    expect(created).toEqual([]);
+
+    await m.settings.setMapping('alpha', 'building');
+    await o.tick();
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ automation: 'mapping', branch: 'momentum/mapping/alpha' });
+    expect(created[0]!.prompt).toMatch(/first mapping run/);
+    expect(created[0]!.prompt).toMatch(/room for \d+ more items: write at most \d+ entities/);
+    await o.tick();
+    expect(created).toHaveLength(1); // one run at a time
+
+    await m.settings.setMappingProgress('alpha', 'Top level covered; services next.');
+    created.length = 0;
+    await o.tick();
+    expect(created[0]!.prompt).toContain('Top level covered; services next.');
+
+    await m.settings.put({ feedSize: 1 });
+    created.length = 0;
+    await o.tick();
+    expect(created).toEqual([]); // the feed is at its limit: the build pauses
+    await m.settings.put({ feedSize: 40 });
+
+    await o.setMapping(ws, false);
+    expect(stopped).toEqual(['mapping']);
+    const status = await m.momentum.mapping('alpha');
+    expect(status).toMatchObject({ state: 'stopped', progress: 'Top level covered; services next.', entities: 0 });
+    expect(status.since).not.toBeNull();
+    await o.tick();
+    expect(created).toEqual([]); // stopped: nothing queued
+
+    await o.setMapping(ws, true);
+    await o.tick();
+    expect(created.map((r) => r.automation)).toEqual(['mapping']); // resumed
+    await o.setMapping(ws, false);
   });
 });
 

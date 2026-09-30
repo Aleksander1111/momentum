@@ -44,6 +44,8 @@ interface RunRow {
   created_at: Date;
   started_at: Date | null;
   ended_at: Date | null;
+  usage_five_hour: number | null;
+  usage_week: number | null;
 }
 
 export interface NewRun {
@@ -63,9 +65,11 @@ interface Active {
   ref: RunRef;
   handle: SessionHandle;
   validation?: { passed: boolean; form: string; summary: string };
+  mapping?: { complete: boolean; progress: string };
 }
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
+const delta = (a: number | null, b: number | null) => (a !== null && b !== null ? Math.max(0, b - a) : null);
 
 export class Runner {
   private active = new Map<string, Active>();
@@ -108,6 +112,7 @@ export class Runner {
       startedAt: iso(r.started_at),
       endedAt: iso(r.ended_at),
       error: r.error,
+      usage: { fiveHour: r.usage_five_hour, week: r.usage_week },
     };
   }
 
@@ -184,6 +189,25 @@ export class Runner {
     return !!r;
   }
 
+  async hasOpenRunOnBranch(workspace: string, branch: string): Promise<boolean> {
+    const ws = await this.workspaces.get(workspace);
+    const [r] = await ws.index.sql`select 1 from ${this.t(ws, 'run')}
+      where branch = ${branch} and status in ('queued', 'running')`;
+    return !!r;
+  }
+
+  /** Ends every open run of an automation in a workspace: running ones are killed, queued ones never start */
+  async stopAutomation(workspace: string, automation: AutomationName): Promise<string[]> {
+    const ws = await this.workspaces.get(workspace);
+    const rows = await ws.index.sql<{ id: string; status: RunStatus }[]>`select id, status from ${this.t(ws, 'run')}
+      where automation = ${automation} and status in ('queued', 'running')`;
+    for (const r of rows) {
+      if (this.active.has(r.id)) this.active.get(r.id)!.handle.kill();
+      else await this.setStatus(ws, r.id, 'killed', { ended_at: new Date() });
+    }
+    return rows.map((r) => r.id);
+  }
+
   async lastStart(workspace: string, automation: AutomationName): Promise<Date | null> {
     const ws = await this.workspaces.get(workspace);
     const [r] = await ws.index.sql<{ at: Date | null }[]>`select max(created_at) as at from ${this.t(ws, 'run')}
@@ -241,6 +265,15 @@ export class Runner {
             return { content: [{ type: 'text', text: 'Recorded' }] };
           },
         ),
+        tool(
+          'report_mapping',
+          'Report the progress of mapping this repository into the knowledge base: what is covered and what the next run should take up. Set complete once the repository is covered; the mapping then stops.',
+          { complete: z.boolean(), progress: z.string() },
+          async (v) => {
+            entry.mapping = v;
+            return { content: [{ type: 'text', text: 'Recorded' }] };
+          },
+        ),
       ],
     });
     const instructions = [
@@ -248,6 +281,7 @@ export class Runner {
       this.context(ws, r, cards.characterLimit, cards.presentationRules, lifetimes),
     ].join('\n\n');
     let latest: Usage = { fiveHour: null, week: null };
+    let first: Usage | null = null;
     entry.handle = startSession({
       cwd: r.checkout,
       prompt: resume ? prompt : this.firstPrompt(r, prompt),
@@ -263,7 +297,11 @@ export class Runner {
       onAssistantText: (text) => void this.addMessage(ws, r.id, 'assistant', text),
       onUsage: (u) => {
         latest = { fiveHour: u.fiveHour ?? latest.fiveHour, week: u.week ?? latest.week };
+        first = { fiveHour: first?.fiveHour ?? latest.fiveHour, week: first?.week ?? latest.week };
         void this.workspaces.sql`insert into harness.usage_sample ${this.workspaces.sql({ five_hour: latest.fiveHour, week: latest.week })}`;
+        // What the run has used so far, visible while it runs
+        void ws.index.sql`update ${this.t(ws, 'run')} set usage_five_hour = ${delta(first.fiveHour, latest.fiveHour)},
+          usage_week = ${delta(first.week, latest.week)} where id = ${r.id} and status = 'running'`;
       },
     });
     this.active.set(r.id, entry);
@@ -317,16 +355,19 @@ export class Runner {
       if (r.automation === 'chat') await this.writeTranscript(ws, r);
       await this.guard.transaction(entry.ref);
       const status: RunStatus = result.error === 'killed' ? 'killed' : result.ok ? 'finished' : 'failed';
-      await this.setStatus(ws, id, status, { ended_at: new Date(), error: result.ok ? null : result.error });
-      const delta = (a: number | null, b: number | null) => (a !== null && b !== null ? Math.max(0, b - a) : null);
+      const usage = {
+        usage_five_hour: delta(result.usageBefore.fiveHour, result.usageAfter.fiveHour) ?? r.usage_five_hour,
+        usage_week: delta(result.usageBefore.week, result.usageAfter.week) ?? r.usage_week,
+      };
+      await this.setStatus(ws, id, status, { ended_at: new Date(), error: result.ok ? null : result.error, ...usage });
       const variant = (await this.automations.approved()).find((d) => d.name === r.automation)?.variant ?? null;
       await ws.index.sql`insert into ${this.t(ws, 'agent_metric')} ${ws.index.sql({
         run_id: id,
         automation: r.automation,
         variant,
-        usage_five_hour: delta(result.usageBefore.fiveHour, result.usageAfter.fiveHour),
-        usage_week: delta(result.usageBefore.week, result.usageAfter.week),
+        ...usage,
       })}`;
+      if (r.automation === 'mapping') await this.afterMapping(ws, status, entry.mapping);
       if (r.branch.startsWith('momentum/implementation/') && r.automation !== 'validation' && status === 'finished') {
         this.bus.emit('implementation_finished', { workspace: ws.name, runId: id, branch: r.branch, targetPath: r.target_path });
       }
@@ -336,6 +377,15 @@ export class Runner {
     } finally {
       await this.guard.unwatch(id);
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
+    }
+  }
+
+  /** The mapping goes on run after run until a run reports the repository covered, or the user stops it */
+  private async afterMapping(ws: Workspace, status: RunStatus, report: Active['mapping']): Promise<void> {
+    if (report?.progress) await this.settings.setMappingProgress(ws.name, report.progress);
+    if (status !== 'finished') return;
+    if (report?.complete && (await this.settings.mapping(ws.name)).state === 'building') {
+      await this.settings.setMapping(ws.name, 'complete');
     }
   }
 

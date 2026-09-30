@@ -3,6 +3,7 @@ import type {
   ChatsResponse,
   EntityDetail,
   FeedResponse,
+  MappingStatus,
   MetricsResponse,
   PutSettings,
   RunDetail,
@@ -15,6 +16,7 @@ import { crossProjectFeed, type Embed, type Sql } from '@momentum/kb';
 import type { Approval } from './approval.ts';
 import type { Automations } from './automations.ts';
 import type { HarnessSettings } from './harness.ts';
+import { mappingStatus } from './mapping.ts';
 import { detectPatterns, workspaceMetrics } from './metrics.ts';
 import type { Orchestrator } from './orchestrator.ts';
 import type { Runner } from './runner.ts';
@@ -151,6 +153,25 @@ export class Momentum {
     await this.runner.send(id, text);
   }
 
+  /** Ends a run: its process is killed; what it wrote so far still passes the guard and reaches the feed */
+  async killRun(id: string): Promise<void> {
+    await this.runner.workspaceOf(id);
+    await this.runner.kill(id);
+  }
+
+  /** The knowledge graph build of a workspace: state, runs, entities written and everything they used */
+  async mapping(workspace: string): Promise<MappingStatus> {
+    return mappingStatus(await this.workspaces.get(workspace), this.settings);
+  }
+
+  /** Stops the build, or starts it again */
+  async setMapping(workspace: string, building: boolean): Promise<MappingStatus> {
+    const ws = await this.workspaces.get(workspace);
+    await this.orchestrator.setMapping(ws, building);
+    if (building) void this.orchestrator.tick();
+    return mappingStatus(ws, this.settings);
+  }
+
   async metrics(workspace: string): Promise<MetricsResponse> {
     return workspaceMetrics(await this.workspaces.get(workspace), this.automations);
   }
@@ -164,6 +185,7 @@ export class Momentum {
     const after = await this.settings.put(change);
     for (const p of after.projects) {
       if (p.enabled && !before.has(p.name)) await this.orchestrator.enable(await this.workspaces.get(p.name));
+      if (!p.enabled && before.has(p.name)) await this.orchestrator.disable(await this.workspaces.get(p.name));
     }
     void this.orchestrator.tick();
     return after;

@@ -1,4 +1,4 @@
-import type { LifetimeRule, ProjectSetting, PutSettings, Settings } from '@momentum/contract';
+import type { LifetimeRule, MappingState, ProjectSetting, PutSettings, Settings } from '@momentum/contract';
 import type { Sql } from '@momentum/kb';
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -26,6 +26,9 @@ export class HarnessSettings {
 
   async migrate(): Promise<void> {
     await this.sql`alter table harness.project add column if not exists indexed_commit text`;
+    await this.sql`alter table harness.project add column if not exists mapping text`;
+    await this.sql`alter table harness.project add column if not exists mapping_progress text`;
+    await this.sql`alter table harness.project add column if not exists mapping_since timestamptz`;
   }
 
   /** A git repository under the root is a workspace; deleting the directory retires it */
@@ -62,6 +65,23 @@ export class HarnessSettings {
 
   async setIndexedCommit(name: string, commit: string): Promise<void> {
     await this.sql`update harness.project set indexed_commit = ${commit} where name = ${name}`;
+  }
+
+  /** The knowledge graph build of a project: its state, the progress its last run reported, and when it started */
+  async mapping(name: string): Promise<{ state: MappingState | null; progress: string | null; since: Date | null }> {
+    const [r] = await this.sql<{ mapping: MappingState | null; mapping_progress: string | null; mapping_since: Date | null }[]>`
+      select mapping, mapping_progress, mapping_since from harness.project where name = ${name}`;
+    return { state: r?.mapping ?? null, progress: r?.mapping_progress ?? null, since: r?.mapping_since ?? null };
+  }
+
+  async setMapping(name: string, state: MappingState): Promise<void> {
+    await this.sql`update harness.project set mapping = ${state},
+      mapping_since = case when ${state} = 'building' then coalesce(mapping_since, now()) else mapping_since end
+      where name = ${name}`;
+  }
+
+  async setMappingProgress(name: string, progress: string): Promise<void> {
+    await this.sql`update harness.project set mapping_progress = ${progress} where name = ${name}`;
   }
 
   async values(): Promise<Omit<Settings, 'projects'>> {

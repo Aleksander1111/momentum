@@ -42,6 +42,12 @@ export function duration(fromIso: string, now = new Date()): string {
   return min % 60 ? `${h} h ${min % 60} min` : `${h} h`;
 }
 
+/** Usage as percentage points of a rolling limit: "2.3%", "14%", or a dash when unknown. */
+export function usagePct(v: number | null): string {
+  if (v === null) return '\u2014';
+  return `${v < 10 ? Math.round(v * 10) / 10 : Math.round(v)}%`;
+}
+
 export function lastSegment(path: string): string {
   const parts = path.split('/').filter(Boolean);
   return parts[parts.length - 1] ?? path;

@@ -8,8 +8,10 @@ import {
   EntityDetail,
   ErrorResponse,
   FeedResponse,
+  MappingStatus,
   MetricsResponse,
   PostRunMessage,
+  PutMapping,
   PutSettings,
   RunDetail,
   SearchResult,
@@ -151,8 +153,25 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
     },
   );
 
+  app.post(
+    '/runs/:id/kill',
+    { schema: { params: z.object({ id: z.string() }), response: { 204: z.null(), ...errors } } },
+    async (req, reply) => {
+      await momentum.killRun(req.params.id);
+      return reply.code(204).send(null);
+    },
+  );
+
   app.get('/workspaces/:ws/metrics', { schema: { params: ws, response: { 200: MetricsResponse, ...errors } } }, (req) =>
     momentum.metrics(req.params.ws),
+  );
+
+  app.get('/workspaces/:ws/mapping', { schema: { params: ws, response: { 200: MappingStatus, ...errors } } }, (req) =>
+    momentum.mapping(req.params.ws),
+  );
+
+  app.put('/workspaces/:ws/mapping', { schema: { params: ws, body: PutMapping, response: { 200: MappingStatus, ...errors } } }, (req) =>
+    momentum.setMapping(req.params.ws, req.body.building),
   );
 
   app.get('/settings', { schema: { response: { 200: Settings, ...errors } } }, () => momentum.getSettings());

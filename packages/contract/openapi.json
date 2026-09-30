@@ -918,7 +918,8 @@
                               "optimization",
                               "summarization",
                               "card",
-                              "chat"
+                              "chat",
+                              "mapping"
                             ]
                           },
                           "status": {
@@ -1153,7 +1154,8 @@
                         "optimization",
                         "summarization",
                         "card",
-                        "chat"
+                        "chat",
+                        "mapping"
                       ]
                     },
                     "branch": {
@@ -1196,6 +1198,24 @@
                     "error": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "fiveHour": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "week": {
+                          "nullable": true,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "fiveHour",
+                        "week"
+                      ],
+                      "additionalProperties": false
                     },
                     "messages": {
                       "type": "array",
@@ -1241,6 +1261,7 @@
                     "startedAt",
                     "endedAt",
                     "error",
+                    "usage",
                     "messages"
                   ],
                   "additionalProperties": false
@@ -1322,6 +1343,74 @@
         ],
         "responses": {
           "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "nullable": true,
+                  "enum": [
+                    null
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{id}/kill": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -1881,6 +1970,272 @@
                     "understanding",
                     "agents",
                     "implementation"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{ws}/mapping": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "ws",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspace": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "building",
+                        "stopped",
+                        "complete"
+                      ]
+                    },
+                    "progress": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "since": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "runs": {
+                      "type": "number"
+                    },
+                    "entities": {
+                      "type": "number"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "fiveHour": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "week": {
+                          "nullable": true,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "fiveHour",
+                        "week"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "activeRunId": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "workspace",
+                    "state",
+                    "progress",
+                    "since",
+                    "runs",
+                    "entities",
+                    "usage",
+                    "activeRunId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "building": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "building"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "ws",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspace": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "building",
+                        "stopped",
+                        "complete"
+                      ]
+                    },
+                    "progress": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "since": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "runs": {
+                      "type": "number"
+                    },
+                    "entities": {
+                      "type": "number"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "fiveHour": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "week": {
+                          "nullable": true,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "fiveHour",
+                        "week"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "activeRunId": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "workspace",
+                    "state",
+                    "progress",
+                    "since",
+                    "runs",
+                    "entities",
+                    "usage",
+                    "activeRunId"
                   ],
                   "additionalProperties": false
                 }

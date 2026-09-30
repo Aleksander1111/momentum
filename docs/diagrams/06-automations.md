@@ -8,6 +8,7 @@ flowchart LR
   Goals["Goals"]
   Feed["Attention feed"]
   Artifacts["Repository artifacts<br/>chats, plans, results implemented by AI"]
+  Repo["Repository"]
   Metrics["Index and metrics database"]
   HarnessRepo["Definition entities, harness workspace<br/>artifacts: agents, skills, sub-agents, MCP"]
   Triggers["Trigger entities, per workspace"]
@@ -24,6 +25,7 @@ flowchart LR
     Summarization["Summarization<br/>step inside the other automations"]
     Card["Card<br/>step inside the other automations"]
     Chat["Chat"]
+    Mapping["Mapping<br/>started by enabling the project"]
   end
   Auto <-->|"search and write on own branch"| KB
   Goals -->|"guide; all met → idle"| Exploration
@@ -44,6 +46,9 @@ flowchart LR
   HarnessRepo -->|"materialized on approval"| Workspaces
   User -->|"starts"| Chat
   Chat -->|"results"| Feed
+  Repo -->|"read run after run"| Mapping
+  Mapping -->|"entities, at most the feed's room"| Feed
+  User -. "watches usage, stops" .-> Mapping
 ```
 
 ## Step mechanism

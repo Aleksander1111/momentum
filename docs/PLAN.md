@@ -24,7 +24,7 @@ The infrastructure is built in one pass. Work packages below are ordered by depe
 | Consistency guard | Claude Code hooks in every run: PostToolUse validates each knowledge-base write as it happens, Stop sends the run back to fix changes the guard would not accept; chokidar watch on `knowledge-graph/` of every run checkout for changes made outside the tools; a transaction is the set of changes of one run; index update per validated transaction | Reacts to every change, groups related changes, updates the index |
 | Attention ranking | `product_impact`, `timeline_impact`, `unlocks` are integers 0–5 in entity frontmatter, written by the automation or user that authored the entity; `rank` = product_impact + timeline_impact + unlocks, a generated column computed when the index is updated; ties go to the item that entered the feed first | Ranking derived from the entities themselves; API reads the feed order with no work per poll |
 | Cross-project feed | API merges the per-workspace `attention_ranking` tables of enabled projects by rank at request time, one `UNION ALL` across their schemas | One feed across projects, adjusting to the enabled set |
-| Harness settings | Schema `harness` in the same Postgres database: enabled projects, feed size, lifetime rules, card configuration (character limit, presentation rules), concurrency, sessions, the workspace of every run id, usage readings | Enabling a project must not create commits in it |
+| Harness settings | Schema `harness` in the same Postgres database: enabled projects and the state of their knowledge graph build, feed size, lifetime rules, card configuration (character limit, presentation rules), concurrency, sessions, the workspace of every run id, usage readings | Enabling a project must not create commits in it |
 | Authentication | Single user; password generated at install into `C:\Projects\.momentum\password.txt` (`pnpm momentum generate-password`), or chosen with `pnpm momentum set-password`; session token in an httpOnly cookie on web and SecureStore on mobile, as a bearer token for MCP; API listens only on the Tailscale interface, `MOMENTUM_HOST` overrides it for local testing | Per-user session on top of the mesh; no port on the public internet |
 | Voice tools | The API doubles as an MCP server (streamable HTTP, `/mcp`, behind the same session) over the same handlers, plus `run_automation` for automations whose trigger allows starting on demand | Every capability reachable without the UI |
 | Machine | This machine: Windows 11, workspaces root `C:\Projects`; back-end as a Windows service (WinSW, config in `apps/backend/service/`, running under the user's account for its Claude Code login and git identity), Tailscale for Windows, Claude Code CLI, Node 24 from the Node.js installer, procgov from winget | Self-hosted on the dedicated machine as it is |
@@ -116,7 +116,7 @@ Relations the harness acts on: `implements` (sync), `retires` (retention), `conc
 | 5 | Consistency guard | 2, 3, 4 | Hooks and watcher per run, transaction grouping, validation, issue entities, sync state, index update, ranking |
 | 6 | Orchestrator | 4, 5 | Loops per enabled project, schedule, event and on-demand triggers read from each workspace's trigger entities, feed-size bound, concurrency semaphore, chat runs |
 | 7 | API | 1, 3, 6 | Session, feed, approve, send back, entities, search, chats, runs, metrics, settings; MCP surface over the same handlers |
-| 8 | Automations | 3, 4 | Ten definition entities in `knowledge-graph/Harness/Automation/` with artifacts in `automations/`: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, card, chat; a default trigger entity for each of the eight automations that start by schedule, event or on demand (summarization and card run as steps and have none), proposed on a setup branch when a workspace is enabled; materialization on approval |
+| 8 | Automations | 3, 4 | Eleven definition entities in `knowledge-graph/Harness/Automation/` with artifacts in `automations/`: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, card, chat, mapping; a default trigger entity for each of the eight automations that start by schedule, event or on demand (summarization and card run as steps, mapping starts with enabling, so they have none), proposed on a setup branch when a workspace is enabled; materialization on approval |
 | 9 | App | 1, 7 | Seven pages below, web and mobile |
 | 10 | Metrics | 3, 5, 7 | Attention, understanding, agents, implementation metrics; usage as percentage points of the rolling 5-hour and weekly limits; attention patterns |
 | 11 | End-to-end validation | all | The harness repository runs as a workspace on the machine: loops produce feed items, approval lands on the main line, metrics fill |
@@ -142,9 +142,9 @@ Designs: [designs/pages.html](designs/pages.html), one PNG per page and device i
 | Feed | Ranked cards across enabled projects; swipe right approves, swipe left disapproves with a comment | Attention feed, slide 2 | `GET /feed`, `POST /feed/{path}/approve`, `POST /feed/{path}/send-back` |
 | Entity | One entity in full: verification, sync, type path, card, references, artifacts | Knowledge base, database | `GET /workspaces/{ws}/entities/{path}` |
 | Explorer | Browse a workspace's entities by type path, including the definition and trigger entities, search them, or explore through an agent | Front-end | `GET /workspaces/{ws}/types`, `GET /workspaces/{ws}/search?q=` |
-| Chat | Chats per workspace; a conversation attached to a run; steer the run or ask a question | Chat tool, Automations → Chat | `GET /workspaces/{ws}/chats`, `POST /workspaces/{ws}/chats`, `GET /runs/{id}`, `POST /runs/{id}/messages` |
+| Chat | Chats per workspace; a conversation attached to a run; steer the run, ask a question, see what it has used, or stop it | Chat tool, Automations → Chat | `GET /workspaces/{ws}/chats`, `POST /workspaces/{ws}/chats`, `GET /runs/{id}`, `POST /runs/{id}/messages`, `POST /runs/{id}/kill` |
 | Metrics | Four metric families over time and usage as percentage points of the rolling 5-hour and weekly limits, per workspace | Index and metrics database | `GET /workspaces/{ws}/metrics` |
-| Settings | Included projects, feed size, cards (character limit, presentation rules), lifetimes, agents | Slide 1, Orchestrator | `GET /settings`, `PUT /settings` |
+| Settings | Included projects, each enabled one with its knowledge graph build (state, runs, entities, usage; stop and resume), feed size, cards (character limit, presentation rules), lifetimes, agents | Slide 1, Orchestrator, Automations → Mapping | `GET /settings`, `PUT /settings`, `GET /workspaces/{ws}/mapping`, `PUT /workspaces/{ws}/mapping` |
 
 Also served: `GET /workspaces` for the workspace pickers, `/mcp` for voice tools, `/openapi.json`, and the web build for page loads.
 
@@ -158,7 +158,7 @@ Navigation: five tabs on mobile (Feed, Explorer, Chat, Metrics, Settings), a lef
 | Dedicated agents beyond the automations | None; sub-agents are artifacts of the definition entities, proposed by the optimization automation |
 | Where user edits of automations land | Definitions are entities at `knowledge-graph/Harness/Automation/<name>` in the harness workspace, with the Claude Code files in `automations/<name>/` as artifacts; triggers are entities at `knowledge-graph/Harness/Trigger/<name>` in each workspace. Edits and proposals go through a branch, the guard and the feed; the orchestrator reads triggers from each workspace's index; materialization runs on approval of a definition |
 | Form of validation per kind of work | Chosen by the validation automation from the change's entity type; the four forms are review, test suite run, exploratory pass, consistency check |
-| Sync with sources | Runs read the repository directly; the summarization step writes summaries from artifacts on the run branch |
+| Sync with sources | Runs read the repository directly; the mapping automation builds the initial graph from the repository when a project is enabled, and the summarization step writes summaries from artifacts on the run branch |
 | Claude Code integration surface | Agent SDK for runs, `momentum-kb` MCP for the knowledge base, definitions materialized under `<workspace>\.claude\` on approval |
 | Offline mobile | Last polled feed and entities cached by TanStack Query; reactions queue until the mesh is reachable |
 
@@ -171,6 +171,8 @@ Navigation: five tabs on mobile (Feed, Explorer, Chat, Metrics, Settings), a lef
 | Chat | A chat stays open for ten minutes after its last answer; a later message resumes the session on the same checkout. The transcript is committed as `chats/<run-id>.jsonl` on the chat's branch |
 | Checkouts | Removed with their branch once nothing on it waits for approval or a merge |
 | Usage per workspace | The sum of its runs' usage, each read from Claude Code before and after the run, over the rolling 5 hours and week |
+| Usage per run | The difference between the first reading of the run and the latest, stored on the run as Claude Code reports it, so a build is watched while it runs |
+| Mapping | Starts when a project is enabled and has no trigger entity; every run of a workspace continues on `momentum/mapping/<workspace>`; a run is queued only while the feed has room and no run is open on that branch, and is told to write at most that many entities; it reports progress and completion through `report_mapping` on the `momentum-run` MCP server, and the next run's prompt carries that progress; the state (building, stopped, complete) lives in the harness schema; Stop kills the run in progress and keeps the next from starting, Resume queues it again, disabling the project stops it and enabling it again resumes it |
 | Understanding | Consistency = share of entities with no card over the limit and no unresolved reference; open issues = Harness/Issue and Harness/Conflict entities |
 | Implementation metrics | Outstanding issues = Harness/Issue and Harness/Conflict; bugs = Product/Bug; defects = Harness/Issue raised by validation |
 | Attention patterns | The last ten reactions to one entity type all approved, or all rejected; recorded, not applied |
@@ -182,7 +184,7 @@ The tables of SPEC.md, with what the implementation adds:
 | Table | Added |
 |---|---|
 | entity | `card_blocks` (the card as rendered blocks, diagrams as SVG), `frontmatter`, `branch` and `run_id` of an unapproved version, `search` (tsvector), `embedding` (vector 384), `updated_at` |
-| run | `status`, `title`, `prompt`, `base_commit`, `session_id`, `error`, `created_at`, `started_at`, `ended_at` |
+| run | `status`, `title`, `prompt`, `base_commit`, `session_id`, `error`, `created_at`, `started_at`, `ended_at`, `usage_five_hour`, `usage_week` |
 | attention_ranking | `entered_at` |
 | attention_metric | `entity_type`; `time_spent` stored as `time_spent_ms` |
 | understanding_metric | `open_issues` |

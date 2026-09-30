@@ -3,17 +3,20 @@ import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RunDetail } from '@momentum/contract';
 import { api } from '../lib/api';
-import { automationLabel, duration } from '../lib/format';
+import { automationLabel, duration, usagePct } from '../lib/format';
 import { C, F } from './theme';
 import { T } from './Text';
 import { Markdown } from './Markdown';
 import { Composer } from './Composer';
+import { Btn } from './parts';
 
 const ACTIVE = new Set(['queued', 'running']);
 
-function RunHead({ run }: { run: RunDetail }) {
+/** Automation, state, what the run has used so far, and Stop while it is active */
+function RunHead({ run, onStop }: { run: RunDetail; onStop: () => void }) {
   const running = run.status === 'running';
   const state = running && run.startedAt ? `running ${duration(run.startedAt)}` : run.status;
+  const usage = run.usage.fiveHour !== null ? ` \u00b7 ${usagePct(run.usage.fiveHour)} of 5 h` : '';
   return (
     <View
       style={{
@@ -36,9 +39,10 @@ function RunHead({ run }: { run: RunDetail }) {
         }}
       />
       <View style={{ flex: 1 }}>
-        <T style={{ fontSize: 13.5 }}>{`${automationLabel(run.automation)} · ${state}`}</T>
+        <T style={{ fontSize: 13.5 }}>{`${automationLabel(run.automation)} · ${state}${usage}`}</T>
         <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.branch}</T>
       </View>
+      {ACTIVE.has(run.status) ? <Btn small kind="ghost" label="Stop" onPress={onStop} /> : null}
     </View>
   );
 }
@@ -57,7 +61,15 @@ export function Conversation({ runId }: { runId: string }) {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      {run ? <RunHead run={run} /> : null}
+      {run ? (
+        <RunHead
+          run={run}
+          onStop={async () => {
+            await api.killRun(runId);
+            await qc.invalidateQueries({ queryKey: ['run', runId] });
+          }}
+        />
+      ) : null}
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}

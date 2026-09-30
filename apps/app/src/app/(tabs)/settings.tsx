@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PutSettings, Settings as SettingsT } from '@momentum/contract';
+import type { MappingState, PutSettings, Settings as SettingsT } from '@momentum/contract';
 import { api } from '../../lib/api';
+import { usagePct } from '../../lib/format';
 import { C, F, useWide } from '../../ui/theme';
-import { Chevron, List, Row, RowText, Sect } from '../../ui/parts';
+import { Btn, Chevron, List, Row, RowText, Sect } from '../../ui/parts';
 
 const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null;
 
@@ -126,6 +127,48 @@ function TextRow({
   );
 }
 
+const MAPPING: Record<MappingState, string> = { building: 'building', stopped: 'stopped', complete: 'complete' };
+
+/**
+ * The knowledge graph build of an enabled project: its state, what it produced and what it used, refreshed while it
+ * builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again.
+ */
+function MappingRow({ name }: { name: string }) {
+  const qc = useQueryClient();
+  const { data: m } = useQuery({
+    queryKey: ['mapping', name],
+    queryFn: () => api.mapping(name),
+    refetchInterval: (q) => (q.state.data?.state === 'building' ? 5_000 : 30_000),
+  });
+  const set = useMutation({
+    mutationFn: (building: boolean) => api.putMapping(name, { building }),
+    onSuccess: (next) => qc.setQueryData(['mapping', name], next),
+    onError: () => void qc.invalidateQueries({ queryKey: ['mapping', name] }),
+  });
+  if (!m?.state) return null;
+  const sub = [
+    MAPPING[m.state],
+    `${m.runs} ${m.runs === 1 ? 'run' : 'runs'}`,
+    `${m.entities} ${m.entities === 1 ? 'entity' : 'entities'}`,
+    `${usagePct(m.usage.fiveHour)} of 5 h`,
+    `${usagePct(m.usage.week)} of week`,
+  ].join(' \u00b7 ');
+  return (
+    <Row style={{ paddingLeft: 28, backgroundColor: C.card }}>
+      <RowText title="Knowledge graph" sub={sub} size={14} />
+      {m.state !== 'complete' ? (
+        <Btn
+          small
+          kind="ghost"
+          label={m.state === 'building' ? 'Stop' : 'Resume'}
+          disabled={set.isPending}
+          onPress={() => set.mutate(m.state !== 'building')}
+        />
+      ) : null}
+    </Row>
+  );
+}
+
 export default function Settings() {
   const wide = useWide();
   const qc = useQueryClient();
@@ -159,16 +202,20 @@ export default function Settings() {
       <Sect first>Included projects</Sect>
       <List>
         {s.projects.map((p, i) => (
-          <Row key={p.name} first={i === 0}>
-            <RowText title={p.name} sub={p.path} />
-            <Switch
-              on={p.enabled}
-              onToggle={() => {
-                const projects = s.projects.map((x) => (x.name === p.name ? { ...x, enabled: !x.enabled } : x));
-                put({ projects: projects.map(({ name, enabled }) => ({ name, enabled })) }, { projects });
-              }}
-            />
-          </Row>
+          <View key={p.name}>
+            <Row first={i === 0}>
+              <RowText title={p.name} sub={p.path} />
+              <Switch
+                on={p.enabled}
+                onToggle={() => {
+                  const projects = s.projects.map((x) => (x.name === p.name ? { ...x, enabled: !x.enabled } : x));
+                  put({ projects: projects.map(({ name, enabled }) => ({ name, enabled })) }, { projects });
+                  void qc.invalidateQueries({ queryKey: ['mapping', p.name] });
+                }}
+              />
+            </Row>
+            {p.enabled ? <MappingRow name={p.name} /> : null}
+          </View>
         ))}
       </List>
 

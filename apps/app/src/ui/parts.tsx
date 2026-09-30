@@ -101,12 +101,15 @@ export function Btn({
   kind,
   onPress,
   disabled,
+  small,
   style,
 }: {
   label: string;
   kind: 'primary' | 'ghost';
   onPress: () => void;
   disabled?: boolean;
+  /** Fits inside a row */
+  small?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
@@ -119,8 +122,8 @@ export function Btn({
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: 999,
-          paddingVertical: 12,
-          paddingHorizontal: 22,
+          paddingVertical: small ? 6 : 12,
+          paddingHorizontal: small ? 14 : 22,
           opacity: disabled ? 0.5 : 1,
         },
         kind === 'primary'
@@ -129,7 +132,7 @@ export function Btn({
         style,
       ]}
     >
-      <T style={{ fontSize: 15, fontWeight: '700', color: kind === 'primary' ? C.white : C.ink }}>{label}</T>
+      <T style={{ fontSize: small ? 13.5 : 15, fontWeight: '700', color: kind === 'primary' ? C.white : C.ink }}>{label}</T>
     </Pressable>
   );
 }
