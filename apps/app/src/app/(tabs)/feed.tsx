@@ -295,9 +295,12 @@ export default function Feed() {
 
   const [sheetFor, setSheetFor] = useState<{ item: FeedItem } | null>(null);
   const wash = useSharedValue(0);
-  const washStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(wash.value, [-80, 0, 80], [C.washNo, C.screen, C.washOk]),
-  }));
+  // Plain values for the worklet, which cannot follow the palette; the deps redraw it when the scheme changes.
+  const washes = [C.washNo, C.screen, C.washOk];
+  const washStyle = useAnimatedStyle(
+    () => ({ backgroundColor: interpolateColor(wash.value, [-80, 0, 80], washes) }),
+    washes,
+  );
 
   const spent = () => Math.max(0, Math.round(Date.now() - topSince.current));
 

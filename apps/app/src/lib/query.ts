@@ -1,8 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import type { PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
-import type { FeedResponse } from '@momentum/contract';
+import type { PersistedClient, PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
+import {
+  ChatsResponse,
+  EntityDetail,
+  FeedResponse,
+  MappingStatus,
+  MetricsResponse,
+  RunDetail,
+  Settings,
+  TypesResponse,
+  Workspace,
+} from '@momentum/contract';
 import { api, NetworkError } from './api';
 import { withoutItem } from './feed';
 
@@ -46,8 +56,35 @@ queryClient.setMutationDefaults(['sendBack'], {
   },
 });
 
+/** The contract of each persisted query, by the first element of its key. */
+const SCHEMAS: Record<string, { safeParse: (d: unknown) => { success: boolean } }> = {
+  feed: FeedResponse,
+  settings: Settings,
+  workspaces: Workspace.array(),
+  types: TypesResponse,
+  chats: ChatsResponse,
+  run: RunDetail,
+  entity: EntityDetail,
+  metrics: MetricsResponse,
+  mapping: MappingStatus,
+};
+
+/**
+ * Restored data never went through the contract, so a cache written by an older build could hold a shape the screens
+ * no longer expect and crash them before any request is made. Queries whose data no longer parses are dropped and
+ * fetched afresh; queued reactions are kept.
+ */
+function deserialize(cached: string): PersistedClient {
+  const client = JSON.parse(cached) as PersistedClient;
+  client.clientState.queries = client.clientState.queries.filter((q) => {
+    const schema = SCHEMAS[String(q.queryKey[0])];
+    return schema !== undefined && (q.state.data === undefined || schema.safeParse(q.state.data).success);
+  });
+  return client;
+}
+
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
-  persister: createAsyncStoragePersister({ storage: AsyncStorage, key: 'momentum.cache', throttleTime: 1_000 }),
+  persister: createAsyncStoragePersister({ storage: AsyncStorage, key: 'momentum.cache', throttleTime: 1_000, deserialize }),
   maxAge: WEEK,
   buster: '2',
   dehydrateOptions: {
