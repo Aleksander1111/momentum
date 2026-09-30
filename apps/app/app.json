@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "momentum",
+    "slug": "momentum",
+    "scheme": "momentum",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F7F5F0",
+    "android": {
+      "package": "com.momentum.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "momentum",
+      "shortName": "momentum",
+      "themeColor": "#F7F5F0",
+      "backgroundColor": "#F7F5F0"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
+    ]
+  }
+}

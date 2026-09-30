@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.expo/
+web-build/
+*.log
+.momentum/
+apps/backend/service/momentum.exe
+apps/backend/service/*.log
+apps/backend/service/*.wrapper.log

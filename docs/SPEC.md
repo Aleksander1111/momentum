@@ -128,7 +128,7 @@ Reacts to every change in the knowledge base so it stays consistent at all times
 
 The queryable side of the knowledge base: indices over entities, automations and chats, plus the metrics collected about them.
 
-- Lives alongside the entities: each workspace carries its own store next to its files, not a separate managed service
+- Lives alongside the entities on the dedicated machine: each workspace carries its own store, not a separate managed service
 - Kept up to date by the consistency guard, on every change
 - Holds four families of metrics, each tracked over time so trends are visible, and all of them fed to the optimization automation:
   - Attention: time the user spends per item, what is approved, rejected or sent back, and the patterns regular enough to become automatic approval or rejection

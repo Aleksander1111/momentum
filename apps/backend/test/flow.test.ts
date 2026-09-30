@@ -1,0 +1,226 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import postgres from 'postgres';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+// A throwaway workspaces root and database: the real settings are never touched
+const root = mkdtempSync(join(tmpdir(), 'momentum-test-'));
+process.loadEnvFile(join(import.meta.dirname, '../../../.env'));
+const url = new URL(process.env.DATABASE_URL!);
+url.pathname = '/momentum_test';
+process.env.DATABASE_URL = url.toString();
+process.env.MOMENTUM_ROOT = root;
+process.env.MOMENTUM_RUNS = join(root, '.runs');
+
+const repo = join(root, 'alpha');
+const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+const put = (dir: string, file: string, text: string) => {
+  mkdirSync(dirname(join(dir, file)), { recursive: true });
+  writeFileSync(join(dir, file), text);
+};
+const entity = (type: string, title: string, body: string, refs: string[] = [], extra = '') => `---
+type: ${type}
+verification: unverified
+product_impact: 3
+timeline_impact: 2
+unlocks: 1
+references:${refs.length ? refs.map((r) => `\n  - to: ${r}\n    relation: depends_on`).join('') : ' []'}
+${extra}---
+# ${title}
+
+${body}
+`;
+
+type M = Awaited<ReturnType<typeof import('../src/app.ts').createMomentum>>;
+let m: M;
+let addWorktree: typeof import('@momentum/runs').addWorktree;
+
+async function run(id: string, files: Record<string, string>, branch = `momentum/chat/${id}`) {
+  const checkout = join(root, '.runs', 'alpha', id);
+  await addWorktree(repo, checkout, branch, 'refs/heads/main');
+  for (const [f, t] of Object.entries(files)) put(checkout, f, t);
+  return m.guard.transaction({ id, workspace: 'alpha', automation: 'chat', branch, checkout, targetPath: null });
+}
+
+beforeAll(async () => {
+  const admin = postgres(new URL('/postgres', url).toString(), { onnotice: () => {} });
+  await admin.unsafe('drop database if exists momentum_test with (force)');
+  await admin.unsafe('create database momentum_test');
+  await admin.end();
+
+  mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'main');
+  git(repo, 'config', 'user.email', 't@t');
+  git(repo, 'config', 'user.name', 't');
+  put(repo, 'knowledge-graph/Architecture/Api/session.md', entity('Architecture/Api', 'Session on the API', 'Per-user session.').replace('unverified', 'verified'));
+  put(repo, 'src/app.txt', 'v1\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-q', '-m', 'init');
+
+  const app = await import('../src/app.ts');
+  ({ addWorktree } = await import('@momentum/runs'));
+  m = await app.createMomentum();
+  await m.settings.setEnabled('alpha', true);
+  await m.guard.indexMainLine(await m.workspaces.get('alpha'));
+}, 240_000);
+
+afterAll(async () => {
+  await m?.sql.end();
+  rmSync(root, { recursive: true, force: true });
+});
+
+describe('guard, feed and approval', () => {
+  it('indexes the main line as approved', async () => {
+    const d = await m.momentum.entity('alpha', 'Architecture/Api/session');
+    expect(d.verification).toBe('verified');
+    expect(d.branch).toBeNull();
+  });
+
+  it('puts a valid transaction in the feed', async () => {
+    const t = await run('r1', {
+      'knowledge-graph/Governance/Decision/private-mesh.md': entity(
+        'Governance/Decision',
+        'Remote access over a private mesh',
+        'Clients reach the machine through a mesh.\n\n```mermaid\nflowchart LR\n  Client --> Mesh --> API\n```',
+        ['Architecture/Api/session'],
+      ),
+    });
+    expect(t).toMatchObject({ valid: true, paths: ['Governance/Decision/private-mesh'] });
+    const feed = await m.momentum.feed();
+    expect(feed.items.map((i) => [i.path, i.rank])).toEqual([['Governance/Decision/private-mesh', 6]]);
+    const diagram = feed.items[0]!.card.find((b) => b.t === 'diagram');
+    expect(diagram?.t === 'diagram' && diagram.svg).toMatch(/^<svg/);
+  });
+
+  it('raises an issue for changes that cannot be made consistent', async () => {
+    const t = await run('r2', {
+      'knowledge-graph/Product/Feature/offline.md': entity('Product/Feature', 'Offline feed', 'x'.repeat(800), ['Nope/Missing/thing']),
+    });
+    expect(t.valid).toBe(false);
+    expect(t.issues.map((i) => i.code).sort()).toEqual(['card_limit', 'unresolved_reference']);
+    const feed = await m.momentum.feed();
+    expect(feed.items.map((i) => i.path)).toContain('Harness/Issue/guard-r2');
+    expect(feed.items.map((i) => i.path)).not.toContain('Product/Feature/offline');
+  });
+
+  it('approves onto the main line without touching other files', async () => {
+    await m.momentum.approve('alpha', 'Governance/Decision/private-mesh', 4200);
+    const onMain = git(repo, 'show', 'main:knowledge-graph/Governance/Decision/private-mesh.md');
+    expect(onMain).toContain('verification: verified');
+    expect(readFileSync(join(repo, 'knowledge-graph/Governance/Decision/private-mesh.md'), 'utf8')).toContain('verified');
+    expect(git(repo, 'status', '--porcelain')).toBe('');
+    const feed = await m.momentum.feed();
+    expect(feed.items.map((i) => i.path)).not.toContain('Governance/Decision/private-mesh');
+    const metrics = await m.momentum.metrics('alpha');
+    expect(metrics.attention.approved.value).toBe(1);
+    expect(metrics.attention.timePerItemSeconds.value).toBe(4);
+  });
+
+  it('marks an approved implementable entity entity_ahead', async () => {
+    const events: string[] = [];
+    m.bus.on('entity_ahead', (e) => events.push(e.path));
+    await run('r3', { 'knowledge-graph/Product/Feature/swipe.md': entity('Product/Feature', 'Swipe to approve', 'Right approves.') });
+    await m.momentum.approve('alpha', 'Product/Feature/swipe', 1000);
+    expect((await m.momentum.entity('alpha', 'Product/Feature/swipe')).sync).toBe('entity_ahead');
+    expect(events).toEqual(['Product/Feature/swipe']);
+  });
+
+  it('sends back into a chat run on the same branch', async () => {
+    await run('r4', { 'knowledge-graph/Product/UserStory/rank.md': entity('Product/UserStory', 'Attention feed ranking', 'Ranks the feed.') });
+    const { runId } = await m.momentum.sendBack('alpha', 'Product/UserStory/rank', 'Rank by importance instead.', 900);
+    const r = await m.momentum.run(runId);
+    expect(r).toMatchObject({ automation: 'chat', branch: 'momentum/chat/r4', targetPath: 'Product/UserStory/rank' });
+    expect(r.messages[0]).toMatchObject({ role: 'user', text: 'Rank by importance instead.' });
+    expect((await m.momentum.entity('alpha', 'Product/UserStory/rank')).sync).toBe('updating');
+    expect((await m.momentum.chats('alpha')).chats[0]?.runId).toBe(runId);
+  });
+
+  it('merges a validated branch keeping the knowledge base out of the merge', async () => {
+    const { mergeKeeping } = await import('@momentum/runs');
+    const checkout = join(root, '.runs', 'alpha', 'r5');
+    await addWorktree(repo, checkout, 'momentum/implementation/r5', 'refs/heads/main');
+    put(checkout, 'src/app.txt', 'v2\n');
+    put(checkout, 'knowledge-graph/Code/PullRequest/swipe.md', entity('Code/PullRequest', 'Swipe', 'Done.'));
+    git(checkout, 'add', '-A');
+    git(checkout, 'commit', '-q', '-m', 'impl');
+    const merged = await mergeKeeping(repo, 'main', 'momentum/implementation/r5', 'knowledge-graph', 'merge');
+    expect(merged?.changed).toEqual(['src/app.txt']);
+    expect(readFileSync(join(repo, 'src/app.txt'), 'utf8')).toMatch(/^v2\r?\n$/);
+    expect(git(repo, 'ls-tree', '-r', '--name-only', 'main', 'knowledge-graph/Code')).toBe('');
+  });
+});
+
+describe('orchestrator', () => {
+  it('queues scheduled loops while the feed has room and starts them within the concurrency limit', async () => {
+    const { Orchestrator } = await import('../src/orchestrator.ts');
+    const { createBus } = await import('../src/events.ts');
+    const trigger = (name: string) => `---
+type: Harness/Trigger
+verification: verified
+automation: ${name}
+schedule: "* * * * *"
+on_demand: true
+---
+# ${name} trigger
+
+Every minute.
+`;
+    for (const name of ['exploration', 'preparation', 'retention']) put(repo, `knowledge-graph/Harness/Trigger/${name}.md`, trigger(name));
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'triggers');
+
+    const created: string[] = [];
+    const started: string[] = [];
+    const queue: { workspace: string; id: string; automation: string }[] = [];
+    const stub = {
+      hasOpenRun: async () => false,
+      lastStart: async () => null,
+      create: async (r: { automation: string }) => {
+        created.push(r.automation);
+        queue.push({ workspace: 'alpha', id: r.automation, automation: r.automation });
+        return r.automation;
+      },
+      queued: async () => queue.filter((q) => !started.includes(q.id)),
+      activeCount: () => started.length,
+      start: async (id: string) => void started.push(id),
+    };
+    const o = new Orchestrator(m.workspaces, m.settings, m.guard, stub as never, m.automations, createBus());
+
+    await m.settings.put({ feedSize: 1, agents: { concurrentPerProject: 2, concurrentTotal: 8 } });
+    await o.tick();
+    expect(created).toEqual([]); // the feed is at its limit: loops pause
+
+    await m.settings.put({ feedSize: 40 });
+    await o.tick();
+    expect(created.sort()).toEqual(['exploration', 'preparation', 'retention']);
+    expect(started).toHaveLength(2); // two runs per project
+  });
+});
+
+describe('guard hooks in a run', () => {
+  it('flags a bad write at once and blocks the run from stopping until it is fixed', async () => {
+    const { guardHooks } = await import('../src/hooks.ts');
+    const checkout = join(root, '.runs', 'alpha', 'r6');
+    await addWorktree(repo, checkout, 'momentum/chat/r6', 'refs/heads/main');
+    const ref = { id: 'r6', workspace: 'alpha', automation: 'chat', branch: 'momentum/chat/r6', checkout, targetPath: null };
+    const hooks = guardHooks(m.guard, ref);
+    const post = hooks.PostToolUse![0]!.hooks[0]!;
+    const stop = hooks.Stop![0]!.hooks[0]!;
+    const opts = { signal: new AbortController().signal };
+    const base = { session_id: 's', transcript_path: '', cwd: checkout };
+    const file = 'knowledge-graph/Product/Bug/crash.md';
+
+    put(checkout, file, entity('Product/Bug', 'Crash', 'Crashes.', ['Nope/Missing/thing']));
+    const after = await post({ ...base, hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: join(checkout, file) }, tool_response: {}, tool_use_id: 't' } as never, 't', opts);
+    expect(JSON.stringify(after)).toContain('Nope/Missing/thing');
+
+    const stopInput = { ...base, hook_event_name: 'Stop', stop_hook_active: false } as never;
+    expect(await stop(stopInput, undefined, opts)).toMatchObject({ decision: 'block' });
+
+    put(checkout, file, entity('Product/Bug', 'Crash', 'Crashes.', ['Architecture/Api/session']));
+    expect(await post({ ...base, hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: file }, tool_response: {}, tool_use_id: 't' } as never, 't', opts)).toEqual({});
+    expect(await stop(stopInput, undefined, opts)).toEqual({});
+  });
+});

@@ -18,20 +18,20 @@ The infrastructure is built in one pass. Work packages below are ordered by depe
 | Run isolation | `git worktree` per run under `C:\Projects\.runs\<workspace>\<run-id>`, branch `momentum/<automation>/<run-id>`; process started under a Windows Job Object with CPU and memory limits (procgov), killed with the job | Own checkout, own branch, isolated, killable, own resource limits |
 | Knowledge base files | Markdown at `knowledge-graph/<type path>/<name>.md` on the workspace main line; frontmatter carries type, references and ranking parameters; body is the card, free-form markdown within the configured character limit | Card limit and on-disk layout fixed by the spec |
 | Parser and validator | unified: remark-parse, remark-gfm, remark-frontmatter; validator enforces the configured character limit and resolves references | Validation covers the card limit and the references between entities |
-| Index and metrics database | SQLite per workspace at `<workspace>\.momentum\index.sqlite` (gitignored), better-sqlite3, FTS5 for search, sqlite-vec for embeddings | Store lives next to the workspace files, not a managed service |
-| Graph RAG retrieval | FTS5 BM25 + sqlite-vec vectors + reference traversal over `entity_reference` (recursive CTE); embeddings computed in-process with `@huggingface/transformers` (bge-small, ONNX) | Graph RAG over entity types; no cloud service beyond the Anthropic API |
+| Index and metrics database | Postgres 18 in Docker on this machine (`pgvector/pgvector:pg18-trixie`), database `momentum`, one schema per workspace (`ws_<workspace>`); postgres.js driver; `tsvector` + GIN for search, pgvector for embeddings | One self-hosted store per workspace, not a managed service |
+| Graph RAG retrieval | `ts_rank` full text + pgvector cosine + reference traversal over `entity_reference` (recursive CTE); embeddings computed in-process with `@huggingface/transformers` (bge-small, ONNX) | Graph RAG over entity types; no cloud service beyond the Anthropic API |
 | KB access for runs | An MCP server `momentum-kb` (search, read, references, write) started by the SDK for every run | Agents and automations read and write the knowledge base freely on their own branch |
-| Consistency guard | chokidar watch on `knowledge-graph/` of every run checkout; a transaction is the set of changes of one run; validation on every change; index update per validated transaction | Reacts to every change, groups related changes, updates the index |
+| Consistency guard | Claude Code hooks in every run: PostToolUse validates each knowledge-base write as it happens, Stop sends the run back to fix changes the guard would not accept; chokidar watch on `knowledge-graph/` of every run checkout for changes made outside the tools; a transaction is the set of changes of one run; index update per validated transaction | Reacts to every change, groups related changes, updates the index |
 | Attention ranking | `product_impact`, `timeline_impact`, `unlocks` are integers 0–5 in entity frontmatter, written by the automation or user that authored the entity; `rank` computed in SQL when the index is updated | Ranking derived from the entities themselves; API reads the feed order with no work per poll |
-| Cross-project feed | API merges the per-workspace `attention_ranking` tables of enabled projects by rank at request time | One feed across projects, adjusting to the enabled set |
-| Harness settings | SQLite at `C:\Projects\.momentum\harness.sqlite`: enabled projects, feed size, lifetime rules, card configuration (character limit, presentation rules), concurrency, sessions | Enabling a project must not create commits in it |
+| Cross-project feed | API merges the per-workspace `attention_ranking` tables of enabled projects by rank at request time, one `UNION ALL` across their schemas | One feed across projects, adjusting to the enabled set |
+| Harness settings | Schema `harness` in the same Postgres database: enabled projects, feed size, lifetime rules, card configuration (character limit, presentation rules), concurrency, sessions | Enabling a project must not create commits in it |
 | Authentication | Single user; password set at install; session token in an httpOnly cookie on web and SecureStore on mobile; API listens only on the Tailscale interface | Per-user session on top of the mesh; no port on the public internet |
 | Voice tools | The API doubles as an MCP server (streamable HTTP) over the same handlers | Every capability reachable without the UI |
 | Machine | This machine: Windows 11, workspaces root `C:\Projects`; back-end as a Windows service (WinSW), Tailscale for Windows, Claude Code CLI, Node via fnm | Self-hosted on the dedicated machine as it is |
 | Mobile distribution | Android APK built locally with the Android SDK and sideloaded; iPhone runs the web build installed as a PWA, since iOS cannot be built on Windows | No cloud build service |
 | Testing | Vitest for parser, guard, ranking and orchestrator; Playwright for the web app; the harness repository as the first workspace for end-to-end runs | The harness manages itself |
 
-Assumed, not verified: better-sqlite3 ships FTS5 enabled and loads the sqlite-vec extension on Windows; procgov limits hold for the Claude Code subprocess tree.
+Assumed, not verified: procgov limits hold for the Claude Code subprocess tree.
 
 ## Repository layout
 
@@ -43,10 +43,10 @@ momentum/
   packages/
     contract/           zod schemas and types shared by app and backend
     entity/             markdown parser, validator, mermaid renderer
-    kb/                 SQLite index, FTS5, sqlite-vec, retrieval
+    kb/                 Postgres index, full text, pgvector, retrieval
     runs/               Agent SDK wrapper, worktrees, job objects
   automations/          Artifacts of the definition entities: agents, skills, MCP config, one directory per automation
-  knowledge-graph/      The harness's own knowledge base; automation/ holds the definition entities
+  knowledge-graph/      The harness's own knowledge base; Harness/Automation/ holds the definition entities
   docs/
     designs/            page designs
     diagrams/
@@ -54,7 +54,7 @@ momentum/
     PLAN.md
 ```
 
-A definition entity at `knowledge-graph/automation/<name>.md` has its Claude Code files in `automations/<name>/` as artifacts; on approval of the entity they are materialized into every workspace that uses it, under `<workspace>\.claude\`.
+A definition entity at `knowledge-graph/Harness/Automation/<name>.md` has its Claude Code files in `automations/<name>/` as artifacts; on approval of the entity they are materialized into every workspace that uses it, under `<workspace>\.claude\`.
 
 ## Entity file format
 
@@ -98,12 +98,12 @@ Validator rules: the card body is within the configured character limit; `type` 
 | 0 | Machine | — | Tailscale, Node, Claude Code CLI, procgov, WinSW service, `C:\Projects` as the workspaces root, this repository as the first workspace |
 | 1 | Contract | — | zod schemas for entity, feed item, run, chat, metrics, settings; generated OpenAPI |
 | 2 | Entity package | 1 | Parser, validator, mermaid renderer, golden fixtures |
-| 3 | KB package | 2 | Schema of the eleven tables from SPEC.md, FTS5, sqlite-vec, embeddings, retrieval, `momentum-kb` MCP server |
+| 3 | KB package | 2 | Schema of the eleven tables from SPEC.md per workspace, full text, pgvector, embeddings, retrieval, `momentum-kb` MCP server |
 | 4 | Runs package | 0 | Worktree lifecycle, Agent SDK session per run, job object limits, kill, usage capture from the SDK as a share of the 5-hour and weekly limits |
 | 5 | Consistency guard | 2, 3, 4 | Watcher per run checkout, transaction grouping, validation, issue entities, sync state, index update, ranking |
 | 6 | Orchestrator | 4, 5 | Loops per enabled project, schedule, event and on-demand triggers read from each workspace's trigger entities, feed-size bound, concurrency semaphore, chat runs |
 | 7 | API | 1, 3, 6 | Session, feed, approve, send back, entities, search, chats, runs, metrics, settings; MCP surface over the same handlers |
-| 8 | Automations | 3, 4 | Ten definition entities in `knowledge-graph/automation/` with artifacts in `automations/`: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, card, chat; a default trigger entity per automation, written into a workspace when it is enabled; materialization on approval |
+| 8 | Automations | 3, 4 | Ten definition entities in `knowledge-graph/Harness/Automation/` with artifacts in `automations/`: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, card, chat; a default trigger entity per automation, written into a workspace when it is enabled; materialization on approval |
 | 9 | App | 1, 7 | Seven pages below, web and mobile |
 | 10 | Metrics | 3, 5, 7 | Attention, understanding, agents, implementation metrics; usage as percentage points of the rolling 5-hour and weekly limits; attention patterns |
 | 11 | End-to-end validation | all | The harness repository runs as a workspace on the machine: loops produce feed items, approval lands on the main line, metrics fill |
@@ -139,7 +139,7 @@ Navigation: five tabs on mobile (Feed, Explorer, Chat, Metrics, Settings), a lef
 |---|---|
 | How a workspace is added or retired | A git repository under `C:\Projects` is a workspace; deleting the directory retires it; Settings only enables or disables |
 | Dedicated agents beyond the automations | None; sub-agents are artifacts of the definition entities, proposed by the optimization automation |
-| Where user edits of automations land | Definitions are entities at `knowledge-graph/automation/<name>` in the harness workspace, with the Claude Code files in `automations/<name>/` as artifacts; triggers are entities at `knowledge-graph/automation/trigger/<name>` in each workspace. Edits and proposals go through a branch, the guard and the feed; the orchestrator reads triggers from each workspace's index; materialization runs on approval of a definition |
+| Where user edits of automations land | Definitions are entities at `knowledge-graph/Harness/Automation/<name>` in the harness workspace, with the Claude Code files in `automations/<name>/` as artifacts; triggers are entities at `knowledge-graph/Harness/Trigger/<name>` in each workspace. Edits and proposals go through a branch, the guard and the feed; the orchestrator reads triggers from each workspace's index; materialization runs on approval of a definition |
 | Form of validation per kind of work | Chosen by the validation automation from the change's entity type; the four forms are review, test suite run, exploratory pass, consistency check |
 | Sync with sources | Runs read the repository directly; the summarization step writes summaries from artifacts on the run branch |
 | Claude Code integration surface | Agent SDK for runs, `momentum-kb` MCP for the knowledge base, definitions materialized under `<workspace>\.claude\` on approval |

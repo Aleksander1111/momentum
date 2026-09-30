@@ -1,0 +1,23 @@
+<service>
+  <id>momentum</id>
+  <name>Momentum</name>
+  <description>Momentum back-end: API, orchestrator and consistency guard</description>
+  <executable>C:\Program Files\nodejs\node.exe</executable>
+  <arguments>--import tsx src/server.ts</arguments>
+  <workingdirectory>%BASE%\..</workingdirectory>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <depend>Tailscale</depend>
+  <onfailure action="restart" delay="15 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>30 sec</stoptimeout>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <!-- Runs under the user's account so runs use its Claude Code login, git identity and C:\Projects -->
+  <serviceaccount>
+    <prompt>dialog</prompt>
+    <allowservicelogon>true</allowservicelogon>
+  </serviceaccount>
+</service>

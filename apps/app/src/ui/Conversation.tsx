@@ -1,0 +1,112 @@
+import { useRef } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { RunDetail } from '@momentum/contract';
+import { api } from '../lib/api';
+import { automationLabel, duration } from '../lib/format';
+import { C, F } from './theme';
+import { T } from './Text';
+import { Markdown } from './Markdown';
+import { Composer } from './Composer';
+
+const ACTIVE = new Set(['queued', 'running']);
+
+function RunHead({ run }: { run: RunDetail }) {
+  const running = run.status === 'running';
+  const state = running && run.startedAt ? `running ${duration(run.startedAt)}` : run.status;
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: C.card,
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+      }}
+    >
+      <View
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: 5,
+          backgroundColor: running ? C.ok : C.muted,
+          boxShadow: running ? `0 0 0 3px ${C.washOk}` : undefined,
+        }}
+      />
+      <View style={{ flex: 1 }}>
+        <T style={{ fontSize: 13.5 }}>{`${automationLabel(run.automation)} · ${state}`}</T>
+        <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.branch}</T>
+      </View>
+    </View>
+  );
+}
+
+const bubbleText = { fontSize: 14.5, lineHeight: 20 };
+
+/** Run header, messages and the message composer; polls the run while it is active. */
+export function Conversation({ runId }: { runId: string }) {
+  const qc = useQueryClient();
+  const scroll = useRef<ScrollView>(null);
+  const { data: run } = useQuery({
+    queryKey: ['run', runId],
+    queryFn: () => api.run(runId),
+    refetchInterval: (q) => (q.state.data && !ACTIVE.has(q.state.data.status) ? false : 3_000),
+  });
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      {run ? <RunHead run={run} /> : null}
+      <ScrollView
+        ref={scroll}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ gap: 10, paddingVertical: 12 }}
+        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}
+      >
+        {(run?.messages ?? []).map((m) =>
+          m.role === 'user' ? (
+            <View
+              key={m.seq}
+              style={{
+                alignSelf: 'flex-end',
+                maxWidth: '84%',
+                backgroundColor: C.ink,
+                borderRadius: 16,
+                borderBottomRightRadius: 4,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+              }}
+            >
+              <T style={[bubbleText, { color: C.white }]}>{m.text}</T>
+            </View>
+          ) : (
+            <View
+              key={m.seq}
+              style={{
+                alignSelf: 'flex-start',
+                maxWidth: '84%',
+                backgroundColor: C.white,
+                borderWidth: 1,
+                borderColor: C.line,
+                borderRadius: 16,
+                borderBottomLeftRadius: 4,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+              }}
+            >
+              <Markdown text={m.text} style={bubbleText} />
+            </View>
+          ),
+        )}
+      </ScrollView>
+      <Composer
+        placeholder="Message"
+        onSend={async (text) => {
+          await api.postMessage(runId, { text });
+          await qc.invalidateQueries({ queryKey: ['run', runId] });
+        }}
+      />
+    </KeyboardAvoidingView>
+  );
+}
