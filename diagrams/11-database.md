@@ -9,7 +9,8 @@ classDiagram
     type
     title
     description
-    feed_state
+    verification
+    sync
   }
   class summary_artifact {
     summary_path

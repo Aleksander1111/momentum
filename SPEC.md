@@ -11,12 +11,14 @@
 - **API**: Entry point between the front-end and the agents
 - **Approved state**: The system itself; approval makes a change part of it, and anything unapproved sits outside the project
 - **Attention feed**: A single feed where everything that needs the user's attention shows up; its items are entities, of any type
-- **Automation**: A background loop, per project, defined by its responsibility alone
+- **Automation**: A background loop, per project, defined by its responsibility alone; its definition is an entity in the harness workspace, its triggers an entity in each project
 - **Attention ranking**: The feed order, derived from the entities themselves by impact on the product, impact on the timeline, and how much the work unlocks
-- **Card**: The concise representation of an entity, the same for every flavour: title, description, bullet points, table, diagram, within fixed limits
+- **Card**: The concise representation of an entity, written by the card automation; no fixed structure, only a configured character limit, in the form that presents the entity best
+- **Card automation**: Writes the card of every entity by the user's configuration; the configuration sets at least a character limit sized so a card fits on a mobile screen
 - **Chat tool**: Asks a question or steers a run directly, without waiting for the feed
 - **Consistency guard**: Reacts to every change in the knowledge base, groups related changes into a transaction and validates them before they land on the main line
 - **Dedicated machine**: The one resource-rich machine that runs the back-end, the agents and the knowledge base
+- **Definition**: The Claude Code definition an automation runs; an entity in the harness workspace's knowledge base, one per automation, whose artifacts are the agent, skill, sub-agent and MCP files; edited, proposed and approved like any other entity
 - **Enabled project**: A project the orchestrator schedules; a disabled project has no loops running for it
 - **Entity**: The unit of the knowledge base, shown as a card; standalone, with a type, an origin and a state
 - **Entity type**: A path; all entities of the same type share a directory
@@ -31,8 +33,9 @@
 - **Origin**: How an entity came to be: added by the user, requested by the user and written by an automation, or raised by an automation on its own
 - **Orchestrator**: Starts and supervises the background automation loops, per project
 - **Run**: One Claude Code process per run and per project, in its own checkout of the project repository, on its own branch
-- **Summary**: The flavour of entity that has underlying artifacts, written by summarization; shown as the same card as any other entity
+- **Summary**: The flavour of entity that has underlying artifacts, written by summarization; given a card like any other entity
 - **Transaction**: A group of related changes the consistency guard validates together
+- **Trigger**: What starts a run of an automation: a schedule, an event, or the user on demand; an entity in each workspace's knowledge base, one per automation
 - **Workspace**: A project; a git repository on the dedicated machine, with its own knowledge base
 
 ## Success criteria
@@ -83,7 +86,7 @@ The same three layers, cut by the workspaces they run in: the attention layer is
 
 Starts and supervises the background automation loops, per project. It ships in the same application as the API: one back-end deployable, with only the runs as separate processes.
 
-- Owns the schedule and lifecycle of every loop run, triggered on time or on demand
+- Owns the schedule and lifecycle of every loop run, started by the trigger entities of each enabled project: a schedule, an event, or on demand
 - The feed size bounds the loops: they keep producing until the feed reaches its limit, then pause until the user works it down
 - Only enabled projects are scheduled: a disabled project falls out of the orchestrator's control entirely, and no loops run for it
 - Every run is a separate process: one Claude Code process per run and per project
@@ -98,13 +101,11 @@ Starts and supervises the background automation loops, per project. It ships in 
 - The unit is the entity; it is standalone and needs no artifact behind it
 - A summary is a flavour of entity: an entity with underlying artifacts, written by summarization
 - Entities arrive by three origins: added by the user directly, requested by the user and written by an automation, or raised by an automation on its own; every origin reaches the main line through the feed
-- Every entity is shown as a card, described the same way whatever its flavour, within fixed limits:
-  - One title, at most 40 characters
-  - One paragraph of description
-  - Up to seven bullet points
-  - One table, at most seven columns and seven rows
-  - One diagram
-- An entity that cannot be fully described within these limits is split into several entities that reference each other
+- Every entity is shown as a card, written by the card automation; a card has no fixed structure
+  - The user configures how cards are written; the one rule the configuration always sets is a character limit
+  - The limit is sized so a card fits on a mobile screen; within it a card can be anything
+  - The form follows the entity type and the underlying artifact types: a paragraph, bullets, a table or a diagram, whichever presents the entity best
+- An entity that cannot be described within the limit is split into several entities that reference each other
 - Entities live on disk in a file structure that mirrors their types: a type is a path, so all entities of the same type share a directory
 - Chats are resources: each is stored and indexed as a summary, with the chat as its artifact
 - Actions are entities as well, so failures, conflicts and resolutions reach the attention feed by the same path as everything else
@@ -117,10 +118,11 @@ Starts and supervises the background automation loops, per project. It ships in 
 Reacts to every change in the knowledge base so it stays consistent at all times, despite free access.
 
 - Groups related changes into a transaction and validates them before they land on the main line
-- Validation covers the card limits and the references between entities
+- Validation covers the configured card limit and the references between entities
 - Changes that cannot be made consistent are raised as issues, the same way the consistency check loop reports them
 - Runs on every change, not only on the scheduled consistency check
 - Updates the index and metrics database as part of every validated transaction
+- Maintains each entity's sync state: sets `updating` when a run targets it, `artifact_ahead` when its artifact changes, `entity_ahead` when it is approved without an implementation, and `synced` once they agree
 
 ##### Index and metrics database
 
@@ -141,6 +143,8 @@ The queryable side of the knowledge base: indices over entities, automations and
 Automations run continuously in the background, per project, independently of the user, preparing work ahead of time.
 
 No entity type belongs to an automation. Each automation is defined by its responsibility alone and searches the whole knowledge base across every layer, picking whatever entities serve that responsibility.
+
+The user configures every automation through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace, holding its schedule, its events and whether it starts on demand. Both are edited, proposed and approved like any other entity: the user's edit or optimization's proposal lands on a branch, passes the guard and reaches the main line through the feed. An automation that runs as a step inside the others has no trigger entity.
 
 AI is not the default. Each responsibility is split into steps and every step is carried by the cheapest mechanism that can carry it: indices, metrics, lifetimes and references are queries and rules, not prompts. AI is reserved for the judgement that cannot be expressed that way — deciding, planning, reviewing, summarizing.
 
@@ -174,16 +178,20 @@ AI is not the default. Each responsibility is split into steps and every step is
 - Optimization
   - Analyzes chats for misalignments with the user and issues that came up
   - Finds resolutions for the issues that recur most often: skills, sub-agents, definitions, new tools or MCP servers
-  - Owns the Claude Code definitions and automations
-  - Definitions, skills and sub-agents belong to the harness repository, so their behaviour can be measured across every project
-  - Each variant is materialized into the workspaces that use it, so Claude Code picks it up locally with no indirection
+  - Proposes changes to the definition and trigger entities through the feed; the user edits the same entities directly
+  - Definitions, skills and sub-agents belong to the harness workspace's knowledge base, so their behaviour can be measured across every project
+  - Each approved definition is materialized into the workspaces that use it, so Claude Code picks it up locally with no indirection
   - Competing implementations of a skill or sub-agent are compared on the collected metrics
 - Summarization
   - Summarizes artifacts from the repository: chats, plans, results implemented by AI
   - Runs as a step inside the other automations, so none of them is limited by how much it can read
   - Writes each summary before the user reads the work
-  - Each summary is a card like any other entity, a separate markdown document, at `knowledge-graph/type/sub-type/parent-name/name`
-  - Output shape: an easy-to-read tree; tables allowed but kept small
+  - Each summary is an entity like any other, a separate markdown document, at `knowledge-graph/type/sub-type/parent-name/name`
+- Card
+  - Writes the card of every entity, following the user's configuration
+  - The configuration sets at least a character limit, sized so a card fits on a mobile screen; it may say more about how cards are written, but never prescribes a fixed structure
+  - Chooses the form per entity type and per underlying artifact type, so the presentation is the best one for what lies behind the card
+  - Runs as a step inside the other automations, like summarization, so every entity has its card before it reaches the feed
 - Chat
   - The direct chat is an automation too, started by the user instead of by the schedule
   - Runs on the same machinery as every other automation: its own process, checkout and branch
@@ -213,12 +221,22 @@ Tables of the [index and metrics database](#index-and-metrics-database), one sto
 |---|---|
 | path | Location on disk, `knowledge-graph/type/sub-type/parent-name/name` |
 | type | Entity type; the directory shared by all entities of that type |
-| title | Title, at most 40 characters |
-| description | One paragraph of description |
+| title | Title |
+| card | The card, within the configured character limit |
 | origin | user, requested or automation |
-| feed_state | verified, unverified or pending_update |
+| verification | unverified or verified: the user's judgement of the entity |
+| sync | synced, entity_ahead, artifact_ahead or updating: the entity against its underlying artifact or implementation |
 
 An entity with at least one row in `entity_artifact` is a summary; there is no flavour column.
+
+The two states are independent. Verification belongs to the attention layer; rejection is a process, not a value. Sync belongs to the implementation layer and is maintained by the consistency guard:
+
+| sync | Meaning |
+|---|---|
+| synced | Entity, artifact and implementation agree; a standalone entity with no artifact and no `implements` reference is always synced |
+| entity_ahead | The entity is approved but nothing implements it yet: a verified feature or plan awaiting implementation |
+| artifact_ahead | The artifact changed under the entity; summarization rewrites the card |
+| updating | A run is working on the entity, for example after a send back; replaces the former pending_update |
 
 ### entity_artifact
 
@@ -233,7 +251,7 @@ An entity with at least one row in `entity_artifact` is a summary; there is no f
 |---|---|
 | from_path | Entity holding the reference |
 | to_path | Entity referenced; validated by the guard, read by retention to decide what is spent |
-| relation_type | Type of relation between the two entities |
+| relation_type | Type of relation between the two entities; `implements` links a result to the entity it implements and is what sync compares against |
 
 ### chat
 
@@ -248,6 +266,8 @@ An entity with at least one row in `entity_artifact` is a summary; there is no f
 |---|---|
 | name | Exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization or chat |
 | responsibility | Responsibility that defines the automation |
+| definition | Path of the definition entity in the harness workspace |
+| trigger | Path of the trigger entity in this workspace; none for an automation that runs only as a step inside others |
 
 ### run
 
@@ -257,7 +277,8 @@ An entity with at least one row in `entity_artifact` is a summary; there is no f
 | automation | Automation the run belongs to |
 | branch | Own branch of the run |
 | checkout | Own checkout of the project repository |
-| trigger | On time or on demand |
+| trigger | Trigger that started the run: schedule, event or on demand |
+| target_path | Entity the run is working on, if any; that entity is `updating` while the run lasts |
 
 ### attention_ranking
 
