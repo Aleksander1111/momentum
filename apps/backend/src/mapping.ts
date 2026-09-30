@@ -1,4 +1,5 @@
 import type { MappingStatus } from '@momentum/contract';
+import { config } from './config.ts';
 import type { HarnessSettings } from './harness.ts';
 import type { Workspace } from './workspaces.ts';
 
@@ -37,5 +38,6 @@ export async function mappingStatus(ws: Workspace, settings: HarnessSettings): P
     entities: r?.entities ?? 0,
     usage: { fiveHour: r?.five_hour ?? null, week: r?.week ?? null },
     activeRunId: r?.active ?? null,
+    resettable: ws.name !== config.harnessName,
   };
 }

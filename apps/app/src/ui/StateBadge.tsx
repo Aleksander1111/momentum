@@ -5,17 +5,23 @@ import { T, H } from './Text';
 
 type State = Verification | Sync;
 
-const STATE: Record<State, { glyph: string; colour: string; label: string }> = {
-  unverified: { glyph: '?', colour: C.warn, label: 'Unverified' },
-  verified: { glyph: '✓', colour: C.ok, label: 'Verified' },
-  synced: { glyph: '=', colour: C.muted, label: 'Synced' },
-  entity_ahead: { glyph: '→', colour: C.accent, label: 'Entity ahead' },
-  artifact_ahead: { glyph: '←', colour: C.warn, label: 'Artifact ahead' },
-  updating: { glyph: '↻', colour: C.accent, label: 'Updating' },
+/** Colours are palette keys, read while rendering so they follow the scheme. */
+const STATE: Record<State, { glyph: string; colour: keyof typeof C; label: string }> = {
+  unverified: { glyph: '?', colour: 'warn', label: 'Unverified' },
+  verified: { glyph: '✓', colour: 'ok', label: 'Verified' },
+  synced: { glyph: '=', colour: 'muted', label: 'Synced' },
+  entity_ahead: { glyph: '→', colour: 'accent', label: 'Entity ahead' },
+  artifact_ahead: { glyph: '←', colour: 'warn', label: 'Artifact ahead' },
+  updating: { glyph: '↻', colour: 'accent', label: 'Updating' },
 };
+
+export const STATE_LABEL: Record<State, string> = Object.fromEntries(
+  Object.entries(STATE).map(([k, v]) => [k, v.label]),
+) as Record<State, string>;
 
 export function StateBadge({ state, label }: { state: State; label?: boolean }) {
   const s = STATE[state];
+  const colour = C[s.colour];
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <View
@@ -23,14 +29,14 @@ export function StateBadge({ state, label }: { state: State; label?: boolean }) 
           width: 16,
           height: 16,
           borderRadius: 8,
-          backgroundColor: s.colour,
+          backgroundColor: colour,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <T style={{ color: C.white, fontSize: 11, lineHeight: 13, fontFamily: F.body }}>{s.glyph}</T>
+        <T style={{ color: C.surface, fontSize: 11, lineHeight: 13, fontFamily: F.body }}>{s.glyph}</T>
       </View>
-      {label ? <H style={{ color: s.colour, fontSize: 14 }}>{s.label}</H> : null}
+      {label ? <H style={{ color: colour, fontSize: 14 }}>{s.label}</H> : null}
     </View>
   );
 }

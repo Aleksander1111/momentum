@@ -1,5 +1,5 @@
 import { loadEntityTypes, type EntityType } from '@momentum/entity';
-import { migrateWorkspace, WorkspaceIndex, type Sql } from '@momentum/kb';
+import { migrateWorkspace, schemaOf, WorkspaceIndex, type Sql } from '@momentum/kb';
 import { currentBranch } from '@momentum/runs';
 import { config } from './config.ts';
 import type { HarnessSettings } from './harness.ts';
@@ -13,6 +13,11 @@ export interface Workspace {
 }
 
 export class NotFound extends Error {}
+
+/** A request the harness refuses in the state it is in */
+export class Conflict extends Error {
+  readonly statusCode = 409;
+}
 
 /** Workspaces on disk and their indices; one schema per workspace */
 export class Workspaces {
@@ -42,6 +47,13 @@ export class Workspaces {
 
   async enabled(): Promise<Workspace[]> {
     return Promise.all((await this.settings.enabled()).map((p) => this.get(p.name)));
+  }
+
+  /** Drops the index and metrics database of a workspace: its schema and its runs; the next get creates them afresh */
+  async drop(name: string): Promise<void> {
+    this.cache.delete(name);
+    await this.sql.unsafe(`drop schema if exists ${schemaOf(name)} cascade`);
+    await this.sql`delete from harness.run_ref where workspace = ${name}`;
   }
 
   harness(): Promise<Workspace> {

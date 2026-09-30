@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // A throwaway workspaces root and database: the real settings are never touched
 const root = mkdtempSync(join(tmpdir(), 'momentum-test-'));
@@ -59,6 +59,14 @@ beforeAll(async () => {
   git(repo, 'add', '-A');
   git(repo, 'commit', '-q', '-m', 'init');
 
+  // An empty harness workspace: no definitions, so enabling a project materializes and proposes nothing
+  const harness = join(root, 'momentum');
+  mkdirSync(harness);
+  git(harness, 'init', '-q', '-b', 'main');
+  git(harness, 'config', 'user.email', 't@t');
+  git(harness, 'config', 'user.name', 't');
+  git(harness, 'commit', '-q', '--allow-empty', '-m', 'init');
+
   const app = await import('../src/app.ts');
   ({ addWorktree } = await import('@momentum/runs'));
   m = await app.createMomentum();
@@ -90,6 +98,8 @@ describe('guard, feed and approval', () => {
     expect(t).toMatchObject({ valid: true, paths: ['Governance/Decision/private-mesh'] });
     const feed = await m.momentum.feed();
     expect(feed.items.map((i) => [i.path, i.rank])).toEqual([['Governance/Decision/private-mesh', 6]]);
+    expect(feed.counts.verification).toEqual({ verified: 1, unverified: 1 });
+    expect(feed.counts.sync).toEqual({ synced: 2, entity_ahead: 0, artifact_ahead: 0, updating: 0 });
     const diagram = feed.items[0]!.card.find((b) => b.t === 'diagram');
     expect(diagram?.t === 'diagram' && diagram.svg).toMatch(/^<svg/);
   });
@@ -103,6 +113,7 @@ describe('guard, feed and approval', () => {
     const feed = await m.momentum.feed();
     expect(feed.items.map((i) => i.path)).toContain('Harness/Issue/guard-r2');
     expect(feed.items.map((i) => i.path)).not.toContain('Product/Feature/offline');
+    expect(feed.counts.verification.unverified).toBe(2);
   });
 
   it('approves onto the main line without touching other files', async () => {
@@ -285,5 +296,47 @@ describe('guard hooks in a run', () => {
     put(checkout, file, entity('Product/Bug', 'Crash', 'Crashes.', ['Architecture/Api/session']));
     expect(await post({ ...base, hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: file }, tool_response: {}, tool_use_id: 't' } as never, 't', opts)).toEqual({});
     expect(await stop(stopInput, undefined, opts)).toEqual({});
+  });
+});
+
+describe('reset', () => {
+  it('removes every entity and database entry of a project and builds its knowledge graph afresh', async () => {
+    const { Orchestrator } = await import('../src/orchestrator.ts');
+    const { createBus } = await import('../src/events.ts');
+    const created: { automation: string; branch?: string | null }[] = [];
+    const stub = {
+      stopWorkspace: async () => undefined,
+      hasOpenRun: async () => false,
+      hasOpenRunOnBranch: async () => false,
+      lastStart: async () => new Date(),
+      create: async (r: { automation: string; branch?: string | null }) => {
+        created.push(r);
+        return r.automation;
+      },
+      queued: async () => [],
+      activeCount: () => 0,
+      start: async () => undefined,
+    };
+    const o = new Orchestrator(m.workspaces, m.settings, m.guard, stub as never, m.automations, createBus());
+    expect(git(repo, 'ls-tree', '-r', '--name-only', 'main', 'knowledge-graph')).not.toBe('');
+    expect(git(repo, 'branch', '--list', 'momentum/*')).not.toBe('');
+    const code = readFileSync(join(repo, 'src/app.txt'), 'utf8');
+
+    await o.reset(await m.workspaces.get('alpha'));
+    // the build starts again from the top
+    await vi.waitFor(() => expect(created.map((r) => r.automation)).toContain('mapping'));
+
+    expect(git(repo, 'ls-tree', '-r', '--name-only', 'main', 'knowledge-graph')).toBe('');
+    expect(git(repo, 'branch', '--list', 'momentum/*')).toBe('');
+    expect(git(repo, 'status', '--porcelain')).toBe('');
+    expect(readFileSync(join(repo, 'src/app.txt'), 'utf8')).toBe(code); // code is untouched
+    expect((await m.momentum.types('alpha')).total).toBe(0);
+    expect((await m.momentum.chats('alpha')).chats).toEqual([]);
+    expect((await m.momentum.feed()).items).toEqual([]);
+    const status = await m.momentum.mapping('alpha');
+    expect(status).toMatchObject({ state: 'building', progress: null, runs: 0, entities: 0, resettable: true });
+    expect((await m.settings.enabled()).map((p) => p.name)).toEqual(['alpha']);
+
+    await expect(o.reset(await m.workspaces.get('momentum'))).rejects.toThrow(/cannot be reset/);
   });
 });

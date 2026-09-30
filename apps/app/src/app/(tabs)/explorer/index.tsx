@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { EntityListItem, TypeNode } from '@momentum/contract';
 import { api } from '../../../lib/api';
 import { useCurrentWorkspace } from '../../../lib/workspace';
-import { C, useWide } from '../../../ui/theme';
+import { C, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
 import { Icon, Triangle } from '../../../ui/icons';
 import { Field } from '../../../ui/Field';
@@ -86,6 +86,7 @@ function treeRows(
 }
 
 export default function Explorer() {
+  useTheme();
   const wide = useWide();
   const params = useLocalSearchParams<{ ws?: string; path?: string }>();
   const [ws, setWs, names] = useCurrentWorkspace();

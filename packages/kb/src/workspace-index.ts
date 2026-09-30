@@ -4,6 +4,7 @@ import type {
   EntityDetail,
   EntityFrontmatter,
   EntityListItem,
+  FeedCounts,
   FeedItem,
   Origin,
   ReferenceView,
@@ -289,6 +290,24 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
     sync: r.sync,
     rank: Number(r.rank),
   }));
+}
+
+/** Entities of the enabled projects counted by verification and by sync state */
+export async function crossProjectEntityCounts(sql: Sql, workspaces: string[]): Promise<FeedCounts> {
+  const counts: FeedCounts = {
+    verification: { unverified: 0, verified: 0 },
+    sync: { synced: 0, entity_ahead: 0, artifact_ahead: 0, updating: 0 },
+  };
+  if (workspaces.length === 0) return counts;
+  const parts = workspaces.map((w) => `select verification, sync from ${schemaOf(w)}.entity`);
+  const rows = await sql.unsafe<{ verification: Verification; sync: Sync; n: number }[]>(
+    `select verification, sync, count(*)::int as n from (${parts.join(' union all ')}) e group by verification, sync`,
+  );
+  for (const r of rows) {
+    counts.verification[r.verification] += r.n;
+    counts.sync[r.sync] += r.n;
+  }
+  return counts;
 }
 
 export { typeOfPath };

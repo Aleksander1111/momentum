@@ -21,7 +21,7 @@ export const Field = forwardRef<TextInput, Props>(function Field(
           flexDirection: 'row',
           alignItems: 'center',
           gap: 10,
-          backgroundColor: C.white,
+          backgroundColor: C.surface,
           borderWidth: 1,
           borderColor: invalid ? C.no : C.line,
           borderRadius: 12,

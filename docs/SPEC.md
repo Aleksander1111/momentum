@@ -91,6 +91,7 @@ Starts and supervises the background automation loops, per project. It ships in 
 - The feed size bounds the loops: they keep producing until the feed reaches its limit, then pause until the user works it down
 - Only enabled projects are scheduled: a disabled project falls out of the orchestrator's control entirely, and no loops run for it
 - Enabling a project starts the mapping: the knowledge graph is built from the repository run after run, each run bounded by the room the feed has, until the repository is covered; the user watches what the build has used and stops it at any time, and disabling the project stops it too
+- Resetting a project removes every entity and database entry it has and starts the build afresh: every run ends, the run branches go, the knowledge graph leaves the main line in one commit, and the project is enabled again from nothing; the harness workspace, which holds the automation definitions, cannot be reset
 - Every run is a separate process: one Claude Code process per run and per project
 - Each run process works in its own checkout of the project repository, on its own branch, so concurrent runs never share a working tree
 - Runs are isolated and killable, with their own resource limits; a crashing or heavy run cannot take the orchestrator down
@@ -213,6 +214,7 @@ A single feed where everything that needs the user's attention shows up.
 - Nothing changes unattended: every change surfaces as an entity, a summary of an artifact, a feature, a result, and passes the user's eyes before it counts
 - The approved state is the system: approval is what makes a change part of it, and anything unapproved sits outside the project
 - Items are entities, of any type
+- Counters above the cards show the entities of the enabled projects by state: verified and unverified, and each sync state
 - One feed across projects: projects are enabled or disabled on demand and the feed adjusts to the enabled set
 - Ranking answers one question: what should be done right now so the product ends up the best it can be and the journey there stays optimal
 - A few parameters decide it, each measuring how much the work behind the entity matters: impact on the product, impact on the timeline, and how much it unlocks

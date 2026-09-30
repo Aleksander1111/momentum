@@ -46,7 +46,7 @@ export const Composer = forwardRef<
           opacity: busy ? 0.6 : 1,
         }}
       >
-        <Icon name="send" size={18} color={C.white} />
+        <Icon name="send" size={18} color={C.surface} />
       </Pressable>
     </View>
   );

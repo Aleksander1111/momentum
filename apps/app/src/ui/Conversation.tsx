@@ -90,7 +90,7 @@ export function Conversation({ runId }: { runId: string }) {
                 paddingHorizontal: 14,
               }}
             >
-              <T style={[bubbleText, { color: C.white }]}>{m.text}</T>
+              <T style={[bubbleText, { color: C.surface }]}>{m.text}</T>
             </View>
           ) : (
             <View
@@ -98,7 +98,7 @@ export function Conversation({ runId }: { runId: string }) {
               style={{
                 alignSelf: 'flex-start',
                 maxWidth: '84%',
-                backgroundColor: C.white,
+                backgroundColor: C.surface,
                 borderWidth: 1,
                 borderColor: C.line,
                 borderRadius: 16,

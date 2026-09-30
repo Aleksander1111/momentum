@@ -1,6 +1,11 @@
+import { createContext, useContext } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 
-export const C = {
+export type Scheme = 'light' | 'dark';
+/** What the user chose in Settings; `system` follows the device. */
+export type Appearance = 'system' | Scheme;
+
+const LIGHT = {
   ink: '#2F3E46',
   muted: '#52606A',
   accent: '#B85042',
@@ -9,7 +14,8 @@ export const C = {
   screen: '#F7F5F0',
   line: '#D5D9D3',
   card: '#EEF1EC',
-  white: '#FFFFFF',
+  /** Raised surfaces (lists, cards, the tab bar), and glyphs drawn on a filled colour. */
+  surface: '#FFFFFF',
   washNo: '#F4DCD6',
   washWarn: '#EFE8D2',
   warn: '#8A6D2B',
@@ -17,8 +23,60 @@ export const C = {
   behind1: '#FBFAF7',
   behind2: '#F3F1EC',
   commentBg: '#FBF4F2',
+  /** Backdrop of diagrams, which are drawn dark on light. */
+  diagram: 'transparent',
   dim: 'rgba(30,41,59,.55)',
-} as const;
+};
+
+type Palette = { readonly [K in keyof typeof LIGHT]: string };
+
+const DARK: Palette = {
+  ink: '#E4E8E3',
+  muted: '#9AA7AE',
+  accent: '#E07A66',
+  ok: '#7DB594',
+  no: '#E8806B',
+  screen: '#161C1F',
+  line: '#364247',
+  card: '#263035',
+  surface: '#1E262A',
+  washNo: '#4A2B25',
+  washWarn: '#3F3722',
+  warn: '#D3B26B',
+  washOk: '#223A2D',
+  behind1: '#1B2226',
+  behind2: '#192024',
+  commentBg: '#2F2523',
+  diagram: '#EEF1EC',
+  dim: 'rgba(0,0,0,.6)',
+};
+
+export const PALETTES: Record<Scheme, Palette> = { light: LIGHT, dark: DARK };
+
+let current: Palette = LIGHT;
+
+/**
+ * The colours of the scheme in effect. Read them while rendering, never into module-level constants: every route
+ * calls `useTheme()` so the whole tree renders again with the other palette when the scheme changes.
+ */
+export const C: Palette = Object.defineProperties(
+  {},
+  Object.fromEntries(Object.keys(LIGHT).map((k) => [k, { enumerable: true, get: () => current[k as keyof Palette] }])),
+) as Palette;
+
+/** Makes `C` return the colours of `scheme`; called by the appearance provider before its subtree renders. */
+export function applyScheme(scheme: Scheme): void {
+  current = PALETTES[scheme];
+}
+
+export type Theme = { scheme: Scheme; appearance: Appearance; setAppearance: (a: Appearance) => void };
+
+export const ThemeContext = createContext<Theme>({ scheme: 'light', appearance: 'system', setAppearance: () => {} });
+
+/** Subscribes a route to the theme; call it at the top of every screen and layout. */
+export function useTheme(): Theme {
+  return useContext(ThemeContext);
+}
 
 export const F = {
   head: Platform.select({ web: 'Cambria, Georgia, "Times New Roman", serif', default: 'serif' }),

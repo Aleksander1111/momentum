@@ -1,10 +1,11 @@
 import { ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useWide } from '../../../ui/theme';
+import { useTheme, useWide } from '../../../ui/theme';
 import { Back } from '../../../ui/parts';
 import { EntityView } from '../../../ui/EntityView';
 
 export default function Entity() {
+  useTheme();
   const wide = useWide();
   const { ws, path } = useLocalSearchParams<{ ws: string; path: string }>();
   return (

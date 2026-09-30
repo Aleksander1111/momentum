@@ -1,10 +1,10 @@
 import { crossProjectFeed } from '@momentum/kb';
-import { addWorktree, commitAll } from '@momentum/runs';
+import { addWorktree, branchesUnder, commitAll, commitPathsFrom, deleteBranch, listFiles, removeWorktree, worktreeDirs } from '@momentum/runs';
 import { CronExpressionParser } from 'cron-parser';
 import { randomBytes } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileOf } from '@momentum/entity';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { fileOf, KNOWLEDGE_GRAPH } from '@momentum/entity';
 import { TRIGGER_TYPE, type Automations, type Trigger } from './automations.ts';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
@@ -12,7 +12,7 @@ import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { mappingBranch, mappingPrompt } from './mapping.ts';
 import type { Runner } from './runner.ts';
-import type { Workspace, Workspaces } from './workspaces.ts';
+import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
 
 const PROMPTS: Record<string, string> = {
   schedule: 'Scheduled run: carry out your responsibility for this workspace now.',
@@ -76,6 +76,46 @@ export class Orchestrator {
     if ((await this.settings.mapping(ws.name)).state === 'building') {
       await this.runner.stopAutomation(ws.name, 'mapping');
       await this.settings.setMapping(ws.name, 'stopped');
+    }
+  }
+
+  /**
+   * Resetting a project: every run ends, run branches and checkouts go, the knowledge graph is deleted from the main
+   * line in one commit, and the workspace's index and metrics database is dropped. An enabled project is then enabled
+   * afresh: default triggers are proposed again and the knowledge graph is built from the start.
+   */
+  async reset(ws: Workspace): Promise<void> {
+    if (ws.name === config.harnessName) throw new Conflict('The harness workspace holds the automation definitions and cannot be reset');
+    const enabled = (await this.settings.enabled()).some((p) => p.name === ws.name);
+    // Out of the orchestrator's control while it resets: no loop starts, no event queues a run
+    if (enabled) await this.settings.setEnabled(ws.name, false);
+    try {
+      while (this.ticking) await new Promise((r) => setTimeout(r, 50));
+      await this.runner.stopWorkspace(ws.name);
+      await this.removeRunBranches(ws);
+      const files = await listFiles(ws.path, `refs/heads/${ws.main}`, KNOWLEDGE_GRAPH);
+      if (files.length > 0) {
+        await commitPathsFrom(ws.path, ws.main, files.map((path) => ({ path, content: null })), 'momentum: reset the knowledge graph');
+      }
+      await this.workspaces.drop(ws.name);
+      await this.settings.resetProject(ws.name);
+    } finally {
+      if (enabled) await this.settings.setEnabled(ws.name, true);
+    }
+    if (enabled) await this.enable(await this.workspaces.get(ws.name));
+  }
+
+  /** Every run checkout of a workspace and every momentum/ branch of its repository */
+  private async removeRunBranches(ws: Workspace): Promise<void> {
+    const runs = resolve(config.runs, ws.name);
+    const inRuns = (dir: string) => resolve(dir).toLowerCase().startsWith(runs.toLowerCase());
+    for (const dir of (await worktreeDirs(ws.path)).filter(inRuns)) {
+      await removeWorktree(ws.path, dir).catch((e) => console.error(`reset ${ws.name}: worktree ${dir}:`, e));
+    }
+    await rm(runs, { recursive: true, force: true }).catch((e) => console.error(`reset ${ws.name}: ${runs}:`, e));
+    for (const branch of await branchesUnder(ws.path, 'momentum/')) {
+      if (branch === ws.main) continue;
+      await deleteBranch(ws.path, branch).catch((e) => console.error(`reset ${ws.name}: branch ${branch}:`, e));
     }
   }
 

@@ -4,8 +4,7 @@ import { Redirect } from 'expo-router';
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getToken } from '../../lib/token';
-import { C } from '../../ui/theme';
-import { useWide } from '../../ui/theme';
+import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
 
@@ -25,7 +24,7 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
         wide
           ? {
               width: 92,
-              backgroundColor: C.white,
+              backgroundColor: C.surface,
               borderRightWidth: 1,
               borderRightColor: C.line,
               paddingVertical: 28,
@@ -37,7 +36,7 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
               flexDirection: 'row',
               justifyContent: 'space-around',
               alignItems: 'center',
-              backgroundColor: C.white,
+              backgroundColor: C.surface,
               borderTopWidth: 1,
               borderTopColor: C.line,
               paddingTop: 10,
@@ -73,6 +72,7 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
 }
 
 export default function TabsLayout() {
+  useTheme();
   const wide = useWide();
   const insets = useSafeAreaInsets();
   const [auth, setAuth] = useState<'unknown' | 'yes' | 'no'>(Platform.OS === 'web' ? 'yes' : 'unknown');

@@ -5,13 +5,14 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
 import { useWorkspaces } from '../../../lib/workspace';
 import { relativeTime, runKind } from '../../../lib/format';
-import { useWide } from '../../../ui/theme';
+import { useTheme, useWide } from '../../../ui/theme';
 import { List, Row, RowText, Sect } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { Composer } from '../../../ui/Composer';
 import { Conversation } from '../../../ui/Conversation';
 
 export default function Chats() {
+  useTheme();
   const wide = useWide();
   const qc = useQueryClient();
   const params = useLocalSearchParams<{ ws?: string; compose?: string; run?: string }>();

@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { MappingState, PutSettings, Settings as SettingsT } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { usagePct } from '../../lib/format';
-import { C, F, useWide } from '../../ui/theme';
+import { C, F, useTheme, useWide, type Appearance } from '../../ui/theme';
 import { Btn, Chevron, List, Row, RowText, Sect } from '../../ui/parts';
+import { T } from '../../ui/Text';
 
 const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null;
 
@@ -25,7 +26,7 @@ function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
           width: 18,
           height: 18,
           borderRadius: 9,
-          backgroundColor: C.white,
+          backgroundColor: C.surface,
           boxShadow: '0 1px 2px rgba(0,0,0,.2)',
         }}
       />
@@ -127,11 +128,50 @@ function TextRow({
   );
 }
 
+const APPEARANCES: { value: Appearance; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+/** Segmented choice of the colour scheme; kept on this device, not on the server. */
+function AppearancePicker() {
+  const { appearance, setAppearance } = useTheme();
+  return (
+    <View
+      accessibilityRole="radiogroup"
+      style={{ marginLeft: 'auto', flexDirection: 'row', backgroundColor: C.card, borderRadius: 8, padding: 2, flexShrink: 0 }}
+    >
+      {APPEARANCES.map((a) => {
+        const on = a.value === appearance;
+        return (
+          <Pressable
+            key={a.value}
+            onPress={() => setAppearance(a.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: on }}
+            style={{
+              paddingVertical: 4,
+              paddingHorizontal: 10,
+              borderRadius: 6,
+              backgroundColor: on ? C.surface : 'transparent',
+              boxShadow: on ? '0 1px 2px rgba(0,0,0,.15)' : undefined,
+            }}
+          >
+            <T style={{ fontSize: 13.5, fontWeight: on ? '700' : '400', color: on ? C.ink : C.muted }}>{a.label}</T>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const MAPPING: Record<MappingState, string> = { building: 'building', stopped: 'stopped', complete: 'complete' };
 
 /**
  * The knowledge graph build of an enabled project: its state, what it produced and what it used, refreshed while it
- * builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again.
+ * builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again. Reset removes every
+ * entity and database entry of the project and builds the knowledge graph afresh; it asks for a second tap first.
  */
 function MappingRow({ name }: { name: string }) {
   const qc = useQueryClient();
@@ -145,9 +185,24 @@ function MappingRow({ name }: { name: string }) {
     onSuccess: (next) => qc.setQueryData(['mapping', name], next),
     onError: () => void qc.invalidateQueries({ queryKey: ['mapping', name] }),
   });
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4_000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  const reset = useMutation({
+    mutationFn: () => api.resetProject(name),
+    onSuccess: (next) => {
+      qc.setQueryData(['mapping', name], next);
+      // Every entity, chat, run and metric of the project is gone
+      void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'mapping' });
+    },
+    onSettled: () => setArmed(false),
+  });
   if (!m?.state) return null;
   const sub = [
-    MAPPING[m.state],
+    reset.isPending ? 'resetting' : MAPPING[m.state],
     `${m.runs} ${m.runs === 1 ? 'run' : 'runs'}`,
     `${m.entities} ${m.entities === 1 ? 'entity' : 'entities'}`,
     `${usagePct(m.usage.fiveHour)} of 5 h`,
@@ -156,13 +211,23 @@ function MappingRow({ name }: { name: string }) {
   return (
     <Row style={{ paddingLeft: 28, backgroundColor: C.card }}>
       <RowText title="Knowledge graph" sub={sub} size={14} />
-      {m.state !== 'complete' ? (
+      {m.state !== 'complete' && !armed ? (
         <Btn
           small
           kind="ghost"
           label={m.state === 'building' ? 'Stop' : 'Resume'}
-          disabled={set.isPending}
+          disabled={set.isPending || reset.isPending}
           onPress={() => set.mutate(m.state !== 'building')}
+        />
+      ) : null}
+      {m.resettable ? (
+        <Btn
+          small
+          kind={armed ? 'primary' : 'ghost'}
+          label={reset.isPending ? 'Resetting' : armed ? 'Confirm reset' : 'Reset'}
+          disabled={reset.isPending || set.isPending}
+          onPress={() => (armed ? reset.mutate() : setArmed(true))}
+          style={{ marginLeft: 6 }}
         />
       ) : null}
     </Row>
@@ -170,6 +235,7 @@ function MappingRow({ name }: { name: string }) {
 }
 
 export default function Settings() {
+  useTheme();
   const wide = useWide();
   const qc = useQueryClient();
   const { data: s } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
@@ -199,7 +265,15 @@ export default function Settings() {
       }
       keyboardShouldPersistTaps="handled"
     >
-      <Sect first>Included projects</Sect>
+      <Sect first>Appearance</Sect>
+      <List>
+        <Row first>
+          <RowText title="Theme" />
+          <AppearancePicker />
+        </Row>
+      </List>
+
+      <Sect>Included projects</Sect>
       <List>
         {s.projects.map((p, i) => (
           <View key={p.name}>

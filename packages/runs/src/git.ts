@@ -63,6 +63,21 @@ export async function removeWorktree(repo: string, checkout: string): Promise<vo
   await git(repo, ['worktree', 'prune']);
 }
 
+/** Branches under a prefix, such as `momentum/` */
+export async function branchesUnder(repo: string, prefix: string): Promise<string[]> {
+  const out = await git(repo, ['for-each-ref', '--format=%(refname:short)', `refs/heads/${prefix}`]);
+  return out.split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+/** Directories of the repository's linked worktrees */
+export async function worktreeDirs(repo: string): Promise<string[]> {
+  const out = await git(repo, ['worktree', 'list', '--porcelain']);
+  return out
+    .split('\n')
+    .filter((l) => l.startsWith('worktree '))
+    .map((l) => l.slice('worktree '.length).trim());
+}
+
 export async function deleteBranch(repo: string, branch: string): Promise<void> {
   if (await branchExists(repo, branch)) await git(repo, ['branch', '-D', branch]);
 }

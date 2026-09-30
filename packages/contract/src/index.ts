@@ -162,7 +162,14 @@ export const FeedItem = z.object({
 });
 export type FeedItem = z.infer<typeof FeedItem>;
 
-export const FeedResponse = z.object({ items: z.array(FeedItem) });
+/** Entities of the enabled projects counted by state, verification and sync alike. */
+export const FeedCounts = z.object({
+  verification: z.record(Verification, z.number().int().nonnegative()),
+  sync: z.record(Sync, z.number().int().nonnegative()),
+});
+export type FeedCounts = z.infer<typeof FeedCounts>;
+
+export const FeedResponse = z.object({ items: z.array(FeedItem), counts: FeedCounts });
 export type FeedResponse = z.infer<typeof FeedResponse>;
 
 export const ApproveRequest = z.object({
@@ -279,6 +286,8 @@ export const MappingStatus = z.object({
   /** Everything the mapping runs used so far */
   usage: Usage,
   activeRunId: z.string().nullable(),
+  /** Whether the project can be reset; the harness workspace cannot */
+  resettable: z.boolean(),
 });
 export type MappingStatus = z.infer<typeof MappingStatus>;
 

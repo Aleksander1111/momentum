@@ -34,7 +34,7 @@ import { z } from 'zod';
 import type { Auth } from '../auth.ts';
 import { config } from '../config.ts';
 import type { Momentum } from '../momentum.ts';
-import { NotFound } from '../workspaces.ts';
+import { Conflict, NotFound } from '../workspaces.ts';
 import { mcpHandler } from './mcp.ts';
 
 export const COOKIE = 'momentum_session';
@@ -74,6 +74,7 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof NotFound) return reply.code(404).send({ error: err.message });
+    if (err instanceof Conflict) return reply.code(409).send({ error: err.message });
     const e = err as { validation?: unknown; statusCode?: number; message: string };
     if (e.validation) return reply.code(400).send({ error: e.message });
     app.log.error(err);
@@ -173,6 +174,12 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
 
   app.put('/workspaces/:ws/mapping', { schema: { params: ws, body: PutMapping, response: { 200: MappingStatus, ...errors } } }, (req) =>
     momentum.setMapping(req.params.ws, req.body.building),
+  );
+
+  app.post(
+    '/workspaces/:ws/reset',
+    { schema: { params: ws, response: { 200: MappingStatus, 409: ErrorResponse, ...errors } } },
+    (req) => momentum.resetProject(req.params.ws),
   );
 
   app.get('/settings', { schema: { response: { 200: Settings, ...errors } } }, () => momentum.getSettings());

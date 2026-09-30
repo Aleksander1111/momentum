@@ -147,6 +147,10 @@ export const api = {
     const res = await request('PUT', `/workspaces/${seg(ws)}/mapping`, req);
     return MappingStatus.parse(await res.json());
   },
+  async resetProject(ws: string): Promise<MappingStatus> {
+    const res = await request('POST', `/workspaces/${seg(ws)}/reset`);
+    return MappingStatus.parse(await res.json());
+  },
   settings: () => get('/settings', Settings),
   async putSettings(req: PutSettings): Promise<Settings> {
     const res = await request('PUT', '/settings', req);

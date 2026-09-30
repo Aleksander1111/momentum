@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { MetricValue } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { useCurrentWorkspace } from '../../lib/workspace';
-import { C, F, useWide } from '../../ui/theme';
+import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { Count, Pick } from '../../ui/parts';
 import { Sparkline } from '../../ui/Sparkline';
@@ -14,7 +14,7 @@ function Panel({ title, children, style }: { title: string; children: ReactNode;
     <View
       style={[
         {
-          backgroundColor: C.white,
+          backgroundColor: C.surface,
           borderWidth: 1,
           borderColor: C.line,
           borderRadius: 14,
@@ -71,6 +71,7 @@ function UsageTile({ label, pct }: { label: string; pct: number | null }) {
 const int = (m: MetricValue) => String(Math.round(m.value));
 
 export default function Metrics() {
+  useTheme();
   const wide = useWide();
   const [ws, setWs, names] = useCurrentWorkspace();
   const { data: m } = useQuery({ queryKey: ['metrics', ws], queryFn: () => api.metrics(ws as string), enabled: !!ws });

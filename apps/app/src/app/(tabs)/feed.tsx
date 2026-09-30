@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -12,14 +12,16 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useMutation, useMutationState, useQuery } from '@tanstack/react-query';
-import type { FeedItem } from '@momentum/contract';
+import type { FeedCounts, FeedItem, FeedResponse, Sync, Verification } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { REACTIONS, type ApproveVars, type SendBackVars } from '../../lib/query';
+import { withoutItem } from '../../lib/feed';
 import { entityKey } from '../../lib/format';
-import { C, F, useWide } from '../../ui/theme';
+import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { CardView } from '../../ui/CardView';
-import { Btn } from '../../ui/parts';
+import { Btn, Count } from '../../ui/parts';
+import { STATE_LABEL, StateBadge } from '../../ui/StateBadge';
 
 const THRESHOLD = 110;
 const FLING = 800;
@@ -31,7 +33,7 @@ function cardFrame(wide: boolean): ViewStyle {
 }
 
 const cardSkin: ViewStyle = {
-  backgroundColor: C.white,
+  backgroundColor: C.surface,
   borderWidth: 1,
   borderColor: C.line,
   borderRadius: 18,
@@ -41,6 +43,38 @@ const cardSkin: ViewStyle = {
   overflow: 'hidden',
 };
 
+const VERIFICATION: Verification[] = ['unverified', 'verified'];
+const SYNC: Sync[] = ['synced', 'entity_ahead', 'artifact_ahead', 'updating'];
+
+/** Entities of the enabled projects by state: verification first, then sync. */
+function Counters({ counts, wide }: { counts: FeedCounts; wide: boolean }) {
+  const pill = (state: Verification | Sync, n: number) => (
+    <Count key={state}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+        <StateBadge state={state} />
+        <T style={{ color: C.ink, fontSize: 12, fontWeight: '700' }}>{n}</T>
+        <T style={{ color: C.muted, fontSize: 12 }}>{STATE_LABEL[state]}</T>
+      </View>
+    </Count>
+  );
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ flexGrow: 0 }}
+      contentContainerStyle={
+        wide
+          ? { alignSelf: 'center', width: 560, paddingTop: 22, gap: 8, alignItems: 'center' }
+          : { paddingHorizontal: 16, paddingTop: 12, gap: 8, alignItems: 'center' }
+      }
+    >
+      {VERIFICATION.map((v) => pill(v, counts.verification[v]))}
+      <View style={{ width: 1, height: 14, backgroundColor: C.line, marginHorizontal: 2 }} />
+      {SYNC.map((v) => pill(v, counts.sync[v]))}
+    </ScrollView>
+  );
+}
+
 function Stamp({ kind }: { kind: 'ok' | 'no' }) {
   const colour = kind === 'ok' ? C.ok : C.no;
   return (
@@ -49,7 +83,7 @@ function Stamp({ kind }: { kind: 'ok' | 'no' }) {
         borderWidth: 3,
         borderColor: colour,
         borderRadius: 6,
-        backgroundColor: C.white,
+        backgroundColor: C.surface,
         paddingVertical: 8,
         paddingHorizontal: 16,
         transform: [{ rotate: kind === 'ok' ? '-6deg' : '6deg' }],
@@ -161,7 +195,7 @@ function Sheet({
       >
         <View
           style={{
-            backgroundColor: C.white,
+            backgroundColor: C.surface,
             borderRadius: wide ? 18 : undefined,
             borderTopLeftRadius: wide ? 18 : 26,
             borderTopRightRadius: wide ? 18 : 26,
@@ -223,6 +257,7 @@ function Sheet({
 }
 
 export default function Feed() {
+  useTheme();
   const wide = useWide();
   const feed = useQuery({ queryKey: ['feed'], queryFn: api.feed, refetchInterval: 15_000 });
   const approve = useMutation<void, Error, ApproveVars>({ mutationKey: ['approve'] });
@@ -238,16 +273,18 @@ export default function Feed() {
       submittedAt: m.state.submittedAt,
     }),
   });
-  const items = useMemo(() => {
-    const hidden = new Set(
-      reactions
-        .filter(
-          (r) => r.vars && (r.status === 'pending' || (r.status === 'success' && r.submittedAt >= feed.dataUpdatedAt)),
-        )
-        .map((r) => entityKey(r.vars as ApproveVars)),
-    );
-    return (feed.data?.items ?? []).filter((i) => !hidden.has(entityKey(i)));
+  const view = useMemo<FeedResponse | undefined>(() => {
+    const hidden = reactions
+      .filter((r) => r.vars && (r.status === 'pending' || (r.status === 'success' && r.submittedAt >= feed.dataUpdatedAt)))
+      .map((r) => r.vars as ApproveVars);
+    const seen = new Set<string>();
+    return hidden.reduce((f, v) => {
+      if (!f || seen.has(entityKey(v))) return f;
+      seen.add(entityKey(v));
+      return withoutItem(f, v);
+    }, feed.data);
   }, [feed.data, feed.dataUpdatedAt, reactions]);
+  const items = view?.items ?? [];
 
   const top = items[0];
   const topKey = top ? entityKey(top) : null;
@@ -266,37 +303,40 @@ export default function Feed() {
 
   return (
     <Animated.View style={[{ flex: 1 }, washStyle]}>
-      {items.length > 2 ? (
-        <View
-          style={[
-            cardFrame(wide),
-            cardSkin,
-            { backgroundColor: C.behind2, transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
-          ]}
-        />
-      ) : null}
-      {items.length > 1 ? (
-        <View
-          style={[
-            cardFrame(wide),
-            cardSkin,
-            { backgroundColor: C.behind1, transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
-          ]}
-        />
-      ) : null}
-      {top ? (
-        <TopCard
-          key={topKey}
-          item={top}
-          wide={wide}
-          wash={wash}
-          sheetOpen={!!sheetFor}
-          onApprove={() => {
-            approve.mutate({ workspace: top.workspace, path: top.path, timeSpentMs: spent() });
-          }}
-          onDisapprove={() => setSheetFor({ item: top })}
-        />
-      ) : null}
+      {view ? <Counters counts={view.counts} wide={wide} /> : null}
+      <View style={{ flex: 1 }}>
+        {items.length > 2 ? (
+          <View
+            style={[
+              cardFrame(wide),
+              cardSkin,
+              { backgroundColor: C.behind2, transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
+            ]}
+          />
+        ) : null}
+        {items.length > 1 ? (
+          <View
+            style={[
+              cardFrame(wide),
+              cardSkin,
+              { backgroundColor: C.behind1, transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
+            ]}
+          />
+        ) : null}
+        {top ? (
+          <TopCard
+            key={topKey}
+            item={top}
+            wide={wide}
+            wash={wash}
+            sheetOpen={!!sheetFor}
+            onApprove={() => {
+              approve.mutate({ workspace: top.workspace, path: top.path, timeSpentMs: spent() });
+            }}
+            onDisapprove={() => setSheetFor({ item: top })}
+          />
+        ) : null}
+      </View>
       {sheetFor ? (
         <Sheet
           wide={wide}

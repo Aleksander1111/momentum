@@ -55,6 +55,12 @@ function createServer(m: Momentum): McpServer {
     { workspace: z.string(), building: z.boolean() },
     (a) => m.setMapping(a.workspace, a.building),
   );
+  t(
+    'reset_project',
+    'Reset a project: every entity and database entry of the workspace is removed and its knowledge graph is built afresh.',
+    { workspace: z.string() },
+    (a) => m.resetProject(a.workspace),
+  );
   t('metrics', 'Attention, understanding, agents and implementation metrics and usage of a workspace.', { workspace: z.string() }, (a) =>
     m.metrics(a.workspace),
   );

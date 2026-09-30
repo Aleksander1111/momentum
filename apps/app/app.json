@@ -5,7 +5,7 @@
     "scheme": "momentum",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#F7F5F0",
     "android": {
       "package": "com.momentum.app"

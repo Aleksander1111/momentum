@@ -4,12 +4,13 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { C, F } from '../ui/theme';
+import { C, F, useTheme } from '../ui/theme';
 import { T } from '../ui/Text';
 import { Field } from '../ui/Field';
 import { Btn } from '../ui/parts';
 
 export default function Session() {
+  useTheme();
   const qc = useQueryClient();
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);

@@ -12,7 +12,7 @@ import type {
   TypesResponse,
   Workspace as WorkspaceView,
 } from '@momentum/contract';
-import { crossProjectFeed, type Embed, type Sql } from '@momentum/kb';
+import { crossProjectEntityCounts, crossProjectFeed, type Embed, type Sql } from '@momentum/kb';
 import type { Approval } from './approval.ts';
 import type { Automations } from './automations.ts';
 import type { HarnessSettings } from './harness.ts';
@@ -42,7 +42,9 @@ export class Momentum {
   async feed(): Promise<FeedResponse> {
     const enabled = await this.settings.enabled();
     const { feedSize } = await this.settings.values();
-    return { items: await crossProjectFeed(this.sql, enabled.map((p) => p.name), feedSize) };
+    const names = enabled.map((p) => p.name);
+    const [items, counts] = await Promise.all([crossProjectFeed(this.sql, names, feedSize), crossProjectEntityCounts(this.sql, names)]);
+    return { items, counts };
   }
 
   async approve(workspace: string, path: string, timeSpentMs: number): Promise<void> {
@@ -170,6 +172,13 @@ export class Momentum {
     await this.orchestrator.setMapping(ws, building);
     if (building) void this.orchestrator.tick();
     return mappingStatus(ws, this.settings);
+  }
+
+  /** Removes every entity and database entry of a project, then builds its knowledge graph afresh */
+  async resetProject(workspace: string): Promise<MappingStatus> {
+    await this.orchestrator.reset(await this.workspaces.get(workspace));
+    void this.orchestrator.tick();
+    return mappingStatus(await this.workspaces.get(workspace), this.settings);
   }
 
   async metrics(workspace: string): Promise<MetricsResponse> {

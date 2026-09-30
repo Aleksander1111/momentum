@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { svgSize } from './svgSize';
+import { C } from './theme';
 
 /** Web: the SVG as an image data URI, which keeps its embedded <style>, scaled to the card width. */
 export function Diagram({ svg }: { svg: string }) {
@@ -11,7 +12,7 @@ export function Diagram({ svg }: { svg: string }) {
   return (
     <View
       onLayout={(e) => setBox(e.nativeEvent.layout.width)}
-      style={{ alignItems: 'center', marginTop: 6, marginBottom: 10 }}
+      style={{ alignItems: 'center', marginTop: 6, marginBottom: 10, backgroundColor: C.diagram, borderRadius: 10 }}
     >
       {box > 0 ? <img src={uri} alt="" draggable={false} style={{ width, height: width / size.ratio, display: 'block' }} /> : null}
     </View>

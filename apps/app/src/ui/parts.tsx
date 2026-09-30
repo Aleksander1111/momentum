@@ -12,7 +12,7 @@ export function List({ children, style }: { children: ReactNode; style?: StylePr
   return (
     <View
       style={[
-        { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden' },
+        { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden' },
         style,
       ]}
     >
@@ -128,11 +128,11 @@ export function Btn({
         },
         kind === 'primary'
           ? { backgroundColor: C.accent }
-          : { backgroundColor: C.white, borderWidth: 1, borderColor: C.line },
+          : { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line },
         style,
       ]}
     >
-      <T style={{ fontSize: small ? 13.5 : 15, fontWeight: '700', color: kind === 'primary' ? C.white : C.ink }}>{label}</T>
+      <T style={{ fontSize: small ? 13.5 : 15, fontWeight: '700', color: kind === 'primary' ? C.surface : C.ink }}>{label}</T>
     </Pressable>
   );
 }

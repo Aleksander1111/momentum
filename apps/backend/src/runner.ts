@@ -66,6 +66,8 @@ interface Active {
   handle: SessionHandle;
   validation?: { passed: boolean; form: string; summary: string };
   mapping?: { complete: boolean; progress: string };
+  /** Settles once the run's changes have passed the guard and its status is recorded */
+  finished?: Promise<void>;
 }
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -208,6 +210,15 @@ export class Runner {
     return rows.map((r) => r.id);
   }
 
+  /** Ends every open run of a workspace and waits until the killed processes have finished */
+  async stopWorkspace(workspace: string): Promise<void> {
+    const ws = await this.workspaces.get(workspace);
+    const running = [...this.active.values()].filter((a) => a.ref.workspace === workspace);
+    for (const a of running) a.handle.kill();
+    await ws.index.sql`update ${this.t(ws, 'run')} set status = 'killed', ended_at = now() where status = 'queued'`;
+    await Promise.all(running.map((a) => a.finished?.catch(() => {})));
+  }
+
   async lastStart(workspace: string, automation: AutomationName): Promise<Date | null> {
     const ws = await this.workspaces.get(workspace);
     const [r] = await ws.index.sql<{ at: Date | null }[]>`select max(created_at) as at from ${this.t(ws, 'run')}
@@ -325,7 +336,7 @@ export class Runner {
       },
     });
     this.active.set(r.id, entry);
-    void entry.handle.done.then((result) => this.finish(ws, r.id, entry, result));
+    entry.finished = entry.handle.done.then((result) => this.finish(ws, r.id, entry, result));
   }
 
   /** Harness facts every run needs: where it works and the rules of the knowledge base */

@@ -4,6 +4,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import type { PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
 import type { FeedResponse } from '@momentum/contract';
 import { api, NetworkError } from './api';
+import { withoutItem } from './feed';
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -23,9 +24,7 @@ export type SendBackVars = ApproveVars & { comment: string };
 export const REACTIONS = ['approve', 'sendBack'] as const;
 
 function dropFromFeed(v: { workspace: string; path: string }) {
-  queryClient.setQueryData<FeedResponse>(['feed'], (old) =>
-    old ? { items: old.items.filter((i) => !(i.workspace === v.workspace && i.path === v.path)) } : old,
-  );
+  queryClient.setQueryData<FeedResponse>(['feed'], (old) => (old ? withoutItem(old, v) : old));
 }
 
 // Defaults by key so reactions queued offline (and persisted) can resume after a restart.
@@ -50,7 +49,7 @@ queryClient.setMutationDefaults(['sendBack'], {
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   persister: createAsyncStoragePersister({ storage: AsyncStorage, key: 'momentum.cache', throttleTime: 1_000 }),
   maxAge: WEEK,
-  buster: '1',
+  buster: '2',
   dehydrateOptions: {
     // Keep the last good data even when the latest poll failed, so it stays available offline.
     shouldDehydrateQuery: (q) => q.state.data !== undefined && q.queryKey[0] !== 'search',

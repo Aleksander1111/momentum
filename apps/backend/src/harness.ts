@@ -80,6 +80,12 @@ export class HarnessSettings {
       where name = ${name}`;
   }
 
+  /** Forgets what the harness knows of a project's knowledge graph: the indexed commit and the build */
+  async resetProject(name: string): Promise<void> {
+    await this.sql`update harness.project set indexed_commit = null, mapping = null, mapping_progress = null, mapping_since = null
+      where name = ${name}`;
+  }
+
   async setMappingProgress(name: string, progress: string): Promise<void> {
     await this.sql`update harness.project set mapping_progress = ${progress} where name = ${name}`;
   }
