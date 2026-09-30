@@ -1,0 +1,146 @@
+Domain	Summary Type	Description
+Product	Product	A distinct offering delivered to customers, composed of capabilities and features.
+Product	PricingPlan	A priced package or tier of the product defining what customers get and pay.
+Product	Capability	A high-level ability the product provides, realised by one or more features.
+Product	Feature	A distinct piece of product functionality that delivers value to users.
+Product	FeatureRequest	A request or piece of feedback from a customer or user asking for new or changed functionality.
+Product	SupportTicket	A customer or user issue raised with support, which may lead to a bug, feature request, or answer.
+Product	UserStory	A short statement of a need from the user's perspective, with the value it brings.
+Product	DevTask	A concrete unit of engineering work needed to deliver a story, feature, or fix; kind is implementation or spike (a time-boxed investigation to reduce uncertainty).
+Product	Bug	A defect where the system behaves differently from its expected behaviour.
+Product	TechDebt	A known shortcut or deficiency in code or design that should be addressed later.
+Product	Epic	A large body of work that groups related user stories and features.
+Product	Initiative	A strategic effort spanning multiple epics toward a business objective.
+Product	Goal	A measurable objective, such as an OKR, that work is expected to advance.
+Product	RoadmapItem	A planned item on the product roadmap with a target timeframe.
+Product	Release	A versioned delivery of software to users or environments.
+Product	Milestone	A significant checkpoint or date marking progress toward a goal.
+Product	Sprint	A fixed time-box during which a team commits to completing a set of work.
+Product	Hypothesis	A testable statement about expected cause and effect that an experiment validates or refutes.
+Product	Experiment	A controlled test, such as an A/B test, comparing variants to measure their effect on a metric.
+Product	AcceptanceCriterion	A testable condition a story or feature must meet to be considered done.
+Product	Persona	A representative archetype of a target user with goals and behaviours.
+Product	UserSegment	A group of users or customers sharing attributes, used for targeting, analysis, or rollout.
+Product	UseCase	A description of how an actor interacts with the system to achieve a goal.
+Product	UserJourney	The end-to-end sequence of steps a user takes to accomplish an outcome.
+Product	BusinessRule	A rule that constrains or defines how the business operates within the system.
+Governance	Requirement	A documented need or condition the system must satisfy; kind is functional, non-functional (such as performance, availability, or scalability), or accessibility.
+Governance	Decision	A recorded choice made by a person or group, with its context, rationale, and outcome; kind is general or architecture (ADR).
+Governance	Constraint	A fixed technical or business limitation that solutions must respect.
+Governance	Assumption	A belief taken as true for planning or design that has not been verified.
+Governance	Risk	A potential event that could negatively affect delivery, quality, or operations.
+Governance	DesignDoc	A document describing the design of a system or feature; kind is design doc or RFC (a proposed change open for review and discussion).
+Governance	Policy	An organisational rule governing how work, data, or systems must be handled.
+Governance	Regulation	An external legal or industry requirement the system must comply with.
+Governance	ComplianceControl	A specific control implemented to satisfy a policy or regulation.
+Governance	Waiver	An approved, time-bound exception to a policy, control, or requirement, with its justification.
+Governance	DomainConcept	A core business concept or defined term in the shared vocabulary that the system models or reasons about.
+Architecture	Service	A deployable unit of software that provides a set of capabilities over an interface.
+Architecture	System	A top-level software system composed of services, data stores, and interfaces.
+Architecture	BoundedContext	A boundary within which a domain model and its language are consistent.
+Architecture	Domain	A business area the software addresses, such as billing or onboarding.
+Architecture	Component	A logical building block or module within a service or application.
+Architecture	Dependency	A reusable code package or external system that a component relies on; kind is internal library or third-party.
+Architecture	Api	A defined interface through which software exposes capabilities to consumers.
+Architecture	Endpoint	A single addressable operation of an API, such as an HTTP route.
+Architecture	Contract	A formal agreement on the shape and behaviour of an interface between parties.
+Architecture	Event	A message signalling that something happened, published for other parts to consume.
+Architecture	Command	A message instructing a specific component to perform an action.
+Architecture	Queue	A messaging channel or topic that carries events or commands between producers and consumers.
+Architecture	Integration	A connection between the system and another system or third-party provider to exchange data or trigger actions.
+Architecture	DataFlow	The movement of data between components, systems, or stores.
+Architecture	Workflow	A multi-step business or technical process executed across one or more components.
+Architecture	StateMachine	A model of the states an entity can be in and the transitions between them.
+Code	Repository	A version-controlled store of source code and related files.
+Code	Branch	A line of development within a repository.
+Code	PullRequest	A proposed set of code changes submitted for review and merge.
+Code	Commit	A recorded snapshot of changes in a repository.
+Code	SourceFile	A single file of source code or configuration in a repository.
+Code	Class	A code construct defining a type with state and behaviour.
+Code	Function	A named block of code that performs a specific operation.
+Code	ConfigSetting	A configurable value that changes application behaviour without code changes; kind is application setting or environment variable.
+Code	FeatureFlag	A runtime toggle that enables or disables functionality for some or all users.
+Code	SecretReference	A pointer to a secret, such as a key or password, held in a secrets manager.
+Code	CodeOwner	The person or team responsible for reviewing and maintaining an area of code.
+Data	Schema	The structure definition of a data store, message, or payload.
+Data	DbTable	A table in a relational database holding rows of a given structure.
+Data	Database	A managed data store instance holding one or more schemas.
+Data	Column	A single typed field within a database table.
+Data	Index	A database structure that speeds up lookups on one or more columns.
+Data	View	A stored database query exposed as a virtual table.
+Data	StoredProcedure	Precompiled database logic executed on the database server.
+Data	Migration	A versioned script that changes the database structure or data.
+Data	DomainModel	A code-level representation of a business entity and its behaviour.
+Data	Dto	A data transfer object used to carry data between layers or services.
+Data	Enum	A fixed set of named values used by code or data.
+Data	DataPipeline	An ETL or ELT process that moves and transforms data between stores.
+Data	DataLineage	The recorded origin and transformation history of a dataset or field.
+Data	Dataset	A curated collection of data used for analytics, reporting, or machine learning.
+Data	TrackingEvent	A product analytics event recording a user action or state, with its properties.
+Data	MlModel	A trained machine learning model, with its version, inputs, and outputs.
+Data	Dashboard	A report or visual display of metrics built from data sources.
+Data	DataClassification	A sensitivity label, such as PII or confidential, applied to data.
+Frontend	Screen	A distinct page, view, or screen state presented to the user in a web or mobile application; kind is page or modal (an overlay dialog for focused interaction).
+Frontend	Form	A set of input fields that collects and submits user data.
+Frontend	Route	A URL path or navigation route that maps to a screen.
+Frontend	UiComponent	A reusable visual element such as a button, table, or card.
+Frontend	FormField	A single input within a form, such as a text box or dropdown.
+Frontend	ValidationRule	A rule that checks user input before it is accepted.
+Frontend	Mockup	A wireframe or visual design representing an intended UI.
+Frontend	DesignToken	A named design value, such as a colour or spacing unit, from the design system.
+Frontend	NotificationTemplate	A template for emails, SMS, or push notifications sent to users.
+Frontend	LocalizationString	A translatable piece of UI text keyed for multiple languages.
+Testing	TestCase	A specific set of inputs, steps, and expected results that verify behaviour; kind is unit, integration, end-to-end, performance, or security.
+Testing	TestSuite	A grouped collection of test cases run together.
+Testing	TestPlan	A document defining the scope, approach, and schedule of testing.
+Testing	TestRun	A single execution of tests along with its results.
+Testing	TestFixture	Prepared data or state used to run tests consistently.
+Testing	Mock	A simulated dependency used to isolate the code under test.
+Testing	CoverageReport	A report showing how much code or how many requirements the tests exercise.
+Infrastructure	Environment	A deployment or test target such as dev, test, staging, or production.
+Infrastructure	Region	A geographic cloud region or availability zone where resources run.
+Infrastructure	Deployment	An instance of releasing a build to an environment.
+Infrastructure	CiCdPipeline	An automated pipeline that builds, tests, and deploys code.
+Infrastructure	IacModule	An infrastructure-as-code definition, such as a Terraform module, that provisions resources.
+Infrastructure	BuildArtifact	An output of a build ready for deployment; kind is binary, package, or container image.
+Infrastructure	Cluster	A group of compute nodes managed together to run workloads.
+Infrastructure	Host	A physical or virtual machine that runs software.
+Infrastructure	CloudResource	A provisioned cloud asset such as a storage bucket, function, or managed service.
+Infrastructure	Backup	A recoverable copy of data or system state, with its schedule, retention, and location.
+Infrastructure	CostBudget	A spending limit or allocation for cloud or operational costs, tracked against actual spend.
+Infrastructure	Network	A network segment, DNS zone, or routing configuration connecting resources.
+Infrastructure	LoadBalancer	A component that distributes traffic across multiple instances.
+Infrastructure	ScheduledJob	A task that runs automatically on a schedule, such as a cron job.
+Infrastructure	Metric	A measurement tracked over time such as latency or error rate, emitted for observability.
+Infrastructure	KPI	A measurement tracked over time measuring the success of a product, feature, or process.
+Infrastructure	Alert	A notification triggered when a monitored condition crosses a threshold.
+Infrastructure	Monitor	A configured check that observes the health or behaviour of a system.
+Infrastructure	Slo	A service level objective defining a reliability or performance target.
+Infrastructure	Sla	A service level agreement committing to a level of service, with consequences if missed.
+Infrastructure	Runbook	Step-by-step operational instructions for handling a task or incident.
+Infrastructure	Incident	An unplanned disruption or degradation of a service.
+Infrastructure	Postmortem	A review of an incident documenting causes, impact, and follow-up actions.
+Infrastructure	LogSource	A source of logs or traces emitted by a system for observability.
+Security	Role	A named set of access rights assigned to users or services.
+Security	Permission	A specific right to perform an action on a resource.
+Security	ServiceAccount	A non-human identity used by a service or automation to authenticate.
+Security	AuthFlow	A process by which users or systems are authenticated and authorised.
+Security	Threat	A potential attack or misuse scenario identified during threat modelling.
+Security	Vulnerability	A known weakness in code, configuration, or dependencies that could be exploited.
+Security	Certificate	A digital certificate used for encryption or identity verification.
+Security	EncryptionKey	A cryptographic key used to encrypt, decrypt, or sign data.
+Security	AuditLog	A tamper-evident record of who did what, when, on which resource.
+Organization	Team	A group of people responsible for a set of products, services, or work.
+Organization	Person	An individual such as a contributor, owner, or stakeholder; role describes their interest in or influence over the product.
+Organization	Vendor	An external company that supplies software, services, or infrastructure.
+Organization	Agreement	A commercial or legal agreement, such as a vendor contract, customer contract, or licence.
+Organization	Customer	An organisation or individual that uses or pays for the product.
+Organization	Subscription	A customer's active enrolment in a pricing plan, with its term, status, and billing cycle.
+Organization	Tenant	An isolated customer account or partition in a multi-tenant system.
+Knowledge	MeetingNote	A record of the discussions, decisions, and actions from a meeting.
+Knowledge	ActionItem	A follow-up task assigned to a person, arising from a meeting, decision, or postmortem.
+Knowledge	Faq	A frequently asked question paired with its answer.
+Knowledge	HowToGuide	A document explaining how to accomplish a specific task.
+Knowledge	ReleaseNote	A record of notable changes in a release or to a component, for users or internal audiences.
+		
+Diagram todo
