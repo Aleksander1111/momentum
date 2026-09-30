@@ -8,8 +8,8 @@ const OUT = process.argv[2] || 'harness-diagram.pptx';
 
 // ---------------------------------------------------------------- content
 const HARNESS = [
-  ['Settings', ['Included projects', 'Feed size', 'Triggers', 'Summaries', 'Agents'], 'FaGear'],
-  ['Knowledge Graph Explorer', ['Summary browsing', 'Summary search', 'Reference navigation', 'Indices'], 'FaDiagramProject'],
+  ['Settings', ['Included projects', 'Feed size', 'Triggers', 'Entities', 'Agents'], 'FaGear'],
+  ['Knowledge Graph Explorer', ['Entity browsing', 'Entity search', 'Reference navigation', 'Indices'], 'FaDiagramProject'],
   ['Importance Rank', ['Dependencies', 'Stability', 'Performance', 'Priority', 'Velocity'], 'FaRankingStar'],
   ['Chat', ['Question answering', 'Run steering', 'Automation launching'], 'FaComments'],
   ['Metrics', ['Alignment issues', 'Agents cost', 'Sessions duration', 'Consistency'], 'FaChartLine'],
@@ -17,7 +17,7 @@ const HARNESS = [
   ['Orchestrator', ['Automation deployment', 'Agents deployment', 'Metrics collection'], 'FaSitemap'],
   ['API', ['Front-end entry point', 'Feed polling', 'Session results', 'Approvals'], 'FaPlug'],
   ['Voice Tools', ['Full capability access', 'UI-free control', 'API calls'], 'FaMicrophone'],
-  ['RAG', ['Graph retrieval', 'Summary context', 'Chat context', 'Reference traversal'], 'FaMagnifyingGlass'],
+  ['RAG', ['Graph retrieval', 'Entity context', 'Chat context', 'Reference traversal'], 'FaMagnifyingGlass'],
 ];
 
 // ---------------------------------------------------------------- geometry (inches, 13.333 x 7.5)
@@ -39,7 +39,7 @@ const node = (id, text, cx, cy, sz, layer) => (N[id] = { id, text, cx, cy, w: sz
 node('af', 'Attention Feed', CX, 1.55, TOP, 0);
 node('prio', 'Prioritizer', CX - 1.05, 2.45, TOP, 0);
 node('ret', 'Retention', CX + 1.05, 2.45, TOP, 0);
-node('sc', 'Summary Cards', CX - 2.0, 3.62, TOP, 1);
+node('sc', 'Entity Cards', CX - 2.0, 3.62, TOP, 1);
 node('cg', 'Consistency Gate', CX, 3.62, TOP, 1);
 node('kg', 'Knowledge Graph', CX + 2.0, 3.62, TOP, 1);
 const LEFT = ['Story', 'Plan', 'Change', 'Bug', 'Refactor'];
@@ -255,7 +255,7 @@ const CARDS = [
   {
     type: 'PLAN', project: 'momentum', title: 'Consistency guard on every change',
     desc: 'Reacts to every change in the knowledge base so it stays consistent at all times, despite free access.',
-    bullets: ['Groups related changes into a transaction', 'Validates summary limits and references', 'Raises what it cannot fix as an issue', 'Updates the index and metrics database'],
+    bullets: ['Groups related changes into a transaction', 'Validates card limits and references', 'Raises what it cannot fix as an issue', 'Updates the index and metrics database'],
     diagram: { boxes: [['Run', 0, 0], ['Guard', 1, 0], ['Main line', 2, 0], ['Issue', 1, 1]], arrows: [[0, 1], [1, 2], [1, 3]] },
   },
   {
@@ -267,7 +267,7 @@ const CARDS = [
   {
     type: 'STORY', project: 'momentum', title: 'Attention feed ranking',
     desc: 'Ranks what should be done right now so the product ends up the best it can be.',
-    bullets: ['One feed across enabled projects', 'Items are summaries of any type', 'No project priority', 'Read straight from the index'],
+    bullets: ['One feed across enabled projects', 'Items are entities of any type', 'No project priority', 'Read straight from the index'],
     table: [['Parameter', 'Measures'], ['Product', 'Impact on the product'], ['Timeline', 'Impact on the timeline'], ['Unlocks', 'How much it unlocks']],
     comment: 'Rank by the Importance Rank instead: dependencies, stability, performance, priority and velocity.',
   },
@@ -428,7 +428,7 @@ async function renderApp(pres, T) {
   };
 
   const gap = (13.333 - 3 * PHONE.w) / 4;
-  await phone(gap, 'feed', CARDS[0], 'Summary cards');
+  await phone(gap, 'feed', CARDS[0], 'Entity cards');
   await phone(gap * 2 + PHONE.w, 'approve', CARDS[1], 'Swipe right to approve');
   await phone(gap * 3 + PHONE.w * 2, 'reject', CARDS[2], 'Swipe left to disapprove with a comment');
 }

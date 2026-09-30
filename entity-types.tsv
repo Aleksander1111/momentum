@@ -1,4 +1,4 @@
-Domain	Summary Type	Description
+Domain	Entity Type	Description
 Product	Product	A distinct offering delivered to customers, composed of capabilities and features.
 Product	PricingPlan	A priced package or tier of the product defining what customers get and pay.
 Product	Capability	A high-level ability the product provides, realised by one or more features.
