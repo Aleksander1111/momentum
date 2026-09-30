@@ -99,7 +99,7 @@ Frontmatter beyond the fields above:
 | Entity type | Fields |
 |---|---|
 | Harness/Trigger | `automation`, `schedule` (cron), `events` (`entity_ahead`, `implementation_finished`), `on_demand` |
-| Harness/Issue | `source`: guard, consistency_check or validation |
+| Harness/Issue | `source`: guard, consistency_check or validation; `category` on consistency_check issues: reference, card-limit, type-path, stale-summary, drift, contradiction, repetition, ambiguity, design-gap, logical, naming, struct, verbose, split |
 | Harness/Automation | `variant`, when competing implementations are compared |
 
 Relations the harness acts on: `implements` (sync), `retires` (retention), `concerns` (issues).
