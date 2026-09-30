@@ -204,7 +204,7 @@ AI is not the default. Each responsibility is split into steps and every step is
   - Builds the knowledge graph of a workspace from its repository, so the project can be explored through entities from the start
   - Started by enabling the project rather than by a trigger entity; one run at a time, each writing at most the room the feed has
   - Every run of a workspace continues on the same branch and reports its progress to the next; the build ends when a run reports the repository covered, or when the user stops it
-  - The user watches the runs, the entities and the usage of the build as it goes, and stops it when it costs too much or maps the project wrongly; the entities it wrote wait in the feed like any other change
+  - The user watches the runs, the entities, the time and the usage of the build as it goes, with the full build estimated from the share of the repository the runs report covered, and stops it when it costs too much or maps the project wrongly; the entities it wrote wait in the feed like any other change
 
 #### Attention feed
 

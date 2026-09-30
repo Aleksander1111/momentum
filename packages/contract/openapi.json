@@ -221,10 +221,47 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "verification": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "required": [
+                            "unverified",
+                            "verified"
+                          ]
+                        },
+                        "sync": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "required": [
+                            "synced",
+                            "entity_ahead",
+                            "artifact_ahead",
+                            "updating"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verification",
+                        "sync"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "items"
+                    "items",
+                    "counts"
                   ],
                   "additionalProperties": false
                 }
@@ -2081,9 +2118,51 @@
                       ],
                       "additionalProperties": false
                     },
+                    "spentMs": {
+                      "type": "number"
+                    },
+                    "coverage": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "estimate": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "totalMs": {
+                          "type": "number"
+                        },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "fiveHour": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "week": {
+                              "nullable": true,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "fiveHour",
+                            "week"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "totalMs",
+                        "usage"
+                      ],
+                      "additionalProperties": false
+                    },
                     "activeRunId": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "resettable": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -2094,7 +2173,11 @@
                     "runs",
                     "entities",
                     "usage",
-                    "activeRunId"
+                    "spentMs",
+                    "coverage",
+                    "estimate",
+                    "activeRunId",
+                    "resettable"
                   ],
                   "additionalProperties": false
                 }
@@ -2222,9 +2305,51 @@
                       ],
                       "additionalProperties": false
                     },
+                    "spentMs": {
+                      "type": "number"
+                    },
+                    "coverage": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "estimate": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "totalMs": {
+                          "type": "number"
+                        },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "fiveHour": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "week": {
+                              "nullable": true,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "fiveHour",
+                            "week"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "totalMs",
+                        "usage"
+                      ],
+                      "additionalProperties": false
+                    },
                     "activeRunId": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "resettable": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -2235,7 +2360,11 @@
                     "runs",
                     "entities",
                     "usage",
-                    "activeRunId"
+                    "spentMs",
+                    "coverage",
+                    "estimate",
+                    "activeRunId",
+                    "resettable"
                   ],
                   "additionalProperties": false
                 }
@@ -2262,6 +2391,196 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{ws}/reset": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "ws",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspace": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "building",
+                        "stopped",
+                        "complete"
+                      ]
+                    },
+                    "progress": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "since": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "runs": {
+                      "type": "number"
+                    },
+                    "entities": {
+                      "type": "number"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "fiveHour": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "week": {
+                          "nullable": true,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "fiveHour",
+                        "week"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "spentMs": {
+                      "type": "number"
+                    },
+                    "coverage": {
+                      "nullable": true,
+                      "type": "number"
+                    },
+                    "estimate": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "totalMs": {
+                          "type": "number"
+                        },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "fiveHour": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "week": {
+                              "nullable": true,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "fiveHour",
+                            "week"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "totalMs",
+                        "usage"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "activeRunId": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "resettable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "workspace",
+                    "state",
+                    "progress",
+                    "since",
+                    "runs",
+                    "entities",
+                    "usage",
+                    "spentMs",
+                    "coverage",
+                    "estimate",
+                    "activeRunId",
+                    "resettable"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {

@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { MappingState, PutSettings, Settings as SettingsT } from '@momentum/contract';
 import { api } from '../../lib/api';
-import { usagePct } from '../../lib/format';
+import { durationMs, usagePct } from '../../lib/format';
 import { C, F, useTheme, useWide, type Appearance } from '../../ui/theme';
 import { Btn, Chevron, List, Row, RowText, Sect } from '../../ui/parts';
 import { T } from '../../ui/Text';
@@ -201,13 +201,28 @@ function MappingRow({ name }: { name: string }) {
     onSettled: () => setArmed(false),
   });
   if (!m?.state) return null;
-  const sub = [
+  const sep = ' \u00b7 ';
+  const soFar = [
     reset.isPending ? 'resetting' : MAPPING[m.state],
     `${m.runs} ${m.runs === 1 ? 'run' : 'runs'}`,
     `${m.entities} ${m.entities === 1 ? 'entity' : 'entities'}`,
+    durationMs(m.spentMs),
     `${usagePct(m.usage.fiveHour)} of 5 h`,
     `${usagePct(m.usage.week)} of week`,
-  ].join(' \u00b7 ');
+  ].join(sep);
+  // The full build, extrapolated from the share of the repository the runs report covered
+  const full =
+    m.coverage === null
+      ? 'coverage not reported yet'
+      : m.state === 'complete' || !m.estimate
+        ? `${Math.round(m.coverage * 100)}% covered`
+        : [
+            `${Math.round(m.coverage * 100)}% covered`,
+            `full build \u2248 ${durationMs(m.estimate.totalMs)}`,
+            `${usagePct(m.estimate.usage.fiveHour)} of 5 h`,
+            `${usagePct(m.estimate.usage.week)} of week`,
+          ].join(sep);
+  const sub = `${soFar}\n${full}`;
   return (
     <Row style={{ paddingLeft: 28, backgroundColor: C.card }}>
       <RowText title="Knowledge graph" sub={sub} size={14} />

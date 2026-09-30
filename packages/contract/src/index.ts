@@ -285,6 +285,12 @@ export const MappingStatus = z.object({
   entities: z.number(),
   /** Everything the mapping runs used so far */
   usage: Usage,
+  /** Time the mapping runs have spent running so far, the run in progress included */
+  spentMs: z.number(),
+  /** Share of the repository covered, 0–1, as reported by the last run; null until a run reports it */
+  coverage: z.number().nullable(),
+  /** The full build extrapolated from what the covered share took; null until coverage is reported */
+  estimate: z.object({ totalMs: z.number(), usage: Usage }).nullable(),
   activeRunId: z.string().nullable(),
   /** Whether the project can be reset; the harness workspace cannot */
   resettable: z.boolean(),

@@ -65,7 +65,7 @@ interface Active {
   ref: RunRef;
   handle: SessionHandle;
   validation?: { passed: boolean; form: string; summary: string };
-  mapping?: { complete: boolean; progress: string };
+  mapping?: { complete: boolean; progress: string; coverage: number };
   /** Settles once the run's changes have passed the guard and its status is recorded */
   finished?: Promise<void>;
 }
@@ -298,8 +298,8 @@ export class Runner {
         ),
         tool(
           'report_mapping',
-          'Report the progress of mapping this repository into the knowledge base: what is covered and what the next run should take up. Set complete once the repository is covered; the mapping then stops.',
-          { complete: z.boolean(), progress: z.string() },
+          'Report the progress of mapping this repository into the knowledge base: what is covered, what the next run should take up, and the share of the repository covered so far (0–1), which estimates the full build. Set complete once the repository is covered; the mapping then stops.',
+          { complete: z.boolean(), progress: z.string(), coverage: z.number().min(0).max(1) },
           async (v) => {
             entry.mapping = v;
             return { content: [{ type: 'text', text: 'Recorded' }] };
@@ -414,6 +414,7 @@ export class Runner {
   /** The mapping goes on run after run until a run reports the repository covered, or the user stops it */
   private async afterMapping(ws: Workspace, status: RunStatus, report: Active['mapping']): Promise<void> {
     if (report?.progress) await this.settings.setMappingProgress(ws.name, report.progress);
+    if (report) await this.settings.setMappingCoverage(ws.name, report.complete ? 1 : report.coverage);
     if (status !== 'finished') return;
     if (report?.complete && (await this.settings.mapping(ws.name)).state === 'building') {
       await this.settings.setMapping(ws.name, 'complete');

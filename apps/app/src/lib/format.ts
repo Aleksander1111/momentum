@@ -36,7 +36,13 @@ export function relativeTime(iso: string, now = new Date()): string {
 
 /** "14 min", "2 h 5 min". */
 export function duration(fromIso: string, now = new Date()): string {
-  const min = Math.max(0, Math.floor((now.getTime() - new Date(fromIso).getTime()) / 60_000));
+  return durationMs(now.getTime() - new Date(fromIso).getTime());
+}
+
+/** "under a minute", "14 min", "2 h 5 min". */
+export function durationMs(ms: number): string {
+  const min = Math.max(0, Math.floor(ms / 60_000));
+  if (min < 1) return 'under a minute';
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   return min % 60 ? `${h} h ${min % 60} min` : `${h} h`;

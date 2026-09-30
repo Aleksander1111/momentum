@@ -18,6 +18,7 @@ import { watch, type FSWatcher } from 'chokidar';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
+import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { HarnessSettings } from './harness.ts';
 import type { Workspace, Workspaces } from './workspaces.ts';
@@ -120,6 +121,10 @@ export class Guard {
     for (const f of artifactFiles) await this.artifactChanged(ws, f, changed);
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
+    }
+    // A definition committed straight to the harness main line is materialized like an approved one
+    if (ws.name === config.harnessName && changed) {
+      for (const p of changed) if (p.startsWith('Harness/Automation/')) this.bus.emit('definition_approved', { path: p });
     }
     await this.recordMetrics(ws);
   }

@@ -261,8 +261,28 @@ Every minute.
     await o.setMapping(ws, false);
     expect(stopped).toEqual(['mapping']);
     const status = await m.momentum.mapping('alpha');
-    expect(status).toMatchObject({ state: 'stopped', progress: 'Top level covered; services next.', entities: 0 });
+    expect(status).toMatchObject({ state: 'stopped', progress: 'Top level covered; services next.', entities: 0, spentMs: 0, coverage: null, estimate: null });
     expect(status.since).not.toBeNull();
+
+    // A run that took 10 minutes and 8% of the 5-hour limit for a quarter of the repository: the full build is four times that
+    await ws.index.sql`insert into ${ws.index.sql(`${ws.index.schema}.run`)} ${ws.index.sql({
+      id: 'map1',
+      automation: 'mapping',
+      branch: 'momentum/mapping/alpha',
+      checkout: join(root, '.runs', 'alpha', 'map1'),
+      trigger: 'event',
+      status: 'finished',
+      started_at: new Date(Date.now() - 600_000),
+      ended_at: new Date(),
+      usage_five_hour: 8,
+      usage_week: 1,
+    })}`;
+    await m.settings.setMappingCoverage('alpha', 0.25);
+    const estimated = await m.momentum.mapping('alpha');
+    expect(estimated.runs).toBe(1);
+    expect(estimated.spentMs).toBeGreaterThanOrEqual(599_000);
+    expect(estimated.estimate!.totalMs).toBeGreaterThanOrEqual(4 * 599_000);
+    expect(estimated.estimate!.usage).toEqual({ fiveHour: 32, week: 4 });
     await o.tick();
     expect(created).toEqual([]); // stopped: nothing queued
 
