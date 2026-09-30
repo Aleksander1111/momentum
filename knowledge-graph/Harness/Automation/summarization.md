@@ -12,7 +12,7 @@ artifacts:
 ---
 # Summarization
 
-Summarizes repository artifacts: chats, plans, results implemented by AI, mapped documents.
+Summarizes repository artifacts: chats, plans, results implemented by AI, documents listed by the graph build.
 
 - A sub-agent of every run: a Stop hook hands it the run's artifacts before the run ends; a run of its own when an artifact changes
 - The only writer of summaries: runs never summarize their own artifacts

@@ -10,7 +10,7 @@ import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
-import { mappingBranch, mappingPrompt } from './mapping.ts';
+import { graphBuildBranch, graphBuildPrompt } from './graph-build.ts';
 import type { Runner } from './runner.ts';
 import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
 
@@ -67,15 +67,15 @@ export class Orchestrator {
     await this.automations.materialize(ws);
     await this.guard.indexMainLine(ws);
     await this.proposeTriggers(ws);
-    if ((await this.settings.mapping(ws.name)).state !== 'complete') await this.settings.setMapping(ws.name, 'building');
+    if ((await this.settings.graphBuild(ws.name)).state !== 'complete') await this.settings.setGraphBuild(ws.name, 'building');
     void this.tick();
   }
 
   /** Disabling a project: a build in progress stops; enabling the project again resumes it */
   async disable(ws: Workspace): Promise<void> {
-    if ((await this.settings.mapping(ws.name)).state === 'building') {
-      await this.runner.stopAutomation(ws.name, 'mapping');
-      await this.settings.setMapping(ws.name, 'stopped');
+    if ((await this.settings.graphBuild(ws.name)).state === 'building') {
+      await this.runner.stopAutomation(ws.name, 'graph-build');
+      await this.settings.setGraphBuild(ws.name, 'stopped');
     }
   }
 
@@ -120,29 +120,29 @@ export class Orchestrator {
   }
 
   /** The user stops the build, or starts it again; the next tick queues the next run while the feed has room */
-  async setMapping(ws: Workspace, building: boolean): Promise<void> {
+  async setGraphBuild(ws: Workspace, building: boolean): Promise<void> {
     if (building) {
       if (!(await this.settings.enabled()).some((p) => p.name === ws.name)) throw new Error(`${ws.name} is not enabled`);
-      await this.settings.setMapping(ws.name, 'building');
+      await this.settings.setGraphBuild(ws.name, 'building');
     } else {
-      await this.runner.stopAutomation(ws.name, 'mapping');
-      await this.settings.setMapping(ws.name, 'stopped');
+      await this.runner.stopAutomation(ws.name, 'graph-build');
+      await this.settings.setGraphBuild(ws.name, 'stopped');
     }
   }
 
-  /** One mapping run at a time per workspace, on the workspace's mapping branch, told how much room the feed has */
-  private async queueMapping(ws: Workspace, room: number): Promise<void> {
-    const { state, progress } = await this.settings.mapping(ws.name);
+  /** One graph build run at a time per workspace, on the workspace's graph build branch, told how much room the feed has */
+  private async queueGraphBuild(ws: Workspace, room: number): Promise<void> {
+    const { state, progress } = await this.settings.graphBuild(ws.name);
     if (state !== 'building') return;
-    const branch = mappingBranch(ws);
-    if ((await this.runner.hasOpenRun(ws.name, 'mapping')) || (await this.runner.hasOpenRunOnBranch(ws.name, branch))) return;
+    const branch = graphBuildBranch(ws);
+    if ((await this.runner.hasOpenRun(ws.name, 'graph-build')) || (await this.runner.hasOpenRunOnBranch(ws.name, branch))) return;
     await this.runner.create({
       workspace: ws.name,
-      automation: 'mapping',
+      automation: 'graph-build',
       trigger: 'event',
       branch,
       title: 'Knowledge graph',
-      prompt: mappingPrompt(progress, room),
+      prompt: graphBuildPrompt(progress, room),
     });
   }
 
@@ -225,7 +225,7 @@ export class Orchestrator {
             if (!this.due(t, await this.runner.lastStart(ws.name, t.automation))) continue;
             await this.runner.create({ workspace: ws.name, automation: t.automation, trigger: 'schedule', prompt: PROMPTS.schedule! });
           }
-          await this.queueMapping(ws, room);
+          await this.queueGraphBuild(ws, room);
         }
       }
       const names = new Set(enabled.map((w) => w.name));

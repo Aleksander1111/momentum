@@ -5,7 +5,7 @@ import {
   ChatsResponse,
   EntityDetail,
   FeedResponse,
-  MappingStatus,
+  GraphBuildStatus,
   MetricsResponse,
   RunDetail,
   SearchResult,
@@ -16,7 +16,7 @@ import {
   type ApproveRequest,
   type CreateChatRequest,
   type PostRunMessage,
-  type PutMapping,
+  type PutGraphBuild,
   type PutSettings,
   type SendBackRequest,
   type SessionRequest,
@@ -142,14 +142,14 @@ export const api = {
     await request('POST', `/runs/${seg(id)}/kill`);
   },
   metrics: (ws: string) => get(`/workspaces/${seg(ws)}/metrics`, MetricsResponse),
-  mapping: (ws: string) => get(`/workspaces/${seg(ws)}/mapping`, MappingStatus),
-  async putMapping(ws: string, req: PutMapping): Promise<MappingStatus> {
-    const res = await request('PUT', `/workspaces/${seg(ws)}/mapping`, req);
-    return MappingStatus.parse(await res.json());
+  graphBuild: (ws: string) => get(`/workspaces/${seg(ws)}/graph-build`, GraphBuildStatus),
+  async putGraphBuild(ws: string, req: PutGraphBuild): Promise<GraphBuildStatus> {
+    const res = await request('PUT', `/workspaces/${seg(ws)}/graph-build`, req);
+    return GraphBuildStatus.parse(await res.json());
   },
-  async resetProject(ws: string): Promise<MappingStatus> {
+  async resetProject(ws: string): Promise<GraphBuildStatus> {
     const res = await request('POST', `/workspaces/${seg(ws)}/reset`);
-    return MappingStatus.parse(await res.json());
+    return GraphBuildStatus.parse(await res.json());
   },
   settings: () => get('/settings', Settings),
   async putSettings(req: PutSettings): Promise<Settings> {

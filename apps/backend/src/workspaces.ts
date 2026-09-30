@@ -1,6 +1,6 @@
 import { loadEntityTypes, type EntityType } from '@momentum/entity';
 import { migrateWorkspace, schemaOf, WorkspaceIndex, type Sql } from '@momentum/kb';
-import { currentBranch } from '@momentum/runs';
+import { branchExists, currentBranch, git } from '@momentum/runs';
 import { config } from './config.ts';
 import type { HarnessSettings } from './harness.ts';
 
@@ -35,6 +35,12 @@ export class Workspaces {
     const project = (await this.settings.projects()).find((p) => p.name === name);
     if (!project) throw new NotFound(`No workspace ${name}`);
     await migrateWorkspace(this.sql, name);
+    // The graph build was called mapping: its branch keeps its work under the new name
+    const legacy = `momentum/mapping/${name}`;
+    const renamed = `momentum/graph-build/${name}`;
+    if ((await branchExists(project.path, legacy)) && !(await branchExists(project.path, renamed))) {
+      await git(project.path, ['branch', '-m', legacy, renamed]);
+    }
     const ws: Workspace = {
       name,
       path: project.path,

@@ -3,7 +3,7 @@ import type {
   ChatsResponse,
   EntityDetail,
   FeedResponse,
-  MappingStatus,
+  GraphBuildStatus,
   MetricsResponse,
   PutSettings,
   RunDetail,
@@ -16,7 +16,7 @@ import { crossProjectEntityCounts, crossProjectFeed, type Embed, type Sql } from
 import type { Approval } from './approval.ts';
 import type { Automations } from './automations.ts';
 import type { HarnessSettings } from './harness.ts';
-import { mappingStatus } from './mapping.ts';
+import { graphBuildStatus } from './graph-build.ts';
 import { detectPatterns, workspaceMetrics } from './metrics.ts';
 import type { Orchestrator } from './orchestrator.ts';
 import type { Runner } from './runner.ts';
@@ -162,23 +162,23 @@ export class Momentum {
   }
 
   /** The knowledge graph build of a workspace: state, runs, entities written and everything they used */
-  async mapping(workspace: string): Promise<MappingStatus> {
-    return mappingStatus(await this.workspaces.get(workspace), this.settings);
+  async graphBuild(workspace: string): Promise<GraphBuildStatus> {
+    return graphBuildStatus(await this.workspaces.get(workspace), this.settings);
   }
 
   /** Stops the build, or starts it again */
-  async setMapping(workspace: string, building: boolean): Promise<MappingStatus> {
+  async setGraphBuild(workspace: string, building: boolean): Promise<GraphBuildStatus> {
     const ws = await this.workspaces.get(workspace);
-    await this.orchestrator.setMapping(ws, building);
+    await this.orchestrator.setGraphBuild(ws, building);
     if (building) void this.orchestrator.tick();
-    return mappingStatus(ws, this.settings);
+    return graphBuildStatus(ws, this.settings);
   }
 
   /** Removes every entity and database entry of a project, then builds its knowledge graph afresh */
-  async resetProject(workspace: string): Promise<MappingStatus> {
+  async resetProject(workspace: string): Promise<GraphBuildStatus> {
     await this.orchestrator.reset(await this.workspaces.get(workspace));
     void this.orchestrator.tick();
-    return mappingStatus(await this.workspaces.get(workspace), this.settings);
+    return graphBuildStatus(await this.workspaces.get(workspace), this.settings);
   }
 
   async metrics(workspace: string): Promise<MetricsResponse> {

@@ -13,7 +13,7 @@ const SLOTS: Record<Scheme, string[]> = {
   dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9'],
 };
 
-const SLOTTED: AutomationName[] = ['summarization', 'mapping', 'implementation', 'chat', 'exploration', 'preparation', 'validation'];
+const SLOTTED: AutomationName[] = ['summarization', 'graph-build', 'implementation', 'chat', 'exploration', 'preparation', 'validation'];
 
 export type Segment = { key: string; label: string; color: string; value: number };
 

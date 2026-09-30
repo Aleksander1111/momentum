@@ -44,16 +44,16 @@ function createServer(m: Momentum): McpServer {
   t('message', 'Steer a run or continue a chat.', { id: z.string(), text: z.string() }, (a) => m.postMessage(a.id, a.text));
   t('kill_run', 'End a run: its process is killed; what it wrote so far still reaches the feed.', { id: z.string() }, (a) => m.killRun(a.id));
   t(
-    'mapping',
+    'graph_build',
     'The knowledge graph build of a workspace: state, runs, entities written and the usage it took.',
     { workspace: z.string() },
-    (a) => m.mapping(a.workspace),
+    (a) => m.graphBuild(a.workspace),
   );
   t(
-    'set_mapping',
+    'set_graph_build',
     'Stop the knowledge graph build of a workspace, or start it again.',
     { workspace: z.string(), building: z.boolean() },
-    (a) => m.setMapping(a.workspace, a.building),
+    (a) => m.setGraphBuild(a.workspace, a.building),
   );
   t(
     'reset_project',

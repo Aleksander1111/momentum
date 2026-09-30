@@ -197,7 +197,7 @@ export const AutomationName = z.enum([
   'optimization',
   'summarization',
   'chat',
-  'mapping',
+  'graph-build',
 ]);
 export type AutomationName = z.infer<typeof AutomationName>;
 
@@ -267,24 +267,24 @@ export const CreateChatRequest = z.object({
 });
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 
-// Mapping: the knowledge graph of a workspace built from its repository
+// Graph build: the knowledge graph of a workspace built from its repository
 
-export const MappingState = z.enum(['building', 'stopped', 'complete']);
-export type MappingState = z.infer<typeof MappingState>;
+export const GraphBuildState = z.enum(['building', 'stopped', 'complete']);
+export type GraphBuildState = z.infer<typeof GraphBuildState>;
 
-export const MappingStatus = z.object({
+export const GraphBuildStatus = z.object({
   workspace: z.string(),
   /** null until the project is enabled for the first time */
-  state: MappingState.nullable(),
-  /** Progress reported by the last mapping run, given to the next one */
+  state: GraphBuildState.nullable(),
+  /** Progress reported by the last graph build run, given to the next one */
   progress: z.string().nullable(),
   since: z.string().nullable(),
   runs: z.number(),
-  /** Entities the mapping runs wrote so far, approved or waiting in the feed */
+  /** Entities the graph build runs wrote so far, approved or waiting in the feed */
   entities: z.number(),
-  /** Everything the mapping runs used so far */
+  /** Everything the graph build runs used so far */
   usage: Usage,
-  /** Time the mapping runs have spent running so far, the run in progress included */
+  /** Time the graph build runs have spent running so far, the run in progress included */
   spentMs: z.number(),
   /** Share of the repository covered, 0–1, as reported by the last run; null until a run reports it */
   coverage: z.number().nullable(),
@@ -294,10 +294,10 @@ export const MappingStatus = z.object({
   /** Whether the project can be reset; the harness workspace cannot */
   resettable: z.boolean(),
 });
-export type MappingStatus = z.infer<typeof MappingStatus>;
+export type GraphBuildStatus = z.infer<typeof GraphBuildStatus>;
 
-export const PutMapping = z.object({ building: z.boolean() });
-export type PutMapping = z.infer<typeof PutMapping>;
+export const PutGraphBuild = z.object({ building: z.boolean() });
+export type PutGraphBuild = z.infer<typeof PutGraphBuild>;
 
 // Metrics, SPEC.md → Index and metrics database
 

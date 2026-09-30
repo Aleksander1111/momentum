@@ -29,7 +29,7 @@
 - **Layers**: Attention (ranked feed, approval), understanding (entities, index), implementation (automations, runs, validation)
 - **Lifetime**: How long an entity earns its place on the main line, set by rules per entity type
 - **Main line**: Where a change counts, once the guard has validated it and the user has approved it
-- **Mapping**: The automation that builds the knowledge graph of a workspace from its repository; starts when the project is enabled, bounded by the feed like every loop, until the repository is covered or the user stops it
+- **Graph build**: The automation that builds the knowledge graph of a workspace from its repository; starts when the project is enabled, bounded by the feed like every loop, until the repository is covered or the user stops it
 - **Origin**: How an entity came to be: added by the user, requested by the user and written by an automation, or raised by an automation on its own
 - **Orchestrator**: Starts and supervises the background automation loops, per project
 - **Run**: One Claude Code process per run and per project, in its own checkout of the project repository, on its own branch
@@ -89,7 +89,7 @@ Starts and supervises the background automation loops, per project. It ships in 
 - Owns the schedule and lifecycle of every loop run, started by the trigger entities of each enabled project: a schedule, an event, or on demand
 - The feed size bounds the loops: they keep producing until the feed reaches its limit, then pause until the user works it down
 - Only enabled projects are scheduled: a disabled project falls out of the orchestrator's control entirely, and no loops run for it
-- Enabling a project starts the mapping: the knowledge graph is built from the repository run after run, each run bounded by the room the feed has, until the repository is covered; the user watches what the build has used and stops it at any time, and disabling the project stops it too
+- Enabling a project starts the graph build: the knowledge graph is built from the repository run after run, each run bounded by the room the feed has, until the repository is covered; the user watches what the build has used and stops it at any time, and disabling the project stops it too
 - Resetting a project removes every entity and database entry it has and starts the build afresh: every run ends, the run branches go, the knowledge graph leaves the main line in one commit, and the project is enabled again from nothing; the harness workspace, which holds the automation definitions, cannot be reset
 - Every run is a separate process: one Claude Code process per run and per project
 - Each run process works in its own checkout of the project repository, on its own branch, so concurrent runs never share a working tree
@@ -186,7 +186,7 @@ AI is not the default. Each responsibility is split into steps and every step is
   - Each approved definition is materialized into the workspaces that use it, so Claude Code picks it up locally with no indirection
   - Competing implementations of a skill or sub-agent are compared on the collected metrics
 - Summarization
-  - Summarizes artifacts from the repository: chats, plans, results implemented by AI, documents found by mapping
+  - Summarizes artifacts from the repository: chats, plans, results implemented by AI, documents found by the graph build
   - A Claude Code Stop hook hands every artifact a run added, changed or deleted to the summarization sub-agent before the run ends; no automation summarizes by itself, so none of them is limited by the card
   - A hook, not a trigger: triggered loops pause at the feed limit, and work must never wait unsummarized
   - Writes each summary before the user reads the work
@@ -197,11 +197,11 @@ AI is not the default. Each responsibility is split into steps and every step is
   - The direct chat is an automation too, started by the user instead of by the schedule
   - Runs on the same machinery as every other automation: its own process, checkout and branch
   - Can do anything the other automations can; its results reach the approved state through the feed like any other change
-- Mapping
+- Graph build
   - Builds the knowledge graph of a workspace from its repository, so the project can be explored through entities from the start
   - Started by enabling the project rather than by a trigger entity; one run at a time, each writing at most the room the feed has
   - Every run of a workspace continues on the same branch and reports its progress to the next; the build ends when a run reports the repository covered, or when the user stops it
-  - The user watches the runs, the entities, the time and the usage of the build as it goes, with the full build estimated from the share of the repository the runs report covered, and stops it when it costs too much or maps the project wrongly; the entities it wrote wait in the feed like any other change
+  - The user watches the runs, the entities, the time and the usage of the build as it goes, with the full build estimated from the share of the repository the runs report covered, and stops it when it costs too much or builds the graph wrongly; the entities it wrote wait in the feed like any other change
 
 #### Attention feed
 
@@ -271,7 +271,7 @@ The two states are independent. Verification belongs to the attention layer; rej
 
 | Field | Description |
 |---|---|
-| name | Exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat or mapping |
+| name | Exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat or graph build |
 | responsibility | Responsibility that defines the automation |
 | definition | Path of the definition entity in the harness workspace |
 | trigger | Path of the trigger entity in this workspace; none for an automation that runs only as a step inside others |

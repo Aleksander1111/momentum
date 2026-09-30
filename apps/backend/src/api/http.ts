@@ -8,10 +8,10 @@ import {
   EntityDetail,
   ErrorResponse,
   FeedResponse,
-  MappingStatus,
+  GraphBuildStatus,
   MetricsResponse,
   PostRunMessage,
-  PutMapping,
+  PutGraphBuild,
   PutSettings,
   RunDetail,
   SearchResult,
@@ -168,17 +168,17 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
     momentum.metrics(req.params.ws),
   );
 
-  app.get('/workspaces/:ws/mapping', { schema: { params: ws, response: { 200: MappingStatus, ...errors } } }, (req) =>
-    momentum.mapping(req.params.ws),
+  app.get('/workspaces/:ws/graph-build', { schema: { params: ws, response: { 200: GraphBuildStatus, ...errors } } }, (req) =>
+    momentum.graphBuild(req.params.ws),
   );
 
-  app.put('/workspaces/:ws/mapping', { schema: { params: ws, body: PutMapping, response: { 200: MappingStatus, ...errors } } }, (req) =>
-    momentum.setMapping(req.params.ws, req.body.building),
+  app.put('/workspaces/:ws/graph-build', { schema: { params: ws, body: PutGraphBuild, response: { 200: GraphBuildStatus, ...errors } } }, (req) =>
+    momentum.setGraphBuild(req.params.ws, req.body.building),
   );
 
   app.post(
     '/workspaces/:ws/reset',
-    { schema: { params: ws, response: { 200: MappingStatus, 409: ErrorResponse, ...errors } } },
+    { schema: { params: ws, response: { 200: GraphBuildStatus, 409: ErrorResponse, ...errors } } },
     (req) => momentum.resetProject(req.params.ws),
   );
 

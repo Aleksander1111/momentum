@@ -247,20 +247,20 @@ Every minute.
     const o = new Orchestrator(m.workspaces, m.settings, m.guard, stub as never, m.automations, createBus());
     const ws = await m.workspaces.get('alpha');
 
-    expect((await m.momentum.mapping('alpha')).state).toBeNull(); // nothing until the project is enabled
+    expect((await m.momentum.graphBuild('alpha')).state).toBeNull(); // nothing until the project is enabled
     await o.tick();
     expect(created).toEqual([]);
 
-    await m.settings.setMapping('alpha', 'building');
+    await m.settings.setGraphBuild('alpha', 'building');
     await o.tick();
     expect(created).toHaveLength(1);
-    expect(created[0]).toMatchObject({ automation: 'mapping', branch: 'momentum/mapping/alpha' });
-    expect(created[0]!.prompt).toMatch(/first mapping run/);
+    expect(created[0]).toMatchObject({ automation: 'graph-build', branch: 'momentum/graph-build/alpha' });
+    expect(created[0]!.prompt).toMatch(/first graph build run/);
     expect(created[0]!.prompt).toMatch(/room for \d+ more items: write at most \d+ entities/);
     await o.tick();
     expect(created).toHaveLength(1); // one run at a time
 
-    await m.settings.setMappingProgress('alpha', 'Top level covered; services next.');
+    await m.settings.setGraphBuildProgress('alpha', 'Top level covered; services next.');
     created.length = 0;
     await o.tick();
     expect(created[0]!.prompt).toContain('Top level covered; services next.');
@@ -271,17 +271,17 @@ Every minute.
     expect(created).toEqual([]); // the feed is at its limit: the build pauses
     await m.settings.put({ feedSize: 40 });
 
-    await o.setMapping(ws, false);
-    expect(stopped).toEqual(['mapping']);
-    const status = await m.momentum.mapping('alpha');
+    await o.setGraphBuild(ws, false);
+    expect(stopped).toEqual(['graph-build']);
+    const status = await m.momentum.graphBuild('alpha');
     expect(status).toMatchObject({ state: 'stopped', progress: 'Top level covered; services next.', entities: 0, spentMs: 0, coverage: null, estimate: null });
     expect(status.since).not.toBeNull();
 
     // A run that took 10 minutes and 8% of the 5-hour limit for a quarter of the repository: the full build is four times that
     await ws.index.sql`insert into ${ws.index.sql(`${ws.index.schema}.run`)} ${ws.index.sql({
       id: 'map1',
-      automation: 'mapping',
-      branch: 'momentum/mapping/alpha',
+      automation: 'graph-build',
+      branch: 'momentum/graph-build/alpha',
       checkout: join(root, '.runs', 'alpha', 'map1'),
       trigger: 'event',
       status: 'finished',
@@ -290,8 +290,8 @@ Every minute.
       usage_five_hour: 8,
       usage_week: 1,
     })}`;
-    await m.settings.setMappingCoverage('alpha', 0.25);
-    const estimated = await m.momentum.mapping('alpha');
+    await m.settings.setGraphBuildCoverage('alpha', 0.25);
+    const estimated = await m.momentum.graphBuild('alpha');
     expect(estimated.runs).toBe(1);
     expect(estimated.spentMs).toBeGreaterThanOrEqual(599_000);
     expect(estimated.estimate!.totalMs).toBeGreaterThanOrEqual(4 * 599_000);
@@ -299,10 +299,10 @@ Every minute.
     await o.tick();
     expect(created).toEqual([]); // stopped: nothing queued
 
-    await o.setMapping(ws, true);
+    await o.setGraphBuild(ws, true);
     await o.tick();
-    expect(created.map((r) => r.automation)).toEqual(['mapping']); // resumed
-    await o.setMapping(ws, false);
+    expect(created.map((r) => r.automation)).toEqual(['graph-build']); // resumed
+    await o.setGraphBuild(ws, false);
   });
 });
 
@@ -373,7 +373,7 @@ describe('reset', () => {
 
     await o.reset(await m.workspaces.get('alpha'));
     // the build starts again from the top
-    await vi.waitFor(() => expect(created.map((r) => r.automation)).toContain('mapping'));
+    await vi.waitFor(() => expect(created.map((r) => r.automation)).toContain('graph-build'));
 
     expect(git(repo, 'ls-tree', '-r', '--name-only', 'main', 'knowledge-graph')).toBe('');
     expect(git(repo, 'branch', '--list', 'momentum/*')).toBe('');
@@ -382,7 +382,7 @@ describe('reset', () => {
     expect((await m.momentum.types('alpha')).total).toBe(0);
     expect((await m.momentum.chats('alpha')).chats).toEqual([]);
     expect((await m.momentum.feed()).items).toEqual([]);
-    const status = await m.momentum.mapping('alpha');
+    const status = await m.momentum.graphBuild('alpha');
     expect(status).toMatchObject({ state: 'building', progress: null, runs: 0, entities: 0, resettable: true });
     expect((await m.settings.enabled()).map((p) => p.name)).toEqual(['alpha']);
 

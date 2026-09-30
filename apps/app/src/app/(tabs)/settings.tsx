@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AutomationName, Risk } from '@momentum/contract';
-import type { MappingState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT } from '@momentum/contract';
+import type { GraphBuildState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { automationLabel, durationMs, usagePct } from '../../lib/format';
 import { C, F, useTheme, useWide, type Appearance } from '../../ui/theme';
@@ -274,24 +274,24 @@ function Models({ m, onSave }: { m: ModelSettings; onSave: (m: ModelSettings) =>
   );
 }
 
-const MAPPING: Record<MappingState, string> = { building: 'building', stopped: 'stopped', complete: 'complete' };
+const GRAPH_BUILD: Record<GraphBuildState, string> = { building: 'building', stopped: 'stopped', complete: 'complete' };
 
 /**
  * The knowledge graph build of an enabled project: its state, what it produced and what it used, refreshed while it
  * builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again. Reset removes every
  * entity and database entry of the project and builds the knowledge graph afresh; it asks for a second tap first.
  */
-function MappingRow({ name }: { name: string }) {
+function GraphBuildRow({ name }: { name: string }) {
   const qc = useQueryClient();
   const { data: m } = useQuery({
-    queryKey: ['mapping', name],
-    queryFn: () => api.mapping(name),
+    queryKey: ['graph-build', name],
+    queryFn: () => api.graphBuild(name),
     refetchInterval: (q) => (q.state.data?.state === 'building' ? 5_000 : 30_000),
   });
   const set = useMutation({
-    mutationFn: (building: boolean) => api.putMapping(name, { building }),
-    onSuccess: (next) => qc.setQueryData(['mapping', name], next),
-    onError: () => void qc.invalidateQueries({ queryKey: ['mapping', name] }),
+    mutationFn: (building: boolean) => api.putGraphBuild(name, { building }),
+    onSuccess: (next) => qc.setQueryData(['graph-build', name], next),
+    onError: () => void qc.invalidateQueries({ queryKey: ['graph-build', name] }),
   });
   const [armed, setArmed] = useState(false);
   useEffect(() => {
@@ -302,16 +302,16 @@ function MappingRow({ name }: { name: string }) {
   const reset = useMutation({
     mutationFn: () => api.resetProject(name),
     onSuccess: (next) => {
-      qc.setQueryData(['mapping', name], next);
+      qc.setQueryData(['graph-build', name], next);
       // Every entity, chat, run and metric of the project is gone
-      void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'mapping' });
+      void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'graph-build' });
     },
     onSettled: () => setArmed(false),
   });
   if (!m?.state) return null;
   const sep = ' \u00b7 ';
   const soFar = [
-    reset.isPending ? 'resetting' : MAPPING[m.state],
+    reset.isPending ? 'resetting' : GRAPH_BUILD[m.state],
     `${m.runs} ${m.runs === 1 ? 'run' : 'runs'}`,
     `${m.entities} ${m.entities === 1 ? 'entity' : 'entities'}`,
     durationMs(m.spentMs),
@@ -407,11 +407,11 @@ export default function Settings() {
                 onToggle={() => {
                   const projects = s.projects.map((x) => (x.name === p.name ? { ...x, enabled: !x.enabled } : x));
                   put({ projects: projects.map(({ name, enabled }) => ({ name, enabled })) }, { projects });
-                  void qc.invalidateQueries({ queryKey: ['mapping', p.name] });
+                  void qc.invalidateQueries({ queryKey: ['graph-build', p.name] });
                 }}
               />
             </Row>
-            {p.enabled ? <MappingRow name={p.name} /> : null}
+            {p.enabled ? <GraphBuildRow name={p.name} /> : null}
           </View>
         ))}
       </List>

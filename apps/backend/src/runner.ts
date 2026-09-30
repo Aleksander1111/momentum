@@ -71,7 +71,7 @@ interface Active {
   ref: RunRef;
   handle: SessionHandle;
   validation?: { passed: boolean; form: string; summary: string };
-  mapping?: { complete: boolean; progress: string; coverage: number; documents?: string[] };
+  graphBuild?: { complete: boolean; progress: string; coverage: number; documents?: string[] };
   /** Settles once the run's changes have passed the guard and its status is recorded */
   finished?: Promise<void>;
 }
@@ -304,8 +304,8 @@ export class Runner {
           },
         ),
         tool(
-          'report_mapping',
-          'Report the progress of mapping this repository into the knowledge base: what is covered, what the next run should take up, and the share of the repository covered so far (0–1), which estimates the full build. Set complete once the repository is covered; the mapping then stops. List in documents the repository files to summarize; they are handed to the summarization sub-agent when you stop.',
+          'report_graph_build',
+          'Report the progress of building the knowledge graph of this repository: what is covered, what the next run should take up, and the share of the repository covered so far (0–1), which estimates the full build. Set complete once the repository is covered; the graph build then stops. List in documents the repository files to summarize; they are handed to the summarization sub-agent when you stop.',
           {
             complete: z.boolean(),
             progress: z.string(),
@@ -313,7 +313,7 @@ export class Runner {
             documents: z.array(z.string()).optional(),
           },
           async (v) => {
-            entry.mapping = v;
+            entry.graphBuild = v;
             return { content: [{ type: 'text', text: 'Recorded' }] };
           },
         ),
@@ -443,7 +443,7 @@ export class Runner {
         variant,
         ...usage,
       })}`;
-      if (r.automation === 'mapping') await this.afterMapping(ws, status, entry.mapping);
+      if (r.automation === 'graph-build') await this.afterGraphBuild(ws, status, entry.graphBuild);
       if (r.branch.startsWith('momentum/implementation/') && r.automation !== 'validation' && status === 'finished') {
         this.bus.emit('implementation_finished', { workspace: ws.name, runId: id, branch: r.branch, targetPath: r.target_path });
       }
@@ -456,13 +456,13 @@ export class Runner {
     }
   }
 
-  /** The mapping goes on run after run until a run reports the repository covered, or the user stops it */
-  private async afterMapping(ws: Workspace, status: RunStatus, report: Active['mapping']): Promise<void> {
-    if (report?.progress) await this.settings.setMappingProgress(ws.name, report.progress);
-    if (report) await this.settings.setMappingCoverage(ws.name, report.complete ? 1 : report.coverage);
+  /** The graph build goes on run after run until a run reports the repository covered, or the user stops it */
+  private async afterGraphBuild(ws: Workspace, status: RunStatus, report: Active['graphBuild']): Promise<void> {
+    if (report?.progress) await this.settings.setGraphBuildProgress(ws.name, report.progress);
+    if (report) await this.settings.setGraphBuildCoverage(ws.name, report.complete ? 1 : report.coverage);
     if (status !== 'finished') return;
-    if (report?.complete && (await this.settings.mapping(ws.name)).state === 'building') {
-      await this.settings.setMapping(ws.name, 'complete');
+    if (report?.complete && (await this.settings.graphBuild(ws.name)).state === 'building') {
+      await this.settings.setGraphBuild(ws.name, 'complete');
     }
   }
 
@@ -485,7 +485,7 @@ export class Runner {
 
   /**
    * What the Stop hook hands the summarization sub-agent: the artifacts the run added, changed or deleted and the
-   * documents a mapping run listed, minus the knowledge graph and the user's exclusions; null when there are none
+   * documents a graph build run listed, minus the knowledge graph and the user's exclusions; null when there are none
    */
   private async summaryRequest(ws: Workspace, r: RunRow, entry: Active): Promise<string | null> {
     if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
@@ -497,7 +497,7 @@ export class Runner {
     for (const c of base ? await workingChanges(r.checkout, base) : []) {
       if (!excluded(c.path)) artifacts.set(c.path, c.status === 'A' ? 'added' : c.status === 'D' ? 'deleted' : 'changed');
     }
-    for (const d of entry.mapping?.documents ?? []) if (!excluded(d) && !artifacts.has(d)) artifacts.set(d, 'to map');
+    for (const d of entry.graphBuild?.documents ?? []) if (!excluded(d) && !artifacts.has(d)) artifacts.set(d, 'to map');
     if (artifacts.size === 0) return null;
     const list = [...artifacts].map(([path, what]) => `- ${path} (${what})`).join('\n');
     const target = r.target_path ? ` The run's target entity is ${r.target_path}.` : '';

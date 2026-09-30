@@ -6,7 +6,7 @@ import {
   ChatsResponse,
   EntityDetail,
   FeedResponse,
-  MappingStatus,
+  GraphBuildStatus,
   MetricsResponse,
   RunDetail,
   Settings,
@@ -66,7 +66,7 @@ const SCHEMAS: Record<string, { safeParse: (d: unknown) => { success: boolean } 
   run: RunDetail,
   entity: EntityDetail,
   metrics: MetricsResponse,
-  mapping: MappingStatus,
+  graphBuild: GraphBuildStatus,
 };
 
 /**

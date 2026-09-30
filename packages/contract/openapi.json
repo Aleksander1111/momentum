@@ -955,7 +955,7 @@
                               "optimization",
                               "summarization",
                               "chat",
-                              "mapping"
+                              "graph-build"
                             ]
                           },
                           "status": {
@@ -1190,7 +1190,7 @@
                         "optimization",
                         "summarization",
                         "chat",
-                        "mapping"
+                        "graph-build"
                       ]
                     },
                     "branch": {
@@ -1878,7 +1878,7 @@
                                   "optimization",
                                   "summarization",
                                   "chat",
-                                  "mapping"
+                                  "graph-build"
                                 ]
                               },
                               "runs": {
@@ -2097,7 +2097,7 @@
         }
       }
     },
-    "/workspaces/{ws}/mapping": {
+    "/workspaces/{ws}/graph-build": {
       "get": {
         "parameters": [
           {
@@ -2805,7 +2805,7 @@
                             "optimization",
                             "summarization",
                             "chat",
-                            "mapping"
+                            "graph-build"
                           ]
                         },
                         "risk": {
@@ -3039,7 +3039,7 @@
                           "optimization",
                           "summarization",
                           "chat",
-                          "mapping"
+                          "graph-build"
                         ]
                       },
                       "risk": {
@@ -3231,7 +3231,7 @@
                             "optimization",
                             "summarization",
                             "chat",
-                            "mapping"
+                            "graph-build"
                           ]
                         },
                         "risk": {

@@ -176,6 +176,13 @@ create table if not exists ${s}.implementation_metric (
   defects int not null,
   recorded_at timestamptz not null default now()
 );
+-- The graph build was called mapping
+update ${s}.run set automation = 'graph-build' where automation = 'mapping';
+update ${s}.run set branch = replace(branch, 'momentum/mapping/', 'momentum/graph-build/') where branch like 'momentum/mapping/%';
+update ${s}.entity set branch = replace(branch, 'momentum/mapping/', 'momentum/graph-build/') where branch like 'momentum/mapping/%';
+update ${s}.transaction set branch = replace(branch, 'momentum/mapping/', 'momentum/graph-build/') where branch like 'momentum/mapping/%';
+update ${s}.agent_metric set automation = 'graph-build' where automation = 'mapping';
+delete from ${s}.automation where name = 'mapping';
 `;
 }
 

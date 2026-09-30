@@ -14,7 +14,7 @@ flowchart TB
   Enabled{"Project enabled?"}
   NoLoops["No loops"]
   Loops["Automation loops, per project"]
-  Mapping["Mapping: knowledge graph built from the repository<br/>run after run until covered or stopped"]
+  GraphBuild["Graph build: knowledge graph built from the repository<br/>run after run until covered or stopped"]
   subgraph Procs["Run processes — isolated, killable, own resource limits"]
     R1["Run<br/>Claude Code process<br/>own checkout, own branch"]
     R2["Run<br/>Claude Code process<br/>own checkout, own branch"]
@@ -27,12 +27,12 @@ flowchart TB
   Orch --> Enabled
   Enabled -->|"no"| NoLoops
   Enabled -->|"yes"| Loops
-  Enabled -->|"yes, until covered"| Mapping
+  Enabled -->|"yes, until covered"| GraphBuild
   Loops -->|"several runs per project"| R1
   Loops --> R2
-  Mapping -->|"one run at a time<br/>at most the feed's room"| R2
+  GraphBuild -->|"one run at a time<br/>at most the feed's room"| R2
   Limits -. "bound concurrency" .-> Procs
   Feed -. "at its limit: loops pause" .-> Loops
-  Feed -. "at its limit: the build pauses" .-> Mapping
-  User(["User"]) -. "watches usage, stops" .-> Mapping
+  Feed -. "at its limit: the build pauses" .-> GraphBuild
+  User(["User"]) -. "watches usage, stops" .-> GraphBuild
 ```
