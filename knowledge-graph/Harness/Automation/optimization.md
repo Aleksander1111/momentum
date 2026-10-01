@@ -1,7 +1,7 @@
 ---
 type: Harness/Automation
 origin: user
-verification: verified
+verification: unverified
 sync: synced
 product_impact: 0
 timeline_impact: 0
@@ -12,8 +12,11 @@ artifacts:
 ---
 # Optimization
 
-Analyzes chats for misalignments and recurring issues and proposes resolutions.
+Aligns the automations with the user, measured on the collected metrics.
 
-- Skills, sub-agents, definitions, tools or MCP servers
-- Proposes changes to definitions and triggers through the feed
-- Compares competing implementations on the metrics
+- Analyzes the chats since its last run and the issues raised: misalignments and recurring issues
+- Records their counts with `record_agent_metric`
+- Resolves the most recurring: a skill, sub-agent, definition change, new tool or MCP server, or trigger change
+- Proposes through the feed: definition entities and automations/<name>/ files in the harness workspace, trigger entities in any workspace
+- Competing implementations get a `variant` so the metrics compare them
+- Each card gives the evidence and the expected effect
