@@ -12,8 +12,8 @@ artifacts:
 ---
 # Data, retrieval and ranking
 
-- **Database:** Postgres 18 in Docker (`pgvector/pgvector:pg18-trixie`), database `momentum`, schema `ws_<workspace>`, postgres.js; `tsvector` + GIN
-- **Graph RAG:** `ts_rank` + pgvector cosine + recursive CTE over `entity_reference`; bge-small (ONNX) embeddings in-process
-- **Ranking:** rank = product_impact + timeline_impact + unlocks (0–5, author-set), generated on index update; ties to first in feed
-- **Cross-project feed:** `UNION ALL` of enabled projects' rankings; counters by verification and sync state
-- **Harness settings:** schema `harness` (projects and build state, feed, lifetimes, cards, unsummarized paths, models, run workspaces, usage), so enabling a project makes no commits
+- **Database:** Postgres 18 + pgvector (Docker), database `momentum`, schema `ws_<workspace>`, postgres.js; tables of SPEC plus `transaction` and `run_message`
+- **Graph RAG:** `ts_rank` + pgvector cosine (bge-small, in-process) + recursive CTE over `entity_reference`
+- **Ranking:** product_impact + timeline_impact + unlocks (0–5, author-set), generated on index update; earliest wins ties; tuning open
+- **Cross-project feed:** `UNION ALL` of enabled schemas; counters by verification and sync state
+- **Harness settings:** schema `harness` (projects, build state, feed, lifetimes, cards, unsummarized paths, concurrency, models, sessions, run workspaces, usage); enabling makes no commits
