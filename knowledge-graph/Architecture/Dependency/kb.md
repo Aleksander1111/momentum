@@ -24,7 +24,7 @@ kind: internal library
 
 `@momentum/kb`, internal library: the index side of the knowledge base.
 
-- Postgres connection and the DDL of the harness and workspace schemas
-- Workspace index: upsert, detail with references both ways, types tree, full text (`ts_rank`) + pgvector cosine search fused by reciprocal rank and expanded along references (recursive CTE), attention ranking and reactions, cross-project feed
-- Embeddings computed in-process with `@huggingface/transformers` (bge-small, ONNX, 384 dimensions)
+- Postgres connection and DDL: harness schema, and per workspace entities, runs (with model and risk), transactions and metrics
+- Workspace index: upsert, references both ways, types tree, full text + pgvector search fused by reciprocal rank and expanded along references, attention ranking, cross-project feed and counts
+- In-process embeddings: bge-small over ONNX, 384 dimensions
 - The `momentum-kb` MCP server given to every run

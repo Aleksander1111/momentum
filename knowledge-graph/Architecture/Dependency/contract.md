@@ -3,25 +3,22 @@ type: Architecture/Dependency
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 3
-timeline_impact: 2
-unlocks: 4
-references: []
+product_impact: 1
+timeline_impact: 0
+unlocks: 1
+references:
+  - to: Code/Repository/momentum
+    relation: part_of
 artifacts:
   - packages/contract/src/index.ts
   - packages/contract/openapi.json
-  - packages/contract/package.json
+kind: internal library
 ---
-# @momentum/contract
+# contract package
 
-Internal library: zod schemas and inferred types shared by the app and backend, plus the generated `openapi.json` (Momentum API, OpenAPI 3.0.3) served at `/openapi.json`.
+`@momentum/contract`, internal library: the zod schemas and types shared by the app and the back-end.
 
-| Area | Schemas |
-|---|---|
-| Entity | Verification, Sync, Origin, Impact, EntityFrontmatter, TriggerFields |
-| Card | Inline, Block (markdown AST; mermaid as SVG) |
-| Feed | FeedItem, FeedCounts by state, Approve, SendBack |
-| Runs & chats | AutomationName, RunStatus, Usage (5h/weekly %), RunDetail |
-| Mapping & metrics | MappingStatus, MetricsResponse |
-| Settings | LifetimeRule, ModelMode (single / per automation / risk), ModelChoice |
-| Session | SessionRequest/Response, Workspace |
+- Entity states (verification, sync, origin), frontmatter, references, trigger fields
+- Card blocks as rendered from the markdown AST
+- Feed, entity detail, types tree, search, runs, chats, metrics, mapping status, settings and every request body
+- `openapi.json` generated from the same schemas by `pnpm momentum openapi`
