@@ -6,28 +6,21 @@ sync: synced
 product_impact: 3
 timeline_impact: 2
 unlocks: 3
-references:
-  - to: Architecture/System/momentum-harness
-    relation: documents
-  - to: Governance/DesignDoc/spec
-    relation: realises
-  - to: Code/Repository/momentum
-    relation: documents
-  - to: Data/Database/index-and-metrics-database
-    relation: documents
+references: []
 artifacts:
   - docs/PLAN.md
 kind: design doc
 ---
 # Momentum implementation plan
 
-Turns the spec into a single-pass build: technology decisions, repository layout, entity file format, twelve work packages, approval and send-back flow, seven pages with their API, database additions.
+Turns the spec into a single-pass build: technology choices, repository layout, entity format, twelve work packages, approval and send-back, seven pages with their API, database additions.
 
-Settles:
-- TypeScript monorepo; Expo app; Fastify back-end with API, orchestrator and guard in one process
+- TypeScript monorepo; Expo app for web and mobile, light and dark palettes
+- Fastify back-end: API, orchestrator and guard in one process
 - Agent SDK runs in git worktrees under job-object limits
-- Postgres 18 with pgvector, one schema per workspace plus a harness schema
-- Guard as Claude Code hooks and a watcher; rank = the three parameters summed
-- Spec's open questions decided; default triggers and mapping rules set
+- Postgres 18 + pgvector, a schema per workspace plus harness
+- Guard as hooks plus watcher; rank = the three parameters summed
+- Feed counters by verification and sync state
+- Mapping build: stop, resume, two-tap reset
 
-Open: ranking tuning and measurement; scale, latency and usage targets. Assumed: procgov limits hold.
+Open: ranking tuning, scale, latency and usage targets. Assumed: procgov limits hold.
