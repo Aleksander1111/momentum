@@ -13,10 +13,11 @@ artifacts:
 ---
 # Deployment and remote access
 
-Self-hosted on one dedicated, resource-rich machine: back-end, agents and knowledge base; no cloud services or managed runtimes.
+Self-hosted on one dedicated, resource-rich machine; no cloud services or managed runtimes.
 
-- Web and mobile clients poll the API over a private mesh network (WireGuard, e.g. Tailscale)
-- API listens only on the mesh interface; no public port, inbound firewall rule, public reverse proxy or shared client secret
-- One key per enrolled device, revoked centrally when lost
-- Tunnel encrypts end to end; API also requires a per-user session
-- Orchestrator starts one Claude Code process per run and project, each on its own checkout and branch of the workspace
+- One back-end deployable (API + orchestrator), the agents and the knowledge base on that machine
+- One Claude Code process per run, each in its own checkout and branch of the workspace
+- Web and mobile clients reach it only over a private WireGuard mesh (e.g. Tailscale); the API listens on the mesh interface only
+- Each device enrolled once with its own key, revoked centrally when lost
+- Tunnel encrypts traffic; the API also requires a per-user session
+- No public port, inbound firewall rule, public reverse proxy or shared client secret
