@@ -20,7 +20,8 @@ The harness's single entry point in `apps/backend/src/api`: each capability is w
 - Auth: one scrypt password; 30-day session tokens stored hashed, bearer or cookie; only sign-in is public
 - Feed: ranked items and entity counts by state; approve, send back (starts a chat run)
 - Entities, types, search; chats, runs, messages, kill
-- Metrics, mapping start/stop, settings
+- Metrics, mapping start/stop
+- Settings: projects, feed size, cards, lifetimes, agents, models
 - Reset: wipes a project and rebuilds its graph; 409 on conflict
 - MCP only: `run_automation` on demand
 - OpenAPI at `/openapi.json`; page loads get the web app
