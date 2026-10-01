@@ -3,21 +3,17 @@ type: Architecture/Api
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 1
-timeline_impact: 0
+product_impact: 2
+timeline_impact: 1
 unlocks: 2
-references:
-  - to: Architecture/Component/api
-    relation: exposed_by
-  - to: Architecture/Dependency/contract
-    relation: defined_by
+references: []
 artifacts:
   - apps/backend/src/api/http.ts
   - packages/contract/openapi.json
 ---
 # HTTP API
 
-Fastify routes of the back-end, described in `packages/contract/openapi.json`.
+Fastify routes of the back-end, zod schemas from `@momentum/contract`.
 
 | Area | Routes |
 |---|---|
@@ -25,8 +21,7 @@ Fastify routes of the back-end, described in `packages/contract/openapi.json`.
 | Feed | GET /feed; POST /feed/{path}/approve, /send-back |
 | Entities | GET /workspaces/{ws}/entities/*, /types, /search?q= |
 | Chats, runs | GET, POST /workspaces/{ws}/chats; GET /runs/{id}; POST /runs/{id}/messages, /kill |
-| Metrics | GET /workspaces/{ws}/metrics |
-| Mapping | GET, PUT /workspaces/{ws}/mapping |
-| Settings | GET, PUT /settings; GET /workspaces |
+| Projects | GET /workspaces; GET /workspaces/{ws}/metrics; GET, PUT …/mapping; POST …/reset |
+| Settings | GET, PUT /settings |
 
-401 without a session (cookie or bearer token), errors as `{error}`; page loads get the web build.
+Cookie or bearer session, else 401; errors as `{error}` (400, 404, 409 on resetting the harness). `/mcp` serves the voice tools; page loads get the web build. `openapi.json` still lacks `/reset`.
