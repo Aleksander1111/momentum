@@ -7,12 +7,8 @@ product_impact: 2
 timeline_impact: 0
 unlocks: 2
 references:
-  - to: Architecture/Service/backend
-    relation: part_of
-  - to: Architecture/Component/knowledge-base
-    relation: validates
-  - to: Data/Database/index-and-metrics-database
-    relation: updates
+  - to: Harness/Automation/summarization
+    relation: triggers
 artifacts:
   - apps/backend/src/guard.ts
   - apps/backend/src/hooks.ts
@@ -20,10 +16,11 @@ artifacts:
 ---
 # Consistency guard
 
-Validates every knowledge-base change of a run and keeps the index true to the main line, `apps/backend/src/guard.ts`.
+Validates each run's knowledge-base changes and keeps the index true to the main line.
 
-- Claude Code hooks in every run: PostToolUse reports issues on each write, Stop sends the run back to fix them (twice at most)
-- chokidar watches `knowledge-graph/` of every run checkout; issues so far are readable live
-- When a run ends, its changes against the main line form one transaction, checked for type, path, card limit and references
-- Valid: indexed as unverified, enters the feed, metrics recorded; invalid: a Harness/Issue on the run's branch enters the feed instead
-- Maintains sync: updating, artifact_ahead (artifact changed on main), entity_ahead, synced
+- In the run: PostToolUse flags issues per write; Stop sends the run back to fix them, twice at most
+- Run end: changes against the main line form one transaction (type, path, card limit, references)
+- Valid: indexed unverified, enter the feed; invalid: `Harness/Issue/guard-<run>` enters the feed
+- Main line: reindexes changed entities; an artifact changed without its entity sets `artifact_ahead` and triggers summarization
+- Sync: updating, artifact_ahead, entity_ahead (approved, not implemented), synced
+- Records consistency and implementation metrics
