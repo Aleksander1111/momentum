@@ -3,25 +3,28 @@ type: Architecture/Dependency
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 3
+product_impact: 4
 timeline_impact: 2
-unlocks: 3
+unlocks: 4
 references: []
 artifacts:
+  - packages/contract/package.json
+  - packages/contract/tsconfig.json
   - packages/contract/src/index.ts
   - packages/contract/openapi.json
-  - packages/contract/package.json
 ---
 # Contract
 
-Internal library `@momentum/contract`: zod schemas and types shared by the app, backend, entity, kb and runs packages, plus the generated `openapi.json`.
+Internal library `@momentum/contract`: the zod schemas and types shared by the backend and the app, the one source of the API shape.
 
 | Area | Schemas |
 |---|---|
-| Entities | states, frontmatter, triggers, card blocks, list, detail, types, search |
+| Entity | frontmatter, verification, sync, origin, 0–5 impacts, references |
+| Card | markdown AST blocks, mermaid as SVG |
 | Feed | items, counts by state, approve, send back |
-| Runs and chats | automations, trigger, status, usage %, messages |
-| Graph build | building, stopped, complete; coverage, estimate |
-| Metrics | attention, understanding, per-automation runs, failures, time, usage |
-| Settings | projects, cards, summarization excludes, lifetimes, concurrency, models |
-| Session | password login, token, workspaces |
+| Runs, chats | automations, triggers, status, usage in % |
+| Graph build | state, coverage, estimate |
+| Metrics | 24h/7d/30d series, per automation |
+| Settings | projects, cards, exclusions, lifetimes, concurrency, models |
+
+`openapi.json` (OpenAPI 3.0.3) is generated from the backend by its `openapi` command.
