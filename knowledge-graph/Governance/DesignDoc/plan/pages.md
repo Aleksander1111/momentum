@@ -11,17 +11,18 @@ references:
     relation: part_of
 artifacts:
   - docs/PLAN.md
+  - docs/designs/pages.html
 ---
 # Plan: pages
 
 | Page | Purpose |
 |---|---|
-| Session | Sign in |
-| Feed | Ranked cards, state counters, swipe to react |
+| Session | Per-user session |
+| Feed | Ranked cards, state counters, swipe to approve or send back |
 | Entity | One entity in full |
-| Explorer | Browse and search by type path |
-| Chat | Talk to and steer a run |
-| Metrics | Metric families and usage percentages |
-| Settings | Projects, graph build, feed, cards, lifetimes, models |
+| Explorer | Browse, search or ask an agent by type path |
+| Chat | Chats per workspace; steer or stop a run |
+| Metrics | Four metric families, 5-hour and weekly usage % |
+| Settings | Projects, graph build, feed, cards, lifetimes, agents, models |
 
-Five tabs on mobile, a left rail on web; light, dark or system theme. The same handlers serve an MCP surface at `/mcp`.
+Five tabs on mobile, a left rail on web, no page titles. System, light or dark theme kept on the device. Also served: `/workspaces`, `/mcp`, `/openapi.json`.

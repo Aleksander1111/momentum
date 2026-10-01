@@ -7,7 +7,7 @@ product_impact: 5
 timeline_impact: 4
 unlocks: 5
 references:
-  - to: Governance/DesignDoc/plan/work-packages
+  - to: Governance/DesignDoc/plan/pages
     relation: contains
 artifacts:
   - docs/PLAN.md
