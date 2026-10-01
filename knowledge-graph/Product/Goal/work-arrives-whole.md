@@ -18,8 +18,9 @@ artifacts:
 ---
 # Work arrives as one consistent piece
 
-Success criterion from the spec: work reaches the user as one consistent piece, not as fragments to assemble.
+Success criterion from the spec: work reaches the user whole, not as fragments to assemble.
 
-- A run's Stop hook hands every artifact it touched to summarization before the run ends, so no work waits unsummarized and every entity has its card before it reaches the feed
-- The consistency guard groups related changes into a transaction and checks card limit and references before the main line
-- Implementation branches merge once validation passes; failures, conflicts and merge resolutions reach the feed as entities
+- A run's Stop hook hands every artifact it touched to summarization before it ends, so no work waits unsummarized
+- The consistency guard groups related changes into a transaction, checks card limit and references, and keeps each entity's sync state
+- Implementation branches merge once validation passes; failures, conflicts and resolutions reach the feed as entities
+- Even a killed run's work passes the guard and the feed, so nothing lands unattended
