@@ -7,10 +7,6 @@ product_impact: 1
 timeline_impact: 0
 unlocks: 2
 references:
-  - to: Architecture/Service/backend
-    relation: part_of
-  - to: Architecture/Component/attention-feed
-    relation: bounded_by
   - to: Harness/Automation/exploration
     relation: starts
   - to: Harness/Automation/preparation
@@ -27,8 +23,6 @@ references:
     relation: starts
   - to: Harness/Automation/summarization
     relation: starts
-  - to: Harness/Automation/chat
-    relation: starts
   - to: Harness/Automation/mapping
     relation: starts
 artifacts:
@@ -39,9 +33,9 @@ artifacts:
 ---
 # Orchestrator
 
-Starts and supervises the automation loops of every enabled project, `apps/backend/src/orchestrator.ts`.
+Starts and supervises the automation loops of every enabled project.
 
-- Ticks every 30 s and on run end or feed change: indexes main lines, queues due scheduled runs while the feed has room, starts queued runs within the limits (2 per project, 8 in total by default)
-- Schedules and events come from each workspace's approved trigger entities: `entity_ahead` starts implementation, `implementation_finished` validation
-- Enabling a project materializes definitions, indexes it, proposes default triggers and starts the mapping build, one run at a time on `momentum/mapping/<workspace>`
-- An artifact change starts summarization directly
+- **Tick** every 30 s and on run end or feed change: indexes main lines, queues due scheduled runs while the feed has room, starts queued runs within 2 per project, 8 in total
+- **Events** from approved triggers: `entity_ahead` starts implementation, `implementation_finished` validation; `artifact_ahead` starts summarization directly
+- **Enable**: materializes definitions, indexes, proposes default triggers, builds the knowledge graph one mapping run at a time
+- **Reset**: ends every run, deletes run branches, the knowledge graph and the database, then enables it afresh; never the harness
