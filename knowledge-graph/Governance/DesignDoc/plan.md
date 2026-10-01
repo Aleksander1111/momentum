@@ -17,6 +17,8 @@ references:
     relation: contains
   - to: Governance/DesignDoc/plan/mapping
     relation: contains
+  - to: Governance/DesignDoc/plan/models
+    relation: contains
 artifacts:
   - docs/PLAN.md
 ---
@@ -30,6 +32,6 @@ How Momentum is built from SPEC.md, in one pass ordered by dependency.
 - Ranked cross-project feed: swipe to approve or send back
 - Self-hosted on this Windows 11 machine, reached over Tailscale
 
-Parts: technology, work packages, approval, pages, mapping.
+Parts: technology, work packages, approval, pages, mapping, models.
 
 Open: tuning and measuring the attention ranking; scale, latency and usage targets.

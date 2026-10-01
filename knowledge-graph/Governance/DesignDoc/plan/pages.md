@@ -22,6 +22,6 @@ artifacts:
 | Explorer | Browse and search by type path |
 | Chat | Talk to and steer a run |
 | Metrics | Metric families and usage percentages |
-| Settings | Projects, graph build, feed, cards, lifetimes |
+| Settings | Projects, graph build, feed, cards, lifetimes, models |
 
 Five tabs on mobile, a left rail on web; light, dark or system theme. The same handlers serve an MCP surface at `/mcp`.
