@@ -4,20 +4,18 @@ origin: automation
 verification: unverified
 sync: synced
 product_impact: 5
-timeline_impact: 2
+timeline_impact: 3
 unlocks: 4
 references:
   - to: Harness/Automation/consistency-check
-    relation: served_by
+    relation: concerns
 artifacts:
-  - apps/backend/src/guard.ts
   - docs/SPEC.md
 ---
-# Consistency grows across every project
+# Consistency grows
 
-First success criterion of the spec: the harness earns its place only if consistency grows in every project it touches, boosting the user instead of costing attention.
+The first success criterion of the harness: consistency grows across every project it touches.
 
-- **Measured** as 1 − inconsistent/total entities; inconsistent = card over the character limit or a reference that does not resolve (empty base = 1)
-- **Recorded** in understanding_metric by the consistency guard after every validated transaction and main-line reindex, tracked over time
-- **Open issues** (Harness/Issue, Harness/Conflict) stored beside it, not subtracted; with bugs and validation defects they also feed the implementation metric
-- **Served** by the guard on every change and by the consistency check loop
+- The harness earns its place only if it boosts the user's performance instead of costing attention
+- Sibling criteria: work arrives as one consistent piece, not fragments to assemble; the system stays flexible enough not to need constant modification
+- Guides exploration like every goal; the consistency check and the consistency guard are the machinery that serves it
