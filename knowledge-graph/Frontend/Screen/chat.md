@@ -4,7 +4,7 @@ origin: automation
 verification: unverified
 sync: synced
 product_impact: 2
-timeline_impact: 0
+timeline_impact: 1
 unlocks: 1
 references:
   - to: Harness/Automation/chat
@@ -20,9 +20,10 @@ artifacts:
 ---
 # Chat screen
 
-Chats per workspace, each a conversation attached to a run; drawn in the light or dark palette picked in Settings.
+Chats per workspace, each a conversation attached to a run.
 
-- Lists chats grouped by workspace, polled every 15 s; each row shows title, kind, status, age and state badges
-- A conversation heads with the run's automation, state, 5-hour usage and branch, then its messages as bubbles (user dark, agent as rendered markdown), polled every 3 s while queued or running; Stop kills the run, the composer under it steers it
-- The composer under the list starts a new chat run in the chosen workspace; "Explore through an agent" lands here with the composer focused
-- Web shows the conversation beside the list; mobile opens it as its own page
+- Lists chats grouped by workspace, polled every 15 s; rows show kind, status, age and state badges
+- A conversation heads with the run's automation, state, 5-hour usage and branch, then user and agent bubbles, polled every 3 s while active; Stop kills the run, the composer steers it
+- The composer under the list starts a chat run in the chosen workspace; "Explore through an agent" lands here with the workspace set and the composer focused
+- Web (700 px and wider) shows the conversation beside the list; mobile opens it as its own page
+- Every chat route subscribes to the theme, so dark mode applies instantly
