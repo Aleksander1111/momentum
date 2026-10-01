@@ -23,7 +23,7 @@ Fastify routes typed by `@momentum/contract` zod schemas; OpenAPI at `/openapi.j
 | Feed | GET /feed; POST /feed/{path}/approve, /send-back |
 | Entities | GET /workspaces/{ws}/entities/*, /types, /search?q= |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
-| Projects | GET /workspaces; GET …/metrics; GET, PUT …/graph-build; POST …/reset |
-| Settings | GET, PUT /settings (models, summarization, lifetimes…) |
+| Projects | GET /workspaces; GET …/metrics?range=24h\|7d\|30d; GET, PUT …/graph-build; POST …/reset |
+| Settings | GET, PUT /settings |
 
 Cookie or bearer session, else 401; errors `{error}` (400/404/409). `/mcp` serves voice tools; HTML page loads get the web app.
