@@ -7,8 +7,6 @@ product_impact: 1
 timeline_impact: 0
 unlocks: 1
 references:
-  - to: Architecture/Component/runner
-    relation: exposed_by
   - to: Harness/Automation/validation
     relation: used_by
   - to: Harness/Automation/mapping
@@ -18,7 +16,9 @@ artifacts:
 ---
 # momentum-run MCP server
 
-In-process MCP server through which a run reports back to the harness, defined in `apps/backend/src/runner.ts`.
+In-process MCP server each run gets beside `momentum-kb`, for reporting back to the harness.
 
-- `report_validation` (validation runs): passed or failed, the form taken and a summary; a passed branch is merged into the main line with `knowledge-graph/` kept as it is there, a failed or conflicting one holds the implementation run under the issue raised
-- `report_mapping` (mapping runs): progress for the next run and whether the repository is covered; stored in the harness schema, carried into the next run's prompt, and the mapping ends once covered
+| Tool | Input | When the run ends |
+|---|---|---|
+| `report_validation` | `passed`, `form` (review, test suite run, exploratory pass, consistency check), `summary` | Passed: merged into the main line keeping its `knowledge-graph/`, implementation run finished. Failed: implementation run held. Merge conflict: `Harness/Conflict` raised, run held |
+| `report_mapping` | `complete`, `progress` | Progress saved for the next run's prompt, even if the run failed; `complete` on a finished run ends a building mapping |
