@@ -144,8 +144,8 @@ Knowledge	HowToGuide	A document explaining how to accomplish a specific task.
 Knowledge	ReleaseNote	A record of notable changes in a release or to a component, for users or internal audiences.
 Harness	Automation	The definition an automation runs, held in the harness workspace; its artifacts are the Claude Code agent, skill, sub-agent and MCP files.
 Harness	Trigger	What starts an automation's runs in this workspace: a schedule, an event, or the user on demand.
-Harness	Issue	A change that cannot be made consistent, a recurring problem or a failed validation, raised for the user to react to; a failed validation holds its branch until it is resolved.
-Harness	Conflict	A branch that cannot be merged, raised as a conflict or merge resolution with its own priority, waiting for the user's approval.
+Harness	Issue	A change that cannot be made consistent, a recurring problem or a failed validation, raised for the user to react to.
+Harness	Conflict	Files a run changed that changed on the main line while it ran; landed on the run's side and raised with its own priority for the user to check.
 Harness	Chat	A chat stored and indexed as a summary, with the chat as its artifact.
 Harness	Plan	A plan prepared for the user to accept; a summary, short and quick to read and approve.
 Harness	Research	Information researched and collected to decide the next best action for the project.

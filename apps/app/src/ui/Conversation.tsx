@@ -40,7 +40,7 @@ function RunHead({ run, onStop }: { run: RunDetail; onStop: () => void }) {
       />
       <View style={{ flex: 1 }}>
         <T style={{ fontSize: 13.5 }}>{`${automationLabel(run.automation)} · ${state}${usage}`}</T>
-        <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.branch}</T>
+        <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.id}</T>
       </View>
       {ACTIVE.has(run.status) ? <Btn small kind="ghost" label="Stop" onPress={onStop} /> : null}
     </View>

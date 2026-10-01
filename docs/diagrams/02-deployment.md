@@ -24,5 +24,5 @@ flowchart LR
   Mesh -->|"encrypted tunnel"| API
   API -->|"reads ranking and feed order"| WS
   Orch -->|"starts and supervises"| Runs
-  Runs -->|"own checkout, own branch"| WS
+  Runs -->|"own checkout of the main line, landed when the run ends"| WS
 ```

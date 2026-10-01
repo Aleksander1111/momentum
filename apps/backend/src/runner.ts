@@ -1,22 +1,7 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import type { AutomationName, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
-import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
-import {
-  addWorktree,
-  ask,
-  commitAll,
-  deleteBranch,
-  head,
-  isMerged,
-  mergeKeeping,
-  removeWorktree,
-  startSession,
-  workingChanges,
-  type SessionHandle,
-  type SessionResult,
-  type Usage,
-} from '@momentum/runs';
+import { ask, ensureCheckout, head, removeWorktree, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -35,7 +20,6 @@ import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 interface RunRow {
   id: string;
   automation: AutomationName;
-  branch: string;
   checkout: string;
   trigger: RunTrigger;
   target_path: string | null;
@@ -44,6 +28,8 @@ interface RunRow {
   prompt: string;
   base_commit: string | null;
   session_id: string | null;
+  /** A message to a chat whose run has ended: queued again, the run resumes its session with it */
+  resume_prompt: string | null;
   error: string | null;
   created_at: Date;
   started_at: Date | null;
@@ -64,30 +50,38 @@ export interface NewRun {
   prompt: string;
   title?: string;
   targetPath?: string | null;
-  /** Continue on this branch instead of a new one */
-  branch?: string | null;
   /** What the chat shows as the user's message, when it differs from the prompt */
   message?: string;
+}
+
+export interface QueuedRun {
+  workspace: string;
+  id: string;
+  automation: AutomationName;
+  trigger: RunTrigger;
 }
 
 interface Active {
   ref: RunRef;
   ws: Workspace;
+  trigger: RunTrigger;
   handle: SessionHandle;
   /** Whether a reading of the limits arrived while the run was running, so the next rise can be partly its own */
   seen: boolean;
   /** What the run used in earlier sessions, and its share of the rises in this one */
   base: Rise;
   usage: Rise;
-  validation?: { passed: boolean; form: string; summary: string };
   graphBuild?: { complete: boolean; progress: string; coverage: number; documents?: string[] };
-  /** Settles once the run's changes have passed the guard and its status is recorded */
+  /** Settles once the run's changes have landed on the main line and its status is recorded */
   finished?: Promise<void>;
 }
 
 /** How often a run lost at restart is queued again before it fails */
 const MAX_RESTARTS = 2;
 const RESUME = 'The harness restarted while you were working. Continue where you left off.';
+
+/** Runs the user starts: a chat, a send back, an automation started on demand */
+export const userStarted = (trigger: RunTrigger) => trigger === 'on_demand';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 export class Runner {
@@ -125,7 +119,6 @@ export class Runner {
       id: r.id,
       workspace: ws.name,
       automation: r.automation,
-      branch: r.branch,
       checkout: r.checkout,
       trigger: r.trigger,
       targetPath: r.target_path,
@@ -155,21 +148,19 @@ export class Runner {
       values (${id}, (select coalesce(max(seq), 0) + 1 from ${this.t(ws, 'run_message')} where run_id = ${id}), ${role}, ${text})`;
   }
 
-  /** A queued run: its own branch and checkout are created when it starts */
+  private ref(ws: Workspace, r: RunRow): RunRef {
+    return { id: r.id, workspace: ws.name, automation: r.automation, checkout: r.checkout, targetPath: r.target_path };
+  }
+
+  /** A queued run: its own checkout of the main line is created when it starts */
   async create(spec: NewRun): Promise<string> {
     const ws = await this.workspaces.get(spec.workspace);
     const id = randomBytes(4).toString('hex');
-    const branch = spec.branch ?? `momentum/${spec.automation}/${id}`;
-    const previous = spec.branch
-      ? (await ws.index.sql<{ checkout: string }[]>`
-          select checkout from ${this.t(ws, 'run')} where branch = ${spec.branch} order by created_at desc limit 1`)[0]
-      : undefined;
-    const checkout = previous && existsSync(previous.checkout) ? previous.checkout : join(config.runs, ws.name, id);
+    const checkout = join(config.runs, ws.name, id);
     await this.workspaces.sql`insert into harness.run_ref ${this.workspaces.sql({ id, workspace: ws.name })}`;
     await ws.index.sql`insert into ${this.t(ws, 'run')} ${ws.index.sql({
       id,
       automation: spec.automation,
-      branch,
       checkout,
       trigger: spec.trigger,
       target_path: spec.targetPath ?? null,
@@ -185,11 +176,12 @@ export class Runner {
     return id;
   }
 
-  async queued(): Promise<{ workspace: string; id: string; automation: AutomationName }[]> {
-    const out: { workspace: string; id: string; automation: AutomationName }[] = [];
+  /** Queued runs of the enabled workspaces, oldest first */
+  async queued(): Promise<QueuedRun[]> {
+    const out: QueuedRun[] = [];
     for (const ws of await this.workspaces.enabled()) {
-      const rows = await ws.index.sql<{ id: string; automation: AutomationName }[]>`
-        select id, automation from ${this.t(ws, 'run')} where status = 'queued' order by created_at`;
+      const rows = await ws.index.sql<{ id: string; automation: AutomationName; trigger: RunTrigger }[]>`
+        select id, automation, trigger from ${this.t(ws, 'run')} where status = 'queued' order by created_at`;
       out.push(...rows.map((r) => ({ workspace: ws.name, ...r })));
     }
     return out;
@@ -197,6 +189,11 @@ export class Runner {
 
   activeCount(workspace?: string): number {
     return [...this.active.values()].filter((a) => !workspace || a.ref.workspace === workspace).length;
+  }
+
+  /** Automation runs active in a workspace: they run one at a time, so their changes never conflict */
+  activeAutomationCount(workspace: string): number {
+    return [...this.active.values()].filter((a) => a.ref.workspace === workspace && !userStarted(a.trigger)).length;
   }
 
   isActive(id: string): boolean {
@@ -207,13 +204,6 @@ export class Runner {
     const ws = await this.workspaces.get(workspace);
     const [r] = await ws.index.sql`select 1 from ${this.t(ws, 'run')}
       where automation = ${automation} and status in ('queued', 'running')`;
-    return !!r;
-  }
-
-  async hasOpenRunOnBranch(workspace: string, branch: string): Promise<boolean> {
-    const ws = await this.workspaces.get(workspace);
-    const [r] = await ws.index.sql`select 1 from ${this.t(ws, 'run')}
-      where branch = ${branch} and status in ('queued', 'running')`;
     return !!r;
   }
 
@@ -247,8 +237,8 @@ export class Runner {
 
   /**
    * Runs a restart left `running`: their processes are gone. Each is queued again and resumes its session on the same
-   * checkout, up to MAX_RESTARTS times. A run past that, or a chat, is failed: what it wrote still passes the guard and
-   * reaches the feed, and a chat resumes its session on the next message.
+   * checkout, up to MAX_RESTARTS times. A run past that, or a chat, is failed: what it wrote still lands on the main
+   * line and reaches the feed, and a chat resumes its session on the next message.
    */
   async recover(): Promise<void> {
     const refs = await this.workspaces.sql<{ workspace: string }[]>`select distinct workspace from harness.run_ref`;
@@ -263,25 +253,33 @@ export class Runner {
           console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart and is queued again`);
           continue;
         }
-        const ref: RunRef = { id: r.id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: r.target_path };
-        if (existsSync(r.checkout)) await this.guard.transaction(ref).catch((e) => console.error(`recover ${r.id}:`, e));
+        if (existsSync(r.checkout)) {
+          await this.guard.transaction(this.ref(ws, r)).catch((e) => console.error(`recover ${r.id}:`, e));
+          await removeWorktree(ws.path, r.checkout).catch(() => {});
+        }
         await this.setStatus(ws, r.id, 'failed', { ended_at: new Date(), error: 'lost at restart' });
         console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart`);
       }
     }
   }
 
-  /** Starts a queued run: own checkout, own branch, one Claude Code process */
+  /** Starts a queued run: its own checkout of the main line as it stands, one Claude Code process */
   async start(id: string): Promise<void> {
     const ws = await this.workspaceOf(id);
     const r = await this.row(ws, id);
-    const ref: RunRef = { id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: r.target_path };
+    const ref = this.ref(ws, r);
     try {
-      await addWorktree(ws.path, r.checkout, r.branch, `refs/heads/${ws.main}`);
-      await this.setStatus(ws, id, 'running', { started_at: new Date(), base_commit: r.base_commit ?? (await head(r.checkout)), error: null });
+      await ensureCheckout(ws.path, r.checkout, ws.main);
+      const prompt = r.resume_prompt ?? (r.session_id ? RESUME : r.prompt);
+      await this.setStatus(ws, id, 'running', {
+        started_at: new Date(),
+        base_commit: r.base_commit ?? (await head(r.checkout)),
+        error: null,
+        resume_prompt: null,
+      });
       this.guard.watch(ref);
-      // A run queued again after a restart resumes its session
-      await this.launch(ws, r, ref, r.session_id ? RESUME : r.prompt, r.session_id);
+      // A run queued again after a restart, or a chat the user wrote to, resumes its session
+      await this.launch(ws, r, ref, prompt, r.session_id);
     } catch (e) {
       await this.setStatus(ws, id, 'failed', { error: (e as Error).message, ended_at: new Date() });
       await this.guard.unwatch(id);
@@ -296,6 +294,7 @@ export class Runner {
     const entry: Active = {
       ref,
       ws,
+      trigger: r.trigger,
       handle: null as unknown as SessionHandle,
       seen: false,
       base: { fiveHour: r.usage_five_hour ?? 0, week: r.usage_week ?? 0 },
@@ -321,15 +320,6 @@ export class Runner {
       name: 'momentum-run',
       version: '0.0.0',
       tools: [
-        tool(
-          'report_validation',
-          'Report the outcome of validating this branch. A passed validation merges the branch into the main line; a failed one holds it until the issue you raised is resolved.',
-          { passed: z.boolean(), form: z.enum(['review', 'test suite run', 'exploratory pass', 'consistency check']), summary: z.string() },
-          async (v) => {
-            entry.validation = v;
-            return { content: [{ type: 'text', text: 'Recorded' }] };
-          },
-        ),
         tool(
           'report_graph_build',
           'Report the progress of building the knowledge graph of this repository: what is covered, what the next run should take up, and the share of the repository covered so far (0–1), which estimates the full build. Set complete once the repository is covered; the graph build then stops. List in documents the repository files to summarize; they are handed to the summarization sub-agent when you stop.',
@@ -359,7 +349,6 @@ export class Runner {
       hooks: guardHooks(this.guard, ref, () => this.summaryRequest(ws, r, entry)),
       resume: resume ?? undefined,
       model: sdkModel(model),
-      interactiveIdleMs: r.automation === 'chat' ? config.chatIdleMs : undefined,
       limits: config.limits,
       procgov: config.procgov,
       onSessionId: (sid) => void this.setStatus(ws, r.id, 'running', { session_id: sid }),
@@ -406,9 +395,9 @@ export class Runner {
   private context(ws: Workspace, r: RunRow, limit: number, rules: string, lifetimes: { type: string; rule: string }[]): string {
     return `# Momentum run
 
-- Workspace: ${ws.name} (${ws.path}); this checkout: ${r.checkout}; branch: ${r.branch}; main line: ${ws.main}
+- Workspace: ${ws.name} (${ws.path}); this checkout: ${r.checkout}; main line: ${ws.main}
 - Run: ${r.id}, automation ${r.automation}, started by ${r.trigger}${r.target_path ? `, target entity ${r.target_path}` : ''}
-- Work only in this checkout and on this branch. The harness commits your changes when the run ends; the consistency guard validates them and the user approves them through the attention feed. Never push, never switch branches, never touch the main line.
+- Work only in this checkout. It is a detached checkout of the main line as it stood when you started; the harness commits your changes and lands them on the main line when the run ends, the consistency guard validates them and the user verifies them through the attention feed. Never commit, never push, never create or switch branches, never touch the workspace directory.
 
 ## Knowledge base
 - Entities live at knowledge-graph/<Domain>/<Type>/[<parent-name>/]<name>.md; the type path comes from docs/entity-types.tsv of the harness (Domain/Entity Type). Read and write them with the momentum-kb tools (search, read, references, write) or directly as files.
@@ -417,25 +406,28 @@ export class Runner {
 - Card presentation rules from the user: ${rules.trim() || 'none beyond the character limit'}
 - Artifacts are repository files outside knowledge-graph/. Never write summaries of them yourself: when you stop, a harness hook lists the artifacts this run added, changed or deleted, for the momentum-summarization sub-agent.
 - Lifetimes per entity type: ${lifetimes.map((l) => `${l.type}: ${l.rule}`).join('; ') || 'none set'}
-- Every reference must resolve to an existing entity on this branch.`;
+- Every reference must resolve to an existing entity in this checkout.`;
   }
 
   private firstPrompt(r: RunRow, prompt: string): string {
     return r.automation === 'chat' ? prompt : `${prompt}\n\nToday is ${new Date().toISOString().slice(0, 10)}.`;
   }
 
-  /** A message from the chat tool: steers the running process, or resumes the session on the same checkout */
+  /**
+   * A message from the chat tool: steers the running process, or resumes the session of a run that has ended on a fresh
+   * checkout of the main line. A chat is started by the user, so it runs alongside whatever automation is running.
+   */
   async send(id: string, text: string): Promise<void> {
     const ws = await this.workspaceOf(id);
     await this.addMessage(ws, id, 'user', text);
     const entry = this.active.get(id);
     if (entry?.handle.send(text)) return;
+    await entry?.finished;
     const r = await this.row(ws, id);
-    const ref: RunRef = { id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: r.target_path };
-    await addWorktree(ws.path, r.checkout, r.branch, `refs/heads/${ws.main}`);
-    await this.setStatus(ws, id, 'running', { ended_at: null, error: null });
-    this.guard.watch(ref);
-    await this.launch(ws, r, ref, text, r.session_id);
+    await ensureCheckout(ws.path, r.checkout, ws.main);
+    await this.setStatus(ws, id, 'running', { ended_at: null, error: null, base_commit: await head(r.checkout) });
+    this.guard.watch(this.ref(ws, r));
+    await this.launch(ws, r, this.ref(ws, r), text, r.session_id);
   }
 
   async kill(id: string): Promise<void> {
@@ -469,12 +461,13 @@ export class Runner {
     );
   }
 
+  /** The run ended: what it left lands on the main line, its status and usage are recorded, its checkout goes */
   private async finish(ws: Workspace, id: string, entry: Active, result: SessionResult): Promise<void> {
-    this.active.delete(id);
     const r = await this.row(ws, id);
     try {
-      if (r.automation === 'chat') await this.writeTranscript(ws, r);
+      if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
       await this.guard.transaction(entry.ref);
+      if (r.automation === 'chat') await this.recordTranscript(ws, r);
       const status: RunStatus = result.error === 'killed' ? 'killed' : result.ok ? 'finished' : 'failed';
       await this.setStatus(ws, id, status, {
         ended_at: new Date(),
@@ -491,14 +484,15 @@ export class Runner {
         usage_week: entry.usage.week,
       })}`;
       if (r.automation === 'graph-build') await this.afterGraphBuild(ws, status, entry.graphBuild);
-      if (r.branch.startsWith('momentum/implementation/') && r.automation !== 'validation' && status === 'finished') {
-        this.bus.emit('implementation_finished', { workspace: ws.name, runId: id, branch: r.branch, targetPath: r.target_path });
+      if (r.automation === 'implementation' && status === 'finished') {
+        this.bus.emit('implementation_finished', { workspace: ws.name, runId: id, targetPath: r.target_path });
       }
-      if (r.automation === 'validation') await this.afterValidation(ws, r, entry.validation);
     } catch (e) {
       await this.setStatus(ws, id, 'failed', { ended_at: new Date(), error: (e as Error).message });
     } finally {
+      this.active.delete(id);
       await this.guard.unwatch(id);
+      await removeWorktree(ws.path, r.checkout).catch((e) => console.error(`checkout of run ${id}:`, e));
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
     }
   }
@@ -513,10 +507,8 @@ export class Runner {
     }
   }
 
-  /** The chat is stored as an artifact of its summary entity */
-  private async writeTranscript(ws: Workspace, r: RunRow): Promise<void> {
-    await this.writeTranscriptFile(ws, r);
-    await commitAll(r.checkout, `momentum: chat ${r.id}`);
+  /** The chat is stored as an artifact of its summary entity, once summarization has written it */
+  private async recordTranscript(ws: Workspace, r: RunRow): Promise<void> {
     const [summary] = await ws.index.sql<{ entity_path: string }[]>`
       select entity_path from ${this.t(ws, 'entity_artifact')} where artifact_path = ${`chats/${r.id}.jsonl`}`;
     if (summary) await ws.index.sql`update ${this.t(ws, 'chat')} set entity_path = ${summary.entity_path} where run_id = ${r.id}`;
@@ -548,62 +540,11 @@ export class Runner {
     if (artifacts.size === 0) return null;
     const list = [...artifacts].map(([path, what]) => `- ${path} (${what})`).join('\n');
     const target = r.target_path ? ` The run's target entity is ${r.target_path}.` : '';
-    return `Before you finish, have the momentum-summarization sub-agent summarize these artifacts into entities on this branch, passing it the character limit and presentation rules from your instructions.${target}\n\n${list}`;
+    return `Before you finish, have the momentum-summarization sub-agent summarize these artifacts into entities in this checkout, passing it the character limit and presentation rules from your instructions.${target}\n\n${list}`;
   }
 
-  /** Validation gates the merge: a passed branch is merged into the main line; a failed one is held */
-  private async afterValidation(ws: Workspace, r: RunRow, v: Active['validation']): Promise<void> {
-    const implementation = (await ws.index.sql<{ id: string }[]>`
-      select id from ${this.t(ws, 'run')} where branch = ${r.branch} and automation = 'implementation'
-      order by created_at desc limit 1`)[0];
-    if (!v?.passed) {
-      if (implementation) await this.setStatus(ws, implementation.id, 'held');
-      return;
-    }
-    const merged = await mergeKeeping(ws.path, ws.main, r.branch, 'knowledge-graph', `momentum: merge ${r.branch} (validated: ${v.form})`);
-    if (!merged) {
-      await this.raiseConflict(ws, r);
-      if (implementation) await this.setStatus(ws, implementation.id, 'held');
-      return;
-    }
-    if (implementation) await this.setStatus(ws, implementation.id, 'finished');
-    await this.guard.indexMainLine(ws);
-    await this.cleanup(ws, r.branch);
-  }
-
-  private async raiseConflict(ws: Workspace, r: RunRow): Promise<void> {
-    const path = `Harness/Conflict/${r.branch.split('/').pop()}`;
-    const text = `---
-type: Harness/Conflict
-origin: automation
-verification: unverified
-sync: synced
-product_impact: 3
-timeline_impact: 4
-unlocks: 4
-references: []
-artifacts: []
----
-# ${r.branch} cannot be merged
-
-The branch passed validation but conflicts with the main line \`${ws.main}\`. A send back with how to resolve it starts a chat run on the branch.
-`;
-    const file = join(r.checkout, fileOf(path));
-    await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, text, 'utf8');
-    await this.guard.transaction({ id: r.id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: null });
-  }
-
-  /** A branch with nothing left to approve or merge loses its checkout */
-  async cleanup(ws: Workspace, branch: string): Promise<void> {
-    const pending = await ws.index.onBranch(branch);
-    if (pending.length > 0) return;
-    const runs = await ws.index.sql<{ id: string; checkout: string; status: RunStatus }[]>`
-      select id, checkout, status from ${this.t(ws, 'run')} where branch = ${branch}`;
-    if (runs.some((x) => this.active.has(x.id) || x.status === 'queued' || x.status === 'held')) return;
-    // An implementation branch keeps its checkout until validation has merged it
-    if (branch.startsWith('momentum/implementation/') && !(await isMerged(ws.path, branch, ws.main))) return;
-    for (const checkout of new Set(runs.map((x) => x.checkout))) await removeWorktree(ws.path, checkout).catch(() => {});
-    await deleteBranch(ws.path, branch).catch(() => {});
+  /** Whether an artifact is on the main line, for callers that must not assume a checkout */
+  async onMainLine(ws: Workspace, path: string): Promise<boolean> {
+    return (await show(ws.path, `refs/heads/${ws.main}`, path)) !== null;
   }
 }

@@ -1,17 +1,16 @@
 import { crossProjectFeed } from '@momentum/kb';
-import { addWorktree, branchesUnder, commitAll, commitPathsFrom, deleteBranch, listFiles, removeWorktree, worktreeDirs } from '@momentum/runs';
+import { branchesUnder, commitPathsFrom, deleteBranch, listFiles, removeWorktree, worktreeDirs } from '@momentum/runs';
 import { CronExpressionParser } from 'cron-parser';
-import { randomBytes } from 'node:crypto';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { fileOf, KNOWLEDGE_GRAPH } from '@momentum/entity';
 import { TRIGGER_TYPE, type Automations, type Trigger } from './automations.ts';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
-import { graphBuildBranch, graphBuildPrompt } from './graph-build.ts';
-import type { Runner } from './runner.ts';
+import { graphBuildPrompt } from './graph-build.ts';
+import { userStarted, type Runner } from './runner.ts';
 import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
 
 const PROMPTS: Record<string, string> = {
@@ -19,8 +18,9 @@ const PROMPTS: Record<string, string> = {
 };
 
 /**
- * Starts and supervises the automation loops of every enabled project, from the trigger entities of each workspace;
- * the feed size bounds the scheduled loops and a semaphore bounds concurrency.
+ * Starts and supervises the automation loops of every enabled project, from the trigger entities of each workspace.
+ * The feed size bounds the scheduled loops; automation runs go one at a time per project, so their changes never
+ * conflict, while runs the user starts go at once; a total across projects bounds them all.
  */
 export class Orchestrator {
   private timer: NodeJS.Timeout | null = null;
@@ -36,9 +36,7 @@ export class Orchestrator {
     private readonly bus: Bus,
   ) {
     bus.on('entity_ahead', ({ workspace, path }) => void this.onEvent(workspace, 'entity_ahead', { targetPath: path }));
-    bus.on('implementation_finished', ({ workspace, branch, targetPath }) =>
-      void this.onEvent(workspace, 'implementation_finished', { branch, targetPath }),
-    );
+    bus.on('implementation_finished', ({ workspace, targetPath }) => void this.onEvent(workspace, 'implementation_finished', { targetPath }));
     // Summarization runs as a step and has no trigger entity; artifacts changed on the main line start it directly
     bus.on('artifact_ahead', ({ workspace, entities }) => void this.summarizeMainLine(workspace, entities));
     bus.on('definition_approved', () => void this.automations.materializeAll());
@@ -76,9 +74,9 @@ export class Orchestrator {
   }
 
   /**
-   * Resetting a project: every run ends, run branches and checkouts go, the knowledge graph is deleted from the main
-   * line in one commit, and the workspace's index and metrics database is dropped. An enabled project is then enabled
-   * afresh: default triggers are proposed again and the knowledge graph is built from the start.
+   * Resetting a project: every run ends, run checkouts go, the knowledge graph is deleted from the main line in one
+   * commit, and the workspace's index and metrics database is dropped. An enabled project is then enabled afresh:
+   * default triggers are proposed again and the knowledge graph is built from the start.
    */
   async reset(ws: Workspace): Promise<void> {
     if (ws.name === config.harnessName) throw new Conflict('The harness workspace holds the automation definitions and cannot be reset');
@@ -88,7 +86,7 @@ export class Orchestrator {
     try {
       while (this.ticking) await new Promise((r) => setTimeout(r, 50));
       await this.runner.stopWorkspace(ws.name);
-      await this.removeRunBranches(ws);
+      await this.removeCheckouts(ws);
       const files = await listFiles(ws.path, `refs/heads/${ws.main}`, KNOWLEDGE_GRAPH);
       if (files.length > 0) {
         await commitPathsFrom(ws.path, ws.main, files.map((path) => ({ path, content: null })), 'momentum: reset the knowledge graph');
@@ -101,8 +99,8 @@ export class Orchestrator {
     if (enabled) await this.enable(await this.workspaces.get(ws.name));
   }
 
-  /** Every run checkout of a workspace and every momentum/ branch of its repository */
-  private async removeRunBranches(ws: Workspace): Promise<void> {
+  /** Every run checkout of a workspace, and any momentum/ branch left from before everything went to the main line */
+  private async removeCheckouts(ws: Workspace): Promise<void> {
     const runs = resolve(config.runs, ws.name);
     const inRuns = (dir: string) => resolve(dir).toLowerCase().startsWith(runs.toLowerCase());
     for (const dir of (await worktreeDirs(ws.path)).filter(inRuns)) {
@@ -141,52 +139,30 @@ export class Orchestrator {
     }
   }
 
-  /** One graph build run at a time per workspace, on the workspace's graph build branch, told how much room the feed has */
+  /** One graph build run at a time per workspace, told how much room the feed has */
   private async queueGraphBuild(ws: Workspace, room: number): Promise<void> {
     const { state, progress } = await this.settings.graphBuild(ws.name);
     if (state !== 'building') return;
-    const branch = graphBuildBranch(ws);
-    if ((await this.runner.hasOpenRun(ws.name, 'graph-build')) || (await this.runner.hasOpenRunOnBranch(ws.name, branch))) return;
+    if (await this.runner.hasOpenRun(ws.name, 'graph-build')) return;
     await this.runner.create({
       workspace: ws.name,
       automation: 'graph-build',
       trigger: 'event',
-      branch,
       title: 'Knowledge graph',
       prompt: graphBuildPrompt(progress, room),
     });
   }
 
+  /** The default trigger entities land on the main line unverified and wait in the feed like any other change */
   private async proposeTriggers(ws: Workspace): Promise<void> {
     if ((await ws.index.byType(TRIGGER_TYPE)).length > 0) return;
     const defaults = await this.automations.defaultTriggers();
     if (defaults.length === 0) return;
-    const id = randomBytes(4).toString('hex');
-    const branch = `momentum/setup/${id}`;
-    const checkout = join(config.runs, ws.name, id);
-    await addWorktree(ws.path, checkout, branch, `refs/heads/${ws.main}`);
-    for (const t of defaults) {
-      const file = join(checkout, fileOf(t.path));
-      await mkdir(dirname(file), { recursive: true });
-      await writeFile(file, t.text, 'utf8');
-    }
-    await commitAll(checkout, 'momentum: default triggers');
-    await this.workspaces.sql`insert into harness.run_ref ${this.workspaces.sql({ id, workspace: ws.name })}`;
-    await ws.index.sql`insert into ${ws.index.sql(`${ws.index.schema}.run`)} ${ws.index.sql({
-      id,
-      automation: 'setup',
-      branch,
-      checkout,
-      trigger: 'event',
-      status: 'finished',
-      title: 'Default triggers',
-      started_at: new Date(),
-      ended_at: new Date(),
-    })}`;
-    await this.guard.transaction({ id, workspace: ws.name, automation: 'setup', branch, checkout, targetPath: null });
+    await commitPathsFrom(ws.path, ws.main, defaults.map((t) => ({ path: fileOf(t.path), content: t.text })), 'momentum: default triggers');
+    await this.guard.indexMainLine(ws);
   }
 
-  private async onEvent(workspace: string, event: string, payload: { targetPath?: string | null; branch?: string }): Promise<void> {
+  private async onEvent(workspace: string, event: string, payload: { targetPath?: string | null }): Promise<void> {
     const ws = await this.workspaces.get(workspace);
     if (!(await this.settings.enabled()).some((p) => p.name === workspace)) return;
     for (const t of await this.automations.triggers(ws)) {
@@ -196,11 +172,10 @@ export class Orchestrator {
         automation: t.automation,
         trigger: 'event',
         targetPath: payload.targetPath ?? null,
-        branch: t.automation === 'validation' ? payload.branch : null,
         prompt:
           event === 'entity_ahead'
             ? `The entity ${payload.targetPath} was approved and nothing implements it yet. Implement it.`
-            : `The implementation on ${payload.branch} finished${payload.targetPath ? ` for ${payload.targetPath}` : ''}. Validate this branch and report the outcome.`,
+            : `An implementation${payload.targetPath ? ` of ${payload.targetPath}` : ''} finished and landed on the main line. Validate it and raise an issue for anything that fails.`,
       });
     }
     await this.tick();
@@ -216,7 +191,10 @@ export class Orchestrator {
     }
   }
 
-  /** One pass: main lines indexed, scheduled loops queued while the feed has room, queued runs started within limits */
+  /**
+   * One pass: main lines indexed, scheduled loops queued while the feed has room, queued runs started within the total;
+   * an automation run waits while another automation run of its project is active, a run the user started does not
+   */
   async tick(): Promise<void> {
     if (this.ticking) {
       this.again = true;
@@ -243,7 +221,7 @@ export class Orchestrator {
       for (const q of await this.runner.queued()) {
         if (!names.has(q.workspace)) continue;
         if (this.runner.activeCount() >= values.agents.concurrentTotal) break;
-        if (this.runner.activeCount(q.workspace) >= values.agents.concurrentPerProject) continue;
+        if (!userStarted(q.trigger) && this.runner.activeAutomationCount(q.workspace) > 0) continue;
         await this.runner.start(q.id);
       }
     } catch (e) {

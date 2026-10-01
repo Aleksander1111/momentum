@@ -5,7 +5,7 @@ Source: [SPEC.md → Orchestrator](../SPEC.md#orchestrator), [Automations → Ch
 ```mermaid
 flowchart TB
   Trig["Trigger entities, per workspace<br/>schedule, event, on demand"]
-  Demand["Chat started by the user"]
+  Demand["Chat, send back, automation on demand<br/>started by the user"]
   Enable["Project enabled by the user"]
   subgraph Backend["One back-end deployable"]
     API["API"]
@@ -13,12 +13,13 @@ flowchart TB
   end
   Enabled{"Project enabled?"}
   NoLoops["No loops"]
-  Loops["Automation loops, per project"]
+  Queue["Automation runs, per project<br/>queued, one at a time"]
   GraphBuild["Graph build: knowledge graph built from the repository<br/>run after run until covered or stopped"]
   subgraph Procs["Run processes — isolated, killable, own resource limits"]
-    R1["Run<br/>Claude Code process<br/>own checkout, own branch"]
-    R2["Run<br/>Claude Code process<br/>own checkout, own branch"]
+    R1["Automation run<br/>Claude Code process<br/>own checkout of the main line"]
+    R2["User-started run<br/>Claude Code process<br/>own checkout of the main line"]
   end
+  Main["Main line — the one branch<br/>every run lands on it when it ends"]
   Feed["Attention feed"]
   Limits["Anthropic API limits"]
   Trig --> Orch
@@ -26,13 +27,15 @@ flowchart TB
   Enable --> Orch
   Orch --> Enabled
   Enabled -->|"no"| NoLoops
-  Enabled -->|"yes"| Loops
+  Enabled -->|"yes"| Queue
   Enabled -->|"yes, until covered"| GraphBuild
-  Loops -->|"several runs per project"| R1
-  Loops --> R2
-  GraphBuild -->|"one run at a time<br/>at most the feed's room"| R2
-  Limits -. "bound concurrency" .-> Procs
-  Feed -. "at its limit: loops pause" .-> Loops
+  Queue -->|"one automation run per project"| R1
+  GraphBuild -->|"one run at a time<br/>at most the feed's room"| R1
+  Demand -->|"at once, alongside"| R2
+  R1 --> Main
+  R2 --> Main
+  Limits -. "bound the total" .-> Procs
+  Feed -. "at its limit: loops pause" .-> Queue
   Feed -. "at its limit: the build pauses" .-> GraphBuild
   User(["User"]) -. "watches usage, stops" .-> GraphBuild
 ```

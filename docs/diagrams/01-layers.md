@@ -26,6 +26,6 @@ flowchart TB
   Index -->|"attention ranking"| Feed
   Entities -->|"consistency guard updates"| Index
   Automations -->|"one process per run"| Runs
-  Runs -->|"read and write on own branch"| Entities
+  Runs -->|"read and write in own checkout; land on the main line"| Entities
   Runs -->|"implementation change triggers"| Validation
 ```

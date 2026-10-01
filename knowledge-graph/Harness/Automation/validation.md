@@ -14,6 +14,6 @@ artifacts:
 
 Validates the product, not only the change.
 
-- Gates the merge: only a verified branch is merged
+- Validates each implementation once it has landed on the main line; a failure is an issue entity
 - Regression and exploratory testing in the background
 - Review, test suite run, exploratory pass or consistency check

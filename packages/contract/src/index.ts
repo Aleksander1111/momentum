@@ -99,6 +99,8 @@ export const EntityListItem = z.object({
   title: z.string(),
   verification: Verification,
   sync: Sync,
+  /** Open contradiction issues the consistency check raised over this entity */
+  contradictions: z.number().int().nonnegative(),
 });
 export type EntityListItem = z.infer<typeof EntityListItem>;
 
@@ -123,7 +125,6 @@ export const EntityDetail = EntityListItem.extend({
   markdown: z.string(),
   references: z.array(ReferenceView),
   artifacts: z.array(ArtifactView),
-  branch: z.string().nullable(),
 });
 export type EntityDetail = z.infer<typeof EntityDetail>;
 
@@ -158,6 +159,7 @@ export const FeedItem = z.object({
   card: Card,
   verification: Verification,
   sync: Sync,
+  contradictions: z.number().int().nonnegative(),
   rank: z.number(),
 });
 export type FeedItem = z.infer<typeof FeedItem>;
@@ -204,7 +206,7 @@ export type AutomationName = z.infer<typeof AutomationName>;
 export const RunTrigger = z.enum(['schedule', 'event', 'on_demand']);
 export type RunTrigger = z.infer<typeof RunTrigger>;
 
-export const RunStatus = z.enum(['queued', 'running', 'finished', 'failed', 'killed', 'held']);
+export const RunStatus = z.enum(['queued', 'running', 'finished', 'failed', 'killed']);
 export type RunStatus = z.infer<typeof RunStatus>;
 
 /** Share of the rolling 5-hour and weekly limits, in percentage points */
@@ -218,7 +220,6 @@ export const Run = z.object({
   id: z.string(),
   workspace: z.string(),
   automation: AutomationName,
-  branch: z.string(),
   checkout: z.string(),
   trigger: RunTrigger,
   targetPath: z.string().nullable(),
@@ -376,7 +377,7 @@ export const MetricsResponse = z.object({
 });
 export type MetricsResponse = z.infer<typeof MetricsResponse>;
 
-// Settings
+// Settings, PLAN.md → Harness settings
 
 export const LifetimeRule = z.object({
   type: z.string().min(1),
@@ -424,8 +425,8 @@ export const Settings = z.object({
     exclude: z.array(z.string().min(1)),
   }),
   lifetimes: z.array(LifetimeRule),
+  /** Automation runs go one at a time per project, so their changes never conflict; runs the user starts go at once */
   agents: z.object({
-    concurrentPerProject: z.number().int().positive(),
     concurrentTotal: z.number().int().positive(),
   }),
   models: ModelSettings,

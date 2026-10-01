@@ -1,7 +1,7 @@
 ---
 type: Harness/Automation
 origin: user
-verification: unverified
+verification: verified
 sync: synced
 product_impact: 0
 timeline_impact: 0
@@ -12,9 +12,8 @@ artifacts:
 ---
 # Chat
 
-The direct chat: the user asks a question or steers the work without waiting for the feed.
+The direct chat: an automation started by the user instead of by the schedule.
 
-- Answers from the knowledge base first, then the repository
-- Can do anything the other automations can, only on its own branch; results reach the approved state through the feed
-- Started by a send back from the feed: the comment decides what happens to the target entity — change, split, replace, add alongside, or retire it (a Harness/Plan with `retires`)
-- Answers short and plain
+- Own process and checkout, like every automation; runs alongside the automation runs, which go one at a time
+- Can do anything the other automations can
+- Results reach the approved state through the feed

@@ -1,10 +1,12 @@
 import { Fragment, type ReactNode } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import type { Block, Card, Inline } from '@momentum/contract';
-import { C, F } from './theme';
+import { C, F, useTheme } from './theme';
 import { H, T } from './Text';
 import { Diagram } from './Diagram';
-import { lastSegment } from '../lib/format';
+import { DomainIcon, domainColour } from './domains';
+import { pathSegments } from '../lib/format';
 
 function plain(c: Inline[]): string {
   return c
@@ -145,27 +147,104 @@ function Blocks({ blocks, inList }: { blocks: Block[]; inList?: boolean }): Reac
   });
 }
 
-/** Card heading (`TYPE · WORKSPACE`, serif title) followed by the card blocks. */
+/** Opens the explorer on `ws`, with the tree expanded down to `folder` when given. */
+function openInExplorer(ws: string, folder?: string) {
+  router.navigate({ pathname: '/explorer', params: folder ? { ws, folder } : { ws } });
+}
+
+function Crumb({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="link">
+      {({ hovered }) => (
+        <T style={{ fontSize: 13, color: hovered ? C.ink : C.muted, textDecorationLine: hovered ? 'underline' : 'none' }}>
+          {label}
+        </T>
+      )}
+    </Pressable>
+  );
+}
+
+const Sep = () => <T style={{ fontSize: 13, color: C.faint }}>›</T>;
+
+/** Breadcrumb: project, type in a pill coloured by its main type, then the folders below the type. */
+function Crumbs({ workspace, type, path }: { workspace: string; type: string; path: string }) {
+  const { scheme } = useTheme();
+  const colour = domainColour(type, scheme);
+  const typeSegs = type.split('/');
+  const segs = pathSegments(path);
+  const folders = typeSegs.every((t, i) => segs[i] === t) ? segs.slice(typeSegs.length, -1) : [];
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 6, rowGap: 4, flexShrink: 1 }}>
+      <Pressable onPress={() => openInExplorer(workspace)} accessibilityRole="link">
+        {({ hovered }) => (
+          <T style={{ fontSize: 13, fontWeight: '700', textDecorationLine: hovered ? 'underline' : 'none' }}>
+            {workspace}
+          </T>
+        )}
+      </Pressable>
+      <Sep />
+      <Pressable
+        onPress={() => openInExplorer(workspace, type)}
+        accessibilityRole="link"
+        style={({ hovered }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          backgroundColor: colour + (hovered ? '40' : '29'),
+          borderRadius: 999,
+          paddingVertical: 3,
+          paddingLeft: 8,
+          paddingRight: 10,
+        })}
+      >
+        <DomainIcon type={type} size={15} color={colour} />
+        <T style={{ fontSize: 13, color: colour }}>{typeSegs.join(' · ')}</T>
+      </Pressable>
+      {folders.map((f, i) => (
+        <Fragment key={i}>
+          <Sep />
+          <Crumb label={f} onPress={() => openInExplorer(workspace, [...typeSegs, ...folders.slice(0, i + 1)].join('/'))} />
+        </Fragment>
+      ))}
+    </View>
+  );
+}
+
+/** Card heading (breadcrumb, `aside` at its right, serif title) followed by the card blocks. */
 export function CardView({
   type,
   workspace,
+  path,
   title,
   card,
+  aside,
 }: {
   type: string;
   workspace: string;
+  path: string;
   title: string;
   card: Card;
+  aside?: ReactNode;
 }) {
   // The title is shown once; a leading heading repeating it is dropped.
   const first = card[0];
   const blocks = first && first.t === 'h' && plain(first.c) === title.trim() ? card.slice(1) : card;
   return (
     <View>
-      <T style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: C.accent, fontWeight: '700' }}>
-        {`${lastSegment(type)} · ${workspace}`}
-      </T>
-      <H style={{ fontSize: 24, lineHeight: 28, marginTop: 8, marginBottom: 10 }}>{title}</H>
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          rowGap: 6,
+          columnGap: 12,
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Crumbs workspace={workspace} type={type} path={path} />
+        {aside}
+      </View>
+      <H style={{ fontSize: 24, lineHeight: 28, marginTop: 10, marginBottom: 10 }}>{title}</H>
       <Blocks blocks={blocks} />
     </View>
   );

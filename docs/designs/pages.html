@@ -397,13 +397,13 @@
       </div>
       <div class="pane conv">
         <div class="col">
-          <div class="runhead"><span class="dot pulse"></span><div><div>Implementation · running 14 min</div><code>momentum/implementation/4f2a</code></div></div>
+          <div class="runhead"><span class="dot pulse"></span><div><div>Implementation · running 14 min</div><code>4f2a</code></div></div>
           <div class="fill">
             <div class="msgs">
               <div class="msg me">Bind the API to the Tailscale interface only, not 0.0.0.0.</div>
               <div class="msg ai">Switching the listen address to the tailnet IP read from <code>tailscale ip -4</code>. Two files change:<ul><li>apps/backend/src/server.ts</li><li>apps/backend/src/config.ts</li></ul>The entity "Remote access over a private mesh" gains an implements reference from this change.</div>
               <div class="msg me">Also fail startup when the interface is missing.</div>
-              <div class="msg ai">Added. Startup now exits with a clear error if no tailnet address is found. Validation run queued on this branch.</div>
+              <div class="msg ai">Added. Startup now exits with a clear error if no tailnet address is found. Validation run queued over the landed change.</div>
             </div>
           </div>
           <div class="composer"><div class="field">Message</div><div class="send"><svg viewBox="0 0 24 24"><path d="M3 11 21 3l-8 18-2-8z"/></svg></div></div>
@@ -418,13 +418,13 @@
     <div class="scroll">
       <div class="col">
         <div class="back">Chats</div>
-        <div class="runhead"><span class="dot pulse"></span><div><div>Implementation · running 14 min</div><code>momentum/implementation/4f2a</code></div></div>
+        <div class="runhead"><span class="dot pulse"></span><div><div>Implementation · running 14 min</div><code>4f2a</code></div></div>
         <div class="fill">
           <div class="msgs">
             <div class="msg me">Bind the API to the Tailscale interface only, not 0.0.0.0.</div>
             <div class="msg ai">Switching the listen address to the tailnet IP read from <code>tailscale ip -4</code>. Two files change:<ul><li>apps/backend/src/server.ts</li><li>apps/backend/src/config.ts</li></ul>The entity "Remote access over a private mesh" gains an implements reference from this change.</div>
             <div class="msg me">Also fail startup when the interface is missing.</div>
-            <div class="msg ai">Added. Startup now exits with a clear error if no tailnet address is found. Validation run queued on this branch.</div>
+            <div class="msg ai">Added. Startup now exits with a clear error if no tailnet address is found. Validation run queued over the landed change.</div>
           </div>
         </div>
         <div class="composer"><div class="field">Message</div><div class="send"><svg viewBox="0 0 24 24"><path d="M3 11 21 3l-8 18-2-8z"/></svg></div></div>
@@ -501,8 +501,7 @@
       </div>
       <div class="sect">Agents</div>
       <div class="list">
-        <div class="li"><div class="grow">Concurrent runs per project</div><span class="num">2</span></div>
-        <div class="li"><div class="grow">Concurrent runs in total</div><span class="num">8</span></div>
+        <div class="li"><div class="grow">Concurrent runs in total<div class="sub">Automation runs go one at a time per project; runs you start go at once</div></div><span class="num">8</span></div>
       </div>
     </div>
   </div>

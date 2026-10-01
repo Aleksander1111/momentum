@@ -52,7 +52,7 @@ export class Automations {
     if (!harness) return [];
     const rows = await harness.index.byType(DEFINITION_TYPE);
     return rows
-      .filter((r) => r.verification === 'verified' && r.branch === null)
+      .filter((r) => r.verification === 'verified')
       .map((r) => ({
         path: r.path,
         name: r.path.split('/').pop()!,
@@ -140,7 +140,7 @@ export class Automations {
     const rows = await ws.index.byType(TRIGGER_TYPE);
     const out: Trigger[] = [];
     for (const r of rows) {
-      if (r.verification !== 'verified' || r.branch !== null) continue;
+      if (r.verification !== 'verified') continue;
       const automation = AutomationName.safeParse(r.frontmatter.automation ?? r.path.split('/').pop());
       const fields = TriggerFields.safeParse(r.frontmatter);
       if (automation.success && fields.success) out.push({ ...fields.data, automation: automation.data, path: r.path });

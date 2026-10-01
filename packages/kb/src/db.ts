@@ -60,8 +60,7 @@ create table if not exists ${s}.entity (
   sync text not null,
   card_blocks jsonb not null default '[]',
   frontmatter jsonb not null default '{}',
-  branch text,
-  run_id text,
+  contradictions int not null default 0,
   search tsvector generated always as (
     setweight(to_tsvector('english', title), 'A') || setweight(to_tsvector('english', card), 'B')
   ) stored,
@@ -70,6 +69,10 @@ create table if not exists ${s}.entity (
 );
 create index if not exists entity_search on ${s}.entity using gin (search);
 create index if not exists entity_type on ${s}.entity (type);
+-- Everything lives on the main line: no run branches hold unapproved versions any more
+alter table ${s}.entity drop column if exists branch;
+alter table ${s}.entity drop column if exists run_id;
+alter table ${s}.entity add column if not exists contradictions int not null default 0;
 create table if not exists ${s}.entity_state (
   path text not null,
   verification text,
@@ -102,7 +105,6 @@ create table if not exists ${s}.automation (
 create table if not exists ${s}.run (
   id text primary key,
   automation text not null,
-  branch text not null,
   checkout text not null,
   trigger text not null,
   target_path text,
@@ -122,6 +124,9 @@ alter table ${s}.run add column if not exists usage_week real;
 alter table ${s}.run add column if not exists model text;
 alter table ${s}.run add column if not exists risk text;
 alter table ${s}.run add column if not exists restarts int not null default 0;
+alter table ${s}.run drop column if exists branch;
+-- A message to a chat whose run has ended: the run is queued again and resumes its session with it
+alter table ${s}.run add column if not exists resume_prompt text;
 create table if not exists ${s}.run_message (
   run_id text not null references ${s}.run (id) on delete cascade,
   seq int not null,
@@ -137,12 +142,15 @@ create table if not exists ${s}.chat (
 create table if not exists ${s}.transaction (
   id bigserial primary key,
   run_id text not null,
-  branch text not null,
+  commit text,
   paths text[] not null,
   status text not null,
   issues jsonb not null default '[]',
   created_at timestamptz not null default now()
 );
+alter table ${s}.transaction drop column if exists branch;
+alter table ${s}.transaction add column if not exists commit text;
+alter table ${s}.transaction add column if not exists conflicts text[] not null default '{}';
 create table if not exists ${s}.attention_ranking (
   entity_path text primary key references ${s}.entity (path) on delete cascade,
   product_impact int not null,
@@ -197,9 +205,6 @@ create table if not exists ${s}.implementation_metric (
 );
 -- The graph build was called mapping
 update ${s}.run set automation = 'graph-build' where automation = 'mapping';
-update ${s}.run set branch = replace(branch, 'momentum/mapping/', 'momentum/graph-build/') where branch like 'momentum/mapping/%';
-update ${s}.entity set branch = replace(branch, 'momentum/mapping/', 'momentum/graph-build/') where branch like 'momentum/mapping/%';
-update ${s}.transaction set branch = replace(branch, 'momentum/mapping/', 'momentum/graph-build/') where branch like 'momentum/mapping/%';
 update ${s}.agent_metric set automation = 'graph-build' where automation = 'mapping';
 delete from ${s}.automation where name = 'mapping';
 `;

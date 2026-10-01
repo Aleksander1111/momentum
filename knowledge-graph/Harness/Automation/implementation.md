@@ -1,7 +1,7 @@
 ---
 type: Harness/Automation
 origin: user
-verification: unverified
+verification: verified
 sync: synced
 product_impact: 0
 timeline_impact: 0
@@ -13,12 +13,7 @@ artifacts:
 ---
 # Implementation
 
-Implements an approved entity on its own branch.
+A regular Claude Code automation that implements approved entities.
 
-- Reads the target and everything it references; follows repo conventions and checks
-- Never pushes, merges or touches main; the harness commits
-- Writes no summary: the Stop hook hands changed files to summarization
-- Cannot implement as written → Harness/Issue that `concerns` the target
-- Merged only after validation passes
-
-Risk (highest rule wins, default medium): **high** for data, security, contracts, concurrency, infrastructure, cross-service work, plans over 8 steps or open questions; **medium** for in-package features and fixes; **low** for copy, styling, config, tests-only or 1–3 step plans.
+- Works in its own checkout of the main line; the work lands on the main line when the run ends
+- Validation runs over the landed work and raises what fails as issues

@@ -28,8 +28,6 @@ export interface SessionSpec {
   hooks?: Partial<Record<HookEvent, HookCallbackMatcher[]>>;
   /** Resume an earlier session of the same run */
   resume?: string;
-  /** Keep the input open for messages from the chat tool; the session ends after this much idle time */
-  interactiveIdleMs?: number;
   limits: ResourceLimits;
   procgov: string;
   model?: string;
@@ -172,13 +170,6 @@ export function startSession(spec: SessionSpec): SessionHandle {
     },
   });
 
-  let idle: NodeJS.Timeout | null = null;
-  const armIdle = () => {
-    if (idle) clearTimeout(idle);
-    if (spec.interactiveIdleMs) idle = setTimeout(() => input.close(), spec.interactiveIdleMs);
-    else input.close();
-  };
-
   const done = (async (): Promise<SessionResult> => {
     let sessionId: string | null = null;
     let ok = true;
@@ -216,24 +207,20 @@ export function startSession(spec: SessionSpec): SessionHandle {
           }
           usageAfter = await readUsage(q);
           spec.onUsage?.(usageAfter);
-          armIdle();
+          input.close();
         }
       }
     } catch (e) {
       ok = false;
       error = abort.signal.aborted ? 'killed' : (e as Error).message;
     } finally {
-      if (idle) clearTimeout(idle);
       input.close();
     }
     return { sessionId, ok, error, usageBefore, usageAfter };
   })();
 
   return {
-    send: (text) => {
-      if (idle) clearTimeout(idle);
-      return input.push(text);
-    },
+    send: (text) => input.push(text),
     interrupt: async () => {
       await q.interrupt();
     },

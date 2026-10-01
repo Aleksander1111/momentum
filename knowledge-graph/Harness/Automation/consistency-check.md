@@ -1,7 +1,7 @@
 ---
 type: Harness/Automation
 origin: user
-verification: unverified
+verification: verified
 sync: synced
 product_impact: 0
 timeline_impact: 0
@@ -12,10 +12,10 @@ artifacts:
 ---
 # Consistency check
 
-Checks consistency across all entities in the knowledge base and raises each finding as its own Harness/Issue.
+Checks consistency across all entities in the knowledge base.
 
-- Rule categories first, by queries: reference, card-limit, type-path, stale-summary, drift
-- Content categories next, by reading: contradiction, repetition, ambiguity, design-gap, logical, naming, struct, verbose, split
-- Each issue has exactly one category and concerns the entity at fault first, then the ones it clashes with
-- Card: the problem in one sentence and 2-4 options to resolve it
-- Skips findings an existing issue covers; fixes nothing itself
+- Runs as a background loop and on demand
+- Reports each kind of issue as its own entity for the user to react to
+- Files every issue under one of twelve categories, with 2-4 options to resolve it
+- Checks the knowledge graph alone, never the artifacts behind the summaries: summarization is trusted to keep them in step
+- Every entity counts the open contradiction issues over it as its contradictions

@@ -170,7 +170,7 @@ function TopCard({
       <Animated.View
         style={[cardFrame(wide), cardSkin, { boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
       >
-        <CardView type={item.type} workspace={item.workspace} title={item.title} card={item.card} />
+        <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} />
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 22, top: 210 }, okStamp]}>
           <Stamp kind="ok" />
         </Animated.View>

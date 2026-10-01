@@ -15,7 +15,7 @@ const DEFAULTS = {
     { type: 'Harness/Research', rule: '60 days after delivered' },
     { type: 'Governance/Decision', rule: 'kept while referenced' },
   ] satisfies LifetimeRule[],
-  agents: { concurrentPerProject: 2, concurrentTotal: 8 },
+  agents: { concurrentTotal: 8 },
   models: {
     mode: 'single',
     single: 'default',
@@ -127,16 +127,20 @@ export class HarnessSettings {
     if (this.cache) return this.cache;
     const rows = await this.sql<{ key: Key; value: never }[]>`select key, value from harness.setting`;
     const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-    this.cache = { ...DEFAULTS, ...stored };
+    const cache: Omit<Settings, 'projects'> = { ...DEFAULTS, ...stored };
+    // Runs were once bounded per project too; automation runs now go one at a time and only the total is set
+    const agents = stored.agents as { concurrentTotal?: number } | undefined;
+    if (agents) cache.agents = { concurrentTotal: agents.concurrentTotal ?? DEFAULTS.agents.concurrentTotal };
     // An automation added after the models were stored starts on the default; a removed one is dropped
     const models = stored.models as ModelSettings | undefined;
     if (models) {
       const perAutomation = Object.fromEntries(
         AutomationName.options.map((a) => [a, models.perAutomation[a] ?? DEFAULTS.models.perAutomation[a]]),
       ) as Record<AutomationName, ModelChoice>;
-      this.cache.models = { ...models, perAutomation };
+      cache.models = { ...models, perAutomation };
     }
-    return this.cache;
+    this.cache = cache;
+    return cache;
   }
 
   async get(): Promise<Settings> {

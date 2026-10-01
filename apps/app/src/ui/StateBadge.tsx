@@ -117,13 +117,32 @@ export function StateBadge({ state, label }: { state: State; label?: boolean }) 
   );
 }
 
+/** The contradictions the consistency check holds open over an entity, shown only when there are any */
+function Contradictions({ count, label }: { count: number; label?: boolean }) {
+  const text = `${count} ${count === 1 ? 'contradiction' : 'contradictions'}`;
+  const badge = (
+    <View style={{ borderRadius: 9, paddingHorizontal: 6, paddingVertical: 1, backgroundColor: C.washNo }}>
+      <H style={{ color: C.no, fontSize: label ? 14 : 12 }}>{label ? text : String(count)}</H>
+    </View>
+  );
+  return label ? (
+    badge
+  ) : (
+    <Tip text={text} side="left">
+      {badge}
+    </Tip>
+  );
+}
+
 export function States({
   verification,
   sync,
+  contradictions,
   labels,
 }: {
   verification: Verification | null;
   sync: Sync | null;
+  contradictions?: number;
   labels?: boolean;
 }) {
   if (!verification && !sync) return null;
@@ -131,6 +150,7 @@ export function States({
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 'auto' }}>
       {verification ? <StateBadge state={verification} label={labels} /> : null}
       {sync ? <StateBadge state={sync} label={labels} /> : null}
+      {contradictions ? <Contradictions count={contradictions} label={labels} /> : null}
     </View>
   );
 }

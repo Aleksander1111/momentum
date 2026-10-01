@@ -23,9 +23,6 @@ export interface IndexedEntity {
   body: string;
   frontmatter: EntityFrontmatter;
   cardBlocks: Card;
-  /** Run branch holding the unapproved version; null on the main line */
-  branch: string | null;
-  runId: string | null;
   embedding: number[] | null;
 }
 
@@ -39,8 +36,7 @@ interface EntityRow {
   sync: Sync;
   card_blocks: Card;
   frontmatter: EntityFrontmatter;
-  branch: string | null;
-  run_id: string | null;
+  contradictions: number;
 }
 
 export function artifactKind(path: string): string {
@@ -78,8 +74,6 @@ export class WorkspaceIndex {
       sync: fm.sync,
       card_blocks: tx.json(e.cardBlocks as never),
       frontmatter: tx.json(fm as never),
-      branch: e.branch,
-      run_id: e.runId,
       embedding: e.embedding ? toVector(e.embedding) : null,
       updated_at: new Date(),
     };
@@ -126,7 +120,7 @@ export class WorkspaceIndex {
 
   async row(path: string): Promise<EntityRow | null> {
     const [r] = await this.sql<EntityRow[]>`
-      select path, type, title, card, origin, verification, sync, card_blocks, frontmatter, branch, run_id
+      select path, type, title, card, origin, verification, sync, card_blocks, frontmatter, contradictions
       from ${this.t('entity')} where path = ${path}`;
     return r ?? null;
   }
@@ -144,13 +138,18 @@ export class WorkspaceIndex {
 
   async byType(type: string): Promise<EntityRow[]> {
     return this.sql<EntityRow[]>`
-      select path, type, title, card, origin, verification, sync, card_blocks, frontmatter, branch, run_id
+      select path, type, title, card, origin, verification, sync, card_blocks, frontmatter, contradictions
       from ${this.t('entity')} where type = ${type} order by path`;
   }
 
-  async onBranch(branch: string): Promise<string[]> {
-    const rows = await this.sql<{ path: string }[]>`select path from ${this.t('entity')} where branch = ${branch}`;
-    return rows.map((r) => r.path);
+  /**
+   * The contradictions of every entity: the open contradiction issues the consistency check raised over it, counted
+   * from the references so the figure follows the issues as they are raised and retired
+   */
+  async refreshContradictions(tx: Sql = this.sql): Promise<void> {
+    await tx`update ${this.t('entity')} e set contradictions = (
+      select count(*)::int from ${this.t('entity_reference')} x join ${this.t('entity')} i on i.path = x.from_path
+      where x.to_path = e.path and x.relation_type = 'concerns' and i.type = 'Harness/Issue' and i.frontmatter->>'category' = 'contradiction')`;
   }
 
   async detail(path: string): Promise<EntityDetail | null> {
@@ -173,23 +172,23 @@ export class WorkspaceIndex {
       title: r.title,
       verification: r.verification,
       sync: r.sync,
+      contradictions: r.contradictions,
       origin: r.origin,
       card: r.card_blocks,
       markdown: r.card,
-      branch: r.branch,
       references: refs.map((x) => ({ ...x }) satisfies ReferenceView),
       artifacts: artifacts.map((a) => ({ path: a.artifact_path, kind: artifactKind(a.artifact_path) }) satisfies ArtifactView),
     };
   }
 
-  private item(r: Pick<EntityRow, 'path' | 'type' | 'title' | 'verification' | 'sync'>): EntityListItem {
-    return { workspace: this.workspace, path: r.path, type: r.type, title: r.title, verification: r.verification, sync: r.sync };
+  private item(r: Pick<EntityRow, 'path' | 'type' | 'title' | 'verification' | 'sync' | 'contradictions'>): EntityListItem {
+    return { workspace: this.workspace, path: r.path, type: r.type, title: r.title, verification: r.verification, sync: r.sync, contradictions: r.contradictions };
   }
 
   /** Entities grouped by type path: Domain → Type → entities */
   async types(): Promise<{ total: number; types: TypeNode[] }> {
     const rows = await this.sql<EntityRow[]>`
-      select path, type, title, verification, sync from ${this.t('entity')} order by type, title`;
+      select path, type, title, verification, sync, contradictions from ${this.t('entity')} order by type, title`;
     const domains = new Map<string, TypeNode>();
     for (const r of rows) {
       const [domain = r.type, name = ''] = r.type.split('/');
@@ -220,7 +219,7 @@ export class WorkspaceIndex {
       ), fused as (
         select path, sum(1.0 / (60 + r)) as score from (select * from fts union all select * from vec) x group by path
       )
-      select e.path, e.type, e.title, e.verification, e.sync, f.score::float8 as score
+      select e.path, e.type, e.title, e.verification, e.sync, e.contradictions, f.score::float8 as score
       from fused f join ${this.t('entity')} e using (path)
       order by f.score desc limit ${limit}`;
     return rows.map((r) => ({ ...this.item(r), score: Number(r.score) }));
@@ -239,10 +238,10 @@ export class WorkspaceIndex {
         from walk w join ${this.t('entity_reference')} x on x.from_path = w.path or x.to_path = w.path
         where w.hops < ${depth}
       )
-      select e.path, e.type, e.title, e.verification, e.sync, min(w.hops)::int as hops
+      select e.path, e.type, e.title, e.verification, e.sync, e.contradictions, min(w.hops)::int as hops
       from walk w join ${this.t('entity')} e using (path)
       where w.hops > 0 and not (e.path = any(${seeds}::text[]))
-      group by e.path, e.type, e.title, e.verification, e.sync`;
+      group by e.path, e.type, e.title, e.verification, e.sync, e.contradictions`;
     const floor = Math.min(...hits.map((h) => h.score));
     return [...hits, ...rows.map((r) => ({ ...this.item(r), score: floor / (r.hops + 1) }))];
   }
@@ -289,7 +288,7 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
   if (workspaces.length === 0) return [];
   const parts = workspaces.map((w) => {
     const s = schemaOf(w);
-    return `select '${w.replaceAll("'", "''")}' as workspace, e.path, e.type, e.title, e.card_blocks, e.verification, e.sync,
+    return `select '${w.replaceAll("'", "''")}' as workspace, e.path, e.type, e.title, e.card_blocks, e.verification, e.sync, e.contradictions,
       a.rank, a.entered_at from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
   });
   const rows = await sql.unsafe<(EntityRow & { workspace: string; rank: number })[]>(
@@ -304,6 +303,7 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
     card: r.card_blocks,
     verification: r.verification,
     sync: r.sync,
+    contradictions: r.contradictions,
     rank: Number(r.rank),
   }));
 }

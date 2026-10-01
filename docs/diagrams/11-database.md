@@ -12,6 +12,7 @@ classDiagram
     origin
     verification
     sync
+    contradictions
   }
   class entity_artifact {
     entity_path
@@ -35,7 +36,6 @@ classDiagram
   class run {
     id
     automation
-    branch
     checkout
     trigger
     target_path

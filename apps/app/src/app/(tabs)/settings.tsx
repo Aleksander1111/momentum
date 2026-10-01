@@ -484,17 +484,7 @@ export default function Settings() {
       <Sect>Agents</Sect>
       <List>
         <Row first>
-          <RowText title="Concurrent runs per project" />
-          <Num
-            value={s.agents.concurrentPerProject}
-            onSave={(concurrentPerProject) => {
-              const agents = { ...s.agents, concurrentPerProject };
-              put({ agents }, { agents });
-            }}
-          />
-        </Row>
-        <Row>
-          <RowText title="Concurrent runs in total" />
+          <RowText title="Concurrent runs in total" sub="Automation runs go one at a time per project; runs you start go at once" />
           <Num
             value={s.agents.concurrentTotal}
             onSave={(concurrentTotal) => {

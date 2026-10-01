@@ -32,8 +32,6 @@ export interface Config {
   limits: { maxMemory: string; cpuCores: number };
   /** How often the orchestrator looks at triggers */
   tickMs: number;
-  /** How long a chat stays open for more messages after its last answer */
-  chatIdleMs: number;
 }
 
 const root = process.env.MOMENTUM_ROOT ?? 'C:\\Projects';
@@ -55,5 +53,4 @@ export const config: Config = {
     cpuCores: Number(process.env.MOMENTUM_RUN_CPUS ?? 4),
   },
   tickMs: Number(process.env.MOMENTUM_TICK_MS ?? 30_000),
-  chatIdleMs: Number(process.env.MOMENTUM_CHAT_IDLE_MS ?? 10 * 60_000),
 };

@@ -14,7 +14,7 @@ const fixture = parseEntity(readFileSync(join(import.meta.dirname, '../../entity
 async function put(path: string, title: string, body: string, refs: { to: string; relation: string }[] = []) {
   const frontmatter = { ...fixture.frontmatter, type: path.split('/').slice(0, 2).join('/'), references: refs, artifacts: [] };
   const [embedding] = await embed([`${title}\n${body}`]);
-  await index.upsert({ path, title, body, frontmatter, cardBlocks: [], branch: null, runId: null, embedding: embedding! });
+  await index.upsert({ path, title, body, frontmatter, cardBlocks: [], embedding: embedding! });
   return frontmatter;
 }
 

@@ -15,7 +15,8 @@
 - **Attention ranking**: The feed order, derived from the entities themselves by impact on the product, impact on the timeline, and how much the work unlocks
 - **Card**: The concise representation of an entity; the entity is its card. No fixed structure, only a configured character limit, in the form that presents the entity best
 - **Chat tool**: Asks a question or steers a run directly, without waiting for the feed
-- **Consistency guard**: Reacts to every change in the knowledge base, groups related changes into a transaction and validates them before they land on the main line
+- **Consistency guard**: Reacts to every change in the knowledge base, groups the changes of one run into a transaction, validates them and lands them on the main line
+- **Contradictions**: The open contradiction issues the consistency check holds over an entity, counted on the entity
 - **Dedicated machine**: The one resource-rich machine that runs the back-end, the agents and the knowledge base
 - **Definition**: The Claude Code definition an automation runs; an entity in the harness workspace's knowledge base, one per automation, whose artifacts are the agent, skill, sub-agent and MCP files; edited, proposed and approved like any other entity
 - **Enabled project**: A project the orchestrator schedules; a disabled project has no loops running for it
@@ -28,13 +29,13 @@
 - **Knowledge base**: Graph RAG over many different entity types, one per workspace
 - **Layers**: Attention (ranked feed, approval), understanding (entities, index), implementation (automations, runs, validation)
 - **Lifetime**: How long an entity earns its place on the main line, set by rules per entity type
-- **Main line**: Where a change counts, once the guard has validated it and the user has approved it
+- **Main line**: The one branch of a workspace; everything a run leaves lands on it when the run ends, and a change counts once the user has verified it there
 - **Graph build**: The automation that builds the knowledge graph of a workspace from its repository; starts when the project is enabled, bounded by the feed like every loop, until the repository is covered or the user stops it
 - **Origin**: How an entity came to be: added by the user, requested by the user and written by an automation, or raised by an automation on its own
 - **Orchestrator**: Starts and supervises the background automation loops, per project
-- **Run**: One Claude Code process per run and per project, in its own checkout of the project repository, on its own branch
+- **Run**: One Claude Code process per run and per project, in its own detached checkout of the main line; automation runs go one at a time per project, runs the user starts go at once
 - **Summary**: The flavour of entity that has underlying artifacts, written by summarization; given a card like any other entity
-- **Transaction**: A group of related changes the consistency guard validates together
+- **Transaction**: Everything one run left in its checkout, validated and landed on the main line as one commit
 - **Trigger**: What starts a run of an automation: a schedule, an event, or the user on demand; an entity in each workspace's knowledge base, one per automation
 - **Workspace**: A project; a git repository on the dedicated machine, with its own knowledge base
 
@@ -90,13 +91,14 @@ Starts and supervises the background automation loops, per project. It ships in 
 - The feed size bounds the loops: they keep producing until the feed reaches its limit, then pause until the user works it down
 - Only enabled projects are scheduled: a disabled project falls out of the orchestrator's control entirely, and no loops run for it
 - Enabling a project starts the graph build: the knowledge graph is built from the repository run after run, each run bounded by the room the feed has, until the repository is covered; the user watches what the build has used and stops it at any time, and disabling the project stops it too
-- Resetting a project removes every entity and database entry it has and starts the build afresh: every run ends, the run branches go, the knowledge graph leaves the main line in one commit, and the project is enabled again from nothing; the harness workspace, which holds the automation definitions, cannot be reset
+- Resetting a project removes every entity and database entry it has and starts the build afresh: every run ends, the run checkouts go, the knowledge graph leaves the main line in one commit, and the project is enabled again from nothing; the harness workspace, which holds the automation definitions, cannot be reset
 - Every run is a separate process: one Claude Code process per run and per project
-- Each run process works in its own checkout of the project repository, on its own branch, so concurrent runs never share a working tree
+- Each run process works in its own detached checkout of the main line, so concurrent runs never share a working tree; nothing is branched, and what the run leaves lands on the main line when it ends
 - Runs are isolated and killable, with their own resource limits; a crashing or heavy run cannot take the orchestrator down
-- A run a restart of the back-end cuts off is queued again and resumes its session on the same checkout, twice at most; past that it fails, and what it wrote still passes the guard
-- Every run shows what it has used so far while it runs, and the user can kill any run from the chat tool; what a killed run wrote still passes the guard and reaches the feed, so nothing lands unattended
-- Concurrency is configurable: several runs may be active for one project, bounded by the Anthropic API limits and tuned from measured behaviour rather than fixed upfront
+- A run a restart of the back-end cuts off is queued again and resumes its session on the same checkout, twice at most; past that it fails, and what it wrote still lands through the guard
+- Every run shows what it has used so far while it runs, and the user can kill any run from the chat tool; what a killed run wrote still lands through the guard and reaches the feed, so nothing lands unattended
+- Automation runs go one at a time per project, queued in the order they were due, so their changes never conflict; runs the user starts, a chat, a send back or an automation on demand, go at once, alongside whatever is running
+- The total across projects is configurable, bounded by the Anthropic API limits and tuned from measured behaviour rather than fixed upfront
 
 #### Knowledge base
 
@@ -113,17 +115,19 @@ Starts and supervises the background automation loops, per project. It ships in 
 - Entities live on disk in a file structure that mirrors their types: a type is a path, so all entities of the same type share a directory
 - Chats are resources: each is stored and indexed as a summary, with the chat as its artifact
 - Actions are entities as well, so failures, conflicts and resolutions reach the attention feed by the same path as everything else
-- Agents and automations read and write the knowledge base freely on their own branch; nothing gates work in progress
-- The gate is at the main line: a change counts only once the guard has validated it and the user has approved it
+- Agents and automations read and write the knowledge base freely in their own checkout; nothing gates work in progress
+- Everything lands on the main line when the run ends, unverified; approval is a state of the entity, not a place: a change counts once the user has verified it
+- A plan is an ordinary entity: approved, it stands entity_ahead until implemented; nothing treats it specially
 - No separate ingestion component: the automations read the sources themselves, and summarization turns repository artifacts into summaries
 
 ##### Consistency guard
 
 Reacts to every change in the knowledge base so it stays consistent at all times, despite free access.
 
-- Groups related changes into a transaction and validates them before they land on the main line
+- Groups the changes of one run into a transaction, validates them and lands them on the main line as one commit
 - Validation covers the configured card limit and the references between entities
-- Changes that cannot be made consistent are raised as issues, the same way the consistency check loop reports them
+- Changes that cannot be made consistent land all the same, with an issue entity raised over them, the same way the consistency check loop reports them
+- A change that conflicts with what reached the main line while the run ran, the user's own commit or a run the user started, lands on the run's side and is raised as a conflict entity over the files that conflicted
 - Runs on every change, not only on the scheduled consistency check
 - Updates the index and metrics database as part of every validated transaction
 - Maintains each entity's sync state: sets `updating` when a run targets it, `artifact_ahead` when its artifact changes, `entity_ahead` when it is approved without an implementation, and `synced` once they agree
@@ -150,7 +154,7 @@ Automations run continuously in the background, per project, independently of th
 
 No entity type belongs to an automation. Each automation is defined by its responsibility alone and searches the whole knowledge base across every layer, picking whatever entities serve that responsibility.
 
-The user configures every automation through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace, holding its schedule, its events and whether it starts on demand. Both are edited, proposed and approved like any other entity: the user's edit or optimization's proposal lands on a branch, passes the guard and reaches the main line through the feed. An automation that runs as a step inside the others has no trigger entity.
+The user configures every automation through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace, holding its schedule, its events and whether it starts on demand. Both are edited, proposed and approved like any other entity: the user's edit or optimization's proposal lands on the main line through the guard and is verified through the feed. An automation that runs as a step inside the others has no trigger entity.
 
 AI is not the default. Each responsibility is split into steps and every step is carried by the cheapest mechanism that can carry it: indices, metrics, lifetimes and references are queries and rules, not prompts. AI is reserved for the judgement that cannot be expressed that way — deciding, planning, reviewing, summarizing.
 
@@ -165,22 +169,22 @@ AI is not the default. Each responsibility is split into steps and every step is
   - Summarization turns each plan into a plan entity for the user to accept
 - Consistency check
   - Runs as a background loop and on demand
-  - Checks consistency across all entities in the knowledge base
+  - Checks consistency across all entities in the knowledge base, and only there: it never reads the artifacts behind a summary, on the assumption that summarization keeps summaries in step with them
   - Reports several kinds of issues, each raised as its own entity for the user to react to
+  - Every entity counts the open contradiction issues over it as its contradictions
 - Retention
   - Every entity has a lifetime: a task resolved a month ago or research long since delivered no longer earns its place on the main line
   - Rules per entity type rather than a fixed TTL: what counts as spent depends on the type and on what still references it
   - Runs as a background loop that proposes what to retire, and the removal reaches the approved state through the feed like any other change
 - Implementation
   - A regular Claude Code automation/chat
-  - Work lands on its own branch, never on the main line directly
-  - The branch is merged automatically once validation passes
+  - Works in its own checkout of the main line; the work lands on the main line when the run ends, like every run's
+  - Validation runs over the landed work
 - Validation
   - Validates the product, not only the change: an implementation change triggers a run, and a background loop validates the project as it stands
   - The background runs are regression and exploratory testing, so defects surface without a change to prompt them
   - The form depends on the work: a review of the changes, a test suite run, an exploratory pass, or a consistency check
-  - Gates the merge: only a verified branch is merged back, and a failed validation raises an issue entity that holds the branch until it is resolved
-  - A branch that cannot be merged raises a conflict or merge resolution entity, carrying its own priority and waiting for the user's approval
+  - Nothing is held back: the work is on the main line, and a failed validation raises an issue entity carrying its own priority for the user to react to
 - Optimization
   - Analyzes chats for misalignments with the user and issues that came up
   - Finds resolutions for the issues that recur most often: skills, sub-agents, definitions, new tools or MCP servers
@@ -199,12 +203,12 @@ AI is not the default. Each responsibility is split into steps and every step is
   - The user sets path patterns that are never summarized
 - Chat
   - The direct chat is an automation too, started by the user instead of by the schedule
-  - Runs on the same machinery as every other automation: its own process, checkout and branch
+  - Runs on the same machinery as every other automation: its own process and checkout; started by the user, it runs alongside the automation runs instead of waiting for them
   - Can do anything the other automations can; its results reach the approved state through the feed like any other change
 - Graph build
   - Builds the knowledge graph of a workspace from its repository, so the project can be explored through entities from the start
   - Started by enabling the project rather than by a trigger entity; one run at a time, each writing at most the room the feed has
-  - Every run of a workspace continues on the same branch and reports its progress to the next; the build ends when a run reports the repository covered, or when the user stops it
+  - Every run lands on the main line and reports its progress to the next; the build ends when a run reports the repository covered, or when the user stops it
   - The user watches the runs, the entities, the time and the usage of the build as it goes, with the full build estimated from the share of the repository the runs report covered, and stops it when it costs too much or builds the graph wrongly; the entities it wrote wait in the feed like any other change
 
 #### Attention feed
@@ -237,6 +241,7 @@ Tables of the [index and metrics database](#index-and-metrics-database), one sto
 | origin | user, requested or automation |
 | verification | unverified or verified: the user's judgement of the entity |
 | sync | synced, entity_ahead, artifact_ahead or updating: the entity against its underlying artifact or implementation |
+| contradictions | Open contradiction issues the consistency check raised over the entity, counted from the references |
 
 An entity with at least one row in `entity_artifact` is a summary; there is no flavour column.
 
@@ -295,8 +300,7 @@ The two states are independent. Verification belongs to the attention layer; rej
 |---|---|
 | id | One Claude Code process per run and per project |
 | automation | Automation the run belongs to |
-| branch | Own branch of the run |
-| checkout | Own checkout of the project repository |
+| checkout | Own detached checkout of the main line, removed once the run has landed |
 | trigger | Trigger that started the run: schedule, event or on demand |
 | target_path | Entity the run is working on, if any; that entity is `updating` while the run lasts |
 | usage | Share of the rolling 5-hour and weekly limits the run has used so far, in percentage points, updated while it runs |

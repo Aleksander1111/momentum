@@ -7,6 +7,7 @@ import { config } from './config.ts';
 import { createBus } from './events.ts';
 import { Guard } from './guard.ts';
 import { HarnessSettings } from './harness.ts';
+import { landRunBranches } from './legacy.ts';
 import { Momentum } from './momentum.ts';
 import { Orchestrator } from './orchestrator.ts';
 import { Runner } from './runner.ts';
@@ -23,6 +24,16 @@ export async function createMomentum() {
   const bus = createBus();
   const embed = createEmbedder();
   const workspaces = new Workspaces(sql, settings);
+  // Branches left by runs from before everything went to the main line are landed on it once
+  for (const p of await settings.projects()) {
+    const ws = await workspaces.get(p.name).catch(() => null);
+    if (!ws) continue;
+    const { landed, conflicts } = await landRunBranches(ws).catch((e) => {
+      console.error(`${p.name}: landing run branches:`, e);
+      return { landed: [], conflicts: [] };
+    });
+    if (landed.length) console.log(`${p.name}: landed ${landed.length} run branches on ${ws.main}${conflicts.length ? `, ${conflicts.length} conflicts: ${conflicts.join(', ')}` : ''}`);
+  }
   const guard = new Guard(workspaces, settings, bus, createDiagramRenderer(), embed);
   const automations = new Automations(workspaces);
   const runner = new Runner(workspaces, settings, guard, automations, bus, embed);

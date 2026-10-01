@@ -27,15 +27,15 @@ flowchart LR
     Chat["Chat"]
     GraphBuild["Graph build<br/>started by enabling the project"]
   end
-  Auto <-->|"search and write on own branch"| KB
+  Auto <-->|"search and write in own checkout; everything lands on the main line"| KB
   Goals -->|"guide; all met → idle"| Exploration
   Exploration -->|"next best action"| Feed
   Preparation -->|"plans as summaries"| Feed
-  Consistency -->|"issue entities"| Feed
+  Consistency -->|"issue entities; knowledge graph only"| Feed
   Retention -->|"retirement proposals"| Feed
   KB -->|"verified, entity_ahead"| Implementation
-  Implementation -->|"own branch; target updating"| Validation
-  Validation -->|"issue or conflict entities"| Feed
+  Implementation -->|"landed on the main line; target updating"| Validation
+  Validation -->|"issue entities"| Feed
   Artifacts --> Summarization
   Summarization -->|"summaries"| KB
   Card -->|"cards within the character limit"| KB

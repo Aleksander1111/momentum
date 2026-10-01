@@ -64,7 +64,7 @@ export function guardHooks(
             blocks++;
             return {
               decision: 'block',
-              reason: `Before you finish: the consistency guard cannot accept these knowledge-base changes on this branch. Fix them, or remove the change:\n${list(issues)}`,
+              reason: `Before you finish: the consistency guard cannot accept these knowledge-base changes. Fix them, or remove the change:\n${list(issues)}`,
             };
           },
         ],

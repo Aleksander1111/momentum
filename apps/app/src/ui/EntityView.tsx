@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { lastSegment, pathSegments } from '../lib/format';
+import { lastSegment } from '../lib/format';
 import { C } from './theme';
 import { T } from './Text';
 import { States } from './StateBadge';
@@ -28,27 +28,16 @@ export function EntityView({
 }) {
   const { data: e } = useEntity(ws, path);
   if (!e) return null;
-  const segs = pathSegments(e.path);
   return (
     <View>
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          rowGap: 6,
-          columnGap: 12,
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 6,
-        }}
-      >
-        <T style={{ color: C.muted, fontSize: 12.5, marginBottom: 4, flexShrink: 1 }}>
-          {['knowledge-graph', ...segs.slice(0, -1)].join(' / ') + ' / '}
-          <T style={{ color: C.ink, fontSize: 12.5 }}>{segs[segs.length - 1] ?? ''}</T>
-        </T>
-        <States verification={e.verification} sync={e.sync} labels />
-      </View>
-      <CardView type={e.type} workspace={e.workspace} title={e.title} card={e.card} />
+      <CardView
+        type={e.type}
+        workspace={e.workspace}
+        path={e.path}
+        title={e.title}
+        card={e.card}
+        aside={<States verification={e.verification} sync={e.sync} contradictions={e.contradictions} labels />}
+      />
       {e.references.length ? (
         <>
           <Sect>References</Sect>

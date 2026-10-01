@@ -11,7 +11,7 @@ import type { WorkspaceIndex } from './workspace-index.ts';
 export interface KbServerContext {
   index: WorkspaceIndex;
   embed: Embed;
-  /** The run's own checkout; reads prefer it and writes land in it, on the run's branch */
+  /** The workspace's run checkout; reads prefer it and writes land in it, on the main line when the run ends */
   checkout: string;
   runId: string;
   validation: () => Promise<Omit<ValidationContext, 'resolves'>>;
@@ -40,7 +40,7 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
       ),
       tool(
         'read',
-        'Read one entity by path (e.g. Product/Feature/offline-feed): its markdown file as it stands on this run\'s branch, or from the index when the branch does not have it.',
+        'Read one entity by path (e.g. Product/Feature/offline-feed): its markdown file as it stands in this run\'s checkout, or from the index when the checkout does not have it.',
         { path: z.string().min(1) },
         async ({ path }) => {
           const file = join(ctx.checkout, fileOf(path));
@@ -57,7 +57,7 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
       ),
       tool(
         'write',
-        'Write an entity to knowledge-graph/<path>.md on this run\'s branch. The path starts with the type path (Domain/Type from entity-types.tsv). The body is the card: free-form markdown within the configured character limit, in the form that presents the entity best. Returns validation issues, which the consistency guard will also raise.',
+        'Write an entity to knowledge-graph/<path>.md in this run\'s checkout; it lands on the main line when the run ends. The path starts with the type path (Domain/Type from entity-types.tsv). The body is the card: free-form markdown within the configured character limit, in the form that presents the entity best. Returns validation issues, which the consistency guard will also raise.',
         {
           path: z.string().min(1),
           title: z.string().min(1),

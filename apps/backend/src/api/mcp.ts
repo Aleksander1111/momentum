@@ -20,7 +20,7 @@ function createServer(m: Momentum): McpServer {
   );
   t(
     'send_back',
-    'Disapprove a feed item with a comment; the comment starts a chat run on the same branch.',
+    'Disapprove a feed item with a comment; the comment starts a chat run on the entity.',
     { workspace: z.string(), path: z.string(), comment: z.string() },
     (a) => m.sendBack(a.workspace, a.path, a.comment, 0),
   );

@@ -40,7 +40,7 @@ function EntityRow({
   return (
     <Row first={first} selected={selected} onPress={() => onOpen(e.path)} style={{ paddingLeft: indent(depth) }}>
       <RowText title={e.title} size={14.5} />
-      <States verification={e.verification} sync={e.sync} />
+      <States verification={e.verification} sync={e.sync} contradictions={e.contradictions} />
     </Row>
   );
 }
@@ -88,10 +88,20 @@ function treeRows(
 export default function Explorer() {
   useTheme();
   const wide = useWide();
-  const params = useLocalSearchParams<{ ws?: string; path?: string }>();
+  const params = useLocalSearchParams<{ ws?: string; path?: string; folder?: string }>();
   const [ws, setWs, names] = useCurrentWorkspace();
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [q, setQ] = useState('');
+
+  // A breadcrumb elsewhere opens a workspace, and the tree down to one of its folders.
+  useEffect(() => {
+    if (!params.ws) return;
+    setWs(params.ws);
+    if (params.folder === undefined) return;
+    const segs = params.folder.split('/');
+    setQ('');
+    setOpen((s) => new Set([...s, ...segs.map((_, i) => segs.slice(0, i + 1).join('/'))]));
+  }, [params.ws, params.folder]);
   const dq = useDebounced(q.trim(), 300);
   const [lastOpened, setLastOpened] = useState<string | null>(null);
 

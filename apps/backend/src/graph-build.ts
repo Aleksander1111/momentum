@@ -3,10 +3,10 @@ import { config } from './config.ts';
 import type { HarnessSettings } from './harness.ts';
 import type { Workspace } from './workspaces.ts';
 
-/** Every graph build run of a workspace continues on one branch, so each run sees what the earlier ones wrote */
-export const graphBuildBranch = (ws: Workspace) => `momentum/graph-build/${ws.name}`;
-
-/** The prompt of one graph build run: where the previous run left off, and how much room the feed has */
+/**
+ * The prompt of one graph build run: where the previous run left off, and how much room the feed has. The runs go one
+ * at a time and each lands on the main line, so every run sees what the earlier ones wrote.
+ */
 export function graphBuildPrompt(progress: string | null, room: number): string {
   const start = progress
     ? `Progress reported by the previous graph build run:\n\n${progress}\n\nContinue from there.`

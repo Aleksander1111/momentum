@@ -32,6 +32,8 @@ const LIGHT = {
   commentBg: '#FBF4F2',
   /** Backdrop of diagrams, which are drawn dark on light. */
   diagram: 'transparent',
+  /** Solid sheet behind a diagram opened full size over the dimmed screen. */
+  diagramSheet: '#FFFFFF',
   dim: 'rgba(30,41,59,.55)',
   /** A second neutral for charts, told apart from `muted`. */
   faint: '#A7B0B5',
@@ -63,6 +65,7 @@ const DARK: Palette = {
   behind2: '#192024',
   commentBg: '#2F2523',
   diagram: '#EEF1EC',
+  diagramSheet: '#EEF1EC',
   dim: 'rgba(0,0,0,.6)',
   faint: '#5E6B72',
 };
