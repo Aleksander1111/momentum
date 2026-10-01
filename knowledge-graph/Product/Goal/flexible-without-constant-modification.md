@@ -16,8 +16,8 @@ artifacts:
 
 Success criterion from the spec: the system is flexible enough that it does not need constant modification to keep working.
 
-- Automations defined by responsibility alone, searching the whole knowledge base rather than owning entity types
-- Definitions and triggers configured as entities, not settings, and changed through the feed
-- Optimization proposes skills, sub-agents, definition and trigger changes from measured behaviour across every project
-- Concurrency tuned from measurement rather than fixed upfront
-- AI reserved for judgement; indices, metrics, lifetimes and references carried by queries and rules
+- Automations defined by responsibility alone, searching the whole knowledge base; no entity type belongs to one
+- Definitions and triggers are entities, not settings, edited or proposed and approved through the feed
+- Optimization proposes skills, sub-agents, definitions and tools from recurring issues, measured across every project
+- Concurrency tuned from measured behaviour, not fixed upfront
+- AI reserved for judgement; indices, metrics, lifetimes and references are queries and rules
