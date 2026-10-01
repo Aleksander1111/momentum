@@ -21,7 +21,7 @@ The backend's interface: Fastify routes typed by `@momentum/contract` zod schema
 |---|---|
 | Session | POST, DELETE `/session` |
 | Feed | `/feed`, approve, send-back |
-| Workspaces | entities, types, search, chats, metrics (range), graph-build, reset |
+| Workspaces | entities, types, search, chats, metrics (`range`, 30d default), graph-build, reset |
 | Runs | `/runs/:id`, messages, kill |
 | Settings | GET, PUT `/settings` |
 
