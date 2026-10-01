@@ -4,38 +4,33 @@ origin: automation
 verification: unverified
 sync: synced
 product_impact: 4
-timeline_impact: 2
-unlocks: 3
+timeline_impact: 3
+unlocks: 4
 references:
-  - to: Harness/Automation/exploration
-    relation: specifies
-  - to: Harness/Automation/preparation
-    relation: specifies
-  - to: Harness/Automation/consistency-check
-    relation: specifies
-  - to: Harness/Automation/retention
-    relation: specifies
-  - to: Harness/Automation/implementation
-    relation: specifies
-  - to: Harness/Automation/validation
-    relation: specifies
-  - to: Harness/Automation/optimization
-    relation: specifies
+  - to: Governance/DesignDoc/spec
+    relation: part_of
   - to: Harness/Automation/summarization
-    relation: specifies
-  - to: Harness/Automation/chat
-    relation: specifies
+    relation: concerns
   - to: Harness/Automation/graph-build
-    relation: specifies
+    relation: concerns
+  - to: Harness/Automation/chat
+    relation: concerns
 artifacts:
   - docs/SPEC.md
 ---
-# Automations spec
+# Spec: automations
 
-Background automations per project that prepare work ahead of the user.
+Defined by responsibility alone; definitions live in the harness workspace, triggers per workspace. AI only for judgement.
 
-- Defined by responsibility, not by entity type; each searches the whole knowledge base
-- Configured as entities: a definition per automation in the harness workspace, a trigger entity per workspace; changed through the feed
-- AI only for judgement (deciding, planning, reviewing, summarizing); indices, metrics, lifetimes and references are queries and rules
-- Ten: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, graph build
-- Summarization runs from a run's Stop hook, not a trigger; step automations have no trigger entity
+| Automation | Responsibility |
+|---|---|
+| Exploration | Next best action within goals |
+| Preparation | Plans under plans/ |
+| Consistency check | Issues as entities |
+| Retention | Retire spent entities by type rules |
+| Implementation | Own branch, merged once validated |
+| Validation | Changes and product; gates merge |
+| Optimization | Recurring issues → definition changes |
+| Summarization | Stop-hook sub-agent of every run |
+| Chat | Started by the user |
+| Graph build | Builds the graph once enabled, until covered |
