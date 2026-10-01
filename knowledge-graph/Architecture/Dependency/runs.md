@@ -3,24 +3,25 @@ type: Architecture/Dependency
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 1
-timeline_impact: 0
-unlocks: 1
+product_impact: 2
+timeline_impact: 1
+unlocks: 3
 references:
-  - to: Code/Repository/momentum
-    relation: part_of
-  - to: Architecture/Dependency/contract
-    relation: depends_on
+  - to: Harness/Automation/implementation
+    relation: serves
 artifacts:
-  - packages/runs/src/git.ts
-  - packages/runs/src/process.ts
+  - packages/runs/package.json
+  - packages/runs/src/index.ts
   - packages/runs/src/session.ts
-kind: internal library
+  - packages/runs/src/process.ts
+  - packages/runs/src/git.ts
 ---
-# runs package
+# runs
 
-`@momentum/runs`, internal library: the machinery under a run.
+Internal library `@momentum/runs`, used by the backend to execute runs.
 
-- git: worktrees, branches, commits, diffs, commits onto a branch without touching its working tree, and a merge that keeps `knowledge-graph/` as it is on the main line
-- process: the run's subprocess in a Windows job object with CPU and memory limits (procgov), killed with its process tree
-- session: a Claude Agent SDK session per run, steerable by messages while it runs, with usage captured as a share of the rolling 5-hour and weekly limits
+| Module | Provides |
+|---|---|
+| session | `startSession`: one Claude Code process per run via the Agent SDK, steerable by chat, resumable, reports 5-hour/weekly usage %; `ask`: one tool-less turn on a chosen model (e.g. Haiku risk estimate before an implementation) |
+| process | `spawnLimited`: run process in a Windows job object with CPU/memory limits (procgov); `killTree` |
+| git | Worktree per run on its own branch, commits, and merges into the main line that keep `knowledge-graph/` as is |
