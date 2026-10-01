@@ -27,4 +27,8 @@ flowchart LR
   App & Me & Au --> V[11 End-to-end]
 ```
 
-Package 8 delivers eleven automation definitions with default triggers for the eight that start by schedule, event or on demand.
+- 3 KB: full text, pgvector, `momentum-kb` MCP server
+- 4 Runs: worktree, SDK session, usage as share of limits
+- 5 Guard: hooks, validation, issue entities, sync state
+- 8 Automations: eleven definitions, default triggers for the eight started by schedule, event or on demand
+- 11: this repository runs as a live workspace
