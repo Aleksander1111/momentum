@@ -3,26 +3,20 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 2
+product_impact: 3
 timeline_impact: 2
-unlocks: 2
-references:
-  - to: Governance/DesignDoc/spec
-    relation: part_of
+unlocks: 3
+references: []
 artifacts:
   - docs/SPEC.md
+  - docs/diagrams/02-deployment.md
 ---
-# Spec: deployment and open questions
+# Deployment and remote access
 
-- No fixed stack; built in one pass; Claude Code native; drivable by voice
-- Self-hosted on one dedicated machine; no cloud services
-- Clients reach it over a private WireGuard mesh (Tailscale): no public port, per-device keys, per-user session
+Self-hosted on one dedicated, resource-rich machine: back-end, agents and knowledge base; no cloud services or managed runtimes.
 
-Open questions:
-- Adding and retiring workspaces
-- Agents beyond the automations
-- Validation form per kind of work
-- Tuning the ranking
-- Sync with sources
-- Claude Code integration surface
-- Scale, latency, usage targets, offline mobile
+- Web and mobile clients poll the API over a private mesh network (WireGuard, e.g. Tailscale)
+- API listens only on the mesh interface; no public port, inbound firewall rule, public reverse proxy or shared client secret
+- One key per enrolled device, revoked centrally when lost
+- Tunnel encrypts end to end; API also requires a per-user session
+- Orchestrator starts one Claude Code process per run and project, each on its own checkout and branch of the workspace
