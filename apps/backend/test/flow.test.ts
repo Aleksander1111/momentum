@@ -140,6 +140,9 @@ describe('guard, feed and approval', () => {
     const metrics = await m.momentum.metrics('alpha');
     expect(metrics.attention.approved.value).toBe(1);
     expect(metrics.attention.timePerItemSeconds.value).toBe(4);
+    expect(metrics.entities.verification.verified.value).toBe(2);
+    expect(metrics.entities.verification.unverified.value).toBe(1);
+    expect(metrics.entities.sync.synced.series.at(-1)?.value).toBe(3);
   });
 
   it('marks an approved implementable entity entity_ahead', async () => {
@@ -345,6 +348,91 @@ describe('guard hooks in a run', () => {
       reason: expect.stringContaining('plans/fix-crash.md'),
     });
     expect(await stop({ ...base, stop_hook_active: true } as never, undefined, opts)).toEqual({});
+  });
+});
+
+describe('main line changes and restarts', () => {
+  it('hands the artifacts one main-line change touched to one summarization run', async () => {
+    const { Orchestrator } = await import('../src/orchestrator.ts');
+    const { createBus } = await import('../src/events.ts');
+    const ws = await m.workspaces.get('alpha');
+    // Only this test reacts to the event: the app's own orchestrator would start a real run
+    m.bus.removeAllListeners('artifact_ahead');
+    const events: { path: string; artifacts: string[] }[][] = [];
+    m.bus.on('artifact_ahead', ({ entities }) => void events.push(entities));
+
+    put(repo, 'src/a.txt', 'a1\n');
+    put(repo, 'src/b.txt', 'b1\n');
+    put(repo, 'knowledge-graph/Architecture/Component/a.md', entity('Architecture/Component', 'A', 'A.', [], 'artifacts:\n  - src/a.txt\n  - src/b.txt\n'));
+    put(repo, 'knowledge-graph/Architecture/Component/b.md', entity('Architecture/Component', 'B', 'B.', [], 'artifacts:\n  - src/b.txt\n'));
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'components');
+    await m.guard.indexMainLine(ws);
+    expect(events).toEqual([]); // the entities changed with their artifacts
+
+    put(repo, 'src/a.txt', 'a2\n');
+    put(repo, 'src/b.txt', 'b2\n');
+    git(repo, 'commit', '-q', '-am', 'change both');
+    await m.guard.indexMainLine(ws);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.sort((x, y) => x.path.localeCompare(y.path))).toEqual([
+      { path: 'Architecture/Component/a', artifacts: ['src/a.txt', 'src/b.txt'] },
+      { path: 'Architecture/Component/b', artifacts: ['src/b.txt'] },
+    ]);
+
+    const created: { automation: string; targetPath?: string | null; prompt: string }[] = [];
+    const stub = {
+      hasOpenRun: async () => true,
+      hasOpenRunOnBranch: async () => true,
+      lastStart: async () => new Date(),
+      create: async (r: (typeof created)[number]) => void created.push(r),
+      queued: async () => [],
+      activeCount: () => 0,
+      start: async () => undefined,
+    };
+    const bus = createBus();
+    new Orchestrator(m.workspaces, m.settings, m.guard, stub as never, m.automations, bus);
+    bus.emit('artifact_ahead', { workspace: 'alpha', entities: events[0]! });
+    await vi.waitFor(async () => expect((await m.momentum.entity('alpha', 'Architecture/Component/b')).sync).toBe('updating'));
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ automation: 'summarization' });
+    expect(created[0]!.targetPath ?? null).toBeNull();
+    expect(created[0]!.prompt).toContain('- Architecture/Component/a: src/a.txt, src/b.txt');
+    expect(created[0]!.prompt).toContain('- Architecture/Component/b: src/b.txt');
+  });
+
+  it('queues a run lost at restart again, and fails it past the limit', async () => {
+    const ws = await m.workspaces.get('alpha');
+    const runs = ws.index.sql(`${ws.index.schema}.run`);
+    const lost = async (id: string, automation: string, restarts: number) => {
+      const checkout = join(root, '.runs', 'alpha', id);
+      await addWorktree(repo, checkout, `momentum/${automation}/${id}`, 'refs/heads/main');
+      await m.sql`insert into harness.run_ref ${m.sql({ id, workspace: 'alpha' })}`;
+      await ws.index.sql`insert into ${runs} ${ws.index.sql({
+        id,
+        automation,
+        branch: `momentum/${automation}/${id}`,
+        checkout,
+        trigger: 'event',
+        status: 'running',
+        session_id: 's',
+        started_at: new Date(),
+        restarts,
+      })}`;
+    };
+    await lost('lost1', 'graph-build', 0);
+    await lost('lost2', 'graph-build', 2);
+    await lost('lost3', 'chat', 0);
+    await m.runner.recover();
+    const rows = await ws.index.sql<{ id: string; status: string; restarts: number; error: string | null }[]>`
+      select id, status, restarts, error from ${runs} where id like 'lost%' order by id`;
+    expect(rows).toEqual([
+      { id: 'lost1', status: 'queued', restarts: 1, error: null },
+      { id: 'lost2', status: 'failed', restarts: 2, error: 'lost at restart' },
+      { id: 'lost3', status: 'failed', restarts: 0, error: 'lost at restart' },
+    ]);
+    // Nothing may start it later in the suite
+    await ws.index.sql`update ${runs} set status = 'killed' where id = 'lost1'`;
   });
 });
 

@@ -97,15 +97,31 @@ export class WorkspaceIndex {
         [...refs.values()].map((r) => ({ from_path: e.path, to_path: r.to, relation_type: r.relation })),
       )}`;
     }
+    await this.logState(e.path, tx);
   }
 
   async remove(path: string, tx: Sql = this.sql): Promise<void> {
     await tx`delete from ${this.t('entity')} where path = ${path}`;
+    await this.logState(path, tx);
   }
 
   async setSync(path: string, sync: Sync, tx: Sql = this.sql): Promise<void> {
     await tx`update ${this.t('entity')} set sync = ${sync},
       frontmatter = jsonb_set(frontmatter, '{sync}', to_jsonb(${sync}::text)) where path = ${path}`;
+    await this.logState(path, tx);
+  }
+
+  /** Appends the entity's states to its history when they changed; nulls once it is gone */
+  private async logState(path: string, tx: Sql): Promise<void> {
+    await tx`
+      insert into ${this.t('entity_state')} (path, verification, sync)
+      select p.path, e.verification, e.sync
+      from (select ${path}::text as path) p
+      left join ${this.t('entity')} e on e.path = p.path
+      left join lateral (
+        select verification, sync from ${this.t('entity_state')} where path = p.path order by at desc limit 1
+      ) l on true
+      where e.verification is distinct from l.verification or e.sync is distinct from l.sync`;
   }
 
   async row(path: string): Promise<EntityRow | null> {

@@ -94,6 +94,7 @@ Starts and supervises the background automation loops, per project. It ships in 
 - Every run is a separate process: one Claude Code process per run and per project
 - Each run process works in its own checkout of the project repository, on its own branch, so concurrent runs never share a working tree
 - Runs are isolated and killable, with their own resource limits; a crashing or heavy run cannot take the orchestrator down
+- A run a restart of the back-end cuts off is queued again and resumes its session on the same checkout, twice at most; past that it fails, and what it wrote still passes the guard
 - Every run shows what it has used so far while it runs, and the user can kill any run from the chat tool; what a killed run wrote still passes the guard and reaches the feed, so nothing lands unattended
 - Concurrency is configurable: several runs may be active for one project, bounded by the Anthropic API limits and tuned from measured behaviour rather than fixed upfront
 
@@ -133,11 +134,13 @@ The queryable side of the knowledge base: indices over entities, automations and
 
 - Lives alongside the entities on the dedicated machine: each workspace carries its own store, not a separate managed service
 - Kept up to date by the consistency guard, on every change
-- Holds four families of metrics, each tracked over time so trends are visible, and all of them fed to the optimization automation:
+- Holds four families of metrics, each tracked over time so trends are visible, and all of them fed to the optimization automation; a count no automation has measured yet is no data, not zero:
   - Attention: time the user spends per item, what is approved, rejected or sent back, and the patterns regular enough to become automatic approval or rejection
   - Understanding: how consistent the knowledge base is and how that consistency moves
   - Agents: misalignments found in chats, issues that recur, and how the automations behave run over run
   - Implementation: the state of the project itself: outstanding issues, bugs and defects
+- Keeps the history of every entity's verification and sync states, so the entities standing in each state are known at any moment
+- Holds what single runs consumed, their usage, time and messages, so their spread per automation is known, not only totals
 - Tracks usage continuously: consumption is known at any moment, as percentage points of the rolling 5-hour and weekly limits, per workspace and per run; the limits are shared by the account, so each rise between readings is split evenly among the runs running at both
 - Holds the attention ranking, computed as the indices are updated; the API reads the ranking and the feed order straight from it, with no work per poll
 
@@ -189,6 +192,7 @@ AI is not the default. Each responsibility is split into steps and every step is
   - Summarizes artifacts from the repository: chats, plans, results implemented by AI, documents found by the graph build
   - A Claude Code Stop hook hands every artifact a run added, changed or deleted to the summarization sub-agent before the run ends; no automation summarizes by itself, so none of them is limited by the card
   - A hook, not a trigger: triggered loops pause at the feed limit, and work must never wait unsummarized
+  - Artifacts changed on the main line outside a run, such as the user's own commits, go to one summarization run per change, listing every entity over them with its changed artifacts
   - Writes each summary before the user reads the work
   - Each summary is an entity like any other, a separate markdown document, at `knowledge-graph/type/sub-type/parent-name/name`
   - The card follows the user's configuration: at least a character limit, sized so a card fits on a mobile screen; it may say more about how cards are written, but never prescribes a fixed structure. The form is chosen per entity type and per underlying artifact type
@@ -244,6 +248,15 @@ The two states are independent. Verification belongs to the attention layer; rej
 | entity_ahead | The entity is approved but nothing implements it yet: a verified feature or plan awaiting implementation |
 | artifact_ahead | The artifact changed under the entity; summarization rewrites the card |
 | updating | A run is working on the entity, for example after a send back; replaces the former pending_update |
+
+### entity_state
+
+| Field | Description |
+|---|---|
+| path | Entity whose states changed |
+| verification | Verification from this moment; none once the entity is gone |
+| sync | Sync from this moment; none once the entity is gone |
+| at | Time of the change; the history starts with the states standing when the table was added |
 
 ### entity_artifact
 

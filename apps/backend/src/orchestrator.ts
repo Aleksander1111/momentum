@@ -39,12 +39,8 @@ export class Orchestrator {
     bus.on('implementation_finished', ({ workspace, branch, targetPath }) =>
       void this.onEvent(workspace, 'implementation_finished', { branch, targetPath }),
     );
-    // Summarization runs as a step and has no trigger entity; an artifact change starts it directly
-    bus.on('artifact_ahead', ({ workspace, path }) =>
-      void this.runner
-        .create({ workspace, automation: 'summarization', trigger: 'event', targetPath: path, prompt: `The artifact under ${path} changed: rewrite its summary and card from the artifact.` })
-        .then(() => this.tick()),
-    );
+    // Summarization runs as a step and has no trigger entity; artifacts changed on the main line start it directly
+    bus.on('artifact_ahead', ({ workspace, entities }) => void this.summarizeMainLine(workspace, entities));
     bus.on('definition_approved', () => void this.automations.materializeAll());
     bus.on('run_ended', () => void this.tick());
     bus.on('feed_changed', () => void this.tick());
@@ -117,6 +113,21 @@ export class Orchestrator {
       if (branch === ws.main) continue;
       await deleteBranch(ws.path, branch).catch((e) => console.error(`reset ${ws.name}: branch ${branch}:`, e));
     }
+  }
+
+  /** One summarization run for every entity whose artifacts one main-line change touched */
+  private async summarizeMainLine(workspace: string, entities: { path: string; artifacts: string[] }[]): Promise<void> {
+    const list = entities.map((e) => `- ${e.path}: ${e.artifacts.join(', ')}`).join('\n');
+    await this.runner.create({
+      workspace,
+      automation: 'summarization',
+      trigger: 'event',
+      title: `Main line changes (${entities.length})`,
+      prompt: `These artifacts changed on the main line. Rewrite the summary and card of each entity from its artifacts:\n\n${list}`,
+    });
+    const ws = await this.workspaces.get(workspace);
+    for (const e of entities) await this.guard.markUpdating(ws, e.path);
+    await this.tick();
   }
 
   /** The user stops the build, or starts it again; the next tick queues the next run while the feed has room */

@@ -118,7 +118,7 @@ export class Guard {
       if (!branch && !onMain.has(path)) await ws.index.remove(path);
     }
     await this.settings.setIndexedCommit(ws.name, commit);
-    for (const f of artifactFiles) await this.artifactChanged(ws, f, changed);
+    await this.artifactsChanged(ws, artifactFiles, changed);
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
     }
@@ -130,14 +130,21 @@ export class Guard {
   }
 
   /**
-   * The artifact under an entity changed: artifact_ahead, and summarization rewrites the card. An entity that changed in
-   * the same commits as its artifact agrees with it already, for example a definition edited together with its agent file.
+   * Artifacts changed on the main line: the entities over them are artifact_ahead, and one summarization run rewrites
+   * them all. An entity that changed in the same commits as its artifact agrees with it already, for example a definition
+   * edited together with its agent file.
    */
-  async artifactChanged(ws: Workspace, artifactPath: string, changedEntities: Set<string> | null = null): Promise<void> {
-    for (const path of await ws.index.byArtifact(artifactPath)) {
-      if (changedEntities?.has(path)) continue;
-      await ws.index.setSync(path, 'artifact_ahead');
-      this.bus.emit('artifact_ahead', { workspace: ws.name, path });
+  async artifactsChanged(ws: Workspace, artifactPaths: string[], changedEntities: Set<string> | null = null): Promise<void> {
+    const entities = new Map<string, string[]>();
+    for (const artifact of artifactPaths) {
+      for (const path of await ws.index.byArtifact(artifact)) {
+        if (changedEntities?.has(path)) continue;
+        entities.set(path, [...(entities.get(path) ?? []), artifact]);
+      }
+    }
+    for (const path of entities.keys()) await ws.index.setSync(path, 'artifact_ahead');
+    if (entities.size > 0) {
+      this.bus.emit('artifact_ahead', { workspace: ws.name, entities: [...entities].map(([path, artifacts]) => ({ path, artifacts })) });
     }
   }
 

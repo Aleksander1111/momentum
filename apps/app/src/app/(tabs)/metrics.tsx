@@ -1,15 +1,17 @@
-import { useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
-import type { AutomationMetrics, MetricsRange, MetricValue } from '@momentum/contract';
+import type { AutomationMetrics, MetricsRange, MetricsResponse, MetricValue, RunHistograms } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { automationLabel, usagePct } from '../../lib/format';
 import { useCurrentWorkspace } from '../../lib/workspace';
 import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { Pick } from '../../ui/parts';
-import { TimeChart, when, type ChartSeries } from '../../ui/TimeChart';
-import { UsageLegend, UsageMeter, useAutomationColor, useAutomationSeries, useSegments, type Segment } from '../../ui/UsageMeter';
+import { STATE_LABEL } from '../../ui/StateBadge';
+import { Chart, TimeChart, timeTicks, when, type ChartAxis, type ChartLayer, type ChartSeries } from '../../ui/TimeChart';
+import { automationSeries, UsageLegend, UsageMeter, useAutomationColor, useSegments, type Segment } from '../../ui/UsageMeter';
 
 type Unit = 'hour' | 'day';
 type Fmt = (v: number) => string;
@@ -21,7 +23,6 @@ const RANGES: { value: MetricsRange; label: string }[] = [
 ];
 
 const count: Fmt = (v) => String(Math.round(v));
-const seconds: Fmt = (v) => `${Math.round(v)} s`;
 const ratio: Fmt = (v) => v.toFixed(2);
 const pct: Fmt = (v) => usagePct(v);
 
@@ -32,6 +33,9 @@ const minutes: Fmt = (s) => {
   if (min < 60) return `${min} min`;
   return min % 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min / 60} h`;
 };
+
+/** Seconds under a minute, minutes and hours above. */
+const duration: Fmt = (s) => (s < 60 ? `${Math.round(s)} s` : minutes(s));
 
 const show = (v: number | null, f: Fmt) => (v === null ? '—' : f(v));
 
@@ -53,124 +57,6 @@ function Panel({ title, children, style }: { title: string; children: ReactNode;
       <H style={{ fontSize: 15, marginBottom: 4 }}>{title}</H>
       {children}
     </View>
-  );
-}
-
-/** Label and figure; while a bucket is hovered or touched, the figure gives way to that bucket's value. */
-function Head({ label, figure, readout }: { label: string; figure: string; readout: string | null }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-      <T style={{ color: C.muted, fontSize: 13.5, flex: 1 }}>{label}</T>
-      {readout ? <T style={{ color: C.muted, fontSize: 12 }}>{readout}</T> : null}
-      <T style={{ fontSize: 15, fontWeight: '700' }}>{figure}</T>
-    </View>
-  );
-}
-
-function Block({ children, first }: { children: ReactNode; first?: boolean }) {
-  return (
-    <View style={{ paddingTop: 8, paddingBottom: 4, borderTopWidth: first ? 0 : 1, borderTopColor: C.line, borderStyle: 'dashed' }}>
-      {children}
-    </View>
-  );
-}
-
-/** One metric over the range: its figure and a chart of its points. */
-function Stat({
-  label,
-  m,
-  format,
-  unit,
-  kind = 'bars',
-  color = C.muted,
-  max,
-  first,
-}: {
-  label: string;
-  m: MetricValue;
-  format: Fmt;
-  unit: Unit;
-  kind?: 'bars' | 'line';
-  color?: string;
-  max?: number;
-  first?: boolean;
-}) {
-  const [active, setActive] = useState<number | null>(null);
-  const point = active === null ? null : m.series[active];
-  return (
-    <Block first={first}>
-      <Head
-        label={label}
-        figure={show(point ? point.value : m.value, format)}
-        readout={point ? when(point.at, unit) : null}
-      />
-      <TimeChart
-        at={m.series.map((p) => p.at)}
-        unit={unit}
-        series={[{ key: label, label, color, values: m.series.map((p) => p.value) }]}
-        kind={kind}
-        format={format}
-        integer={format === count}
-        max={max}
-        active={active}
-        onActive={setActive}
-      />
-    </Block>
-  );
-}
-
-/** One measure of every automation over the range: stacked bars, or a line each for averages. */
-function AutomationStat({
-  label,
-  automations,
-  pick,
-  format,
-  unit,
-  kind,
-  first,
-}: {
-  label: string;
-  automations: AutomationMetrics[];
-  pick: (a: AutomationMetrics) => MetricValue;
-  format: Fmt;
-  unit: Unit;
-  kind: 'bars' | 'line';
-  first?: boolean;
-}) {
-  const [active, setActive] = useState<number | null>(null);
-  const series: ChartSeries[] = useAutomationSeries(automations, (a) => pick(a).series.map((p) => p.value), kind === 'bars');
-  const at = automations[0] ? pick(automations[0]).series.map((p) => p.at) : [];
-  const figure =
-    kind === 'bars'
-      ? format(automations.reduce((s, a) => s + (pick(a).value ?? 0), 0))
-      : '';
-  const at_ = active === null ? null : at[active];
-  const breakdown =
-    active === null
-      ? []
-      : series.filter((s) => (s.values[active] ?? 0) > 0).map((s) => `${s.label} ${format(s.values[active]!)}`);
-  const sum = active === null ? 0 : series.reduce((s, x) => s + (x.values[active] ?? 0), 0);
-  return (
-    <Block first={first}>
-      <Head
-        label={label}
-        figure={at_ ? (kind === 'bars' ? format(sum) : '') : figure}
-        readout={at_ ? when(at_, unit) : null}
-      />
-      <TimeChart
-        at={at}
-        unit={unit}
-        series={series}
-        kind={kind}
-        format={format}
-        integer={format === count}
-        active={active}
-        onActive={setActive}
-      />
-      <T style={{ color: C.muted, fontSize: 12, minHeight: 16, marginTop: 2 }}>
-        {active === null ? '' : breakdown.join(' · ') || 'None'}
-      </T>
-    </Block>
   );
 }
 
@@ -223,7 +109,7 @@ function Cell({ i, children, head }: { i: number; children: string; head?: boole
 function AutomationTable({ automations, range }: { automations: AutomationMetrics[]; range: string }) {
   const color = useAutomationColor();
   return (
-    <View style={{ marginBottom: 6 }}>
+    <View>
       <View style={{ flexDirection: 'row', paddingBottom: 4 }}>
         <T style={{ flex: 1, color: C.muted, fontSize: 11.5 }}>{`Last ${range}`}</T>
         {COLS.map((c, i) => (
@@ -255,24 +141,309 @@ function AutomationTable({ automations, range }: { automations: AutomationMetric
   );
 }
 
-function RangeSwitch({ value, onChange }: { value: MetricsRange; onChange: (r: MetricsRange) => void }) {
+function Segmented<V extends string>({ value, options, onChange }: { value: V; options: { value: V; label: string }[]; onChange: (v: V) => void }) {
   return (
-    <View style={{ flexDirection: 'row', backgroundColor: C.card, borderRadius: 999, padding: 2 }}>
-      {RANGES.map((r) => {
-        const on = r.value === value;
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignSelf: 'flex-start', backgroundColor: C.card, borderRadius: 999, padding: 2 }}>
+      {options.map((o) => {
+        const on = o.value === value;
         return (
           <Pressable
-            key={r.value}
-            onPress={() => onChange(r.value)}
+            key={o.value}
+            onPress={() => onChange(o.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
             style={{ paddingVertical: 2, paddingHorizontal: 10, borderRadius: 999, backgroundColor: on ? C.surface : undefined }}
           >
-            <T style={{ fontSize: 12, color: on ? C.ink : C.muted, fontWeight: on ? '700' : '400' }}>{r.label}</T>
+            <T style={{ fontSize: 12, color: on ? C.ink : C.muted, fontWeight: on ? '700' : '400' }}>{o.label}</T>
           </Pressable>
         );
       })}
     </View>
+  );
+}
+
+// Any metric over the range, on one chart
+
+type UnitKey = 'count' | 'time' | 'points' | 'ratio';
+
+const UNITS: Record<UnitKey, ChartAxis> = {
+  count: { format: count, integer: true },
+  time: { format: duration },
+  points: { format: pct },
+  ratio: { format: ratio, max: 1 },
+};
+
+/** One metric the chart can show: a single series, or one per automation or state */
+type MetricDef = {
+  key: string;
+  group: string;
+  label: string;
+  unit: UnitKey;
+  kind: 'bars' | 'line';
+  series: ChartSeries[];
+  /** The figure over the whole range; none for a line per automation */
+  figure: number | null;
+  /** Split into several series; the bars of a split metric add up to its total */
+  split: boolean;
+};
+
+const STORE = 'momentum.metrics.chart';
+const DEFAULT = ['entities.verification'];
+
+const values = (m: MetricValue) => m.series.map((p) => p.value);
+
+/** Every metric of the response, in the order the picker shows them. */
+function useCatalog(m: MetricsResponse): MetricDef[] {
+  const color = useAutomationColor();
+  const autos = m.agents.automations;
+  const single = (group: string, key: string, label: string, unit: UnitKey, kind: 'bars' | 'line', v: MetricValue): MetricDef => ({
+    key,
+    group,
+    label,
+    unit,
+    kind,
+    series: [{ key, label, color: C.ink, values: values(v) }],
+    figure: v.value,
+    split: false,
+  });
+  const byAutomation = (key: string, label: string, unit: UnitKey, kind: 'bars' | 'line', pick: (a: AutomationMetrics) => MetricValue): MetricDef => ({
+    key,
+    group: 'Automations',
+    label,
+    unit,
+    kind,
+    series: automationSeries(color, autos, (a) => values(pick(a)), kind === 'bars'),
+    figure: kind === 'bars' ? autos.reduce((s, a) => s + (pick(a).value ?? 0), 0) : null,
+    split: true,
+  });
+  const byState = <K extends keyof typeof STATE_LABEL>(key: string, label: string, states: Record<K, MetricValue>, colors: Record<K, string>): MetricDef => {
+    const keys = Object.keys(states) as K[];
+    return {
+      key,
+      group: 'Entities',
+      label,
+      unit: 'count',
+      kind: 'bars',
+      series: keys.map((k) => ({ key: k, label: STATE_LABEL[k], color: colors[k], values: values(states[k]) })),
+      figure: keys.reduce((s, k) => s + (states[k].value ?? 0), 0),
+      split: true,
+    };
+  };
+  return [
+    byState('entities.verification', 'By verification', m.entities.verification, { unverified: C.warn, verified: C.ok }),
+    byState('entities.sync', 'By sync', m.entities.sync, { synced: C.faint, entity_ahead: C.accent, artifact_ahead: C.warn, updating: C.ink }),
+    single('Usage', 'usage.fiveHour', 'Account · 5-hour limit', 'points', 'line', m.usage.fiveHour),
+    single('Usage', 'usage.week', 'Account · weekly limit', 'points', 'line', m.usage.week),
+    byAutomation('automations.fiveHour', 'Usage · 5-hour limit', 'points', 'bars', (a) => a.usage.fiveHour),
+    byAutomation('automations.week', 'Usage · weekly limit', 'points', 'bars', (a) => a.usage.week),
+    byAutomation('automations.runs', 'Runs', 'count', 'bars', (a) => a.runs),
+    byAutomation('automations.failed', 'Failed', 'count', 'bars', (a) => a.failed),
+    byAutomation('automations.avgSeconds', 'Avg time', 'time', 'line', (a) => a.avgSeconds),
+    single('Attention', 'attention.timePerItem', 'Time per item', 'time', 'line', m.attention.timePerItemSeconds),
+    single('Attention', 'attention.approved', 'Approved', 'count', 'bars', m.attention.approved),
+    single('Attention', 'attention.rejected', 'Rejected', 'count', 'bars', m.attention.rejected),
+    single('Attention', 'attention.sentBack', 'Sent back', 'count', 'bars', m.attention.sentBack),
+    single('Attention', 'attention.patterns', 'Patterns automated', 'count', 'line', m.attention.patternsAutomated),
+    single('Understanding', 'understanding.consistency', 'Consistency', 'ratio', 'line', m.understanding.consistency),
+    single('Understanding', 'understanding.openIssues', 'Open issues', 'count', 'line', m.understanding.openIssues),
+    single('Agents', 'agents.misalignments', 'Misalignments', 'count', 'bars', m.agents.misalignments),
+    single('Agents', 'agents.recurring', 'Recurring issues', 'count', 'bars', m.agents.recurringIssues),
+    single('Implementation', 'implementation.outstanding', 'Outstanding issues', 'count', 'line', m.implementation.outstandingIssues),
+    single('Implementation', 'implementation.bugs', 'Bugs', 'count', 'line', m.implementation.bugs),
+    single('Implementation', 'implementation.defects', 'Defects', 'count', 'line', m.implementation.defects),
+  ];
+}
+
+/** Adds or removes a metric; past two units, the oldest metrics of another unit make way for the new one. */
+function toggle(selected: string[], key: string, unitOf: (k: string) => UnitKey | undefined): string[] {
+  if (selected.includes(key)) return selected.filter((k) => k !== key);
+  const unit = unitOf(key);
+  let next = [...selected, key];
+  while (new Set(next.map(unitOf)).size > 2) {
+    const drop = next.find((k) => unitOf(k) !== unit)!;
+    next = next.filter((k) => k !== drop);
+  }
+  return next;
+}
+
+/** The metrics picked for the chart, kept on the device. */
+function useSelection(): [string[], (f: (s: string[]) => string[]) => void] {
+  const [selected, setSelected] = useState<string[] | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem(STORE)
+      .then((v) => setSelected(v ? (JSON.parse(v) as string[]) : DEFAULT))
+      .catch(() => setSelected(DEFAULT));
+  }, []);
+  const update = useCallback((f: (s: string[]) => string[]) => {
+    setSelected((s) => {
+      const next = f(s ?? DEFAULT);
+      void AsyncStorage.setItem(STORE, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+  return [selected ?? DEFAULT, update];
+}
+
+function Swatch({ color, line }: { color: string; line?: boolean }) {
+  return <View style={{ width: 10, height: line ? 3 : 10, borderRadius: line ? 1.5 : 2, backgroundColor: color }} />;
+}
+
+/** One charted metric: its colours, name and figure, or the hovered bucket's value and what it is made of. */
+function Readout({ d, active, axis }: { d: MetricDef; active: number | null; axis: 'left' | 'right' | null }) {
+  const f = UNITS[d.unit].format;
+  const at = (s: ChartSeries) => (active === null ? null : (s.values[active] ?? null));
+  const lines = d.split && d.kind === 'line';
+  const figure =
+    active === null || lines ? d.figure : d.series.reduce<number | null>((sum, s) => (at(s) === null ? sum : (sum ?? 0) + at(s)!), null);
+  const parts = active === null ? [] : d.series.filter((s) => (at(s) ?? 0) > 0).map((s) => `${s.label} ${f(at(s)!)}`);
+  return (
+    <View style={{ paddingVertical: 4, borderTopWidth: 1, borderTopColor: C.line, borderStyle: 'dashed' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 2 }}>
+          {d.series.slice(0, 7).map((s) => (
+            <Swatch key={s.key} color={s.color} line={d.kind === 'line'} />
+          ))}
+        </View>
+        <T style={{ color: C.muted, fontSize: 13.5, flex: 1 }}>
+          {d.group === 'Usage' || d.group === 'Automations' ? d.label : `${d.group} · ${d.label}`}
+          {axis ? <T style={{ fontSize: 11.5 }}>{` · ${axis} axis`}</T> : null}
+        </T>
+        {lines ? null : <T style={{ fontSize: 15, fontWeight: '700' }}>{show(figure, f)}</T>}
+      </View>
+      {d.split ? (
+        <T style={{ color: C.muted, fontSize: 12, minHeight: 16 }}>
+          {active === null ? d.series.map((s) => s.label).join(' · ') : parts.join(' · ') || 'None'}
+        </T>
+      ) : null}
+    </View>
+  );
+}
+
+function Picker({ catalog, selected, onToggle }: { catalog: MetricDef[]; selected: string[]; onToggle: (key: string) => void }) {
+  const groups = [...new Set(catalog.map((d) => d.group))];
+  return (
+    <View style={{ gap: 6, marginTop: 10 }}>
+      {groups.map((g) => (
+        <View key={g} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+          <T style={{ color: C.muted, fontSize: 11.5, width: 96 }}>{g}</T>
+          {catalog
+            .filter((d) => d.group === g)
+            .map((d) => {
+              const on = selected.includes(d.key);
+              return (
+                <Pressable
+                  key={d.key}
+                  onPress={() => onToggle(d.key)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  style={{
+                    paddingVertical: 3,
+                    paddingHorizontal: 10,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: on ? C.ink : C.line,
+                    backgroundColor: on ? C.ink : undefined,
+                  }}
+                >
+                  <T style={{ fontSize: 12, color: on ? C.surface : C.muted }}>{d.label}</T>
+                </Pressable>
+              );
+            })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** The picked metrics over the range, against one axis per unit, at most two. */
+function MetricsChart({ m, unit }: { m: MetricsResponse; unit: Unit }) {
+  const catalog = useCatalog(m);
+  const [selected, setSelected] = useSelection();
+  const [active, setActive] = useState<number | null>(null);
+  const byKey = new Map(catalog.map((d) => [d.key, d]));
+  const picked = selected.flatMap((k) => byKey.get(k) ?? []);
+  const units = [...new Set(picked.map((d) => d.unit))];
+  // Metrics of a single series each take the next colour, so no two of them share one
+  const colors = [C.ink, C.accent, C.ok, C.no, C.warn, C.faint];
+  let next = 0;
+  const shown = picked.map((d) => (d.split ? d : { ...d, series: d.series.map((s) => ({ ...s, color: colors[next++ % colors.length]! })) }));
+  const layers: ChartLayer[] = shown.map((d) => ({
+    key: d.key,
+    label: d.label,
+    kind: d.kind,
+    axis: units.indexOf(d.unit) === 1 ? 1 : 0,
+    series: d.series,
+  }));
+  const axes = (units.length ? units : (['count'] as UnitKey[])).map((u) => UNITS[u]) as [ChartAxis] | [ChartAxis, ChartAxis];
+  const at = m.usage.week.series.map((p) => p.at);
+  return (
+    <Panel title="Over time">
+      <T style={{ color: C.muted, fontSize: 12, minHeight: 16, textAlign: 'right' }}>{active === null ? '' : when(at[active]!, unit)}</T>
+      <Chart
+        labels={at.map((iso) => when(iso, unit))}
+        ticks={timeTicks(at, unit)}
+        layers={layers}
+        axes={axes}
+        height={180}
+        active={active}
+        onActive={setActive}
+      />
+      <View style={{ marginTop: 6 }}>
+        {shown.length ? (
+          shown.map((d) => (
+            <Readout key={d.key} d={d} active={active} axis={units.length > 1 ? (units.indexOf(d.unit) ? 'right' : 'left') : null} />
+          ))
+        ) : (
+          <T style={{ color: C.muted, fontSize: 13.5 }}>Pick metrics to chart</T>
+        )}
+      </View>
+      <Picker catalog={catalog} selected={selected} onToggle={(k) => setSelected((s) => toggle(s, k, (x) => byKey.get(x)?.unit))} />
+    </Panel>
+  );
+}
+
+// How single runs spread over one parameter, per automation
+
+type Param = keyof RunHistograms;
+
+const PARAMS: { value: Param; label: string; format: Fmt }[] = [
+  { value: 'fiveHour', label: 'Usage · 5-hour', format: pct },
+  { value: 'week', label: 'Usage · weekly', format: pct },
+  { value: 'seconds', label: 'Duration', format: duration },
+  { value: 'messages', label: 'Messages', format: count },
+];
+
+function RunHistogram({ h, range }: { h: RunHistograms; range: string }) {
+  const color = useAutomationColor();
+  const [param, setParam] = useState<Param>('week');
+  const [active, setActive] = useState<number | null>(null);
+  const { edges, automations } = h[param];
+  const f = PARAMS.find((p) => p.value === param)!.format;
+  const n = edges.length - 1;
+  const bins = Array.from({ length: n }, (_, i) => `${f(edges[i]!)}–${f(edges[i + 1]!)}`);
+  const series = automationSeries(color, automations, (a) => a.counts, true);
+  const runs = series.reduce((s, x) => s + x.values.reduce<number>((a, v, i) => a + (active === null || i === active ? (v ?? 0) : 0), 0), 0);
+  const parts = active === null ? [] : series.filter((s) => (s.values[active] ?? 0) > 0).map((s) => `${s.label} ${s.values[active]}`);
+  return (
+    <Panel title="Runs by parameter">
+      <Segmented value={param} options={PARAMS} onChange={(p) => (setActive(null), setParam(p))} />
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
+        <T style={{ color: C.muted, fontSize: 13.5, flex: 1 }}>{active === null ? `Runs ended in the last ${range}` : bins[active]}</T>
+        <T style={{ fontSize: 15, fontWeight: '700' }}>{count(runs)}</T>
+      </View>
+      <Chart
+        labels={bins}
+        ticks={[0, Math.round(n / 2), n].filter((i, k, a) => a.indexOf(i) === k).map((i) => ({ at: i, text: f(edges[i]!) }))}
+        layers={[{ key: param, label: 'Runs', kind: 'bars', axis: 0, series }]}
+        axes={[{ format: count, integer: true }]}
+        height={140}
+        active={active}
+        onActive={setActive}
+      />
+      <T style={{ color: C.muted, fontSize: 12, minHeight: 16, marginTop: 2 }}>
+        {active === null ? series.map((s) => s.label).join(' · ') : parts.join(' · ') || 'None'}
+      </T>
+    </Panel>
   );
 }
 
@@ -295,40 +466,6 @@ export default function Metrics() {
   const unit: Unit = m?.range === '24h' ? 'hour' : 'day';
   const label = RANGES.find((r) => r.value === (m?.range ?? range))!.label;
 
-  // Side by side on wide screens; stacked, each panel takes its own height
-  const half = wide ? { flex: 1 } : undefined;
-  const attention = m ? (
-    <Panel title="Attention" style={half}>
-      <Stat first label="Time per item" m={m.attention.timePerItemSeconds} format={seconds} unit={unit} kind="line" />
-      <Stat label="Approved" m={m.attention.approved} format={count} unit={unit} color={C.ok} />
-      <Stat label="Rejected" m={m.attention.rejected} format={count} unit={unit} color={C.no} />
-      <Stat label="Sent back" m={m.attention.sentBack} format={count} unit={unit} />
-      <Stat label="Patterns automated" m={m.attention.patternsAutomated} format={count} unit={unit} kind="line" />
-    </Panel>
-  ) : null;
-  const understanding = m ? (
-    <Panel title="Understanding" style={half}>
-      <Stat first label="Consistency" m={m.understanding.consistency} format={ratio} unit={unit} kind="line" color={C.ok} max={1} />
-      <Stat label="Open issues" m={m.understanding.openIssues} format={count} unit={unit} kind="line" />
-    </Panel>
-  ) : null;
-  const agents = m ? (
-    <Panel title="Agents" style={half}>
-      <Stat first label="Misalignments" m={m.agents.misalignments} format={count} unit={unit} color={C.ok} />
-      <Stat label="Recurring issues" m={m.agents.recurringIssues} format={count} unit={unit} />
-      <Stat label="Runs" m={m.agents.runs} format={count} unit={unit} />
-    </Panel>
-  ) : null;
-  const implementation = m ? (
-    <Panel title="Implementation" style={half}>
-      <Stat first label="Outstanding issues" m={m.implementation.outstandingIssues} format={count} unit={unit} kind="line" />
-      <Stat label="Bugs" m={m.implementation.bugs} format={count} unit={unit} kind="line" color={C.ok} />
-      <Stat label="Defects" m={m.implementation.defects} format={count} unit={unit} kind="line" color={C.no} />
-    </Panel>
-  ) : null;
-
-  const gap = wide ? 16 : 12;
-
   return (
     <ScrollView
       contentContainerStyle={
@@ -341,51 +478,27 @@ export default function Metrics() {
         style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, zIndex: 10 }}
       >
         <Pick value={ws} options={names} onChange={setWs} />
-        <RangeSwitch value={range} onChange={setRange} />
+        <Segmented value={range} options={RANGES} onChange={setRange} />
       </View>
       {m ? (
-        <>
-          <Panel title="Usage" style={{ marginBottom: gap }}>
+        <View style={{ gap: wide ? 16 : 12 }}>
+          <Panel title="Usage">
             <View style={{ flexDirection: wide ? 'row' : 'column', gap: 10, marginTop: 4 }}>
               <UsageTile label="Rolling 5 hours" m={m.usage.fiveHour} segments={five} unit={unit} />
               <UsageTile label="Rolling week" m={m.usage.week} segments={week} unit={unit} />
             </View>
             <UsageLegend segments={legend} />
           </Panel>
-          {wide ? (
-            <View style={{ gap }}>
-              <View style={{ flexDirection: 'row', gap }}>
-                {attention}
-                {understanding}
-              </View>
-              <View style={{ flexDirection: 'row', gap }}>
-                {agents}
-                {implementation}
-              </View>
-            </View>
-          ) : (
-            <View style={{ gap }}>
-              {attention}
-              {understanding}
-              {agents}
-              {implementation}
-            </View>
-          )}
-          <Panel title="Automations" style={{ marginTop: gap }}>
+          <MetricsChart m={m} unit={unit} />
+          <RunHistogram h={m.agents.runHistograms} range={label} />
+          <Panel title="Automations">
             {autos.length ? (
-              <>
-                <AutomationTable automations={autos} range={label} />
-                <AutomationStat first label="Runs" automations={autos} pick={(a) => a.runs} format={count} unit={unit} kind="bars" />
-                <AutomationStat label="Failed" automations={autos} pick={(a) => a.failed} format={count} unit={unit} kind="bars" />
-                <AutomationStat label="Avg time" automations={autos} pick={(a) => a.avgSeconds} format={minutes} unit={unit} kind="line" />
-                <AutomationStat label="Usage · 5-hour limit" automations={autos} pick={(a) => a.usage.fiveHour} format={pct} unit={unit} kind="bars" />
-                <AutomationStat label="Usage · weekly limit" automations={autos} pick={(a) => a.usage.week} format={pct} unit={unit} kind="bars" />
-              </>
+              <AutomationTable automations={autos} range={label} />
             ) : (
               <T style={{ color: C.muted, fontSize: 13.5 }}>{`No runs in the last ${label}`}</T>
             )}
           </Panel>
-        </>
+        </View>
       ) : null}
     </ScrollView>
   );

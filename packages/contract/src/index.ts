@@ -327,6 +327,17 @@ export const AutomationMetrics = z.object({
 });
 export type AutomationMetrics = z.infer<typeof AutomationMetrics>;
 
+/** Runs that ended in the range, counted per bin of one parameter: bin i holds values from edges[i] up to edges[i + 1] */
+export const Histogram = z.object({
+  edges: z.array(z.number()),
+  automations: z.array(z.object({ automation: AutomationName, counts: z.array(z.number()) })),
+});
+export type Histogram = z.infer<typeof Histogram>;
+
+/** How the parameters of single runs are distributed; usage in percentage points of each limit, time in seconds */
+export const RunHistograms = z.object({ fiveHour: Histogram, week: Histogram, seconds: Histogram, messages: Histogram });
+export type RunHistograms = z.infer<typeof RunHistograms>;
+
 export const MetricsResponse = z.object({
   workspace: z.string(),
   range: MetricsRange,
@@ -350,6 +361,12 @@ export const MetricsResponse = z.object({
     runs: MetricValue,
     /** Each automation that ran or used anything in the range, the most used first */
     automations: z.array(AutomationMetrics),
+    runHistograms: RunHistograms,
+  }),
+  /** Entities standing at the end of each point, per state: the latest count and the counts over the range */
+  entities: z.object({
+    verification: z.record(Verification, MetricValue),
+    sync: z.record(Sync, MetricValue),
   }),
   implementation: z.object({
     outstandingIssues: MetricValue,

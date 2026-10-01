@@ -5,8 +5,8 @@ export interface Events {
   transaction: [{ workspace: string; runId: string; branch: string; paths: string[]; valid: boolean }];
   /** An implementable entity was approved with nothing implementing it */
   entity_ahead: [{ workspace: string; path: string }];
-  /** The artifact under an entity changed; summarization rewrites the card */
-  artifact_ahead: [{ workspace: string; path: string }];
+  /** Artifacts changed on the main line under these entities; one summarization run rewrites their cards */
+  artifact_ahead: [{ workspace: string; entities: { path: string; artifacts: string[] }[] }];
   /** An implementation run finished on its branch; validation runs next */
   implementation_finished: [{ workspace: string; runId: string; branch: string; targetPath: string | null }];
   /** Trigger entities of a workspace changed on its main line */

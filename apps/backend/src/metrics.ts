@@ -1,4 +1,15 @@
-import { AutomationName, type AutomationMetrics, type MetricsRange, type MetricsResponse, type MetricValue, type Series } from '@momentum/contract';
+import {
+  AutomationName,
+  Sync,
+  Verification,
+  type AutomationMetrics,
+  type Histogram,
+  type MetricsRange,
+  type MetricsResponse,
+  type MetricValue,
+  type RunHistograms,
+  type Series,
+} from '@momentum/contract';
 import type { Automations } from './automations.ts';
 import type { Workspace } from './workspaces.ts';
 
@@ -88,6 +99,23 @@ class Span {
     return new Map(rows.map((r) => [r.k, r.v]));
   }
 
+  /**
+   * Rows standing at the end of each bucket, counted per value of `by`: the latest row of each `key` before the bucket
+   * ends, where `by` is null once the thing is gone
+   */
+  async standingBy(table: string, key: string, by: string, at: string): Promise<Map<string, Series>> {
+    const rows = await this.ws.index.sql.unsafe<{ b: Date; k: string; v: number }[]>(
+      `select b.b, s.k, count(*)::float8 as v
+       from generate_series(${this.start}, date_trunc('${this.unit}', now()), interval '1 ${this.unit}') as b(b)
+       cross join lateral (
+         select distinct on (${key}) ${by}::text as k from ${table} where ${at} < b.b + interval '1 ${this.unit}' order by ${key}, ${at} desc
+       ) s
+       where s.k is not null group by 1, 2`,
+    );
+    const keys = new Set(rows.map((r) => r.k));
+    return new Map([...keys].map((k) => [k, this.fill(rows.filter((r) => r.k === k), 'count', null)]));
+  }
+
   async figure(table: string, expr: string, where = 'true', at = 'recorded_at'): Promise<number | null> {
     const [r] = await this.ws.index.sql.unsafe<{ v: number | null }[]>(
       `select (${expr})::float8 as v from ${table} where ${at} >= ${this.start} and ${where}`,
@@ -138,6 +166,60 @@ async function perAutomation(ws: Workspace, span: Span, automations: Automations
     .sort((a, b) => (b.usage.week.value ?? 0) - (a.usage.week.value ?? 0) || (b.runs.value ?? 0) - (a.runs.value ?? 0));
 }
 
+const BINS = 12;
+/** Bin widths: 1, 2, 2.5, 5 × 10ⁿ; 2.5 is skipped for counts, and time steps through whole minutes and hours */
+const STEPS = { real: [1, 2, 2.5, 5], count: [1, 2, 5], seconds: [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400] };
+
+function step(raw: number, scale: keyof typeof STEPS): number {
+  if (scale === 'seconds' && raw <= 14400) return STEPS.seconds.find((s) => s >= raw) ?? 14400;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const w = (STEPS[scale === 'seconds' ? 'count' : scale].find((s) => s * p >= raw - 1e-9) ?? 10) * p;
+  return scale === 'real' ? w : Math.max(1, Math.round(w));
+}
+
+/** At most BINS bins of one width from 0 past the largest value, the runs of each automation counted into them */
+export function histogram(values: { automation: AutomationName; v: number }[], scale: keyof typeof STEPS): Histogram {
+  const max = Math.max(0, ...values.map((x) => x.v));
+  const width = max > 0 ? step(max / BINS, scale) : 1;
+  const n = Math.max(1, Math.floor(max / width) + 1);
+  const edges = Array.from({ length: n + 1 }, (_, i) => i * width);
+  const counts = new Map<AutomationName, number[]>();
+  for (const { automation, v } of values) {
+    const c = counts.get(automation) ?? counts.set(automation, Array<number>(n).fill(0)).get(automation)!;
+    c[Math.min(n - 1, Math.floor(v / width))]! += 1;
+  }
+  return { edges, automations: [...counts].map(([automation, c]) => ({ automation, counts: c })) };
+}
+
+/** Each parameter of the runs that ended in the range */
+async function runHistograms(ws: Workspace, span: Span): Promise<RunHistograms> {
+  const s = ws.index.schema;
+  const rows = await ws.index.sql.unsafe<
+    { automation: string; five_hour: number | null; week: number | null; seconds: number; messages: number }[]
+  >(
+    // Usage is the run's share of the shared limits; a run that started before shares were split has none
+    `with first as (select min(recorded_at) as at from ${s}.usage_share)
+     select automation, case when started_at >= first.at then coalesce(u.five_hour, 0) end::float8 as five_hour,
+            case when started_at >= first.at then coalesce(u.week, 0) end::float8 as week, ${DURATION}::float8 as seconds,
+            (select count(*) from ${s}.run_message m where m.run_id = r.id)::int as messages
+     from ${s}.run r cross join first
+     left join (select run_id, sum(five_hour) as five_hour, sum(week) as week from ${s}.usage_share group by 1) u on u.run_id = r.id
+     where ended_at >= ${span.start} and started_at is not null`,
+  );
+  const runs = rows.filter((r): r is typeof r & { automation: AutomationName } => AutomationName.safeParse(r.automation).success);
+  const of = (pick: (r: (typeof runs)[number]) => number | null) =>
+    runs.flatMap((r) => {
+      const v = pick(r);
+      return v === null ? [] : [{ automation: r.automation, v }];
+    });
+  return {
+    fiveHour: histogram(of((r) => r.five_hour), 'real'),
+    week: histogram(of((r) => r.week), 'real'),
+    seconds: histogram(of((r) => r.seconds), 'seconds'),
+    messages: histogram(of((r) => r.messages), 'count'),
+  };
+}
+
 export async function workspaceMetrics(ws: Workspace, automations: Automations, range: MetricsRange): Promise<MetricsResponse> {
   const s = ws.index.schema;
   const span = await Span.of(ws, range);
@@ -171,6 +253,23 @@ export async function workspaceMetrics(ws: Workspace, automations: Automations, 
   const outstanding = await span.series(`${s}.implementation_metric`, 'outstanding_issues', 'last');
   const bugs = await span.series(`${s}.implementation_metric`, 'bugs', 'last');
   const defects = await span.series(`${s}.implementation_metric`, 'defects', 'last');
+  const zeros = span.buckets.map((b) => ({ at: b.toISOString(), value: 0 }));
+  // A count no automation has measured yet is no data, not zero
+  const finished = new Set(
+    (await ws.index.sql.unsafe<{ automation: string }[]>(`select distinct automation from ${s}.run where status = 'finished'`)).map((r) => r.automation),
+  );
+  const unmeasured: MetricValue = { value: null, series: span.buckets.map((b) => ({ at: b.toISOString(), value: null })) };
+  const measuredBy = (automations: AutomationName[], v: MetricValue) => (automations.some((a) => finished.has(a)) ? v : unmeasured);
+  const raisesIssues: AutomationName[] = ['consistency-check', 'validation'];
+  const states = async <K extends string>(column: string, keys: readonly K[]) => {
+    const by = await span.standingBy(`${s}.entity_state`, 'path', column, 'at');
+    return Object.fromEntries(
+      keys.map((k) => {
+        const series = by.get(k) ?? zeros;
+        return [k, metric(latest(series), series)];
+      }),
+    ) as Record<K, MetricValue>;
+  };
 
   return {
     workspace: ws.name,
@@ -186,18 +285,23 @@ export async function workspaceMetrics(ws: Workspace, automations: Automations, 
     },
     understanding: {
       consistency: metric(latest(consistency), consistency),
-      openIssues: metric(latest(openIssues), openIssues),
+      openIssues: measuredBy(raisesIssues, metric(latest(openIssues), openIssues)),
     },
     agents: {
-      misalignments: summed(misalignments),
-      recurringIssues: summed(recurring),
+      misalignments: measuredBy(['optimization'], summed(misalignments)),
+      recurringIssues: measuredBy(['optimization'], summed(recurring)),
       runs: summed(runs),
       automations: await perAutomation(ws, span, automations),
+      runHistograms: await runHistograms(ws, span),
+    },
+    entities: {
+      verification: await states('verification', Verification.options),
+      sync: await states('sync', Sync.options),
     },
     implementation: {
-      outstandingIssues: metric(latest(outstanding), outstanding),
+      outstandingIssues: measuredBy(raisesIssues, metric(latest(outstanding), outstanding)),
       bugs: metric(latest(bugs), bugs),
-      defects: metric(latest(defects), defects),
+      defects: measuredBy(['validation'], metric(latest(defects), defects)),
     },
   };
 }

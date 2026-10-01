@@ -85,12 +85,12 @@ export function UsageLegend({ segments }: { segments: Segment[] }) {
  * One chart series per automation in slot order, from `pick`; with `fold`, the automations without a slot are summed
  * into one Other series, as in the meters.
  */
-export function useAutomationSeries(
-  automations: AutomationMetrics[],
-  pick: (a: AutomationMetrics) => (number | null)[],
+export function automationSeries<A extends { automation: AutomationName }>(
+  color: (a: AutomationName) => string,
+  automations: A[],
+  pick: (a: A) => (number | null)[],
   fold: boolean,
 ): ChartSeries[] {
-  const color = useAutomationColor();
   const slotted = SLOTTED.flatMap((name) => {
     const a = automations.find((x) => x.automation === name);
     return a ? [{ key: name, label: automationLabel(name), color: color(name), values: pick(a) }] : [];

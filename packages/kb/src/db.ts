@@ -70,6 +70,16 @@ create table if not exists ${s}.entity (
 );
 create index if not exists entity_search on ${s}.entity using gin (search);
 create index if not exists entity_type on ${s}.entity (type);
+create table if not exists ${s}.entity_state (
+  path text not null,
+  verification text,
+  sync text,
+  at timestamptz not null default now()
+);
+create index if not exists entity_state_path on ${s}.entity_state (path, at);
+-- History starts with the states standing when the log was added
+insert into ${s}.entity_state (path, verification, sync)
+  select path, verification, sync from ${s}.entity e where not exists (select 1 from ${s}.entity_state x where x.path = e.path);
 create table if not exists ${s}.entity_artifact (
   entity_path text not null references ${s}.entity (path) on delete cascade,
   artifact_path text not null,
@@ -111,6 +121,7 @@ alter table ${s}.run add column if not exists usage_five_hour real;
 alter table ${s}.run add column if not exists usage_week real;
 alter table ${s}.run add column if not exists model text;
 alter table ${s}.run add column if not exists risk text;
+alter table ${s}.run add column if not exists restarts int not null default 0;
 create table if not exists ${s}.run_message (
   run_id text not null references ${s}.run (id) on delete cascade,
   seq int not null,

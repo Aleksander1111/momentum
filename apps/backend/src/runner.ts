@@ -53,6 +53,8 @@ interface RunRow {
   /** Chosen when the run first starts and kept when its session resumes */
   model: ModelChoice | null;
   risk: Risk | null;
+  /** How often a restart has requeued the run */
+  restarts: number;
 }
 
 export interface NewRun {
@@ -82,6 +84,10 @@ interface Active {
   /** Settles once the run's changes have passed the guard and its status is recorded */
   finished?: Promise<void>;
 }
+
+/** How often a run lost at restart is queued again before it fails */
+const MAX_RESTARTS = 2;
+const RESUME = 'The harness restarted while you were working. Continue where you left off.';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 export class Runner {
@@ -240,8 +246,9 @@ export class Runner {
   }
 
   /**
-   * Runs a restart left `running`: their processes are gone. What they wrote still passes the guard and reaches the
-   * feed; the run itself is failed, and a chat resumes its session on the next message.
+   * Runs a restart left `running`: their processes are gone. Each is queued again and resumes its session on the same
+   * checkout, up to MAX_RESTARTS times. A run past that, or a chat, is failed: what it wrote still passes the guard and
+   * reaches the feed, and a chat resumes its session on the next message.
    */
   async recover(): Promise<void> {
     const refs = await this.workspaces.sql<{ workspace: string }[]>`select distinct workspace from harness.run_ref`;
@@ -251,6 +258,11 @@ export class Runner {
       const rows = await ws.index.sql<RunRow[]>`select * from ${this.t(ws, 'run')} where status = 'running'`;
       for (const r of rows) {
         if (this.active.has(r.id)) continue;
+        if (r.automation !== 'chat' && r.restarts < MAX_RESTARTS && existsSync(r.checkout)) {
+          await this.setStatus(ws, r.id, 'queued', { restarts: r.restarts + 1 });
+          console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart and is queued again`);
+          continue;
+        }
         const ref: RunRef = { id: r.id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: r.target_path };
         if (existsSync(r.checkout)) await this.guard.transaction(ref).catch((e) => console.error(`recover ${r.id}:`, e));
         await this.setStatus(ws, r.id, 'failed', { ended_at: new Date(), error: 'lost at restart' });
@@ -266,9 +278,10 @@ export class Runner {
     const ref: RunRef = { id, workspace: ws.name, automation: r.automation, branch: r.branch, checkout: r.checkout, targetPath: r.target_path };
     try {
       await addWorktree(ws.path, r.checkout, r.branch, `refs/heads/${ws.main}`);
-      await this.setStatus(ws, id, 'running', { started_at: new Date(), base_commit: await head(r.checkout), error: null });
+      await this.setStatus(ws, id, 'running', { started_at: new Date(), base_commit: r.base_commit ?? (await head(r.checkout)), error: null });
       this.guard.watch(ref);
-      await this.launch(ws, r, ref, r.prompt, r.session_id);
+      // A run queued again after a restart resumes its session
+      await this.launch(ws, r, ref, r.session_id ? RESUME : r.prompt, r.session_id);
     } catch (e) {
       await this.setStatus(ws, id, 'failed', { error: (e as Error).message, ended_at: new Date() });
       await this.guard.unwatch(id);

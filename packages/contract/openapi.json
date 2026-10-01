@@ -2226,13 +2226,320 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "runHistograms": {
+                          "type": "object",
+                          "properties": {
+                            "fiveHour": {
+                              "type": "object",
+                              "properties": {
+                                "edges": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "number"
+                                  }
+                                },
+                                "automations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "automation": {
+                                        "type": "string",
+                                        "enum": [
+                                          "exploration",
+                                          "preparation",
+                                          "consistency-check",
+                                          "retention",
+                                          "implementation",
+                                          "validation",
+                                          "optimization",
+                                          "summarization",
+                                          "chat",
+                                          "graph-build"
+                                        ]
+                                      },
+                                      "counts": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "automation",
+                                      "counts"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "edges",
+                                "automations"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "week": {
+                              "type": "object",
+                              "properties": {
+                                "edges": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "number"
+                                  }
+                                },
+                                "automations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "automation": {
+                                        "type": "string",
+                                        "enum": [
+                                          "exploration",
+                                          "preparation",
+                                          "consistency-check",
+                                          "retention",
+                                          "implementation",
+                                          "validation",
+                                          "optimization",
+                                          "summarization",
+                                          "chat",
+                                          "graph-build"
+                                        ]
+                                      },
+                                      "counts": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "automation",
+                                      "counts"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "edges",
+                                "automations"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "seconds": {
+                              "type": "object",
+                              "properties": {
+                                "edges": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "number"
+                                  }
+                                },
+                                "automations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "automation": {
+                                        "type": "string",
+                                        "enum": [
+                                          "exploration",
+                                          "preparation",
+                                          "consistency-check",
+                                          "retention",
+                                          "implementation",
+                                          "validation",
+                                          "optimization",
+                                          "summarization",
+                                          "chat",
+                                          "graph-build"
+                                        ]
+                                      },
+                                      "counts": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "automation",
+                                      "counts"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "edges",
+                                "automations"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "messages": {
+                              "type": "object",
+                              "properties": {
+                                "edges": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "number"
+                                  }
+                                },
+                                "automations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "automation": {
+                                        "type": "string",
+                                        "enum": [
+                                          "exploration",
+                                          "preparation",
+                                          "consistency-check",
+                                          "retention",
+                                          "implementation",
+                                          "validation",
+                                          "optimization",
+                                          "summarization",
+                                          "chat",
+                                          "graph-build"
+                                        ]
+                                      },
+                                      "counts": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "automation",
+                                      "counts"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "edges",
+                                "automations"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "fiveHour",
+                            "week",
+                            "seconds",
+                            "messages"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "misalignments",
                         "recurringIssues",
                         "runs",
-                        "automations"
+                        "automations",
+                        "runHistograms"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "entities": {
+                      "type": "object",
+                      "properties": {
+                        "verification": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "value": {
+                                "nullable": true,
+                                "type": "number"
+                              },
+                              "series": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "nullable": true,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "value",
+                              "series"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "required": [
+                            "unverified",
+                            "verified"
+                          ]
+                        },
+                        "sync": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "value": {
+                                "nullable": true,
+                                "type": "number"
+                              },
+                              "series": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "nullable": true,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "value",
+                              "series"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "required": [
+                            "synced",
+                            "entity_ahead",
+                            "artifact_ahead",
+                            "updating"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verification",
+                        "sync"
                       ],
                       "additionalProperties": false
                     },
@@ -2358,6 +2665,7 @@
                     "attention",
                     "understanding",
                     "agents",
+                    "entities",
                     "implementation"
                   ],
                   "additionalProperties": false
