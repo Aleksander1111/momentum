@@ -35,8 +35,8 @@ artifacts:
 
 Starts and supervises the automation loops of enabled projects.
 
-- **Tick** every 30 s and on run end or feed change: indexes main lines, queues due scheduled runs while the feed has room, starts queued runs within concurrency limits
-- **Events**: `entity_ahead` → implementation, `implementation_finished` → validation (via triggers); `artifact_ahead` → summarization
-- **Graph build**: one mapping run at a time on one branch, capped by feed room; time and usage extrapolated from coverage
+- **Tick** on a timer, run end, feed change: indexes main lines, queues due scheduled runs while the feed has room, starts queued runs within total and per-project limits, one run per branch
+- **Events**: via triggers, `entity_ahead` → implementation, `implementation_finished` → validation; `artifact_ahead` starts summarization directly, with no trigger
+- **Graph build**: one mapping run at a time on one branch, capped by feed room
 - **Enable** materializes definitions, indexes, proposes default triggers, starts the build; **disable** stops it
-- **Reset** wipes runs, branches, graph, database; re-enables
+- **Reset** (not the harness) wipes runs, branches, graph, database; re-enables
