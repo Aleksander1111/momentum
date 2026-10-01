@@ -17,7 +17,7 @@ artifacts:
 
 First success criterion of the spec: the harness earns its place only if consistency grows in every project it touches, boosting the user instead of costing attention.
 
-- **Measured** as 1 − inconsistent/total entities; an entity is inconsistent when its card exceeds the character limit or a reference does not resolve (empty base = 1)
-- **Recorded** by the consistency guard after every validated transaction and main-line reindex, tracked over time
-- **Open issues** (Harness/Issue, Harness/Conflict) stored beside it, not subtracted; bugs and validation defects go to the implementation metric
+- **Measured** as 1 − inconsistent/total entities; inconsistent = card over the character limit or a reference that does not resolve (empty base = 1)
+- **Recorded** in understanding_metric by the consistency guard after every validated transaction and main-line reindex, tracked over time
+- **Open issues** (Harness/Issue, Harness/Conflict) stored beside it, not subtracted; with bugs and validation defects they also feed the implementation metric
 - **Served** by the guard on every change and by the consistency check loop
