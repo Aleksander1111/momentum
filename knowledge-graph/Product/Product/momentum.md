@@ -12,12 +12,12 @@ artifacts:
 ---
 # Momentum
 
-The harness that boosts the work around a project: the single entry point between the user and that work, for every workspace on the dedicated machine.
+A self-hosted harness: the only way one user reaches the work around 5–20 projects, which they explore as entity cards instead of raw artifacts.
 
-- Three ways in: the attention feed, a chat tool, direct exploration of the entities
-- Automations run in the background per enabled project, bounded by the feed
-- Nothing changes unattended: every change passes the feed as an entity before it counts
-- When a run ends, summarization turns its artifacts into entities
-- Enabling a project maps its repository; a reset starts it afresh
-- Manages itself: this repository is one of its workspaces
-- Single user, self-hosted; 5 to 20 enabled projects at once
+| Layer | What it does |
+|---|---|
+| Attention | One ranked feed across projects. Nothing counts until the user approves it |
+| Understanding | Graph RAG knowledge base per workspace. The entity is its card; a guard validates every change |
+| Implementation | Claude Code automation loops, one process per run on its own branch, paused at the feed limit |
+
+Success: consistency grows and work arrives in one piece. Runs on one dedicated machine over a private mesh network, with web and mobile clients.
