@@ -15,11 +15,11 @@ artifacts:
 ---
 # Index and metrics database
 
-Postgres with pgvector: the queryable side of the knowledge base, migrated idempotently on start.
+Postgres with pgvector, the queryable side of the knowledge base, migrated idempotently on start.
 
 | Schema | Holds |
 |---|---|
-| harness | project (path, enabled), setting, credential, session, usage_sample |
-| ws_<workspace> | entity (tsvector + 384-dim embedding), entity_artifact, entity_reference, automation, run (usage, model, risk), run_message, chat, transaction, attention_ranking (rank = sum of the three impacts), attention_metric, attention_pattern, understanding_metric, agent_metric, implementation_metric |
+| harness | project, setting, credential, session, usage_sample |
+| ws_<workspace> | entity (tsvector + 384-dim embedding), entity_artifact, entity_reference, automation, run (usage, model, risk), run_message, chat, transaction, attention_ranking (rank = sum of impacts), attention_metric, attention_pattern, understanding_metric, agent_metric, usage_share (a run's share of the usage limits), implementation_metric |
 
-The migration renames the old mapping automation to graph-build in runs, branches and metrics.
+The migration renames the mapping automation to graph-build.
