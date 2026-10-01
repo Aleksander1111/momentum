@@ -466,7 +466,7 @@ const THEME = {
   await render(pres, THEME);
   await renderApp(pres, THEME);
   // How everything works together: entities, states, automations, summarization, the gate, git, user actions
-  await require('./harness-diagram.mechanics.js')(pres, THEME, { iconData, textWidth });
+  await require('./harness-diagram.mechanics.js')(pres, THEME);
   await pres.writeFile({ fileName: OUT });
   console.log('wrote', OUT);
 })();

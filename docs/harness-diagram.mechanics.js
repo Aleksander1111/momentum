@@ -1,401 +1,650 @@
-// Mechanics slides: how everything works together. Required by harness-diagram.build.js, same theme and palette.
-// Every slide is drawn from the same few helpers: a header, boxes, pills, arrows and notes; bullets are noun phrases.
+// Mechanics slides: how everything works together, as illustrations.
+// Each slide is an SVG drawn here, rendered by Edge (playwright-core, as the mermaid renderer does) and placed under the
+// deck's title bar. Labels are noun phrases; the picture carries the mechanism.
+const React = require('react');
+const RDS = require('react-dom/server');
+const fa = require('react-icons/fa6');
+const { mkdirSync, writeFileSync } = require('node:fs');
+const { join } = require('node:path');
 
-const INK = '2F3E46', MUTED = '52606A', ACCENT = 'B85042', OK = '3F6B52', LINE = 'D5D9D3', PAPER = 'EEF1EC';
-const WASH = { att: 'F4DCD6', kn: 'EFE8D2', prod: 'DCE7DF' };
-const STATE = { unverified: '8A6D2B', verified: '3F6B52', synced: '3F6B52', entity_ahead: '7C6224', artifact_ahead: 'A0402F', updating: '52606A' };
-const HDR = { y: 0.3, h: 0.5 };
+const W = 1920, H = 950;
+const C = {
+  ink: '#2F3E46', muted: '#52606A', accent: '#B85042', ok: '#3F6B52', ochre: '#7C6224', red: '#A0402F',
+  line: '#D5D9D3', paper: '#EEF1EC', bar: '#E3E7E1', white: '#FFFFFF',
+};
+const LAYER = {
+  prod: { wash: '#DCE7DF', strong: '#3F6B52' },
+  kn: { wash: '#EFE8D2', strong: '#7C6224' },
+  att: { wash: '#F4DCD6', strong: '#A0402F' },
+  ink: { wash: '#E4E8EA', strong: '#2F3E46' },
+};
+// The app's own state glyphs (apps/app/src/ui/StateBadge.tsx), on a 24 grid
+const STATE = {
+  unverified: { d: 'M8 8a3.5 3 0 0 1 3.5-3h1a3.5 3 0 0 1 3.5 3 3 3 0 0 1-2 3 3 4 0 0 0-2 4M12 19v.01', color: '#8A6D2B', wash: '#F3EBD8' },
+  verified: { d: 'M5 12l5 5L20 7', color: '#3F6B52', wash: '#DCE7DF' },
+  synced: { d: 'M9 15l6-6M11 6l.46-.54a5 5 0 0 1 7.08 7.08l-.54.46M13 18l-.4.53a5.07 5.07 0 0 1-7.12 0 4.97 4.97 0 0 1 0-7.07l.52-.46', color: '#3F6B52', wash: '#DCE7DF' },
+  entity_ahead: { d: 'M12 20V10M12 20l4-4M12 20l-4-4M4 4h16', color: '#7C6224', wash: '#EFE8D2' },
+  artifact_ahead: { d: 'M12 4v10M12 4l4 4M12 4L8 8M4 20h16', color: '#A0402F', wash: '#F4DCD6' },
+  updating: { d: 'M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4', color: '#52606A', wash: '#E4E8EA' },
+};
+const HEAD = 'Cambria, Georgia, serif', BODY = 'Calibri, Segoe UI, sans-serif';
 
-module.exports = async function renderMechanics(pres, T, { iconData, textWidth }) {
-  const head = T.font.head, body = T.font.body;
-  // A fresh object per shape: pptxgenjs rewrites the shadow it is given, so a shared one breaks the file for PowerPoint
-  const shade = () => ({ type: 'outer', blur: 3, offset: 1.5, angle: 90, color: '1E293B', opacity: 0.18 });
+// ---------------------------------------------------------------- drawing helpers
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const n = (v) => Math.round(v * 10) / 10;
 
-  // ---------------------------------------------------------------- helpers, bound to one slide
-  function tools(s) {
-    const header = (text, w = 5.4) => s.addText(text, {
-      shape: pres.shapes.RECTANGLE, x: 0.35, y: HDR.y, w, h: HDR.h, fill: { color: T.hHeader.fill },
-      color: 'FFFFFF', fontFace: head, fontSize: 20, align: 'left', valign: 'middle', margin: [14, 14, 0, 5], isTextBox: true,
-    });
-    const sub = (text) => s.addText(text, {
-      x: 0.35, y: HDR.y + HDR.h + 0.05, w: 12.6, h: 0.32, color: MUTED, fontFace: head, fontSize: 12, italic: true, margin: 0, isTextBox: true,
-    });
-    const lineOf = (c = INK, w = 0.75, dash) => ({ color: c, width: w, dashType: dash });
-    // A box with a bold title and noun-phrase lines beneath it
-    const box = (x, y, w, h, title, lines = [], o = {}) => {
-      const runs = [{ text: title, options: { bold: true, color: o.titleColor ?? INK, fontFace: head, fontSize: o.titleSize ?? 11, breakLine: lines.length > 0, paraSpaceAfter: 3 } }];
-      lines.forEach((t, k) => runs.push({ text: t, options: { color: o.color ?? MUTED, fontFace: body, fontSize: o.size ?? 8.5, breakLine: k < lines.length - 1, ...(o.bullets ? { bullet: { indent: 8 } } : {}) } }));
-      s.addText(runs, {
-        shape: pres.shapes.ROUNDED_RECTANGLE, rectRadius: 0.08, x, y, w, h, fill: { color: o.fill ?? 'FFFFFF' },
-        line: lineOf(o.line ?? INK, o.lineWidth ?? 0.75, o.dash), shadow: o.flat ? undefined : shade(),
-        valign: o.valign ?? 'top', align: o.align ?? 'left', margin: [7, 8, 5, 8], isTextBox: true,
-      });
-      return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
-    };
-    const pill = (cx, cy, text, color, o = {}) => {
-      const w = o.w ?? Math.max(1.0, textWidth(text, body, 10) + 0.4), h = o.h ?? 0.34;
-      s.addText(text, {
-        shape: pres.shapes.ROUNDED_RECTANGLE, rectRadius: h / 2, x: cx - w / 2, y: cy - h / 2, w, h,
-        fill: { color: o.fill ?? 'FFFFFF' }, line: lineOf(color, 1.5), color, fontFace: body, fontSize: 10, bold: true,
-        align: 'center', valign: 'middle', margin: 0, isTextBox: true,
-      });
-      return { x: cx - w / 2, y: cy - h / 2, w, h, cx, cy };
-    };
-    const tag = (x, y, text, color) => {
-      const w = textWidth(text, body, 7.5) + 0.22, h = 0.22;
-      s.addText(text, {
-        shape: pres.shapes.ROUNDED_RECTANGLE, rectRadius: h / 2, x, y, w, h, fill: { color }, line: { type: 'none' },
-        color: 'FFFFFF', fontFace: body, fontSize: 7.5, bold: true, align: 'center', valign: 'middle', margin: 0, isTextBox: true,
-      });
-      return w;
-    };
-    const note = (x, y, w, text, o = {}) => s.addText(text, {
-      x, y, w, h: o.h ?? 0.3, color: o.color ?? MUTED, fontFace: body, fontSize: o.size ?? 9, italic: o.italic ?? true,
-      align: o.align ?? 'left', valign: 'top', margin: 0, isTextBox: true,
-    });
-    const arrow = (x1, y1, x2, y2, o = {}) => s.addShape(pres.shapes.LINE, {
-      x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1), flipH: x2 < x1, flipV: y2 < y1,
-      line: { color: o.color ?? INK, width: o.width ?? 1, dashType: o.dash, endArrowType: o.noHead ? undefined : 'triangle', beginArrowType: o.both ? 'triangle' : undefined },
-    });
-    // Edge from the border of one box to the border of another, with an optional label at its middle
-    const anchor = (b, px, py) => {
-      const dx = px - b.cx, dy = py - b.cy;
-      const t = Math.min(dx ? (b.w / 2) / Math.abs(dx) : Infinity, dy ? (b.h / 2) / Math.abs(dy) : Infinity);
-      return [b.cx + dx * t, b.cy + dy * t];
-    };
-    const edge = (a, b, label, o = {}) => {
-      const [x1, y1] = anchor(a, b.cx, b.cy), [x2, y2] = anchor(b, a.cx, a.cy);
-      arrow(x1, y1, x2, y2, o);
-      if (label) {
-        const w = textWidth(label, body, 8) + 0.2, h = 0.24;
-        s.addText(label, {
-          x: (x1 + x2) / 2 - w / 2 + (o.dx ?? 0), y: (y1 + y2) / 2 - h / 2 + (o.dy ?? 0), w, h, fill: { color: T.bg }, line: { type: 'none' },
-          color: o.labelColor ?? INK, fontFace: body, fontSize: 8, italic: true, align: 'center', valign: 'middle', margin: 0, isTextBox: true,
-        });
-      }
-    };
-    const icon = async (name, color, x, y, d = 0.22) => s.addImage({ data: await iconData(name, color), x, y, w: d, h: d });
-    const band = (x, y, w, h, fill, label, labelColor) => {
-      s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, rectRadius: 0.1, fill: { color: fill }, line: { type: 'none' } });
-      if (label) s.addText(label, { x: x + 0.15, y: y + 0.06, w: w - 0.3, h: 0.28, color: labelColor ?? INK, fontFace: head, fontSize: 11, italic: true, margin: 0, isTextBox: true });
-    };
-    return { header, sub, box, pill, tag, note, arrow, edge, icon, band };
+function text(x, y, s, o = {}) {
+  const size = o.size ?? 20;
+  const a = [`x="${n(x)}"`, `y="${n(y)}"`, `font-family="${o.head ? HEAD : BODY}"`, `font-size="${size}"`, `fill="${o.fill ?? C.ink}"`];
+  if (o.bold) a.push('font-weight="700"');
+  if (o.italic) a.push('font-style="italic"');
+  if (o.anchor) a.push(`text-anchor="${o.anchor}"`);
+  if (o.spacing) a.push(`letter-spacing="${o.spacing}"`);
+  if (o.rot) a.push(`transform="rotate(${o.rot} ${n(x)} ${n(y)})"`);
+  return `<text ${a.join(' ')}>${esc(s)}</text>`;
+}
+/** A title and a muted line beneath it */
+const caption = (x, y, title, sub, o = {}) =>
+  text(x, y, title, { head: true, bold: true, size: o.size ?? 26, anchor: o.anchor, fill: o.fill ?? C.ink }) +
+  (sub ? text(x, y + (o.gap ?? 28), sub, { size: o.subSize ?? 19, fill: C.muted, anchor: o.anchor, italic: o.italic }) : '');
+
+function icon(name, x, y, size, color) {
+  if (!fa[name]) throw new Error(`No icon ${name}`);
+  const svg = RDS.renderToStaticMarkup(React.createElement(fa[name], { size, color }));
+  return svg.replace('<svg ', `<svg x="${n(x)}" y="${n(y)}" `);
+}
+const iconAt = (name, cx, cy, size, color) => icon(name, cx - size / 2, cy - size / 2, size, color);
+
+function attrs(o) {
+  const a = [`fill="${o.fill ?? 'none'}"`, `stroke="${o.stroke ?? 'none'}"`, `stroke-width="${o.sw ?? 2}"`];
+  if (o.dash) a.push(`stroke-dasharray="${o.dash}"`);
+  if (o.shadow) a.push('filter="url(#sh)"');
+  if (o.opacity != null) a.push(`opacity="${o.opacity}"`);
+  if (o.head) a.push(`marker-end="url(#ah-${o.head})"`);
+  if (o.tail) a.push(`marker-start="url(#ah-${o.tail})"`);
+  a.push('stroke-linecap="round"', 'stroke-linejoin="round"');
+  return a.join(' ');
+}
+const rect = (x, y, w, h, o = {}) => `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${o.r ?? 0}" ${attrs(o)}/>`;
+const circle = (cx, cy, r, o = {}) => `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" ${attrs(o)}/>`;
+const path = (d, o = {}) => `<path d="${d}" ${attrs(o)}/>`;
+const line = (x1, y1, x2, y2, o = {}) => path(`M${n(x1)} ${n(y1)} L${n(x2)} ${n(y2)}`, o);
+const pt = (p) => `${n(p[0])} ${n(p[1])}`;
+
+/** A word on a line: white pill with the text centred */
+function pill(cx, cy, s, o = {}) {
+  const size = o.size ?? 17, w = s.length * size * 0.5 + 26, h = size + 14;
+  return rect(cx - w / 2, cy - h / 2, w, h, { r: h / 2, fill: o.fill ?? C.white, stroke: o.stroke ?? C.line, sw: 1.5 }) +
+    text(cx, cy + size * 0.35, s, { size, anchor: 'middle', fill: o.color ?? C.ink, italic: o.italic ?? true, bold: o.bold });
+}
+function stateGlyph(state, cx, cy, size, color) {
+  const s = STATE[state], k = size / 24;
+  return `<g transform="translate(${n(cx - size / 2)} ${n(cy - size / 2)}) scale(${n(k * 1000) / 1000})"><path d="${s.d}" fill="none" stroke="${color ?? s.color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+}
+function medallion(cx, cy, r, layer, ic, o = {}) {
+  return circle(cx, cy, r, { fill: C.white, shadow: true }) +
+    circle(cx, cy, r - 7, { fill: layer.wash, stroke: layer.strong, sw: 3 }) +
+    iconAt(ic, cx, cy, r * (o.k ?? 0.82), o.color ?? C.ink);
+}
+const badge = (cx, cy, v) => circle(cx, cy, 17, { fill: C.red, stroke: C.white, sw: 3 }) + text(cx, cy + 6.5, v, { size: 18, bold: true, fill: C.white, anchor: 'middle' });
+
+/** A card as the app shows it: breadcrumb, serif title, the body as skeleton lines */
+function miniCard(x, y, w, h, o = {}) {
+  const pad = o.pad ?? 18;
+  let g = rect(x, y, w, h, { r: 16, fill: C.white, stroke: o.stroke ?? C.line, sw: o.sw ?? 1.5, shadow: true });
+  let yy = y + pad + 10;
+  if (o.crumb) {
+    g += text(x + pad, yy, o.crumb, { size: o.crumbSize ?? 12, bold: true, fill: C.accent, spacing: 1.5 });
+    yy += 28;
+  }
+  for (const t of [].concat(o.title ?? [])) {
+    g += text(x + pad, yy, t, { head: true, bold: true, size: o.titleSize ?? 20 });
+    yy += (o.titleSize ?? 20) * 1.25;
+  }
+  if (o.title) yy += 4;
+  for (const b of o.bars ?? [0.92, 0.78, 0.86, 0.55, 0.8, 0.66]) {
+    if (yy + 8 > y + h - pad) break;
+    g += rect(x + pad, yy, (w - 2 * pad) * b, 8, { r: 4, fill: C.bar });
+    yy += 18;
+  }
+  (o.glyphs ?? []).forEach((st, i, all) => (g += stateGlyph(st, x + w - pad - 11 - (all.length - 1 - i) * 30, y + pad + 4, 22)));
+  if (o.flag) g += icon('FaFlag', x + w - pad - 22, y + pad - 6, 22, C.red);
+  if (o.badge) g += badge(x + w - 4, y + 4, o.badge);
+  return o.rot ? `<g transform="rotate(${o.rot} ${n(x + w / 2)} ${n(y + h / 2)})">${g}</g>` : g;
+}
+
+/** A document with a folded corner and an icon */
+function doc(x, y, w, h, o = {}) {
+  const f = w * 0.24, s = o.stroke ?? C.ink;
+  let g = path(`M${x} ${y + 10}q0 -10 10 -10H${x + w - f}L${x + w} ${y + f}V${y + h - 10}q0 10 -10 10H${x + 10}q-10 0 -10 -10Z`, { fill: C.white, stroke: s, sw: 2.5, shadow: true });
+  g += path(`M${x + w - f} ${y}V${y + f}H${x + w}`, { fill: C.paper, stroke: s, sw: 2.5 });
+  const is = w * 0.42;
+  g += iconAt(o.icon ?? 'FaFileLines', x + w / 2, y + h * 0.45, is, o.iconColor ?? s);
+  if (o.label) g += text(x + w / 2, y + h - 14, o.label, { size: o.labelSize ?? 15, anchor: 'middle', fill: C.muted });
+  return o.rot ? `<g transform="rotate(${o.rot} ${n(x + w / 2)} ${n(y + h / 2)})">${g}</g>` : g;
+}
+
+/** A run: rounded pod with an icon and a name */
+function pod(x, y, w, h, label, ic, layer, o = {}) {
+  return rect(x, y, w, h, { r: h / 2, fill: o.ghost ? C.white : layer.wash, stroke: layer.strong, sw: 2.5, dash: o.ghost ? '8 7' : undefined, shadow: !o.ghost }) +
+    iconAt(ic, x + h / 2 + 4, y + h / 2, h * 0.46, layer.strong) +
+    text(x + h + 8, y + h / 2 + 7, label, { size: o.size ?? 20, bold: true, fill: o.ghost ? C.muted : C.ink });
+}
+
+/** A small knowledge graph: nodes and references, optionally with one contradiction */
+const GRAPH = {
+  nodes: [[-90, -40], [-25, -95], [60, -70], [100, 5], [35, 45], [-55, 55], [-5, -20], [120, -90], [-120, 25]],
+  edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0], [6, 0], [6, 2], [6, 4], [2, 7], [0, 8]],
+  colors: ['prod', 'kn', 'att', 'prod', 'kn', 'att', 'ink', 'kn', 'prod'],
+};
+function zigzag(p, q, amp = 9, steps = 7) {
+  const dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+  let d = `M${pt(p)}`;
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps, s = i % 2 ? amp : -amp;
+    d += ` L${pt([p[0] + dx * t - uy * s, p[1] + dy * t + ux * s])}`;
+  }
+  return d + ` L${pt(q)}`;
+}
+function graph(cx, cy, k = 1, o = {}) {
+  const P = GRAPH.nodes.map(([x, y]) => [cx + x * k, cy + y * k]);
+  let g = '';
+  for (const [a, b] of GRAPH.edges) {
+    if (o.contradiction && ((a === 1 && b === 2) || (a === 2 && b === 1))) continue;
+    g += line(P[a][0], P[a][1], P[b][0], P[b][1], { stroke: '#A9B4AE', sw: 3 * Math.min(1, k) + 0.5 });
+  }
+  if (o.contradiction) g += path(zigzag(P[1], P[2], 8 * k, 7), { stroke: C.red, sw: 4 });
+  P.forEach(([x, y], i) => (g += circle(x, y, 14 * k, { fill: C.white, stroke: LAYER[GRAPH.colors[i]].strong, sw: 4 * Math.min(1, k) + 0.5 })));
+  if (o.contradiction) {
+    for (const i of [1, 2]) g += circle(P[i][0], P[i][1], 14 * k, { fill: LAYER.att.wash, stroke: C.red, sw: 4 });
+  }
+  return g;
+}
+
+/** A curved arrow between two circles, labelled at its middle */
+function curve(a, b, ra, rb, bend, o = {}) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+  const p0 = [a[0] + ux * (ra + 8), a[1] + uy * (ra + 8)], p1 = [b[0] - ux * (rb + 12), b[1] - uy * (rb + 12)];
+  const m = [(p0[0] + p1[0]) / 2 - uy * bend, (p0[1] + p1[1]) / 2 + ux * bend];
+  let g = path(`M${pt(p0)} Q${pt(m)} ${pt(p1)}`, { stroke: o.stroke ?? C.ink, sw: o.sw ?? 4, head: o.head ?? 'ink', dash: o.dash });
+  if (o.label) {
+    const lp = [0.25 * p0[0] + 0.5 * m[0] + 0.25 * p1[0], 0.25 * p0[1] + 0.5 * m[1] + 0.25 * p1[1]];
+    g += pill(lp[0] + (o.dx ?? 0), lp[1] + (o.dy ?? 0), o.label, { color: o.stroke ?? C.ink });
+  }
+  return g;
+}
+
+function defs() {
+  const heads = { ink: C.ink, muted: C.muted, ok: C.ok, kn: C.ochre, att: C.red, accent: C.accent, prod: C.ok, line: '#A9B4AE' };
+  return `<defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#1E293B" flood-opacity="0.16"/></filter>
+    ${Object.entries(heads).map(([k, c]) => `<marker id="ah-${k}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')}
+  </defs>`;
+}
+const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${defs()}<rect width="${W}" height="${H}" fill="#FFFFFF"/>${body}</svg>`;
+
+// ---------------------------------------------------------------- 1. the loop
+function loop() {
+  const cx = 960, cy = 468, R = 330, r = 60;
+  const S = [
+    ['Triggers', 'FaClock', 'prod', 'schedule · event · on demand'],
+    ['Runs', 'FaTerminal', 'prod', 'own checkout of the main line'],
+    ['Work', 'FaFileCode', 'prod', 'entities and artifacts'],
+    ['Summarization', 'FaWandMagicSparkles', 'kn', 'artifacts into cards'],
+    ['Consistency gate', 'FaShieldHalved', 'kn', 'validated, then landed'],
+    ['Main line', 'FaCodeCommit', 'kn', 'one branch, a commit per run'],
+    ['Attention feed', 'FaLayerGroup', 'att', 'ranked, unverified first'],
+    ['You', 'FaUser', 'att', 'approve · send back · chat'],
+  ];
+  let g = circle(cx, cy, 178, { fill: C.paper });
+  g += graph(cx, cy - 30, 1.05);
+  g += caption(cx, cy + 108, 'Knowledge graph', 'one per project', { anchor: 'middle', italic: true });
+  const rad = (d) => (d * Math.PI) / 180, delta = (r + 18) / R;
+  S.forEach(([, , layer], i) => {
+    const a0 = rad(-90 + 45 * i) + delta, a1 = rad(-90 + 45 * (i + 1)) - delta;
+    g += path(`M${pt([cx + R * Math.cos(a0), cy + R * Math.sin(a0)])} A${R} ${R} 0 0 1 ${pt([cx + R * Math.cos(a1), cy + R * Math.sin(a1)])}`, { stroke: LAYER[layer].strong, sw: 6, head: layer });
+  });
+  const onArc = (deg, s, layer) => pill(cx + (R - 52) * Math.cos(rad(deg)), cy + (R - 52) * Math.sin(rad(deg)), s, { color: LAYER[layer].strong });
+  g += onArc(-67.5, 'queued', 'prod');
+  g += onArc(67.5, 'transaction', 'kn');
+  g += onArc(112.5, 'one commit', 'kn');
+  g += onArc(-112.5, 'approval', 'att');
+  S.forEach(([name, ic, layer, sub], i) => {
+    const a = rad(-90 + 45 * i), x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+    g += medallion(x, y, r, LAYER[layer], ic);
+    const c = Math.cos(a), s = Math.sin(a), lx = cx + (R + r + 24) * c, ly = cy + (R + r + 24) * s;
+    const anchor = c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle';
+    const ty = s < -0.9 ? ly - 24 : s > 0.9 ? ly + 18 : ly - 2;
+    g += caption(lx, ty, name, sub, { anchor });
+  });
+  // the three layers
+  [['Implementation', 'prod'], ['Understanding', 'kn'], ['Attention', 'att']].forEach(([s, k], i) => {
+    const y = 790 + i * 44;
+    g += circle(96, y, 13, { fill: LAYER[k].wash, stroke: LAYER[k].strong, sw: 3 }) + text(122, y + 7, s, { size: 21, fill: LAYER[k].strong, bold: true });
+  });
+  // user runs bypass the queue
+  g += pod(1530, 820, 330, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- 2. entities
+function entities() {
+  let g = '';
+  // folder tree: the type is the path
+  const rows = [
+    [0, 'FaFolderOpen', 'knowledge-graph'], [1, 'FaFolderOpen', 'Governance'], [2, 'FaFolderOpen', 'Decision'],
+    [3, 'FaFileLines', 'private-mesh.md', true], [2, 'FaFolder', 'Requirement'], [1, 'FaFolder', 'Product'],
+    [1, 'FaFolder', 'Architecture'], [1, 'FaFolder', 'Harness'],
+  ];
+  const x0 = 70, y0 = 80, dy = 62, ind = 34;
+  rows.forEach(([lvl, ic, name, hi], i) => {
+    const x = x0 + lvl * ind, y = y0 + i * dy;
+    if (hi) g += rect(x - 10, y - 6, 300, 48, { r: 12, fill: LAYER.att.wash });
+    if (lvl > 0) g += path(`M${x0 + (lvl - 1) * ind + 14} ${y - 22}V${y + 18}H${x - 4}`, { stroke: C.line, sw: 2.5 });
+    g += icon(ic, x, y, 32, hi ? C.accent : lvl === 0 ? C.ink : C.ochre);
+    g += text(x + 44, y + 25, name, { size: 22, bold: !!hi, fill: hi ? C.accent : C.ink });
+  });
+  g += caption(70, 640, 'Type = path', 'one directory per type · 150 types', { size: 32 });
+  g += path('M380 300 C450 300 450 260 520 260', { stroke: C.accent, sw: 4, head: 'accent' });
+
+  // the card
+  const cx = 540, cy = 60, cw = 560, ch = 800;
+  g += rect(cx, cy, cw, ch, { r: 24, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+  g += text(cx + 36, cy + 52, 'GOVERNANCE / DECISION · MOMENTUM', { size: 15, bold: true, fill: C.accent, spacing: 2 });
+  g += stateGlyph('unverified', cx + cw - 80, cy + 46, 28) + stateGlyph('synced', cx + cw - 42, cy + 46, 28);
+  g += text(cx + 36, cy + 110, 'Remote access over', { head: true, bold: true, size: 36 });
+  g += text(cx + 36, cy + 152, 'a private mesh', { head: true, bold: true, size: 36 });
+  [0.95, 0.88, 0.6].forEach((b, i) => (g += rect(cx + 36, cy + 190 + i * 22, (cw - 72) * b, 10, { r: 5, fill: C.bar })));
+  [0.55, 0.48, 0.62].forEach((b, i) => {
+    g += circle(cx + 44, cy + 282 + i * 30, 5, { fill: C.ink }) + rect(cx + 60, cy + 277 + i * 30, (cw - 100) * b, 10, { r: 5, fill: C.bar });
+  });
+  // a diagram inside the card
+  ['Client', 'Mesh', 'API'].forEach((s, i) => {
+    const bx = cx + 36 + i * 170;
+    g += rect(bx, cy + 390, 128, 60, { r: 10, fill: C.white, stroke: C.ink, sw: 2 }) + text(bx + 64, cy + 427, s, { size: 20, anchor: 'middle' });
+    if (i < 2) g += line(bx + 132, cy + 420, bx + 164, cy + 420, { stroke: C.ink, sw: 2.5, head: 'ink' });
+  });
+  // a table inside the card
+  for (let i = 0; i < 4; i++) {
+    const ty = cy + 490 + i * 36;
+    g += rect(cx + 36, ty, cw - 72, 36, { fill: i ? C.white : C.paper, stroke: C.line, sw: 1.5 });
+    g += line(cx + 170, ty, cx + 170, ty + 36, { stroke: C.line, sw: 1.5 });
+    if (i) g += rect(cx + 50, ty + 14, 90, 8, { r: 4, fill: C.bar }) + rect(cx + 186, ty + 14, 200 + (i % 2) * 80, 8, { r: 4, fill: C.bar });
+  }
+  g += text(cx + 50, cy + 514, 'Layer', { size: 16, fill: C.muted, bold: true }) + text(cx + 186, cy + 514, 'Protection', { size: 16, fill: C.muted, bold: true });
+  // the character limit
+  g += text(cx + 36, cy + 692, 'Card', { size: 18, fill: C.muted, bold: true }) + text(cx + cw - 36, cy + 692, '420 / 700 characters', { size: 18, fill: C.muted, anchor: 'end' });
+  g += rect(cx + 36, cy + 708, cw - 72, 16, { r: 8, fill: C.paper }) + rect(cx + 36, cy + 708, (cw - 72) * 0.6, 16, { r: 8, fill: C.ok });
+  g += text(cx + cw / 2, cy + 768, 'The entity is its card', { head: true, italic: true, size: 24, anchor: 'middle', fill: C.muted });
+
+  // references
+  g += caption(1210, 80, 'References', 'walked by Graph RAG', { size: 28 });
+  const chips = [
+    [1520, 150, 'FaPlug', 'Session on the API', 'Architecture / Api', 'depends_on', LAYER.prod, 'prod', true],
+    [1520, 270, 'FaCubes', 'Mesh feature', 'Product / Feature', 'implements', LAYER.kn, 'kn', false],
+    [1520, 390, 'FaTriangleExclamation', 'Clash with the docs', 'Harness / Issue', 'concerns', LAYER.att, 'att', false],
+  ];
+  chips.forEach(([x, y, ic, name, type, rel, L, hk, outgoing], i) => {
+    const sy = cy + 190 + i * 70;
+    g += path(`M${cx + cw + 6} ${sy} C${cx + cw + 160} ${sy} ${x - 160} ${y + 36} ${x - 10} ${y + 36}`, { stroke: L.strong, sw: 3.5, head: outgoing ? hk : undefined, tail: outgoing ? undefined : hk });
+    g += pill(1360, (sy + y + 36) / 2, rel, { color: L.strong });
+    g += rect(x, y, 330, 72, { r: 16, fill: C.white, stroke: L.strong, sw: 2.5, shadow: true });
+    g += circle(x + 38, y + 36, 24, { fill: L.wash }) + iconAt(ic, x + 38, y + 36, 24, L.strong);
+    g += text(x + 74, y + 32, name, { head: true, bold: true, size: 21 }) + text(x + 74, y + 56, type, { size: 16, fill: C.muted });
+  });
+
+  // artifacts beneath a summary
+  g += caption(1210, 560, 'Artifacts', 'a summary = entity + artifacts', { size: 28 });
+  g += path(`M${cx + cw + 6} ${cy + 620} C1200 ${cy + 620} 1180 680 1240 680`, { stroke: C.ink, sw: 3.5, dash: '10 8' });
+  g += path('M1240 680H1800M1300 680V700M1500 680V700M1700 680V700', { stroke: C.ink, sw: 3 });
+  [[1240, 'FaFileCode', 'src/server.ts'], [1440, 'FaFileLines', 'plans/mesh.md'], [1640, 'FaComments', 'chats/6fb5.jsonl']].forEach(([x, ic, label]) => {
+    g += doc(x, 705, 120, 150, { icon: ic, stroke: C.ink, iconColor: C.ochre });
+    g += text(x + 60, 890, label, { size: 18, anchor: 'middle', fill: C.muted });
+  });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- 3. entity states
+function states() {
+  let g = '';
+  // verification
+  g += caption(70, 70, 'Verification', 'your judgement', { size: 32, fill: C.red });
+  const U = [230, 390], V = [660, 390], rr = 100;
+  for (const [p, st, name, sub] of [[U, 'unverified', 'unverified', 'in the feed'], [V, 'verified', 'verified', 'out of the feed']]) {
+    g += circle(p[0], p[1], rr, { fill: STATE[st].wash, stroke: STATE[st].color, sw: 5, shadow: true });
+    g += stateGlyph(st, p[0], p[1], 96);
+    g += caption(p[0], p[1] + rr + 50, name, sub, { anchor: 'middle', fill: STATE[st].color, size: 28 });
+  }
+  g += curve(U, V, rr, rr, -95, { stroke: C.ok, sw: 6, head: 'ok' });
+  g += iconAt('FaHandPointer', 445, 238, 46, C.ok) + pill(445, 290, 'approval', { color: C.ok });
+  g += curve(V, U, rr, rr, -95, { stroke: C.muted, sw: 4, head: 'muted', dash: '12 9' });
+  g += pill(445, 488, 'rewritten by a run', { color: C.muted });
+  g += line(900, 60, 900, 740, { stroke: C.line, sw: 2 });
+
+  // sync
+  g += caption(950, 70, 'Sync', 'the entity against its artifacts and implementation', { size: 32, fill: C.ochre });
+  const P = { synced: [1080, 430], entity_ahead: [1430, 230], artifact_ahead: [1430, 640], updating: [1780, 430] }, r = 74;
+  g += curve(P.synced, P.entity_ahead, r, r, 30, { label: 'approved, unimplemented', stroke: C.ochre, head: 'kn', dx: -40 });
+  g += curve(P.entity_ahead, P.updating, r, r, 30, { label: 'implementation run', stroke: C.ochre, head: 'kn', dx: 40 });
+  g += curve(P.synced, P.artifact_ahead, r, r, -30, { label: 'artifact changed', stroke: C.red, head: 'att', dx: -30 });
+  g += curve(P.artifact_ahead, P.updating, r, r, -30, { label: 'summarization', stroke: C.red, head: 'att', dx: 30 });
+  g += line(P.synced[0] + r + 8, 412, P.updating[0] - r - 14, 412, { stroke: C.muted, sw: 4, head: 'muted' }) + pill(1430, 380, 'run on it', { color: C.muted });
+  g += line(P.updating[0] - r - 8, 450, P.synced[0] + r + 14, 450, { stroke: C.ok, sw: 4, head: 'ok' }) + pill(1430, 482, 'landed and approved', { color: C.ok });
+  for (const [st, p] of Object.entries(P)) {
+    g += circle(p[0], p[1], r, { fill: STATE[st].wash, stroke: STATE[st].color, sw: 5, shadow: true }) + stateGlyph(st, p[0], p[1], 64);
+    const below = st !== 'entity_ahead';
+    g += text(p[0], below ? p[1] + r + 38 : p[1] - r - 18, st, { head: true, bold: true, size: 26, anchor: 'middle', fill: STATE[st].color });
   }
 
-  const blocks = [];
-  const slide = (name) => {
-    const s = pres.addSlide();
-    s.addNotes(`Style: ${T.name} — ${name}`);
-    s.background = { color: T.bg };
-    return s;
+  // contradictions
+  g += rect(60, 780, 1800, 150, { r: 22, fill: C.paper });
+  g += caption(100, 840, 'Contradictions', 'open contradiction issues over the entity', { size: 30, fill: C.red });
+  const cards = [[900, 802], [1250, 802], [1600, 802]];
+  g += path(zigzag([1120, 855], [1250, 855], 10, 7), { stroke: C.red, sw: 4 });
+  g += iconAt('FaBolt', 1185, 820, 30, C.red);
+  cards.forEach(([x, y], i) => (g += miniCard(x, y, 220, 106, { crumb: i === 2 ? 'PRODUCT / FEATURE' : 'GOVERNANCE / DECISION', crumbSize: 10, bars: [0.9, 0.7, 0.8], badge: i < 2 ? '1' : null, pad: 16 })));
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- 4. automations
+function automations() {
+  let g = '';
+  const hc = [540, 470];
+  const A = [
+    ['Exploration', 'FaCompass', 'schedule'], ['Preparation', 'FaListCheck', 'schedule'], ['Implementation', 'FaCode', 'event'],
+    ['Validation', 'FaFlaskVial', 'event'], ['Consistency check', 'FaScaleBalanced', 'schedule'], ['Retention', 'FaBroom', 'schedule'],
+    ['Optimization', 'FaWandMagicSparkles', 'schedule'], ['Summarization', 'FaFileLines', 'hook'], ['Graph build', 'FaDiagramProject', 'enabled'],
+    ['Chat', 'FaComments', 'you'],
+  ];
+  const KIND = {
+    schedule: ['FaClock', C.ochre, 'schedule'], event: ['FaBolt', C.red, 'event'], you: ['FaHandPointer', C.ok, 'you'],
+    hook: ['FaAnchor', C.ink, 'Stop hook'], enabled: ['FaPowerOff', C.muted, 'project enabled'],
   };
-
-  // ---------------------------------------------------------------- 1. the loop
-  blocks.push(async () => {
-    const s = slide('how everything works together');
-    const t = tools(s);
-    t.header('How everything works together');
-    t.sub('One loop per project: triggers start runs, runs leave entities and artifacts, everything lands on the main line, the user verifies it in the feed');
-    const W = 2.4, H = 1.35, top = 1.55, bottom = 4.55, xs = [0.45, 3.8, 7.15, 10.5];
-    const b1 = t.box(xs[0], top, W, H, 'Triggers', ['Trigger entities per workspace', 'Schedule, event or on demand', 'Feed size as the bound'], { fill: WASH.prod });
-    const b2 = t.box(xs[1], top, W, H, 'Runs', ['One Claude Code process per run', 'Own detached checkout of the main line', 'Automation runs one at a time per project'], { fill: WASH.prod });
-    const b3 = t.box(xs[2], top, W, H, 'Work in the checkout', ['Entities as cards', 'Artifacts: code, plans, chats', 'Free read and write, nothing gated'], { fill: WASH.prod });
-    const b4 = t.box(xs[3], top, W, H, 'Summarization', ['Stop hook before the run ends', 'One summary entity per artifact group', 'Card within the character limit'], { fill: WASH.kn });
-    const b8 = t.box(xs[0], bottom, W, H, 'User actions', ['Approve or send back', 'Chat, run on demand, stop', 'Edit entities directly'], { fill: WASH.att });
-    const b7 = t.box(xs[1], bottom, W, H, 'Index and feed', ['Index follows the main line', 'Unverified entities in the feed', 'Ranking: product, timeline, unlocks'], { fill: WASH.att });
-    const b6 = t.box(xs[2], bottom, W, H, 'Main line', ['One branch, one commit per run', 'Verification as a state, not a place', 'Approval as one more commit'], { fill: WASH.kn });
-    const b5 = t.box(xs[3], bottom, W, H, 'Consistency gate', ['Card limit, types, references', 'Issue entity for what cannot pass', 'Landing: fast-forward or replay'], { fill: WASH.kn });
-    t.edge(b1, b2, 'run queued');
-    t.edge(b2, b3, 'writes');
-    t.edge(b3, b4, 'artifacts');
-    t.edge(b4, b5, 'transaction');
-    t.edge(b5, b6, 'landed');
-    t.edge(b6, b7, 'indexed');
-    t.edge(b7, b8, 'ranked feed');
-    t.edge(b8, b1, 'approval, entity_ahead, send back');
-    t.note(0.6, 6.25, 12.1, 'Runs the user starts go at once, alongside the queued automation runs. A plan is an ordinary entity on this loop: approved and ahead of its artifacts.', { align: 'center' });
+  const rx = 420, ry = 335, r = 52;
+  const pos = A.map((_, i) => {
+    const a = ((-90 + 36 * i) * Math.PI) / 180;
+    return [hc[0] + rx * Math.cos(a), hc[1] + ry * Math.sin(a)];
+  });
+  pos.forEach(([x, y]) => (g += line(hc[0], hc[1], x, y, { stroke: C.line, sw: 3, dash: '8 8' })));
+  g += circle(hc[0], hc[1], 130, { fill: C.paper, stroke: C.white, sw: 8 });
+  g += graph(hc[0], hc[1] - 18, 0.82) + text(hc[0], hc[1] + 92, 'Knowledge graph', { head: true, bold: true, size: 22, anchor: 'middle' });
+  A.forEach(([name, ic, kind], i) => {
+    const [x, y] = pos[i], [kic, kc] = KIND[kind];
+    g += medallion(x, y, r, kind === 'you' ? LAYER.att : kind === 'event' ? LAYER.kn : LAYER.prod, ic);
+    g += circle(x + r * 0.74, y - r * 0.74, 18, { fill: kc, stroke: C.white, sw: 3 }) + iconAt(kic, x + r * 0.74, y - r * 0.74, 18, C.white);
+    g += text(x, y + r + 28, name, { head: true, bold: true, size: 20, anchor: 'middle' });
   });
 
-  // ---------------------------------------------------------------- 2. entities
-  blocks.push(async () => {
-    const s = slide('entities');
-    const t = tools(s);
-    t.header('Entities');
-    t.sub('The unit of the knowledge base: standalone, typed, written as its card; a summary is an entity with artifacts beneath it');
-    // the card
-    const cx = 0.6, cy = 1.4, cw = 4.4, ch = 4.2;
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: cx, y: cy, w: cw, h: ch, rectRadius: 0.12, fill: { color: 'FFFFFF' }, line: { color: LINE, width: 0.75 }, shadow: shade() });
-    s.addText([
-      { text: 'GOVERNANCE / DECISION  ·  momentum', options: { fontFace: body, fontSize: 8, bold: true, color: ACCENT, charSpacing: 1, breakLine: true } },
-      { text: 'Remote access over a private mesh', options: { fontFace: head, fontSize: 15, bold: true, color: INK, breakLine: true, paraSpaceBefore: 6 } },
-      { text: 'No port is exposed to the public internet; clients reach the machine through a WireGuard mesh.', options: { fontFace: body, fontSize: 9.5, color: MUTED, breakLine: true, paraSpaceBefore: 6 } },
-      { text: 'API on the mesh interface only', options: { fontFace: body, fontSize: 9.5, color: INK, bullet: { indent: 10 }, paraSpaceBefore: 8, breakLine: true } },
-      { text: 'One key per enrolled device', options: { fontFace: body, fontSize: 9.5, color: INK, bullet: { indent: 10 }, paraSpaceBefore: 3, breakLine: true } },
-      { text: 'Per-user session on top of the tunnel', options: { fontFace: body, fontSize: 9.5, color: INK, bullet: { indent: 10 }, paraSpaceBefore: 3 } },
-    ], { x: cx + 0.15, y: cy + 0.12, w: cw - 0.3, h: 2.4, valign: 'top', margin: 0, isTextBox: true });
-    const rows = [['Layer', 'Protection'], ['Tunnel', 'End-to-end encryption'], ['API', 'Per-user session'], ['Edge', 'No inbound firewall rule']];
-    rows.forEach((row, i) => row.forEach((cell, j) => s.addText(cell, {
-      shape: pres.shapes.RECTANGLE, x: cx + 0.15 + (j ? 0.9 : 0), y: cy + 2.6 + i * 0.28, w: j ? cw - 0.3 - 0.9 : 0.9, h: 0.28,
-      fill: { color: i ? 'FFFFFF' : PAPER }, line: { color: LINE, width: 0.75 }, fontFace: body, fontSize: 8.5, bold: !i, color: i ? INK : MUTED, valign: 'middle', margin: [0, 5, 0, 5], isTextBox: true,
-    })));
-    await t.icon('FaCircleQuestion', STATE.unverified, cx + cw - 0.75, cy + 0.14, 0.2);
-    await t.icon('FaLink', STATE.synced, cx + cw - 0.45, cy + 0.14, 0.2);
-    t.note(cx, cy + ch + 0.08, cw, 'The entity is its card: free form within the character limit, in the form that presents it best', { align: 'center' });
-
-    // what surrounds the card
-    const X = 5.6, W = 3.4, H = 1.15;
-    const fm = t.box(X, 1.4, W, 1.6, 'Frontmatter', ['type · origin · verification · sync', 'product_impact · timeline_impact · unlocks', 'references · artifacts'], { fill: PAPER });
-    const disk = t.box(X, 3.2, W, H, 'On disk', ['knowledge-graph/<Domain>/<Type>/<name>.md', 'One directory per type, 150 types'], { fill: PAPER });
-    const idx = t.box(X, 4.55, W, H, 'In the index', ['Postgres schema per workspace', 'Full text, embeddings, ranking, states'], { fill: PAPER });
-    const X2 = 9.45;
-    const refs = t.box(X2, 1.4, W, 1.6, 'References', ['Relations to other entities', 'depends_on · implements · concerns · retires · plans', 'Validated by the gate, walked by Graph RAG'], { fill: WASH.kn });
-    const arts = t.box(X2, 3.2, W, 1.6, 'Artifacts', ['Repository files beneath a summary', 'chats/ · plans/ · code', 'Written only by summarization'], { fill: WASH.kn });
-    const states = t.box(X2, 5.0, W, 0.9, 'States', ['Verification, sync and contradictions', 'Shown on every card'], { fill: WASH.att });
-    const card = { x: cx, y: cy, w: cw, h: ch, cx: cx + cw / 2, cy: cy + ch / 2 };
-    t.edge(card, fm, null);
-    t.edge(card, disk, null);
-    t.edge(card, idx, null);
-    t.edge(fm, refs, null);
-    t.edge(fm, arts, null);
-    t.edge(idx, states, null);
-    t.note(0.6, 6.55, 12.1, 'An entity that does not fit the limit is split into entities that reference each other. Origin: added by the user, requested, or raised by an automation.', { align: 'center' });
+  // two lanes
+  const X = 1120;
+  g += caption(X, 80, 'One project, two lanes', null, { size: 32 });
+  g += caption(X, 150, 'Automation runs', 'queued, one at a time', { size: 24 });
+  [['Exploration', 'FaCompass', 175], ['Implementation', 'FaCode', 205], ['Validation', 'FaFlaskVial', 160], ['Summarization', 'FaFileLines', 185]].reduce((x, [s, ic, w]) => {
+    g += pod(x, 205, w, 62, s, ic, LAYER.prod, { size: 17 });
+    return x + w + 10;
+  }, X);
+  g += caption(X, 340, 'Your runs', 'at once, alongside', { size: 24, fill: C.red });
+  g += pod(X + 40, 385, 330, 62, 'Chat', 'FaComments', LAYER.att);
+  g += pod(X + 230, 462, 330, 62, 'Send back', 'FaRotateLeft', LAYER.att);
+  g += pod(X + 420, 539, 320, 62, 'Run on demand', 'FaPlay', LAYER.att);
+  g += line(X, 640, 1860, 640, { stroke: C.muted, sw: 3, head: 'muted' }) + text(1860, 672, 'time', { italic: true, size: 19, fill: C.muted, anchor: 'end' });
+  // legend
+  Object.values(KIND).forEach(([kic, kc, label], i) => {
+    const x = X + (i % 2) * 380, y = 735 + Math.floor(i / 2) * 58;
+    g += circle(x + 18, y, 18, { fill: kc }) + iconAt(kic, x + 18, y, 18, C.white) + text(x + 48, y + 7, label, { size: 21 });
   });
+  return svg(g);
+}
 
-  // ---------------------------------------------------------------- 3. entity states
-  blocks.push(async () => {
-    const s = slide('entity states');
-    const t = tools(s);
-    t.header('Entity states');
-    t.sub('Two independent axes on every entity, plus a count: verification is the user\'s judgement, sync is the entity against its artifact or implementation');
-    // verification
-    t.band(0.6, 1.4, 12.1, 1.55, WASH.att, 'Verification', 'A0402F');
-    const un = t.pill(3.6, 2.3, 'unverified', STATE.unverified, { w: 1.6 });
-    const ve = t.pill(9.7, 2.3, 'verified', STATE.verified, { w: 1.6 });
-    t.arrow(un.x + un.w, un.cy - 0.1, ve.x, ve.cy - 0.1);
-    t.note(5.0, 1.85, 3.3, 'Approval in the feed: one commit on the main line', { align: 'center', italic: true, color: INK });
-    t.arrow(ve.x, ve.cy + 0.15, un.x + un.w, ve.cy + 0.15, { color: MUTED });
-    t.note(5.0, 2.5, 3.3, 'Any rewrite by a run: written unverified, back in the feed', { align: 'center', italic: true, color: MUTED });
-    t.note(0.75, 2.55, 2.6, 'Approved state = the system', { color: 'A0402F', size: 9 });
-    t.note(10.7, 2.55, 1.9, 'Out of the feed', { color: 'A0402F', size: 9, align: 'right' });
+// ---------------------------------------------------------------- 5. summarization
+function summarization() {
+  let g = '';
+  g += pod(70, 40, 320, 74, 'A run stops', 'FaTerminal', LAYER.prod);
+  const pile = [
+    [100, 180, -9, 'FaFileCode', 'server.ts'], [250, 160, 5, 'FaFileLines', 'plan.md'], [400, 190, -4, 'FaComments', 'chat.jsonl'],
+    [150, 360, 7, 'FaFileCode', 'api.ts'], [300, 380, -6, 'FaFileLines', 'design.md'], [450, 350, 9, 'FaFileCode', 'guard.ts'],
+  ];
+  pile.forEach(([x, y, rot, ic, label]) => (g += doc(x, y, 118, 150, { rot, icon: ic, label, stroke: C.ink, iconColor: ic === 'FaComments' ? C.red : C.ok })));
+  g += caption(330, 600, "The run's artifacts", 'code, plans, chats, documents', { anchor: 'middle' });
+  g += path('M580 330 C640 330 650 270 700 262', { stroke: C.ink, sw: 5, head: 'ink' });
 
-    // sync
-    t.band(0.6, 3.15, 12.1, 2.75, WASH.kn, 'Sync', '7C6224');
-    const sy = t.pill(2.5, 4.55, 'synced', STATE.synced, { w: 1.5 });
-    const ea = t.pill(6.4, 3.85, 'entity_ahead', STATE.entity_ahead, { w: 1.7 });
-    const aa = t.pill(6.4, 5.35, 'artifact_ahead', STATE.artifact_ahead, { w: 1.7 });
-    const up = t.pill(10.6, 4.55, 'updating', STATE.updating, { w: 1.5 });
-    t.edge(sy, ea, 'approval, nothing implements it', { dy: -0.2 });
-    t.edge(ea, up, 'implementation run on it', { dy: -0.2 });
-    t.edge(sy, aa, 'artifact changed on the main line', { dy: 0.2 });
-    t.edge(aa, up, 'summarization rewrite', { dy: 0.2 });
-    t.edge(sy, up, 'run on it, e.g. a send back', { dy: -0.17 });
-    t.arrow(up.x, up.cy + 0.12, sy.x + sy.w, sy.cy + 0.12, { color: MUTED });
-    t.note(4.9, 4.72, 3.0, 'landed and approved', { align: 'center', italic: true, color: MUTED });
-    t.note(0.75, 5.45, 2.9, 'Implementable types: Feature, FeatureRequest, UserStory, DevTask, Bug, TechDebt, Plan', { size: 8 });
+  // the Stop hook and the funnel
+  g += iconAt('FaAnchor', 910, 120, 52, C.ink) + caption(955, 115, 'Stop hook', 'before the run ends', { size: 24 });
+  g += path('M390 77 C600 77 760 120 870 120', { stroke: C.ink, sw: 3, dash: '10 8', head: 'ink' });
+  g += path('M700 250 L1120 250 L975 520 L955 600 L865 600 L845 520 Z', { fill: LAYER.kn.wash, stroke: C.ochre, sw: 5, shadow: true });
+  g += `<ellipse cx="910" cy="250" rx="210" ry="28" fill="#E3D6B4" stroke="${C.ochre}" stroke-width="5"/>`;
+  g += iconAt('FaWandMagicSparkles', 910, 345, 58, C.ochre);
+  g += text(910, 430, 'Summarization', { head: true, bold: true, size: 28, anchor: 'middle' });
+  g += text(910, 458, 'sub-agent', { size: 20, anchor: 'middle', fill: C.muted, italic: true });
+  g += path('M985 540 C1120 540 1200 440 1300 410', { stroke: C.ochre, sw: 5, head: 'kn' });
 
-    // contradictions
-    t.band(0.6, 6.1, 12.1, 0.85, PAPER, null);
-    s.addText('3', {
-      shape: pres.shapes.ROUNDED_RECTANGLE, rectRadius: 0.17, x: 0.85, y: 6.35, w: 0.42, h: 0.34, fill: { color: WASH.att }, line: { type: 'none' },
-      color: 'A0402F', fontFace: head, fontSize: 12, bold: true, align: 'center', valign: 'middle', margin: 0, isTextBox: true,
+  // summary cards
+  g += miniCard(1330, 190, 300, 380, { rot: -9, bars: [0.9, 0.8, 0.7, 0.85, 0.6, 0.75, 0.5, 0.8, 0.7] });
+  g += miniCard(1540, 190, 300, 380, { rot: 8, bars: [0.9, 0.8, 0.7, 0.85, 0.6, 0.75, 0.5, 0.8, 0.7] });
+  let front = miniCard(1430, 170, 310, 400, { crumb: 'HARNESS / CHAT', title: ['Remote access', 'decided'], glyphs: ['unverified', 'synced'], bars: [0.9, 0.82, 0.88, 0.6, 0.78, 0.7, 0.85] });
+  front += text(1448, 520, '420 / 700', { size: 16, fill: C.muted }) + rect(1448, 532, 274, 12, { r: 6, fill: C.paper }) + rect(1448, 532, 164, 12, { r: 6, fill: C.ok });
+  g += front;
+  g += caption(1585, 640, 'Summary entities', 'one card each, within the limit', { anchor: 'middle' });
+
+  // the second path: your own commits
+  g += rect(60, 740, 1800, 190, { r: 22, fill: C.paper });
+  g += caption(100, 805, 'Your own commits', 'artifacts changed outside a run', { size: 28 });
+  const chain = [
+    ['FaUser', null, 'your commit', LAYER.att], ['FaFileCode', null, 'artifact changed', LAYER.ink],
+    [null, 'artifact_ahead', 'artifact_ahead', LAYER.att], ['FaWandMagicSparkles', null, 'summarization run', LAYER.kn],
+    [null, 'synced', 'card rewritten', LAYER.prod],
+  ];
+  chain.forEach(([ic, st, label, L], i) => {
+    const x = 640 + i * 270, y = 818;
+    g += circle(x, y, 42, { fill: L.wash, stroke: L.strong, sw: 4 });
+    g += ic ? iconAt(ic, x, y, 38, L.strong) : stateGlyph(st, x, y, 44);
+    g += text(x, y + 82, label, { size: 20, anchor: 'middle', bold: true, fill: L.strong });
+    if (i < chain.length - 1) g += line(x + 52, y, x + 214, y, { stroke: C.muted, sw: 4, head: 'muted' });
+  });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- 6. consistency gate
+function gate() {
+  let g = '';
+  // the road from the run checkout to the main line
+  g += rect(60, 245, 1520, 120, { r: 60, fill: C.paper });
+  g += line(140, 305, 1520, 305, { stroke: C.white, sw: 6, dash: '34 22' });
+  g += medallion(150, 305, 62, LAYER.prod, 'FaTerminal');
+  g += text(150, 210, 'Run checkout', { head: true, bold: true, size: 24, anchor: 'middle' });
+  // every write checked on the way
+  [320, 410, 500].forEach((x) => (g += circle(x, 245, 22, { fill: C.ochre, stroke: C.white, sw: 4 }) + iconAt('FaBolt', x, 245, 22, C.white)));
+  g += text(410, 196, 'every write checked', { size: 21, anchor: 'middle', italic: true, fill: C.ochre });
+  // the transaction on the road
+  g += miniCard(600, 255, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14, rot: -6 });
+  g += miniCard(630, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14, rot: 3 });
+  g += miniCard(660, 268, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 });
+  g += text(720, 400, 'transaction', { size: 20, anchor: 'middle', italic: true, fill: C.muted });
+  // the gate
+  g += rect(830, 150, 34, 260, { r: 8, fill: C.ink }) + rect(1096, 150, 34, 260, { r: 8, fill: C.ink });
+  g += rect(810, 120, 340, 64, { r: 14, fill: C.ink, shadow: true });
+  [[880, C.ok, 'FaCheck', 'card limit'], [980, C.ok, 'FaCheck', 'type'], [1080, C.red, 'FaXmark', 'references']].forEach(([x, c, ic, label]) => {
+    g += circle(x, 152, 21, { fill: c, stroke: C.white, sw: 3 }) + iconAt(ic, x, 152, 22, C.white);
+    g += text(x, 98, label, { size: 18, anchor: 'middle', fill: c, bold: true });
+  });
+  g += text(980, 450, 'Consistency gate', { head: true, bold: true, size: 30, anchor: 'middle' });
+  g += text(980, 480, 'everything lands; what fails carries an issue', { size: 20, anchor: 'middle', italic: true, fill: C.muted });
+  // after the gate
+  g += miniCard(1200, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 }) + circle(1312, 266, 15, { fill: C.ok, stroke: C.white, sw: 3 }) + iconAt('FaCheck', 1312, 266, 15, C.white);
+  g += miniCard(1340, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 }) + circle(1452, 266, 15, { fill: C.red, stroke: C.white, sw: 3 }) + iconAt('FaFlag', 1452, 266, 15, C.white);
+  g += line(1470, 305, 1640, 305, { stroke: C.ink, sw: 6, head: 'ink' });
+  // the main line
+  g += line(1700, 90, 1700, 520, { stroke: C.ink, sw: 14 });
+  [140, 220, 305, 400, 470].forEach((y, i) => (g += circle(1700, y, i === 2 ? 28 : 16, { fill: i === 2 ? C.ok : C.white, stroke: i === 2 ? C.white : C.ink, sw: i === 2 ? 6 : 7 })));
+  g += text(1760, 300, 'Main line', { head: true, bold: true, size: 28 }) + text(1760, 330, 'one commit', { size: 20, fill: C.muted, italic: true });
+
+  // the consistency check loop
+  g += rect(60, 560, 1800, 370, { r: 22, fill: C.paper });
+  g += caption(100, 615, 'Consistency check', 'the knowledge graph only', { size: 30 });
+  g += graph(420, 810, 1.0, { contradiction: true });
+  g += circle(420, 795, 128, { stroke: C.ink, sw: 12 }) + line(512, 887, 556, 922, { stroke: C.ink, sw: 22 });
+  g += doc(640, 690, 100, 128, { icon: 'FaEyeSlash', stroke: C.muted, iconColor: C.muted }) + text(690, 860, 'artifacts', { size: 19, anchor: 'middle', fill: C.muted }) + text(690, 884, 'never opened', { size: 19, anchor: 'middle', fill: C.muted });
+  g += path('M560 720 C660 650 760 640 860 660', { stroke: C.red, sw: 4, head: 'att' });
+  g += miniCard(880, 620, 300, 200, { crumb: 'HARNESS / ISSUE', title: 'Contradiction', flag: true, stroke: C.red, sw: 2.5, bars: [0.85, 0.7, 0.8, 0.5] });
+  g += curve([1180, 700], [1400, 680], 0, 30, -20, { stroke: C.red, head: 'att', label: 'concerns' });
+  g += curve([1180, 760], [1600, 820], 0, 30, 20, { stroke: C.red, head: 'att', label: 'concerns', dy: 10 });
+  g += miniCard(1420, 610, 240, 140, { crumb: 'PRODUCT / FEATURE', crumbSize: 11, bars: [0.85, 0.7, 0.8, 0.6], badge: '1' });
+  g += miniCard(1610, 760, 230, 130, { crumb: 'GOVERNANCE / DECISION', crumbSize: 11, bars: [0.85, 0.7, 0.8], badge: '1' });
+  g += text(1450, 900, 'counted on each entity', { size: 20, italic: true, fill: C.red, anchor: 'middle' });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- 7. git
+function git() {
+  let g = '';
+  const Y = 540;
+  g += line(80, Y, 1860, Y, { stroke: C.ink, sw: 14 });
+  g += text(80, Y + 70, 'Main line', { head: true, bold: true, size: 28 }) + text(80, Y + 98, 'the only branch', { size: 20, italic: true, fill: C.muted });
+  const commit = (x, color, label, o = {}) => {
+    let s = circle(x, Y, 24, { fill: o.fill ? color : C.white, stroke: o.fill ? C.white : color, sw: o.fill ? 6 : 9 });
+    if (o.icon) s += iconAt(o.icon, x, Y, 22, C.white);
+    return s + text(x, Y + 64, label, { size: 20, anchor: 'middle', bold: true, fill: color });
+  };
+  // a run that lands on an unchanged main line: fast-forward
+  g += pod(200, 340, 250, 66, 'Exploration', 'FaCompass', LAYER.prod);
+  g += path(`M300 ${Y - 26} C300 470 230 430 230 412`, { stroke: C.ink, sw: 3, dash: '9 8' });
+  g += path(`M430 406 C470 440 480 480 480 ${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
+  g += pill(560, 450, 'fast-forward', { color: C.ok });
+  // a run that lands after your commit: replayed, conflicts raised
+  g += pod(760, 330, 300, 66, 'Implementation', 'FaCode', LAYER.prod);
+  g += path(`M680 ${Y - 26} C680 450 760 420 780 400`, { stroke: C.ink, sw: 3, dash: '9 8' });
+  g += path(`M1050 396 C1130 430 1180 470 1180 ${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
+  g += iconAt('FaBolt', 1158, 452, 34, C.red) + pill(1050, 480, 'replayed', { color: C.ok });
+  g += path(`M1180 ${Y + 90} V${Y + 128}`, { stroke: C.red, sw: 3, dash: '6 6' });
+  g += miniCard(1080, Y + 130, 260, 120, { crumb: 'HARNESS / CONFLICT', title: 'Changed meanwhile', titleSize: 18, flag: true, stroke: C.red, sw: 2.5, bars: [0.8, 0.6] });
+  // your chat, at once, alongside
+  g += pod(820, 150, 300, 66, 'Your chat', 'FaComments', LAYER.att);
+  g += path(`M690 ${Y - 26} C700 300 760 190 820 183`, { stroke: C.red, sw: 3, dash: '9 8' });
+  g += path(`M1120 183 C1300 183 1400 300 1400 ${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
+  g += pill(1270, 210, 'at once, alongside', { color: C.red });
+  // queued automation runs, one at a time
+  g += text(1700, 100, 'queued, one at a time', { size: 21, anchor: 'middle', italic: true, fill: C.ok });
+  g += pod(1560, 125, 280, 58, 'Validation', 'FaFlaskVial', LAYER.prod, { ghost: true, size: 18 });
+  g += pod(1560, 195, 280, 58, 'Retention', 'FaBroom', LAYER.prod, { ghost: true, size: 18 });
+  g += pod(1560, 265, 280, 58, 'Preparation', 'FaListCheck', LAYER.prod, { ghost: true, size: 18 });
+  g += path(`M1700 330 V${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
+  // the commits
+  g += commit(300, C.ink, 'tip');
+  g += commit(480, C.ok, 'landed', { fill: true });
+  g += commit(680, C.ok, 'approval', { fill: true, icon: 'FaCheck' });
+  g += commit(900, C.red, 'your commit', { fill: true, icon: 'FaUser' });
+  g += commit(1180, C.ok, 'landed', { fill: true });
+  g += commit(1400, C.ok, 'chat landed', { fill: true });
+  g += commit(1700, C.ok, 'next run', { fill: true });
+
+  // before and after
+  g += rect(60, 760, 960, 170, { r: 22, fill: C.paper });
+  for (let i = 0; i < 14; i++) {
+    const y = 780 + i * 7;
+    g += path(`M120 825 C200 825 220 ${y} 330 ${y} H${470 - (i % 4) * 30}`, { stroke: C.accent, sw: 2.5, opacity: 0.55 });
+  }
+  g += line(100, 825, 120, 825, { stroke: C.accent, sw: 4 });
+  g += text(300, 912, '213 run branches', { size: 22, anchor: 'middle', bold: true, fill: C.accent });
+  g += line(530, 825, 640, 825, { stroke: C.muted, sw: 5, head: 'muted' });
+  g += line(690, 825, 970, 825, { stroke: C.ink, sw: 14 });
+  [740, 830, 920].forEach((x) => (g += circle(x, 825, 14, { fill: C.white, stroke: C.ink, sw: 6 })));
+  g += text(830, 912, '1 main line', { size: 22, anchor: 'middle', bold: true });
+  g += iconAt('FaLaptopCode', 1480, 845, 64, C.ink);
+  g += caption(1530, 840, 'Your checkout follows', 'clean files updated, dirty ones left alone', { size: 26 });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- 8. user actions
+function actions() {
+  let g = '';
+  // the phone with a feed card
+  const px = 810, py = 110, pw = 300, ph = 600;
+  g += rect(px, py, pw, ph, { r: 46, fill: '#F7F5F0', stroke: C.ink, sw: 14, shadow: true });
+  g += rect(px + pw / 2 - 50, py + 18, 100, 22, { r: 11, fill: C.ink });
+  g += miniCard(px + 30, py + 70, pw - 60, 420, { crumb: 'PRODUCT / FEATURE', crumbSize: 11, title: ['Offline feed'], glyphs: ['unverified'], bars: [0.9, 0.8, 0.86, 0.6, 0.8, 0.7, 0.85, 0.5, 0.75, 0.6, 0.8, 0.7, 0.66, 0.8] });
+  ['FaLayerGroup', 'FaDiagramProject', 'FaComments', 'FaChartLine', 'FaGear'].forEach((ic, i) => (g += iconAt(ic, px + 50 + i * 50, py + ph - 52, 24, i ? C.muted : C.accent)));
+
+  // swipe left: send back
+  g += caption(430, 70, 'Swipe left', 'send back with a comment', { anchor: 'middle', fill: C.red, size: 32 });
+  g += rect(280, 140, 300, 120, { r: 22, fill: C.white, stroke: C.red, sw: 3, shadow: true });
+  g += path('M480 258 L510 300 L520 258', { fill: C.white, stroke: C.red, sw: 3 });
+  [0.85, 0.7, 0.5].forEach((b, i) => (g += rect(305, 172 + i * 26, 250 * b, 10, { r: 5, fill: '#EBC9C1' })));
+  g += path('M790 420 C700 470 620 470 560 420', { stroke: C.red, sw: 10, head: 'att' });
+  g += iconAt('FaHandPointer', 680, 500, 56, C.ink);
+  g += line(430, 320, 430, 548, { stroke: C.red, sw: 4, head: 'att' });
+  g += pod(270, 560, 330, 70, 'Chat run on it', 'FaComments', LAYER.att);
+  g += stateGlyph('updating', 370, 680, 32) + text(395, 690, 'updating', { size: 22, bold: true, fill: STATE.updating.color });
+
+  // swipe right: approve
+  g += caption(1490, 70, 'Swipe right', 'approve', { anchor: 'middle', fill: C.ok, size: 32 });
+  g += path('M1130 420 C1220 470 1300 470 1360 420', { stroke: C.ok, sw: 10, head: 'ok' });
+  g += iconAt('FaHandPointer', 1240, 500, 56, C.ink);
+  g += circle(1450, 330, 70, { fill: STATE.verified.wash, stroke: C.ok, sw: 5, shadow: true }) + stateGlyph('verified', 1450, 330, 64);
+  g += text(1450, 200, 'APPROVE', { size: 26, bold: true, fill: C.ok, anchor: 'middle', spacing: 3, rot: -8 });
+  g += line(1450, 410, 1450, 520, { stroke: C.ok, sw: 4, head: 'ok' });
+  g += line(1300, 560, 1860, 560, { stroke: C.ink, sw: 12 });
+  g += circle(1350, 560, 14, { fill: C.white, stroke: C.ink, sw: 6 }) + circle(1450, 560, 24, { fill: C.ok, stroke: C.white, sw: 6 }) + iconAt('FaCheck', 1450, 560, 22, C.white);
+  g += text(1450, 615, 'one commit on the main line', { size: 20, anchor: 'middle', bold: true, fill: C.ok });
+  g += path('M1480 540 C1560 480 1600 470 1620 470', { stroke: C.ochre, sw: 4, head: 'kn', dash: '10 8' });
+  g += pod(1630, 437, 230, 66, 'Implement', 'FaCode', LAYER.kn, { size: 19 });
+  g += text(1745, 420, 'when nothing implements it', { size: 19, italic: true, fill: C.ochre, anchor: 'middle' });
+
+  // everything else you do
+  g += line(60, 760, 1860, 760, { stroke: C.line, sw: 2 });
+  [
+    ['FaComments', 'Chat', 'ask, steer'], ['FaPlay', 'Run on demand', 'any automation'], ['FaStop', 'Stop a run', 'what it wrote lands'],
+    ['FaToggleOn', 'Projects', 'enable, build, reset'], ['FaPenToSquare', 'Edit entities', 'commit to main'], ['FaGear', 'Settings', 'limits, models'],
+  ].forEach(([ic, name, sub], i) => {
+    const x = 220 + i * 296;
+    g += circle(x, 830, 42, { fill: C.white, stroke: C.ink, sw: 3, shadow: true }) + iconAt(ic, x, 830, 36, C.ink);
+    g += text(x + 60, 826, name, { head: true, bold: true, size: 22 }) + text(x + 60, 852, sub, { size: 18, fill: C.muted });
+  });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- slides
+const SLIDES = [
+  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. Runs the user starts go at once, alongside the queued automation runs.'],
+  ['Entities', entities, 'The unit of the knowledge base. The type is the path on disk. The entity is its card, within the character limit. References link entities and are walked by Graph RAG. A summary is an entity with artifacts beneath it.'],
+  ['Entity states', states, "Verification is the user's judgement: approval verifies, any rewrite by a run makes the entity unverified again. Sync is the entity against its artifacts and implementation. Contradictions count the open contradiction issues over the entity."],
+  ['Automations', automations, 'Ten automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Automation runs go one at a time per project; runs the user starts go at once.'],
+  ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
+  ['Consistency gate', gate, 'Every write is checked while the run works. When it ends, the transaction passes the gate: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
+  ['Git', git, "One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],
+  ['User actions', actions, 'Swipe right approves: one commit, verified; an implementable entity with nothing implementing it starts an implementation run. Swipe left sends back with a comment: a chat run works on the entity. Chat, run on demand, stop a run, manage projects, edit entities and change settings.'],
+];
+
+async function renderPngs(svgs) {
+  const { chromium } = require('playwright-core');
+  const browser = await chromium.launch({ channel: process.env.MOMENTUM_BROWSER_CHANNEL ?? 'msedge' });
+  try {
+    const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
+    const out = [];
+    for (const s of svgs) {
+      await page.setContent(`<!doctype html><html><body style="margin:0;background:#fff">${s}</body></html>`);
+      await page.evaluate(() => document.fonts.ready);
+      out.push(await page.screenshot({ clip: { x: 0, y: 0, width: W, height: H } }));
+    }
+    return out;
+  } finally {
+    await browser.close();
+  }
+}
+
+module.exports = async function renderMechanics(pres, T) {
+  const pngs = await renderPngs(SLIDES.map(([, draw]) => draw()));
+  if (process.env.MECH_PREVIEW) {
+    mkdirSync(process.env.MECH_PREVIEW, { recursive: true });
+    pngs.forEach((p, i) => writeFileSync(join(process.env.MECH_PREVIEW, `mech-${i + 1}.png`), p));
+  }
+  SLIDES.forEach(([title, , notes], i) => {
+    const s = pres.addSlide();
+    s.addNotes(`${title}. ${notes}`);
+    s.background = { color: 'FFFFFF' };
+    s.addText(title, {
+      shape: pres.shapes.RECTANGLE, x: 0.35, y: 0.3, w: 5.4, h: 0.5, fill: { color: T.hHeader.fill },
+      color: 'FFFFFF', fontFace: T.font.head, fontSize: 20, align: 'left', valign: 'middle', margin: [14, 14, 0, 5], isTextBox: true,
     });
-    s.addText([
-      { text: 'Contradictions', options: { bold: true, fontFace: head, fontSize: 11, color: INK, breakLine: true } },
-      { text: 'Open contradiction issues the consistency check holds over the entity, counted from the references; not a git conflict', options: { fontFace: body, fontSize: 9, color: MUTED } },
-    ], { x: 1.45, y: 6.18, w: 11.0, h: 0.7, valign: 'middle', margin: 0, isTextBox: true });
+    s.addImage({ data: `image/png;base64,${pngs[i].toString('base64')}`, x: 0, y: 0.9, w: 13.333, h: (13.333 * H) / W });
   });
-
-  // ---------------------------------------------------------------- 4. automations
-  blocks.push(async () => {
-    const s = slide('automations');
-    const t = tools(s);
-    t.header('Automations');
-    t.sub('Background loops per project, each defined by its responsibility alone; the definition is an entity in the harness, the trigger an entity in each workspace');
-    const A = [
-      ['Exploration', 'FaCompass', 'Next best action within the goals', ['schedule', 'on demand']],
-      ['Preparation', 'FaListCheck', 'Plans for action points that can start', ['schedule', 'on demand']],
-      ['Consistency check', 'FaScaleBalanced', 'Issues over the knowledge graph alone', ['schedule', 'on demand']],
-      ['Retention', 'FaBroom', 'Retirement of entities whose lifetime is spent', ['schedule', 'on demand']],
-      ['Optimization', 'FaWandMagicSparkles', 'Skills, sub-agents, definitions from the metrics', ['schedule', 'on demand']],
-      ['Implementation', 'FaCode', 'Approved entity implemented in the repository', ['event: entity_ahead']],
-      ['Validation', 'FaFlaskVial', 'Landed work and the project as it stands', ['schedule', 'event: implementation_finished']],
-      ['Chat', 'FaComments', 'The direct line to the user', ['user']],
-      ['Summarization', 'FaFileLines', 'Summary entities from artifacts', ['Stop hook', 'artifact change']],
-      ['Graph build', 'FaDiagramProject', 'Knowledge graph from the repository, run after run', ['project enabled']],
-    ];
-    const TAG = { schedule: '7C6224', 'on demand': OK, user: OK, 'Stop hook': ACCENT, 'artifact change': ACCENT, 'project enabled': MUTED };
-    const colour = (k) => TAG[k] ?? (k.startsWith('event') ? 'A0402F' : MUTED);
-    const W = 2.3, H = 1.55, gx = 0.15, x0 = 0.6, y0 = 1.4;
-    for (let i = 0; i < A.length; i++) {
-      const [name, ic, what, tags] = A[i];
-      const x = x0 + (i % 5) * (W + gx), y = y0 + Math.floor(i / 5) * (H + 0.2);
-      t.box(x, y, W, H, '', [], { fill: 'FFFFFF' });
-      await t.icon(ic, INK, x + 0.12, y + 0.12, 0.24);
-      s.addText([
-        { text: name, options: { bold: true, fontFace: head, fontSize: 11, color: INK, breakLine: true, paraSpaceAfter: 3 } },
-        { text: what, options: { fontFace: body, fontSize: 8.5, color: MUTED } },
-      ], { x: x + 0.44, y: y + 0.08, w: W - 0.52, h: 0.95, valign: 'top', margin: 0, isTextBox: true });
-      let tx = x + 0.12;
-      for (const k of tags) tx += t.tag(tx, y + H - 0.36, k, colour(k)) + 0.06;
-    }
-    // rules
-    const y = 5.05;
-    t.band(0.6, y, 12.1, 1.7, PAPER, null);
-    const col = (x, title, lines) => s.addText([
-      { text: title, options: { bold: true, fontFace: head, fontSize: 10.5, color: INK, breakLine: true, paraSpaceAfter: 3 } },
-      ...lines.map((l, k) => ({ text: l, options: { fontFace: body, fontSize: 8.5, color: MUTED, bullet: { indent: 8 }, breakLine: k < lines.length - 1 } })),
-    ], { x, y: y + 0.12, w: 3.85, h: 1.5, valign: 'top', margin: 0, isTextBox: true });
-    col(0.8, 'Scheduling', ['Automation runs: one at a time per project, queued', 'User-started runs: at once, alongside', 'One total across projects', 'Loops pause when the feed is full']);
-    col(4.75, 'Every run', ['One Claude Code process in its own checkout', 'Definition as instructions, summarization as a sub-agent', 'Guard hooks and the momentum-kb tools', 'Usage as a share of the 5-hour and weekly limits']);
-    col(8.7, 'Cheapest mechanism per step', ['Queries and rules for indices, metrics, lifetimes, references', 'AI only for judgement: deciding, planning, reviewing, summarizing', 'Materialized into each workspace on approval']);
-  });
-
-  // ---------------------------------------------------------------- 5. summarization
-  blocks.push(async () => {
-    const s = slide('summarization');
-    const t = tools(s);
-    t.header('Summarization');
-    t.sub('The only writer of summaries: a sub-agent every run calls from its Stop hook, and a run of its own when an artifact changes on the main line');
-    const W = 2.35, H = 1.7, y = 1.6, xs = [0.45, 3.7, 6.95, 10.2];
-    const r = t.box(xs[0], y, W, H, 'A run ends', ['Artifacts added, changed or deleted', 'Code, plans, chat transcript', 'Documents a graph build listed'], { fill: WASH.prod });
-    const h = t.box(xs[1], y, W, H, 'Stop hook', ['Once per stop, before the run ends', 'Knowledge graph and excluded patterns left out', 'Character limit and presentation rules passed on'], { fill: WASH.kn });
-    const a = t.box(xs[2], y, W, H, 'Summarization sub-agent', ['Each artifact read in full', 'One entity per coherent piece of work', 'Type from the artifact: chat, plan, result'], { fill: WASH.kn });
-    const e = t.box(xs[3], y, W, H, 'Summary entities', ['Artifacts listed in the frontmatter', 'implements, plans, concerns references', 'Landed with the run, unverified'], { fill: WASH.att });
-    t.edge(r, h, 'stop');
-    t.edge(h, a, 'artifact list');
-    t.edge(a, e, 'cards');
-    const y2 = 4.1;
-    const m = t.box(xs[0], y2, W, H, 'Main line change outside a run', ['The user\'s own commit', 'Artifacts changed under entities'], { fill: WASH.prod });
-    const g = t.box(xs[1], y2, W, H, 'Consistency gate', ['Entities over the artifacts: artifact_ahead', 'Entities changed with their artifacts: in step'], { fill: WASH.kn });
-    const sr = t.box(xs[2], y2, W, H, 'Summarization run', ['One run per change, event trigger', 'Every entity over the artifacts listed', 'Queued with the automation runs'], { fill: WASH.kn });
-    const rw = t.box(xs[3], y2, W, H, 'Cards rewritten', ['Entity from its artifacts again', 'sync: synced', 'Back in the feed, unverified'], { fill: WASH.att });
-    t.edge(m, g, 'indexed');
-    t.edge(g, sr, 'artifact_ahead');
-    t.edge(sr, rw, 'lands');
-    t.note(0.6, 6.2, 12.1, 'No automation summarizes by itself, so none is limited by the card. The consistency check trusts summarization: it never reads the artifacts, so a summary must say what its artifacts say.', { align: 'center' });
-  });
-
-  // ---------------------------------------------------------------- 6. consistency gate
-  blocks.push(async () => {
-    const s = slide('consistency gate');
-    const t = tools(s);
-    t.header('Consistency gate');
-    t.sub('The consistency guard on every change of a run, the transaction when it ends, and the consistency check loop over the knowledge graph');
-    const W = 3.35, H = 2.5, y = 1.4;
-    const a = t.box(0.45, y, W, H, 'Inside the run', [
-      'PostToolUse hook: every knowledge-base write checked as it happens',
-      'Stop hook: run sent back to fix what cannot pass, twice at most',
-      'Watch on knowledge-graph/ for writes outside the tools',
-      'momentum-kb write: issues returned at once',
-    ], { fill: WASH.prod, bullets: true });
-    const b = t.box(4.85, y, W, H, 'Transaction, when the run ends', [
-      'Card within the character limit',
-      'Type from entity-types.tsv, matching the directory',
-      'Every reference resolving; no deletion still referenced',
-      'Everything lands as one commit, valid or not',
-      'Harness/Issue guard-<run> over what cannot pass',
-    ], { fill: WASH.kn, bullets: true });
-    const c = t.box(9.25, y, W, H, 'After landing', [
-      'Index following the main line commit by commit',
-      'Unverified entities in the feed, verified ones out',
-      'Sync states and contradictions refreshed',
-      'Consistency and open-issue metrics recorded',
-    ], { fill: WASH.att, bullets: true });
-    t.edge(a, b, 'stop');
-    t.edge(b, c, 'landed');
-    const y2 = 4.3;
-    t.band(0.6, y2, 12.1, 2.1, PAPER, 'Consistency check loop', INK);
-    s.addText([
-      { text: 'Rule categories', options: { bold: true, fontFace: head, fontSize: 10.5, color: INK, breakLine: true, paraSpaceAfter: 3 } },
-      { text: 'reference · card-limit · type-path', options: { fontFace: body, fontSize: 9, color: MUTED, breakLine: true, paraSpaceAfter: 8 } },
-      { text: 'Content categories', options: { bold: true, fontFace: head, fontSize: 10.5, color: INK, breakLine: true, paraSpaceAfter: 3 } },
-      { text: 'contradiction · repetition · ambiguity · design-gap · logical · naming · struct · verbose · split', options: { fontFace: body, fontSize: 9, color: MUTED } },
-    ], { x: 0.8, y: y2 + 0.45, w: 5.6, h: 2.0, valign: 'top', margin: 0, isTextBox: true });
-    s.addText([
-      { text: 'One Harness/Issue per finding, concerning the entities at fault', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 }, breakLine: true } },
-      { text: 'Knowledge graph only: the artifacts behind a summary never opened', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 }, breakLine: true } },
-      { text: 'Open contradiction issues counted on each entity as its contradictions', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 }, breakLine: true } },
-      { text: 'Nothing fixed by the check itself: every change reaches the main line through a run and the feed', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 } } },
-    ], { x: 6.7, y: y2 + 0.45, w: 5.8, h: 2.0, valign: 'top', margin: 0, isTextBox: true });
-  });
-
-  // ---------------------------------------------------------------- 7. git
-  blocks.push(async () => {
-    const s = slide('git');
-    const t = tools(s);
-    t.header('Git');
-    t.sub('One branch per workspace: the main line. No run branches, no merges; every run lands as one commit, and approval is one commit more');
-    const dot = (x, y, label, color = INK, below = true) => {
-      s.addShape(pres.shapes.OVAL, { x: x - 0.11, y: y - 0.11, w: 0.22, h: 0.22, fill: { color: 'FFFFFF' }, line: { color, width: 2 } });
-      if (label) t.note(x - 1.0, below ? y + 0.18 : y - 0.5, 2.0, label, { align: 'center', size: 8.5, italic: false, color });
-    };
-    const scene = (x0, y, title, commits, ok) => {
-      t.note(x0, y - 1.55, 5.9, title, { size: 11, italic: true, color: INK });
-      t.arrow(x0, y, x0 + 5.9, y, { width: 2, noHead: true, color: LINE });
-      // the run's checkout above the line
-      const co = t.box(x0 + 0.5, y - 1.2, 2.2, 0.75, 'Run checkout', ['Detached worktree at the tip', 'Changes while the run works'], { fill: WASH.prod, size: 8 });
-      commits.forEach(([cx, label, color]) => dot(x0 + cx, y, label, color));
-      return co;
-    };
-    const y1 = 2.9;
-    const c1 = scene(0.6, y1, 'Main line unchanged while the run ran: fast-forward', [[0.5, 'tip at start'], [5.2, 'run landed', OK]], true);
-    t.arrow(c1.x + c1.w, c1.cy, 0.6 + 5.2, y1 - 0.14, { color: OK });
-    const c2 = scene(7.0, y1, 'Main line moved meanwhile: replay onto the new tip', [[0.5, 'tip at start'], [2.9, 'user commit', ACCENT], [5.2, 'run replayed', OK]], false);
-    t.arrow(c2.x + c2.w, c2.cy, 7.0 + 5.2, y1 - 0.14, { color: OK });
-    t.note(7.0, y1 + 0.55, 5.9, 'Conflicting files on the run\'s side; a Harness/Conflict entity in the same commit, concerning what conflicted', { size: 8.5, align: 'center' });
-    // approval and the rest
-    const y2 = 4.75;
-    t.arrow(0.6, y2, 12.7, y2, { width: 2, noHead: true, color: LINE });
-    dot(1.6, y2, 'run landed: entity unverified', INK);
-    dot(5.0, y2, 'approval: verification verified', OK);
-    dot(8.4, y2, 'user commit: artifacts changed', ACCENT);
-    dot(11.6, y2, 'summarization run landed', INK);
-    t.note(0.6, y2 - 0.45, 12.1, 'The one history: run landings, approvals and the user\'s own commits, each one commit', { size: 9, align: 'center' });
-    const y3 = 5.7;
-    t.band(0.6, y3, 12.1, 1.25, PAPER, null);
-    s.addText([
-      { text: 'Conflicts avoided by queueing: automation runs one at a time per project', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 }, breakLine: true } },
-      { text: 'The user\'s checkout updated where its files were clean; dirty files left alone', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 }, breakLine: true } },
-      { text: 'Run checkouts under .runs/<workspace>/<run-id>, removed once landed', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 } } },
-    ], { x: 0.8, y: y3 + 0.12, w: 5.8, h: 1.05, valign: 'top', margin: 0, isTextBox: true });
-    s.addText([
-      { text: 'Never a push, never a branch: the harness commits and lands, runs never touch git', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 }, breakLine: true } },
-      { text: 'Reset: knowledge graph deleted from the main line in one commit, code untouched', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 }, breakLine: true } },
-      { text: 'Legacy momentum/* branches landed once at startup, then deleted', options: { fontFace: body, fontSize: 9, color: INK, bullet: { indent: 8 } } },
-    ], { x: 6.8, y: y3 + 0.12, w: 5.8, h: 1.05, valign: 'top', margin: 0, isTextBox: true });
-  });
-
-  // ---------------------------------------------------------------- 8. user actions
-  blocks.push(async () => {
-    const s = slide('user actions');
-    const t = tools(s);
-    t.header('User actions');
-    t.sub('Everything the user does, from the feed, the chat tool, the explorer, settings or voice tools; every action is an API call');
-    const U = { cx: 6.67, cy: 4.1 };
-    s.addShape(pres.shapes.OVAL, { x: U.cx - 0.45, y: U.cy - 0.45, w: 0.9, h: 0.9, fill: { color: INK }, line: { type: 'none' }, shadow: shade() });
-    await t.icon('FaUser', 'FFFFFF', U.cx - 0.2, U.cy - 0.2, 0.4);
-    const user = { x: U.cx - 0.45, y: U.cy - 0.45, w: 0.9, h: 0.9, cx: U.cx, cy: U.cy };
-    const W = 3.3, H = 1.2;
-    const ACTIONS = [
-      ['Approve', 'FaCheck', ['Swipe right in the feed', 'One commit: verification verified', 'Implementable and unimplemented: entity_ahead → implementation run'], WASH.att, 0.6, 1.35],
-      ['Send back', 'FaRotateLeft', ['Swipe left with a comment', 'Chat run on the entity, sync updating', 'The comment decides: change, split, replace, retire'], WASH.att, 5.02, 1.35],
-      ['Chat', 'FaComments', ['A question or steering, any time', 'Runs at once, alongside the automations', 'Results through the feed like any change'], WASH.prod, 9.43, 1.35],
-      ['Run on demand', 'FaPlay', ['Any automation whose trigger allows it', 'Started from the chat tool or voice tools'], WASH.prod, 0.6, 3.5],
-      ['Stop a run', 'FaStop', ['Process killed, usage shown until then', 'What it wrote still lands and reaches the feed'], WASH.prod, 9.43, 3.5],
-      ['Projects and the graph build', 'FaToggleOn', ['Enable, disable: loops on or off', 'Build: stop, resume, reset', 'Usage and the full build estimate watched'], WASH.kn, 0.6, 5.65],
-      ['Edit entities directly', 'FaPenToSquare', ['Any commit on the main line', 'Indexed and fed like a run\'s landing', 'Definitions and triggers included'], WASH.kn, 5.02, 5.65],
-      ['Settings', 'FaGear', ['Feed size, card limit and rules', 'Lifetimes, exclusions, models', 'Runs in total across projects'], WASH.kn, 9.43, 5.65],
-    ];
-    for (const [name, ic, lines, fill, x, y] of ACTIONS) {
-      const b = t.box(x, y, W, H, '', [], { fill });
-      await t.icon(ic, INK, x + 0.12, y + 0.12, 0.22);
-      s.addText([
-        { text: name, options: { bold: true, fontFace: head, fontSize: 11, color: INK, breakLine: true, paraSpaceAfter: 3 } },
-        ...lines.map((l, k) => ({ text: l, options: { fontFace: body, fontSize: 8.5, color: MUTED, breakLine: k < lines.length - 1 } })),
-      ], { x: x + 0.42, y: y + 0.08, w: W - 0.5, h: H - 0.12, valign: 'top', margin: 0, isTextBox: true });
-      t.edge(user, b, null, { color: MUTED, noHead: true, dash: 'dash' });
-    }
-  });
-  const only = process.env.MECH ? process.env.MECH.split(",").map(Number) : null;
-  for (let i = 0; i < blocks.length; i++) if (!only || only.includes(i + 1)) await blocks[i]();
 };
