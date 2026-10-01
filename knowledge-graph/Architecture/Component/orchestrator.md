@@ -33,10 +33,10 @@ artifacts:
 ---
 # Orchestrator
 
-Starts and supervises the automation loops of every enabled project.
+Starts and supervises the automation loops of enabled projects.
 
-- **Tick** every 30 s and on run end or feed change: indexes main lines, queues due scheduled runs while the feed has room, starts queued ones within 2 per project, 8 total
+- **Tick** every 30 s and on run end or feed change: indexes main lines, queues due scheduled runs while the feed has room, starts queued runs within concurrency limits
 - **Events**: `entity_ahead` → implementation, `implementation_finished` → validation (via triggers); `artifact_ahead` → summarization
-- **Graph build**: one mapping run at a time on one branch, capped by feed room; runs report coverage, total time and usage are extrapolated
+- **Graph build**: one mapping run at a time on one branch, capped by feed room; time and usage extrapolated from coverage
 - **Enable** materializes definitions, indexes, proposes default triggers, starts the build; **disable** stops it
 - **Reset** wipes runs, branches, graph, database; re-enables
