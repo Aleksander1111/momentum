@@ -3,28 +3,33 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 4
-timeline_impact: 3
-unlocks: 4
+product_impact: 2
+timeline_impact: 1
+unlocks: 2
 references:
-  - to: Governance/DesignDoc/plan
-    relation: part_of
+  - to: Governance/DesignDoc/technology/runs-and-guard
+    relation: details
+  - to: Governance/DesignDoc/technology/data-and-ranking
+    relation: details
+  - to: Governance/DesignDoc/technology/client-and-access
+    relation: details
+  - to: Governance/DesignDoc/technology/machine-and-testing
+    relation: details
 artifacts:
   - docs/PLAN.md
 ---
-# Plan: technology
+# Technology decisions
 
-| Area | Choice |
+The stack Momentum is built on, from the implementation plan.
+
+| Area | Decision |
 |---|---|
-| App | Expo + react-native-web, TanStack Query polling |
-| Back-end | Fastify + zod: API, orchestrator, guard |
-| Runs | Agent SDK, git worktree, procgov job object |
-| Index | Postgres 18 + pgvector, schema per workspace |
-| Retrieval | Full text + cosine + reference traversal |
-| KB tools | `momentum-kb` and `momentum-run` MCP |
-| Guard | Hooks + file watcher, transaction per run |
-| Rank | product + timeline + unlocks (0–5 each) |
-| Access | Password session, Tailscale only |
-| Mobile | Sideloaded APK; PWA on iPhone |
+| Language | TypeScript, Node 24 LTS, pnpm workspaces monorepo |
+| Front-end | Expo + Expo Router; web via react-native-web |
+| Back-end | Fastify + zod, one process: API, orchestrator, guard |
+| Runs | Claude Agent SDK, one subprocess per run |
+| Store | Postgres 18 + pgvector, schema per workspace |
 
-Assumed: procgov limits hold for the Claude Code process tree.
+Driven by: Claude Code is Node, one language end to end, self-hosted.
+
+Details: runs and guard, data and ranking, client and access, machine and testing.
