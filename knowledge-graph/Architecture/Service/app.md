@@ -19,12 +19,12 @@ artifacts:
 ---
 # App
 
-One Expo (React Native) app, `apps/app`, written once for web and mobile.
+One Expo (React Native) app, `apps/app`, for web and mobile.
 
-- Expo Router, five tabs: Feed, Explorer, Chat, Metrics, Settings; bottom bar under 700 px, left rail above
-- Light and dark palettes; Settings picks system, light or dark, saved per device
-- Web build served same-origin by the back-end; native uses `EXPO_PUBLIC_API_URL`
-- TanStack Query polls (feed, chats 15 s; live run 3 s); last good data kept in AsyncStorage, reactions queue offline and resume after restart
-- Restored cache checked against the contract; stale shapes dropped and refetched
-- Session: httpOnly cookie on web, SecureStore on mobile
+- Five tabs: Feed, Explorer, Chat, Metrics, Settings; bottom bar under 700 px, left rail above
+- Light and dark palettes; Settings picks system, light or dark, per device
+- Web served same-origin by the back-end; native uses `EXPO_PUBLIC_API_URL`
+- TanStack Query polls: feed, chats 15 s; live run 3 s; graph build 5 s while building, else 30 s
+- Offline: last good data in AsyncStorage, reactions queue and resume; restored cache checked against the contract
+- Session: cookie on web, SecureStore token on mobile
 - Android APK built locally; iPhone uses the web build as PWA
