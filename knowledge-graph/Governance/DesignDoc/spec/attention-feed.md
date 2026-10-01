@@ -6,17 +6,18 @@ sync: synced
 product_impact: 4
 timeline_impact: 2
 unlocks: 3
-references:
-  - to: Governance/DesignDoc/spec
-    relation: part_of
+references: []
 artifacts:
   - docs/SPEC.md
 ---
 # Spec: attention feed
 
-- One feed across the enabled projects; items are entities of any type
-- The user verifies, approves or sends back; a reaction can be a change request, a split or new entities
-- The approved state is the system: nothing changes unattended
-- Counters by state: verified, unverified and each sync state
-- Ranked by impact on the product, impact on the timeline and how much the work unlocks
-- No project priority; the feed size bounds the loops
+One feed where everything needing the user's attention shows up; items are entities of any type.
+
+- Verify, approve or send back; a reaction can be a change request, a split or new entities
+- Nothing changes unattended: the approved state is the system
+- Counters above the cards: entities of the enabled projects by verification and sync state
+- One feed across projects; it follows the enabled set
+- Ranking asks what to do now for the best product and an optimal journey: impact on product, impact on timeline, unlocks
+- Features, optimizations, refactorings and explorations compete on one scale
+- No project priority
