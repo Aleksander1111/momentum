@@ -4,33 +4,38 @@ origin: automation
 verification: unverified
 sync: synced
 product_impact: 4
-timeline_impact: 3
-unlocks: 4
+timeline_impact: 2
+unlocks: 3
 references:
-  - to: Harness/Automation/summarization
-    relation: concerns
+  - to: Harness/Automation/exploration
+    relation: specifies
   - to: Harness/Automation/preparation
-    relation: concerns
-  - to: Harness/Automation/mapping
-    relation: concerns
+    relation: specifies
+  - to: Harness/Automation/consistency-check
+    relation: specifies
+  - to: Harness/Automation/retention
+    relation: specifies
+  - to: Harness/Automation/implementation
+    relation: specifies
+  - to: Harness/Automation/validation
+    relation: specifies
+  - to: Harness/Automation/optimization
+    relation: specifies
+  - to: Harness/Automation/summarization
+    relation: specifies
   - to: Harness/Automation/chat
-    relation: concerns
+    relation: specifies
+  - to: Harness/Automation/graph-build
+    relation: specifies
 artifacts:
   - docs/SPEC.md
 ---
-# Spec: automations
+# Automations spec
 
-Per-project loops defined by responsibility alone: a definition entity in the harness workspace, a trigger entity per workspace (none for a step). AI only for judgement.
+Background automations per project that prepare work ahead of the user.
 
-| Automation | Responsibility |
-|---|---|
-| Exploration | Next best action within goals |
-| Preparation | Unlimited plan files under plans/ |
-| Consistency check | Issues as entities |
-| Retention | Retire spent entities by type rules |
-| Implementation | Own branch, merged once validated |
-| Validation | Product and changes; gates merge |
-| Optimization | Chat issues → definition changes |
-| Summarization | Harness step after every run; no trigger |
-| Chat | Started by the user |
-| Mapping | Builds the graph once enabled |
+- Defined by responsibility, not by entity type; each searches the whole knowledge base
+- Configured as entities: a definition per automation in the harness workspace, a trigger entity per workspace; changed through the feed
+- AI only for judgement (deciding, planning, reviewing, summarizing); indices, metrics, lifetimes and references are queries and rules
+- Ten: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, graph build
+- Summarization runs from a run's Stop hook, not a trigger; step automations have no trigger entity
