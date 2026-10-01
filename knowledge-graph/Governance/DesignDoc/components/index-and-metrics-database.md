@@ -1,0 +1,30 @@
+---
+type: Governance/DesignDoc
+origin: automation
+verification: unverified
+sync: synced
+product_impact: 3
+timeline_impact: 2
+unlocks: 3
+references:
+  - to: Governance/DesignDoc/components/knowledge-base
+    relation: part_of
+  - to: Governance/DesignDoc/components/attention-feed
+    relation: concerns
+  - to: Harness/Automation/optimization
+    relation: concerns
+artifacts:
+  - docs/SPEC.md
+---
+# Index and metrics database
+
+Indices over entities, automations and chats, per workspace on the dedicated machine, kept current by the guard.
+
+| Metrics | Tracks |
+|---|---|
+| Attention | time per item, approvals, rejections, send-backs, patterns |
+| Understanding | knowledge-base consistency over time |
+| Agents | chat misalignments, recurring issues, run behaviour |
+| Implementation | outstanding issues, bugs, defects |
+
+All feed optimization. Usage is tracked as % of the 5-hour and weekly limits, split evenly among concurrent runs. Holds the attention ranking the API reads directly.

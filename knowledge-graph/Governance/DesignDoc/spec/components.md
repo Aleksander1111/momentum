@@ -4,39 +4,38 @@ origin: automation
 verification: unverified
 sync: synced
 product_impact: 4
-timeline_impact: 2
-unlocks: 3
+timeline_impact: 3
+unlocks: 4
 references:
-  - to: Harness/Automation/exploration
+  - to: Governance/DesignDoc/components/front-end
     relation: concerns
-  - to: Harness/Automation/preparation
+  - to: Governance/DesignDoc/components/api
     relation: concerns
-  - to: Harness/Automation/consistency-check
+  - to: Governance/DesignDoc/components/orchestrator
     relation: concerns
-  - to: Harness/Automation/retention
+  - to: Governance/DesignDoc/components/knowledge-base
     relation: concerns
-  - to: Harness/Automation/implementation
+  - to: Governance/DesignDoc/components/automations
     relation: concerns
-  - to: Harness/Automation/validation
-    relation: concerns
-  - to: Harness/Automation/optimization
-    relation: concerns
-  - to: Harness/Automation/summarization
-    relation: concerns
-  - to: Harness/Automation/chat
-    relation: concerns
-  - to: Harness/Automation/graph-build
+  - to: Governance/DesignDoc/components/attention-feed
     relation: concerns
 artifacts:
   - docs/SPEC.md
+  - docs/slides/slide-1.png
 ---
 # Components
 
-Three layers: attention on top, understanding beneath, implementation at the base. Attention is shared; everything beneath exists once per project.
+Three layers carry the user: attention on top, understanding beneath, implementation at the base. The attention layer is shared; everything beneath exists once per project.
 
-- **Front-end**: one app, web and mobile; feed, chat tool, entity browsing
-- **API**: front-end entry point; polling, no push
-- **Orchestrator**: loops of enabled projects, bounded by the feed; one process, checkout and branch per run
-- **Knowledge base**: graph RAG of entities as cards; consistency guard validates changes before the main line; index and metrics database
-- **Automations**: ten loops, each defined by its responsibility; AI only for judgement
-- **Attention feed**: one feed across projects, ranked; nothing counts until approved
+```mermaid
+flowchart TD
+  FE[Front-end: web + mobile app] --> API
+  subgraph Back-end
+    API --> ORC[Orchestrator]
+    API --> FEED[Attention feed]
+    ORC --> AUT[Automations]
+    AUT --> KB[Knowledge base]
+    KB --> G[Consistency guard] --> DB[Index and metrics database]
+    DB --> FEED
+  end
+```
