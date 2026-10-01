@@ -14,14 +14,14 @@ artifacts:
 ---
 # Contract
 
-Internal library `@momentum/contract`: zod schemas and types shared by the app, backend, entity, kb and runs packages, plus the generated `openapi.json`.
+Internal library `@momentum/contract`: zod schemas and types shared by app, backend, entity, kb and runs, plus the generated `openapi.json` (16 paths).
 
 | Area | Schemas |
 |---|---|
-| Entities | states, frontmatter, card blocks, list, detail, type tree, search |
+| Entities | states, frontmatter, trigger fields, card blocks, list, detail, type tree, search |
 | Feed | items, counts by state, approve, send back |
 | Runs and chats | automation, trigger, status, usage %, messages |
-| Mapping | building, stopped, complete |
+| Graph build | building, stopped, complete; coverage, estimate, reset |
 | Metrics | attention, understanding, per-automation runs, failures, time, usage |
-| Settings | projects, cards, lifetimes, concurrency, models (single, per automation, by risk) |
+| Settings | projects, cards, summarization excludes, lifetimes, concurrency, models |
 | Session | password login, token, workspaces |
