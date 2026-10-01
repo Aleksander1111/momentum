@@ -13,14 +13,14 @@ kind: design doc
 ---
 # Momentum implementation plan
 
-Turns the spec into a single-pass build: technology choices, repository layout, entity format, twelve work packages, approval and send-back, seven pages with their API, database additions.
+One-pass build of the spec: technology, layout, entity format, twelve work packages, approval, seven pages, database additions.
 
-- TypeScript monorepo; Expo app for web and mobile, light and dark palettes
-- Fastify back-end: API, orchestrator and guard in one process
-- Agent SDK runs in git worktrees under job-object limits
+- TypeScript monorepo; Expo app for web and mobile, light and dark
+- Fastify back-end: API, orchestrator, guard; Agent SDK runs in worktrees, job-object limits
 - Postgres 18 + pgvector, a schema per workspace plus harness
 - Guard as hooks plus watcher; rank = the three parameters summed
-- Feed counters by verification and sync state
-- Mapping build: stop, resume, two-tap reset
+- Approval and send-back over two states: verification and sync
+- Mapping build: coverage, time spent, full-build estimate; stop, resume, two-tap reset
+- Per-run usage as 5-hour and weekly share
 
-Open: ranking tuning, scale, latency and usage targets. Assumed: procgov limits hold.
+Open: ranking tuning, scale, latency, usage targets. Assumed: procgov limits hold.
