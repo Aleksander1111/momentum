@@ -24,9 +24,10 @@ artifacts:
 
 Runs each automation as one Claude Code session on its own branch and checkout.
 
-- **Start**: worktree off the main line, guard watching; `momentum-kb` and `momentum-run` MCP, guard hooks, procgov limits
-- **Model**: chosen once, per settings or, for an implementation, by risk estimated from its plans
-- **Finish**: guard transaction, status, usage in 5-hour and weekly percent, agent metrics
-- **Then**: queues summarization of changed artifacts and mapped documents; mapping records coverage; passed validation merges, failed holds, a conflict raises a Harness/Conflict
+- **Start**: worktree off the main line, guard watching; KB and run MCP, guard hooks, limits
+- **Model**: per settings or, for an implementation, by risk from its plans
+- **Stop hook**: hands summarization the changed artifacts and mapped documents
+- **Finish**: guard transaction, status, usage in 5-hour and weekly percent, metrics
+- **Then**: mapping records coverage; passed validation merges, failed holds, a conflict raises a Harness/Conflict
 - **Chat**: resumes its session; transcript to `chats/<id>.jsonl`
-- Fails runs lost at restart; removes finished checkouts
+- Stops runs per automation or workspace; fails runs lost at restart; removes done checkouts
