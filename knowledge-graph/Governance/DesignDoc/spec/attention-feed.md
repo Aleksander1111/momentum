@@ -9,12 +9,14 @@ unlocks: 3
 references: []
 artifacts:
   - docs/SPEC.md
+  - docs/diagrams/09-attention-feed.md
 ---
-# Spec: attention feed
+# Attention feed
 
-- One feed across the enabled projects; items are entities of any type
-- The user verifies, approves or sends back; a reaction can be a change request, a split or new entities
-- Nothing changes unattended: the approved state is the system
-- Counters above the cards: entities of the enabled projects by state, verified, unverified and each sync state
-- Ranking asks what to do now so the product ends up best and the journey stays optimal: impact on the product, on the timeline, and how much the work unlocks
-- Features, compounding optimizations, urgent refactorings and explorations compete on one scale; no project priority
+One feed across the enabled projects where everything needing the user's attention shows up; nothing changes unattended.
+
+- Items are entities of any type; the user verifies, approves or sends back (change request, split, new entities)
+- Approval makes a change part of the system; unapproved work sits outside the project
+- Ranking: what to do now for the best product on an optimal path, from impact on the product, impact on the timeline and unlocks; no project priority
+- Counters above the cards: entities by state, verified/unverified and each sync state
+- Time per item and reactions feed attention metrics; regular patterns become automatic approval or rejection
