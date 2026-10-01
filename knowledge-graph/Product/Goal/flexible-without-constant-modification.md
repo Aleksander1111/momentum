@@ -3,7 +3,7 @@ type: Product/Goal
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 3
+product_impact: 4
 timeline_impact: 2
 unlocks: 3
 references:
@@ -19,8 +19,9 @@ artifacts:
 Success criterion from the spec: the system does not need constant modification to keep working.
 
 - Automations defined by responsibility alone; no entity type belongs to one
-- Definitions (harness workspace) and triggers (per workspace) are entities, edited or proposed and approved through the feed
+- Definitions (harness workspace) and triggers (per workspace) are entities, edited or proposed and approved through the feed; step automations have no trigger
 - Optimization proposes skills, sub-agents, definitions and tools from recurring issues; variants compared on metrics
-- Approved definitions materialized into each workspace for Claude Code
-- Concurrency tuned from measured behaviour, not fixed upfront
-- AI only for judgement; indices, metrics, lifetimes and references are queries and rules
+- Approved definitions materialized into each workspace
+- Summarization runs from a Stop hook, so no work waits on the feed limit
+- Concurrency tuned from measured usage, not fixed upfront
+- AI only for judgement; the rest is queries and rules
