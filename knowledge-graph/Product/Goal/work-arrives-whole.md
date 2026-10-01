@@ -7,9 +7,9 @@ product_impact: 4
 timeline_impact: 2
 unlocks: 3
 references:
-  - to: Product/Product/momentum
-    relation: goal_of
   - to: Harness/Automation/summarization
+    relation: served_by
+  - to: Harness/Automation/card
     relation: served_by
   - to: Harness/Automation/validation
     relation: served_by
@@ -20,6 +20,6 @@ artifacts:
 
 Success criterion from the spec: work reaches the user as one consistent piece, not as fragments the user has to assemble.
 
-- Summaries and cards are written before the user reads the work
-- A transaction groups the related changes of one run and is validated together
-- Implementation branches are validated and merged automatically; only issues and conflicts ask for attention
+- Summarization writes each summary before the user reads the work; every entity has its card before it reaches the feed
+- The consistency guard groups related changes into a transaction and validates them together before they land on the main line
+- Implementation branches merge automatically once validation passes; failed validations, conflicts and merge resolutions surface as entities in the feed
