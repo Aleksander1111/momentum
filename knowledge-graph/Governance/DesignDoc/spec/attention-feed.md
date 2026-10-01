@@ -6,17 +6,18 @@ sync: synced
 product_impact: 4
 timeline_impact: 2
 unlocks: 3
-references: []
+references:
+  - to: Governance/DesignDoc/spec
+    relation: part_of
 artifacts:
   - docs/SPEC.md
-  - docs/diagrams/09-attention-feed.md
 ---
-# Attention feed
+# Spec: attention feed
 
-One feed across the enabled projects where everything needing the user's attention shows up; nothing changes unattended.
+One feed across enabled projects where everything needing the user shows up; items are entities of any type.
 
-- Items are entities of any type; the user verifies, approves or sends back (change request, split, new entities)
-- Approval makes a change part of the system; unapproved work sits outside the project
-- Ranking: what to do now for the best product on an optimal path, from impact on the product, impact on the timeline and unlocks; no project priority
-- Counters above the cards: entities by state, verified/unverified and each sync state
-- Time per item and reactions feed attention metrics; regular patterns become automatic approval or rejection
+- The user verifies, approves or sends back; a reaction can be a change request, a split or new entities
+- The approved state is the system: nothing unapproved counts
+- Counters above the cards show entities by state: verification and sync
+- Ranked by impact on the product, impact on the timeline and how much the work unlocks, so features, optimizations and refactorings compete on one scale
+- No project priority: rank comes from the entities

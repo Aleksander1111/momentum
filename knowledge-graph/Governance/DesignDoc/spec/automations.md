@@ -3,10 +3,12 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 3
-timeline_impact: 1
-unlocks: 2
+product_impact: 4
+timeline_impact: 3
+unlocks: 4
 references:
+  - to: Governance/DesignDoc/spec
+    relation: part_of
   - to: Harness/Automation/exploration
     relation: concerns
   - to: Harness/Automation/preparation
@@ -29,23 +31,20 @@ references:
     relation: concerns
 artifacts:
   - docs/SPEC.md
-  - docs/diagrams/06-automations.md
 ---
-# Automations spec
+# Spec: automations
 
-Background work per project, each defined by responsibility alone. Definitions and triggers are entities edited through the feed. AI only where queries and rules can't carry a step.
+Defined by responsibility alone; definitions and triggers are entities.
 
-| Automation | Role |
+| Automation | Does |
 |---|---|
-| Exploration | Next best action within goals |
-| Preparation | Plans under `plans/` |
-| Consistency check | Issues as entities |
-| Retention | Retires spent entities by type |
-| Implementation | Own branch, merged when valid |
-| Validation | Gates merges; regression loop |
-| Optimization | Proposes definition changes |
-| Summarization | Stop-hook step, not a trigger |
-| Chat | Started by the user |
-| Graph build | Run after run until covered |
-
-Diagram still shows a Card step.
+| Exploration | next best action within goals |
+| Preparation | plans under `plans/` |
+| Consistency check | raises issues as entities |
+| Retention | retires spent entities by type rules |
+| Implementation | works on own branch |
+| Validation | gates merges; regression runs |
+| Optimization | fixes recurring chat issues |
+| Summarization | Stop-hook sub-agent |
+| Chat | user-started run |
+| Graph build | builds graph on enable |

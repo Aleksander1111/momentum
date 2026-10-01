@@ -6,17 +6,21 @@ sync: synced
 product_impact: 3
 timeline_impact: 2
 unlocks: 3
-references: []
+references:
+  - to: Governance/DesignDoc/spec
+    relation: part_of
 artifacts:
   - docs/SPEC.md
-  - docs/diagrams/11-database.md
 ---
-# Database
+# Spec: index and metrics database
 
-Tables of the index and metrics database: one store per workspace, updated by the consistency guard on every validated transaction.
+One store per workspace on the dedicated machine, updated by the guard on every validated transaction.
 
-- **Index**: `entity` (path, type, title, card, origin, verification, sync), `entity_artifact` (a row makes it a summary), `entity_reference` (`implements` drives sync), `chat`, `automation`, `run` (branch, checkout, target, usage)
-- **Feed**: `attention_ranking`, rank read with no work per poll
-- **Metrics**: `attention_metric`, `attention_pattern`, `understanding_metric`, `agent_metric`, `usage_share` (each limit rise split among concurrent runs), `implementation_metric`
+| Group | Tables |
+|---|---|
+| Entities | entity, entity_artifact, entity_reference, chat |
+| Runs | automation, run, usage_share |
+| Attention | attention_ranking, attention_metric, attention_pattern |
+| Metrics | understanding, agent, implementation |
 
-The diagram still lacks `usage_share` and `run.usage`.
+Usage is percentage points of the 5-hour and weekly limits, split evenly among concurrent runs. Ranking is precomputed so polls do no work.

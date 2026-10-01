@@ -3,38 +3,31 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 4
+product_impact: 5
 timeline_impact: 3
-unlocks: 4
+unlocks: 5
 references:
-  - to: Governance/DesignDoc/spec/components
-    relation: includes
+  - to: Governance/DesignDoc/spec/orchestrator
+    relation: consists_of
   - to: Governance/DesignDoc/spec/knowledge-base
-    relation: includes
+    relation: consists_of
   - to: Governance/DesignDoc/spec/automations
-    relation: includes
+    relation: consists_of
   - to: Governance/DesignDoc/spec/attention-feed
-    relation: includes
+    relation: consists_of
   - to: Governance/DesignDoc/spec/database
-    relation: includes
-  - to: Governance/DesignDoc/spec/deployment
-    relation: includes
+    relation: consists_of
 artifacts:
   - docs/SPEC.md
 ---
 # Momentum harness spec
 
-Orchestrator and single entry point between the user and the work around each project, explored through entities instead of raw artifacts.
+The harness is the single entry point between the user and the work around each project; it earns its place only by boosting performance, not costing attention.
 
-| Layer | Carries |
-|---|---|
-| Attention | Ranked feed, approval |
-| Understanding | Entities, index |
-| Implementation | Automations, runs, validation |
+- Workspace = git repo on the dedicated machine with its own knowledge base and goals; 5–20 enabled, isolated, single user
+- Layers: attention (feed, approval), understanding (entities, index), implementation (automations, runs, validation)
+- Nothing lands unattended: guard validates, user approves
+- AI only for judgement; queries and rules for the rest
+- Self-hosted, no cloud, reached over a private mesh
 
-- Workspace = git repo on one machine, with its own knowledge base and goals
-- Single user, projects isolated, 5–20 enabled at once
-- Nothing counts until the guard validates it and the user approves it
-- Success: consistency grows, work arrives whole, no constant modification
-
-Parts: components, knowledge base, automations, attention feed, database, deployment.
+Open: adding workspaces, ranking tuning, source sync, scale targets.
