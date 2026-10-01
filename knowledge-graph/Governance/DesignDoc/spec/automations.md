@@ -33,19 +33,19 @@ artifacts:
 ---
 # Automations spec
 
-Per-project background work, each defined by responsibility alone. Definitions and triggers are entities changed through the feed. AI only where queries and rules can't carry a step.
+Background work per project, each defined by responsibility alone. Definitions and triggers are entities edited through the feed. AI only where queries and rules can't carry a step.
 
 | Automation | Role |
 |---|---|
 | Exploration | Next best action within goals |
 | Preparation | Plans under `plans/` |
 | Consistency check | Issues as entities |
-| Retention | Retires spent entities |
+| Retention | Retires spent entities by type |
 | Implementation | Own branch, merged when valid |
 | Validation | Gates merges; regression loop |
 | Optimization | Proposes definition changes |
 | Summarization | Stop-hook step, not a trigger |
 | Chat | Started by the user |
-| Graph build | Builds the graph run after run |
+| Graph build | Run after run until covered |
 
 Diagram still shows a Card step.
