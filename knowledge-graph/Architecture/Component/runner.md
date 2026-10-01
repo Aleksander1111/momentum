@@ -7,12 +7,6 @@ product_impact: 1
 timeline_impact: 0
 unlocks: 2
 references:
-  - to: Architecture/Service/backend
-    relation: part_of
-  - to: Architecture/Dependency/runs
-    relation: depends_on
-  - to: Architecture/Component/consistency-guard
-    relation: depends_on
   - to: Harness/Automation/summarization
     relation: provides
   - to: Harness/Automation/card
@@ -25,8 +19,8 @@ artifacts:
 
 One Claude Code process per run, `apps/backend/src/runner.ts`.
 
-- Each run gets a git worktree under `C:\Projects\.runs\<workspace>\<run-id>` on branch `momentum/<automation>/<run-id>`; send back and mapping continue an existing branch
-- A Claude Agent SDK session: the automation's agent file as instructions, summarization and card as sub-agents
-- Gets the `momentum-kb` and `momentum-run` MCP servers in-process, plus the guard's hooks
-- procgov job object (4 GB, 4 cores by default); killed with its process tree
-- On end: guard transaction, chat transcript to `chats/<id>.jsonl`, a passed validation merges its branch; usage recorded as percentage points of the 5-hour and weekly limits
+- Own worktree `C:\Projects\.runs\<workspace>\<run-id>`, branch `momentum/<automation>/<run-id>`; send back and mapping continue a branch
+- Agent SDK session: the automation's agent file, summarization and card sub-agents, `momentum-kb` and `momentum-run` MCP, guard hooks, procgov limits
+- On end: guard transaction, transcript to `chats/<id>.jsonl`, a passed validation merges; usage in 5-hour and weekly percentage points
+- At startup, runs left `running` still pass the guard and are failed as lost at restart
+- A project reset kills a workspace's runs and waits for them to finish
