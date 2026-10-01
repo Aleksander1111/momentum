@@ -7,7 +7,7 @@ product_impact: 4
 timeline_impact: 2
 unlocks: 3
 references:
-  - to: Harness/Automation/mapping
+  - to: Harness/Automation/graph-build
     relation: concerns
   - to: Harness/Automation/summarization
     relation: concerns
@@ -22,7 +22,7 @@ artifacts:
 
 Starts and supervises the automation loops of every enabled project in the back end.
 
-- **Tick**: indexes main lines; while the feed has room, queues due cron triggers and one mapping run per workspace and branch; starts queued runs within total and per-project limits
+- **Tick**: indexes main lines; while the feed has room, queues due cron triggers and one graph build run per workspace on its branch; starts queued runs within total and per-project limits
 - **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → summarization (no trigger entity); approved definitions are materialized again
-- **Enable**: materializes definitions, indexes, proposes default triggers, starts the build
+- **Enable**: materializes definitions, indexes, proposes default triggers, starts the build unless complete
 - **Disable**: stops a build; **reset** (not the harness): ends runs, drops run branches, the knowledge graph and the index
