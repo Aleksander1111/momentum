@@ -7,11 +7,13 @@ product_impact: 4
 timeline_impact: 2
 unlocks: 3
 references:
-  - to: Harness/Automation/implementation
+  - to: Harness/Automation/summarization
     relation: concerns
   - to: Harness/Automation/validation
     relation: concerns
   - to: Harness/Automation/mapping
+    relation: concerns
+  - to: Harness/Automation/implementation
     relation: concerns
   - to: Harness/Automation/chat
     relation: concerns
@@ -20,11 +22,11 @@ artifacts:
 ---
 # Runner
 
-Backend component that runs each automation as one Claude Code session on its own branch and checkout.
+Runs each automation as one Claude Code session on its own branch and checkout.
 
-- **Queue → start**: worktree off the main line, guard watches it, KB and run-report MCP tools attached
-- **Model**: set once at first start — one for all, per automation, or for an implementation by risk estimated from its plans
-- **Finish**: guard transaction, status, usage in percent, agent metrics
-- **After**: mapping records coverage; passed validation merges, failed holds; merge conflict raises a Harness/Conflict
-- **Chat**: resumes its session; transcript saved to `chats/`
-- Recovers runs lost at restart; removes finished checkouts
+- **Start**: worktree off the main line, guard watching; `momentum-kb` and `momentum-run` MCP, guard hooks, procgov limits
+- **Model**: chosen once, per settings or, for an implementation, by risk estimated from its plans
+- **Finish**: guard transaction, status, usage in 5-hour and weekly percent, agent metrics
+- **Then**: queues summarization of changed artifacts and mapped documents; mapping records coverage; passed validation merges, failed holds, a conflict raises a Harness/Conflict
+- **Chat**: resumes its session; transcript to `chats/<id>.jsonl`
+- Fails runs lost at restart; removes finished checkouts
