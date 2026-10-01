@@ -3,24 +3,33 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 3
-timeline_impact: 2
-unlocks: 3
-references: []
+product_impact: 5
+timeline_impact: 4
+unlocks: 5
+references:
+  - to: Governance/DesignDoc/plan/technology
+    relation: contains
+  - to: Governance/DesignDoc/plan/work-packages
+    relation: contains
+  - to: Governance/DesignDoc/plan/approval
+    relation: contains
+  - to: Governance/DesignDoc/plan/pages
+    relation: contains
+  - to: Governance/DesignDoc/plan/mapping
+    relation: contains
 artifacts:
   - docs/PLAN.md
-kind: design doc
 ---
 # Momentum implementation plan
 
-One-pass build of the spec: technology, layout, entity format, twelve work packages, approval, seven pages, database additions.
+How Momentum is built from SPEC.md, in one pass ordered by dependency.
 
-- TypeScript monorepo; Expo app for web and mobile, light and dark
-- Fastify back-end: API, orchestrator, guard; Agent SDK runs in worktrees, job-object limits
-- Postgres 18 + pgvector, a schema per workspace plus harness
-- Guard as hooks plus watcher; rank = the three parameters summed
-- Approval and send-back over two states: verification and sync
-- Mapping build: coverage, time spent, full-build estimate; stop, resume, two-tap reset
-- Per-run usage as 5-hour and weekly share
+- TypeScript monorepo: Expo app, Fastify back-end, packages for contract, entity, kb, runs
+- Knowledge graph as markdown entities, indexed in Postgres per workspace
+- One Claude Code run per worktree and branch, checked by a consistency guard
+- Ranked cross-project feed: swipe to approve or send back
+- Self-hosted on this Windows 11 machine, reached over Tailscale
 
-Open: ranking tuning, scale, latency, usage targets. Assumed: procgov limits hold.
+Parts: technology, work packages, approval, pages, mapping.
+
+Open: tuning and measuring the attention ranking; scale, latency and usage targets.
