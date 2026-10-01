@@ -25,17 +25,15 @@ artifacts:
 ---
 # Components
 
-Three layers carry the user: attention on top, understanding beneath, implementation at the base. The attention layer is shared; everything beneath exists once per project.
+Attention on top, knowledge beneath, product work at the base; attention is shared, the rest exists per project. A consistency border splits unverified from verified.
 
 ```mermaid
-flowchart TD
-  FE[Front-end: web + mobile app] --> API
-  subgraph Back-end
-    API --> ORC[Orchestrator]
-    API --> FEED[Attention feed]
-    ORC --> AUT[Automations]
-    AUT --> KB[Knowledge base]
-    KB --> G[Consistency guard] --> DB[Index and metrics database]
-    DB --> FEED
-  end
+flowchart BT
+  T[Triggers] --> A[Exploration, preparation, implementation, testing, review]
+  A --> R[Story, plan, change, bug, refactor]
+  R --> S[Summarizer] --> C[Entity cards]
+  C <--> G[Consistency gate] <--> K[Knowledge graph]
+  C --> P[Prioritizer] --> F[Attention feed]
+  F --> RT[Retention] --> K --> T
 ```
+Harness around it: settings, graph explorer, importance rank, chat, metrics, optimization, orchestrator, API, voice tools, RAG.
