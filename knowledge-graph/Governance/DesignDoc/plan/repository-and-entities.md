@@ -9,6 +9,8 @@ unlocks: 3
 references:
   - to: Harness/Automation/summarization
     relation: concerns
+  - to: Harness/Automation/graph-build
+    relation: concerns
 artifacts:
   - docs/PLAN.md
 ---
@@ -18,10 +20,11 @@ artifacts:
 |---|---|
 | apps/ | Expo app; Fastify API, orchestrator, guard |
 | packages/ | contract, entity, kb, runs |
-| automations/<name>/ | Claude Code files of each definition entity |
+| automations/<name>/ | Claude Code files of a definition; trigger.md is its default trigger |
 | knowledge-graph/ | The harness's own knowledge base |
 
 - Definitions materialize into `<workspace>\.claude\` on approval, excluded from git
-- Every run's Stop hook hands its changed artifacts to the summarization sub-agent
-- Entity: frontmatter (type, origin, verification, sync, 0–5 ranks, references, artifacts) + card
-- Validator: card within the limit, type matches the directory, references resolve
+- Stop hook blocks once, hands changed artifacts, transcripts and graph build documents (minus excluded paths) to summarization: a hook, not a trigger
+- Entity: frontmatter + card; extra fields on Trigger, Issue, Automation
+- Acted-on relations: implements, retires, concerns
+- Validator: card limit, type fits path, references resolve
