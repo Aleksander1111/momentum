@@ -15,15 +15,16 @@ artifacts:
   - apps/app/src/app/(tabs)/chat/_layout.tsx
   - apps/app/src/ui/Composer.tsx
   - apps/app/src/ui/Conversation.tsx
-  - docs/designs/chat-mobile.png
   - docs/designs/chats-web.png
+  - docs/designs/chats-mobile.png
+  - docs/designs/chat-mobile.png
 ---
 # Chat screen
 
 Chats per workspace, each a conversation attached to a run.
 
 - Lists chats grouped by workspace, polled every 15 s; rows show kind, status, age and state badges
-- A conversation heads with the run's automation, state, 5-hour usage and branch, then user and agent bubbles, polled every 3 s while active; Stop kills the run, the composer steers it
-- The composer under the list starts a chat run in the chosen workspace; "Explore through an agent" lands here with the workspace set and the composer focused
-- Web (700 px and wider) shows the conversation beside the list; mobile opens it as its own page
-- Every chat route subscribes to the theme, so dark mode applies instantly
+- The composer under the list starts a chat run in the chosen workspace; "Explore through an agent" lands here with the workspace set and composer focused
+- A conversation heads with the run's automation, state, 5-hour usage as a percentage, and branch, then user and agent bubbles, polled every 3 s while active; Stop kills it, the composer steers it
+- Web (700 px and wider) shows the conversation beside the list; mobile opens it as its own page with a Back link
+- Every chat route subscribes to the theme, so dark mode applies at once
