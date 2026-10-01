@@ -6,9 +6,7 @@ sync: synced
 product_impact: 1
 timeline_impact: 0
 unlocks: 1
-references:
-  - to: Code/Repository/momentum
-    relation: part_of
+references: []
 artifacts:
   - packages/contract/src/index.ts
   - packages/contract/openapi.json
@@ -20,5 +18,7 @@ kind: internal library
 
 - Entity states (verification, sync, origin), frontmatter, references, trigger fields
 - Card blocks as rendered from the markdown AST
-- Feed, entity detail, types tree, search, runs, chats, metrics, mapping status, settings and every request body
-- `openapi.json` generated from the same schemas by `pnpm momentum openapi`
+- Feed with counts of entities by verification and sync state
+- Mapping status with time spent, coverage, full-build estimate and whether the project can be reset
+- Entity detail, types tree, search, runs, chats, metrics, settings and every request body
+- `openapi.json` generated from the same schemas by `pnpm momentum openapi`, including project reset
