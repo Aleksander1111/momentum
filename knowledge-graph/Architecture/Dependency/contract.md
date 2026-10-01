@@ -3,22 +3,25 @@ type: Architecture/Dependency
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 1
-timeline_impact: 0
-unlocks: 1
+product_impact: 3
+timeline_impact: 2
+unlocks: 4
 references: []
 artifacts:
   - packages/contract/src/index.ts
   - packages/contract/openapi.json
-kind: internal library
+  - packages/contract/package.json
 ---
-# contract package
+# @momentum/contract
 
-`@momentum/contract`, internal library: the zod schemas and types shared by the app and the back-end.
+Internal library: zod schemas and inferred types shared by the app and backend, plus the generated `openapi.json` (Momentum API, OpenAPI 3.0.3) served at `/openapi.json`.
 
-- Entity states (verification, sync, origin), frontmatter, references, trigger fields
-- Card blocks as rendered from the markdown AST
-- Feed with counts of entities by verification and sync state
-- Mapping status with time spent, coverage, full-build estimate and whether the project can be reset
-- Entity detail, types tree, search, runs, chats, metrics, settings, session, workspaces and every request body
-- `openapi.json` generated from the same schemas by `pnpm momentum openapi`, covering every route including project reset
+| Area | Schemas |
+|---|---|
+| Entity | Verification, Sync, Origin, Impact, EntityFrontmatter, TriggerFields |
+| Card | Inline, Block (markdown AST; mermaid as SVG) |
+| Feed | FeedItem, FeedCounts by state, Approve, SendBack |
+| Runs & chats | AutomationName, RunStatus, Usage (5h/weekly %), RunDetail |
+| Mapping & metrics | MappingStatus, MetricsResponse |
+| Settings | LifetimeRule, ModelMode (single / per automation / risk), ModelChoice |
+| Session | SessionRequest/Response, Workspace |
