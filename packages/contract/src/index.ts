@@ -376,7 +376,7 @@ export const MetricsResponse = z.object({
 });
 export type MetricsResponse = z.infer<typeof MetricsResponse>;
 
-// Settings, PLAN.md → Harness settings
+// Settings
 
 export const LifetimeRule = z.object({
   type: z.string().min(1),

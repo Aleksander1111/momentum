@@ -20,7 +20,7 @@ export function cardLength(body: string): number {
   return [...body].length;
 }
 
-/** Validator rules, PLAN.md → Entity file format */
+/** Validator rules */
 export function validateEntity(path: string, entity: ParsedEntity, ctx: ValidationContext): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const { frontmatter, body } = entity;

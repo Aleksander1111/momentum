@@ -7,7 +7,7 @@ import type { HarnessSettings } from './harness.ts';
 import type { Runner } from './runner.ts';
 import { NotFound, type Workspaces } from './workspaces.ts';
 
-/** Approve and send back, PLAN.md → Approval and send back */
+/** Approve and send back */
 export class Approval {
   constructor(
     private readonly workspaces: Workspaces,
@@ -34,9 +34,7 @@ export class Approval {
 
     const files: { path: string; content: string | null }[] = [{ path: fileOf(path), content: serializeEntity(entity) }];
     const retired = entity.frontmatter.references.filter((r) => r.relation === 'retires').map((r) => r.to);
-    for (const target of retired) {
-      if (row.branch && (await show(ws.path, ref, fileOf(target))) === null) files.push({ path: fileOf(target), content: null });
-    }
+    for (const target of retired) files.push({ path: fileOf(target), content: null });
     for (const artifact of entity.frontmatter.artifacts) {
       if (!artifact.startsWith('chats/') || !row.branch) continue;
       const content = await show(ws.path, ref, artifact);

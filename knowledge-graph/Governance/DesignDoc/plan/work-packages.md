@@ -30,5 +30,5 @@ flowchart LR
 - 3 KB: full text, pgvector, `momentum-kb` MCP server
 - 4 Runs: worktree, SDK session, usage as share of limits
 - 5 Guard: hooks, validation, issue entities, sync state
-- 8 Automations: eleven definitions, default triggers for the eight started by schedule, event or on demand
+- 8 Automations: ten definitions; default triggers for eight (not summarization, run by the Stop hook, nor graph build, started on enabling)
 - 11: this repository runs as a live workspace
