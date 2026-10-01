@@ -6,26 +6,25 @@ sync: synced
 product_impact: 2
 timeline_impact: 1
 unlocks: 1
-references: []
+references:
+  - to: Harness/Automation/optimization
+    relation: reports_on
+  - to: Harness/Automation/consistency-check
+    relation: reports_on
 artifacts:
   - apps/app/src/app/(tabs)/metrics.tsx
-  - apps/app/src/ui/Sparkline.tsx
-  - docs/designs/metrics-mobile.png
-  - docs/designs/metrics-web.png
-kind: page
 ---
-# Metrics screen
+# Metrics
 
-One workspace's metrics over the last 30 days: a 2×2 grid of panels on wide screens, a stack on phones, in the light or dark appearance set in Settings.
+Metrics tab per workspace (picker, "last N days"); stats show value and sparkline.
 
-| Panel | Stats |
+| Panel | Shows |
 |---|---|
-| Usage | rolling 5 hours and week as percentages, never money |
-| Attention | time per item, approved, rejected, sent back, patterns automated |
-| Understanding | consistency, open issues |
-| Agents | misalignments, recurring issues, runs this week, variant per automation |
-| Implementation | outstanding issues, bugs, defects |
+| Usage | Rolling 5 h and week %, meters split by automation, legend |
+| Attention | Time per item; approved, rejected, sent back; patterns automated |
+| Understanding | Consistency; open issues |
+| Agents | Misalignments; recurring issues; runs this week |
+| Implementation | Outstanding issues; bugs; defects |
+| Automations | Last 7 days per automation (and variant): runs, failed, avg time, 5 h and week usage % |
 
-- Each stat: a sparkline of its daily series and its value, green or red for good or bad trends
-- Workspace picker and a "last N days" badge
-- Reads `GET /workspaces/{ws}/metrics`
+Wide layout pairs the middle panels two per row.
