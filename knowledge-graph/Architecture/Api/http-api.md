@@ -15,7 +15,7 @@ artifacts:
 ---
 # HTTP API
 
-Fastify routes typed by `@momentum/contract` zod schemas, published at `/openapi.json`.
+Fastify routes typed by `@momentum/contract` zod schemas; OpenAPI at `/openapi.json`.
 
 | Area | Routes |
 |---|---|
@@ -24,6 +24,6 @@ Fastify routes typed by `@momentum/contract` zod schemas, published at `/openapi
 | Entities | GET /workspaces/{ws}/entities/*, /types, /search?q= |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
 | Projects | GET /workspaces; GET …/metrics; GET, PUT …/graph-build; POST …/reset |
-| Settings | GET, PUT /settings |
+| Settings | GET, PUT /settings (models, summarization, lifetimes…) |
 
-Graph build reports state, coverage, estimate and usage. Cookie or bearer session, else 401; errors as `{error}`. `/mcp` serves voice tools.
+Cookie or bearer session, else 401; errors `{error}` (400/404/409). `/mcp` serves voice tools; HTML page loads get the web app.
