@@ -15,10 +15,10 @@ artifacts:
 ---
 # Voice MCP API
 
-The backend API doubles as a stateless MCP server at `/mcp` (streamable HTTP, JSON responses, behind the same session) so the user's voice tools can drive every capability without the UI. Tools wrap the same handlers:
+The backend doubles as a stateless MCP server at `/mcp` (streamable HTTP, JSON responses, behind the same bearer or session cookie) so the user's voice tools reach every capability without the UI. Each tool wraps an API handler:
 
 - **Feed:** `feed`, `approve`, `send_back` (comment starts a chat run)
 - **Entities:** `workspaces`, `entity`, `types`, `search`
-- **Runs:** `chats`, `chat`, `run_automation` (if its trigger allows on demand), `run`, `message`, `kill_run`
+- **Runs:** `chats`, `chat`, `run_automation` (when its trigger allows on demand), `run`, `message`, `kill_run`
 - **Knowledge graph:** `mapping`, `set_mapping`, `reset_project`
-- **Admin:** `metrics`, `settings`, `update_settings`
+- **Admin:** `metrics`, `settings`, `update_settings` (projects, feed, cards, lifetimes, agents, models)
