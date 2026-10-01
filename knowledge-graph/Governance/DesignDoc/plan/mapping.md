@@ -15,8 +15,9 @@ artifacts:
 # Mapping plan
 
 - Starts on project enable; no trigger entity
-- Runs continue on `momentum/mapping/<workspace>`; one is queued only while the feed has room and none is open, writing at most that many entities
-- Runs report progress, covered share (0–1) and completion via `report_mapping`; the next prompt gets it
-- Time spent = sum of run durations; full build ≈ time and usage so far ÷ covered share
+- Runs continue on `momentum/mapping/<workspace>`; one queued only while the feed has room and none is open, writing at most that many entities
+- Each run reports progress, covered share (0–1) and completion via `report_mapping`; the next prompt carries it
+- The harness summarizes the documents a run listed, minus excluded paths
+- Build estimate: time and usage so far ÷ covered share
 - State (building, stopped, complete) in harness schema; Stop, Resume; disable stops, enable resumes
-- Reset (two taps): stops runs, removes checkouts, `momentum/` branches, deletes `knowledge-graph/` from main in one commit, drops the workspace schema, re-enables from the top; 409 for the harness workspace
+- Reset (two taps): kills runs, drops checkouts, `momentum/` branches, `knowledge-graph/` on main and the schema, then re-enables; 409 on the harness
