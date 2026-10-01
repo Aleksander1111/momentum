@@ -8,10 +8,11 @@ timeline_impact: 1
 unlocks: 3
 references: []
 artifacts: []
-automation: chat
+automation: retention
+schedule: "0 4 * * *"
 events: []
 on_demand: true
 ---
-# Chat trigger
+# Retention trigger
 
-Starts when the user writes in the chat tool.
+Runs every night at 04:00 and on demand.

@@ -8,10 +8,11 @@ timeline_impact: 1
 unlocks: 3
 references: []
 artifacts: []
-automation: chat
+automation: exploration
+schedule: "0 */2 * * *"
 events: []
 on_demand: true
 ---
-# Chat trigger
+# Exploration trigger
 
-Starts when the user writes in the chat tool.
+Runs every two hours and on demand.

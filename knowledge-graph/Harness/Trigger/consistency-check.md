@@ -8,10 +8,11 @@ timeline_impact: 1
 unlocks: 3
 references: []
 artifacts: []
-automation: chat
+automation: consistency-check
+schedule: "0 3 * * *"
 events: []
 on_demand: true
 ---
-# Chat trigger
+# Consistency check trigger
 
-Starts when the user writes in the chat tool.
+Runs every night at 03:00 and on demand.

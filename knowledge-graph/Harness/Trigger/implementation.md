@@ -8,10 +8,11 @@ timeline_impact: 1
 unlocks: 3
 references: []
 artifacts: []
-automation: chat
-events: []
+automation: implementation
+events:
+  - entity_ahead
 on_demand: true
 ---
-# Chat trigger
+# Implementation trigger
 
-Starts when the user writes in the chat tool.
+Starts when an implementable entity is approved with nothing implementing it, and on demand.

@@ -8,10 +8,11 @@ timeline_impact: 1
 unlocks: 3
 references: []
 artifacts: []
-automation: chat
+automation: optimization
+schedule: "0 5 * * *"
 events: []
 on_demand: true
 ---
-# Chat trigger
+# Optimization trigger
 
-Starts when the user writes in the chat tool.
+Runs every night at 05:00 and on demand.
