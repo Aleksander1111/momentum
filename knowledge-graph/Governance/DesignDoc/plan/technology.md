@@ -6,9 +6,7 @@ sync: synced
 product_impact: 4
 timeline_impact: 4
 unlocks: 3
-references:
-  - to: Governance/DesignDoc/plan
-    relation: part_of
+references: []
 artifacts:
   - docs/PLAN.md
 ---
@@ -16,12 +14,15 @@ artifacts:
 
 | Area | Choice |
 |---|---|
-| Language | TypeScript, Node 24, pnpm monorepo |
-| App | Expo + Expo Router, web via react-native-web; polling with TanStack Query |
-| Back-end | Fastify + zod: API, orchestrator and guard in one process |
-| Runs | Agent SDK subprocess per run in its own git worktree and procgov job object |
-| Index | Postgres 18 + pgvector in Docker, schema per workspace; bge-small embeddings |
-| KB access | `momentum-kb` and `momentum-run` MCP servers |
-| Guard | Claude Code hooks + chokidar; one transaction per run |
-| Access | Password session over Tailscale only; API doubles as MCP |
-| Machine | Windows 11, WinSW service; Android APK, iPhone PWA |
+| Stack | TypeScript, Node 24, pnpm monorepo |
+| App | Expo + react-native-web; TanStack Query polling |
+| Back-end | Fastify + zod: API, orchestrator, guard |
+| Runs | Agent SDK per run, own worktree, procgov job |
+| Index | Postgres 18 + pgvector, schema per workspace; `harness` schema for settings |
+| KB access | `momentum-kb`, `momentum-run` MCP |
+| Guard | Claude Code hooks + chokidar; mermaid to SVG via Playwright |
+| Access | Password over Tailscale; API is also MCP |
+| Host | Windows 11, WinSW; APK and iPhone PWA |
+| Tests | Vitest, Playwright |
+
+Unverified: procgov limits hold for the Claude Code tree.
