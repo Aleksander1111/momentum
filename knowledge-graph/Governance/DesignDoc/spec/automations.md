@@ -3,34 +3,49 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 4
-timeline_impact: 3
-unlocks: 4
+product_impact: 3
+timeline_impact: 1
+unlocks: 2
 references:
-  - to: Governance/DesignDoc/spec
-    relation: part_of
-  - to: Harness/Automation/summarization
+  - to: Harness/Automation/exploration
     relation: concerns
-  - to: Harness/Automation/graph-build
+  - to: Harness/Automation/preparation
+    relation: concerns
+  - to: Harness/Automation/consistency-check
+    relation: concerns
+  - to: Harness/Automation/retention
+    relation: concerns
+  - to: Harness/Automation/implementation
+    relation: concerns
+  - to: Harness/Automation/validation
+    relation: concerns
+  - to: Harness/Automation/optimization
+    relation: concerns
+  - to: Harness/Automation/summarization
     relation: concerns
   - to: Harness/Automation/chat
     relation: concerns
+  - to: Harness/Automation/graph-build
+    relation: concerns
 artifacts:
   - docs/SPEC.md
+  - docs/diagrams/06-automations.md
 ---
-# Spec: automations
+# Automations spec
 
-Defined by responsibility alone; definitions live in the harness workspace, triggers per workspace. AI only for judgement.
+Per-project background work, each defined by responsibility alone. Definitions and triggers are entities changed through the feed. AI only where queries and rules can't carry a step.
 
-| Automation | Responsibility |
+| Automation | Role |
 |---|---|
 | Exploration | Next best action within goals |
-| Preparation | Plans under plans/ |
+| Preparation | Plans under `plans/` |
 | Consistency check | Issues as entities |
-| Retention | Retire spent entities by type rules |
-| Implementation | Own branch, merged once validated |
-| Validation | Changes and product; gates merge |
-| Optimization | Recurring issues → definition changes |
-| Summarization | Stop-hook sub-agent of every run |
+| Retention | Retires spent entities |
+| Implementation | Own branch, merged when valid |
+| Validation | Gates merges; regression loop |
+| Optimization | Proposes definition changes |
+| Summarization | Stop-hook step, not a trigger |
 | Chat | Started by the user |
-| Graph build | Builds the graph once enabled, until covered |
+| Graph build | Builds the graph run after run |
+
+Diagram still shows a Card step.
