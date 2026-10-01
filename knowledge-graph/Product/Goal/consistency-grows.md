@@ -7,17 +7,17 @@ product_impact: 4
 timeline_impact: 2
 unlocks: 3
 references:
-  - to: Product/Product/momentum
-    relation: goal_of
   - to: Harness/Automation/consistency-check
     relation: served_by
 artifacts:
   - docs/SPEC.md
+  - apps/backend/src/guard.ts
 ---
 # Consistency grows across every project
 
-Success criterion from the spec: the harness earns its place only if consistency grows across every project it touches, instead of costing attention.
+First success criterion of the spec: the harness earns its place only if consistency grows across every project it touches, boosting the user instead of costing attention.
 
-- Measured as the understanding metric: the share of entities with no card over the limit and no unresolved reference, tracked over time
-- Served by the consistency guard on every change and by the consistency check loop
-- Open issues (Harness/Issue, Harness/Conflict) count against it
+- **Measured** as the understanding metric: the share of entities whose card is within the character limit and whose references all resolve
+- **Recorded** by the consistency guard with every validated transaction, tracked over time on the metrics screen
+- **Open issues** (Harness/Issue, Harness/Conflict) are recorded alongside it, not subtracted from it
+- **Served** by the guard on every change and by the consistency check loop
