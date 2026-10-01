@@ -13,15 +13,15 @@ artifacts:
 ---
 # HTTP API
 
-Fastify routes of the back-end; zod schemas from `@momentum/contract`, published at `/openapi.json`.
+Fastify routes, zod schemas from `@momentum/contract`, served at `/openapi.json`.
 
 | Area | Routes |
 |---|---|
 | Session | POST, DELETE /session |
-| Feed | GET /feed; POST /feed/{path}/approve, /send-back (with time spent) |
+| Feed | GET /feed; POST /feed/{path}/approve, /send-back |
 | Entities | GET /workspaces/{ws}/entities/*, /types, /search?q= |
-| Chats, runs | GET, POST /workspaces/{ws}/chats; GET /runs/{id}; POST /runs/{id}/messages, /kill |
+| Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
 | Projects | GET /workspaces; GET …/metrics; GET, PUT …/mapping; POST …/reset |
 | Settings | GET, PUT /settings |
 
-Cookie or bearer session, else 401; errors as `{error}` (400, 404, 409 on a reset conflict). `/mcp` serves the voice tools; page loads get the web build.
+Metrics give each automation's runs, failures, average time and share of 5-hour and weekly usage. Cookie or bearer session, else 401; errors as `{error}` (400, 404, 409). `/mcp` serves voice tools.
