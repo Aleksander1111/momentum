@@ -3,25 +3,26 @@ type: Frontend/Screen
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 1
-timeline_impact: 0
+product_impact: 2
+timeline_impact: 1
 unlocks: 2
+kind: page
 references:
   - to: Harness/Automation/mapping
     relation: controls
 artifacts:
   - apps/app/src/app/(tabs)/settings.tsx
-  - docs/designs/settings-web.png
-  - docs/designs/settings-mobile.png
-kind: page
 ---
-# Settings screen
+# Settings
 
-The harness settings, read and written through `/settings`; numbers save when editing ends, rules expand into an editor beneath their row.
+Settings tab; changes save when editing ends.
 
-- Appearance: theme System, Light or Dark, kept on the device, not the server
-- Included projects: an enable switch each; an enabled project shows its knowledge graph build (state, runs, entities, usage as % of the 5-hour and weekly limits) with Stop, Resume and Reset, which asks for a second tap, then wipes the project's entities and data and rebuilds
-- Feed size: items before loops pause
-- Cards: character limit and presentation rules
-- Lifetimes: a rule per entity type
-- Agents: concurrent runs per project and in total
+| Section | Controls |
+|---|---|
+| Appearance | System, light or dark; stays on this device |
+| Included projects | On/off switch per project |
+| Knowledge graph (enabled project) | State, runs, entities, time and 5 h/week usage; coverage and full-build estimate; Stop/Resume; Reset with a second tap |
+| Feed size | Items before loops pause |
+| Cards | Character limit; presentation rules |
+| Lifetimes | Rule per entity type |
+| Agents | Concurrent runs per project and in total |
