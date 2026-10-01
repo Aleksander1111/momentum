@@ -12,12 +12,12 @@ artifacts:
 ---
 # Momentum
 
-A self-hosted harness: the only way one user reaches the work around 5–20 projects, which they explore as entity cards instead of raw artifacts.
+A self-hosted harness. It is the single entry point between one user and the work around 5–20 projects, which the user explores as entity cards instead of raw artifacts.
 
 | Layer | What it does |
 |---|---|
-| Attention | One ranked feed across projects. Nothing counts until the user approves it |
-| Understanding | Graph RAG knowledge base per workspace. The entity is its card; a guard validates every change |
-| Implementation | Claude Code automation loops, one process per run on its own branch, paused at the feed limit |
+| Attention | One ranked feed across projects. Nothing counts until approved |
+| Understanding | A Graph RAG knowledge base per workspace. A guard validates every change |
+| Implementation | Claude Code loops, one process and branch per run, paused at the feed limit |
 
-Success: consistency grows and work arrives in one piece. Runs on one dedicated machine over a private mesh network, with web and mobile clients.
+Enabling a project builds its graph. A Stop hook summarizes every run's artifacts. Success means consistency grows and work arrives in one piece.
