@@ -9,6 +9,8 @@ unlocks: 3
 references:
   - to: Harness/Automation/optimization
     relation: served_by
+  - to: Harness/Automation/exploration
+    relation: guides
 artifacts:
   - docs/SPEC.md
 ---
