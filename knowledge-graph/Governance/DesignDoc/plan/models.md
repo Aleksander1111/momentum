@@ -14,14 +14,16 @@ references:
 artifacts:
   - docs/PLAN.md
 ---
-# Models runs start on
+# Models
 
-Set in Settings for all projects, as Claude model aliases (Default leaves it to Claude Code):
+Which Claude model a run starts on, set in Settings for all projects as model aliases (Default leaves it to Claude Code).
 
-| Mode | Model of a run |
+| Mode | Model |
 |---|---|
-| Single | One model for every run |
+| One for all | Same model for every run |
 | Per automation | One per automation, summarization included |
-| By risk | Implementation runs: a Haiku call rates risk low/medium/high from the user's rules in `automations/implementation/risk.md`, the target entity and its plans; the run takes that risk's model. Other automations, or no rules or target, keep their own |
+| By risk | Implementation runs use the model set for their risk (low, medium, high); other automations keep their own |
 
-Model and risk are recorded on the run and kept when its session resumes.
+- Risk estimated just before the run by a Haiku call applying `automations/implementation/risk.md` to the target entity and its plans
+- No rules or no target: the automation's own model
+- Model and risk recorded on the run, kept when its session resumes
