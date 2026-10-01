@@ -9,18 +9,18 @@ unlocks: 2
 references:
   - to: Harness/Automation/validation
     relation: concerns
-  - to: Harness/Automation/mapping
+  - to: Harness/Automation/graph-build
     relation: concerns
   - to: Harness/Automation/summarization
     relation: concerns
 artifacts:
   - apps/backend/src/runner.ts
 ---
-# momentum-run MCP server
+# momentum-run MCP
 
-In-process MCP server the harness gives every run next to `momentum-kb`. Its tools only record a report; the harness acts on it when the run stops or ends.
+In-process MCP server given to every run beside momentum-kb; runs report outcomes the harness acts on when they end.
 
-| Tool | Input | Effect |
+| Tool | Input | When the run ends |
 |---|---|---|
-| `report_validation` | passed, form (review, test suite run, exploratory pass, consistency check), summary | Pass merges the branch into the main line; fail or merge conflict holds the implementation |
-| `report_mapping` | complete, progress, coverage 0–1, documents? | Stores progress and coverage; complete ends the build; the Stop hook hands documents to the summarization sub-agent |
+| report_validation | passed, form, summary | Passed: branch merged, implementation finished. Failed or conflict: held |
+| report_graph_build | complete, progress, coverage 0–1, documents? | Progress and coverage stored; complete stops the build. Documents go to summarization via the Stop hook |
