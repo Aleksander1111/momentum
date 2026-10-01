@@ -16,8 +16,9 @@ artifacts:
 
 Success criterion from the spec: the system is flexible enough that it does not need constant modification to keep working.
 
-- Automations defined by responsibility alone, searching the whole knowledge base; no entity type belongs to one
-- Definitions and triggers are entities, not settings, edited or proposed and approved through the feed
-- Optimization proposes skills, sub-agents, definitions and tools from recurring issues, measured across every project
+- Automations defined by responsibility alone; no entity type belongs to one
+- Definitions (harness workspace) and triggers (per workspace) are entities, edited or proposed and approved through the feed
+- Optimization proposes skills, sub-agents, definitions and tools from recurring issues; competing variants compared on metrics
+- Approved definitions materialized into each workspace for Claude Code
 - Concurrency tuned from measured behaviour, not fixed upfront
-- AI reserved for judgement; indices, metrics, lifetimes and references are queries and rules
+- AI only for judgement; indices, metrics, lifetimes and references are queries and rules
