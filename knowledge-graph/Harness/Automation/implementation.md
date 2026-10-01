@@ -13,11 +13,12 @@ artifacts:
 ---
 # Implementation
 
-A regular Claude Code session that implements an approved entity on its own branch.
+Implements an approved entity on its own branch.
 
-- Reads the target and everything it references: plans, criteria, decisions, constraints
-- Follows the repository's conventions and runs its checks; never pushes, merges or touches the main line
-- Writes no summary: the harness summarizes the changed files into the result entity
-- Cannot implement as written: raises a Harness/Issue that `concerns` the target
-- Risk (high, medium, low; medium by default) is the highest level any rule gives: data, security, contracts, concurrency, infrastructure, cross-service work, plans over 8 steps or unknowns are high
+- Reads the target and everything it references; follows repo conventions and checks
+- Never pushes, merges or touches main; the harness commits
+- Writes no summary: the Stop hook hands changed files to summarization
+- Cannot implement as written → Harness/Issue that `concerns` the target
 - Merged only after validation passes
+
+Risk (highest rule wins, default medium): **high** for data, security, contracts, concurrency, infrastructure, cross-service work, plans over 8 steps or open questions; **medium** for in-package features and fixes; **low** for copy, styling, config, tests-only or 1–3 step plans.
