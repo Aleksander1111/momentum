@@ -3,26 +3,29 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 4
-timeline_impact: 4
+product_impact: 3
+timeline_impact: 2
 unlocks: 3
-references: []
+references:
+  - to: Governance/DesignDoc/plan/technology-runs
+    relation: continues_in
+  - to: Governance/DesignDoc/plan/technology-data
+    relation: continues_in
+  - to: Governance/DesignDoc/plan/technology-platform
+    relation: continues_in
 artifacts:
   - docs/PLAN.md
 ---
 # Technology decisions
 
-| Area | Choice |
-|---|---|
-| Stack | TypeScript, Node 24, pnpm monorepo |
-| App | Expo + react-native-web; TanStack Query polling |
-| Back-end | Fastify + zod: API, orchestrator, guard |
-| Runs | Agent SDK per run, own worktree, procgov job |
-| Index | Postgres 18 + pgvector, schema per workspace; `harness` schema for settings |
-| KB access | `momentum-kb`, `momentum-run` MCP |
-| Guard | Claude Code hooks + chokidar; mermaid to SVG via Playwright |
-| Access | Password over Tailscale; API is also MCP |
-| Host | Windows 11, WinSW; APK and iPhone PWA |
-| Tests | Vitest, Playwright |
+TypeScript throughout: Node 24 LTS, pnpm workspaces monorepo, matching Claude Code and the Agent SDK.
 
-Unverified: procgov limits hold for the Claude Code tree.
+| Area | Decision |
+|---|---|
+| Front-end | Expo + Expo Router; web via react-native-web, served by the back-end |
+| Gestures | gesture-handler + reanimated: swipe right approves, left sends back with a comment |
+| Polling | TanStack Query `refetchInterval`, no sockets |
+| Cards | Markdown AST; mermaid rendered to SVG on the server by the guard, no WebView |
+| Back-end | Fastify + zod, one process: API, orchestrator, guard |
+
+Runs, data and platform decisions continue in the sibling cards.
