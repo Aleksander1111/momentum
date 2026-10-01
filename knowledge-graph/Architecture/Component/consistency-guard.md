@@ -18,9 +18,8 @@ artifacts:
 
 Validates each run's knowledge-base changes and keeps the index true to the main line.
 
-- In the run: PostToolUse flags issues per write; Stop sends the run back to fix them, twice at most
+- In the run: PostToolUse flags issues per write; Stop first hands the run's artifacts to summarization, then sends it back to fix issues, twice at most
 - Run end: changes against the main line form one transaction (type, path, card limit, references)
-- Valid: indexed unverified, enter the feed; invalid: `Harness/Issue/guard-<run>` enters the feed
-- Main line: reindexes changed entities; an artifact changed alone sets `artifact_ahead` and triggers summarization
-- Sync: updating, artifact_ahead, entity_ahead (approved, not implemented), synced
-- Metrics: records consistency and implementation; serves 30-day series and per-automation runs, failures, usage
+- Valid: indexed unverified, enter the feed; invalid: `Harness/Issue/guard-<run>`
+- Main line: reindexes changed entities; an artifact changed alone sets `artifact_ahead`
+- Metrics: consistency and implementation; 30-day series, per-automation runs, failures, usage
