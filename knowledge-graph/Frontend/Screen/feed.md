@@ -25,9 +25,10 @@ artifacts:
 
 Ranked cards across enabled projects, one at a time; the default tab.
 
-- Counters: entities by verification (unverified, verified), then sync (synced, entity ahead, artifact ahead, updating)
+- Counters: entities by verification, then sync
 - Swipe right approves; swipe left opens a Disapprove sheet whose comment is sent back; Cancel returns the card
-- Stamps and a green or red wash follow the drag; the wash redraws when light/dark changes; two cards peek behind
+- Stamps and a green or red wash follow the drag; the wash redraws on light/dark change; two cards peek behind
 - Web drags with the mouse; no buttons
 - Time spent on the card is sent with the reaction
-- Polls `GET /feed` every 15 s; a reacted card leaves at once, counters wait for the next poll; reactions queue offline and resume after restart
+- Polls `GET /feed` every 15 s; a reacted card leaves at once, counters wait for the next poll
+- Reactions queue offline and resume after restart; cached data that no longer fits the contract is dropped
