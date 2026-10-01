@@ -11,8 +11,6 @@ references:
     relation: part_of
   - to: Harness/Automation/summarization
     relation: concerns
-  - to: Harness/Automation/card
-    relation: concerns
 artifacts:
   - docs/SPEC.md
 ---
@@ -20,8 +18,8 @@ artifacts:
 
 - Graph RAG per workspace; the unit is the entity, its type a directory path
 - Origins: user, requested, automation; all reach the main line through the feed
-- Summary = entity with artifacts; chats and actions are entities too
-- Card: only a configured, mobile-sized character limit; what does not fit is split
+- Summary = entity with artifacts, written by summarization; chats and actions are entities too
+- Card: written by whoever writes the entity; only a configured, mobile-sized character limit; what does not fit is split
 - Free writes on run branches; the gate is the main line
 - Consistency guard: validates transactions (card limit, references), updates the index and metrics, maintains sync state
 - Metrics: attention, understanding, agents, implementation; usage as % of the 5-hour and weekly limits
