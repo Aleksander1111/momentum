@@ -5,7 +5,7 @@ verification: unverified
 sync: synced
 product_impact: 4
 timeline_impact: 3
-unlocks: 4
+unlocks: 3
 references: []
 artifacts:
   - docs/SPEC.md
@@ -13,10 +13,16 @@ artifacts:
 ---
 # Deployment and remote access
 
-Self-hosted on one dedicated machine; no cloud services.
+Self-hosted on one dedicated machine: one back-end deployable (API + orchestrator), a Claude Code process per run, and the workspaces root. No cloud services.
 
-- One back-end deployable (API + orchestrator); runs are separate Claude Code processes, one per run and project, each in its own checkout and branch
-- Workspaces root holds each workspace: git repository, knowledge base, index and metrics database
-- Web and mobile clients poll the API over a private WireGuard mesh (e.g. Tailscale); the API listens only on the mesh interface
-- No public port, inbound firewall rule, public reverse proxy or shared client secret
-- One key per enrolled device, revoked centrally; tunnel encryption plus a per-user session
+```mermaid
+flowchart LR
+  C[Web / mobile] -->|poll + session| M[Mesh VPN]
+  M -->|tunnel| A[API]
+  O[Orchestrator] --> R[Runs]
+  A & R --> W[Workspaces]
+```
+
+- No public port: the API listens only on a WireGuard mesh (e.g. Tailscale)
+- One key per enrolled device, revoked centrally
+- Tunnel encryption plus a per-user session; no firewall rule, reverse proxy or client secret
