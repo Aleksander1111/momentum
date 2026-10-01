@@ -45,6 +45,6 @@ Defined by responsibility alone; definitions and triggers are entities.
 | Implementation | works on own branch |
 | Validation | gates merges; regression runs |
 | Optimization | fixes recurring chat issues |
-| Summarization | Stop-hook sub-agent |
+| Summarization | Stop-hook sub-agent; one run per main-line change |
 | Chat | user-started run |
 | Graph build | builds graph on enable |

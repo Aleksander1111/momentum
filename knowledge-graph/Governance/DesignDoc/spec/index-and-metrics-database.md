@@ -14,7 +14,7 @@ artifacts:
 ---
 # Index and metrics database
 
-The queryable side of the knowledge base: indices over entities, automations and chats, one store per workspace, updated by the consistency guard on every change.
+The queryable side of the knowledge base: indices over entities, automations and chats, one store per workspace, updated by the guard on every change.
 
 | Metrics | Tracks |
 |---|---|
@@ -23,4 +23,4 @@ The queryable side of the knowledge base: indices over entities, automations and
 | Agents | Misalignments, recurring issues, run-over-run behaviour |
 | Implementation | Outstanding issues, bugs, defects |
 
-All tracked over time and fed to optimization. Usage is known at any moment as percent of the 5-hour and weekly limits, per workspace and run; each rise is split evenly among concurrent runs. Holds the attention ranking the API reads per poll.
+Tracked over time, fed to optimization; unmeasured counts are no data. Keeps every entity's state history and each run's usage, time and messages. Usage is % of the 5-hour and weekly limits, split among concurrent runs. Holds the ranking the API reads per poll.

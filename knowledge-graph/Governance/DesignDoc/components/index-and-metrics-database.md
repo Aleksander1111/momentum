@@ -27,4 +27,4 @@ Indices over entities, automations and chats, per workspace on the dedicated mac
 | Agents | chat misalignments, recurring issues, run behaviour |
 | Implementation | outstanding issues, bugs, defects |
 
-All feed optimization. Usage is tracked as % of the 5-hour and weekly limits, split evenly among concurrent runs. Holds the attention ranking the API reads directly.
+All feed optimization; unmeasured counts are no data, not zero. Keeps each entity's state history and what single runs used. Usage is % of the 5-hour and weekly limits, split among concurrent runs. Holds the ranking the API reads directly.

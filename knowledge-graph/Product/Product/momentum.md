@@ -16,8 +16,8 @@ A self-hosted harness: the single entry point between one user and the work arou
 
 | Layer | What it does |
 |---|---|
-| Attention | One feed across projects, ranked by product, timeline and unlock impact. Nothing counts until approved |
+| Attention | One feed across projects, ranked by product, timeline and unlock impact. Only approved work counts |
 | Understanding | A Graph RAG knowledge base per workspace. A guard validates every change |
-| Implementation | Claude Code runs, one process and branch each, paused at the feed limit |
+| Implementation | Claude Code runs, one process and branch each, paused at the feed limit, resumed after restart |
 
-Enabling a project starts its graph build. A Stop hook summarizes every run's artifacts. Usage is tracked as a share of the 5-hour and weekly limits.
+Enabling a project starts its graph build. A Stop hook summarizes every run's artifacts; each main-line commit gets one summarization run. Usage: % of the 5-hour and weekly limits.

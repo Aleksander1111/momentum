@@ -20,9 +20,9 @@ artifacts:
 ---
 # Orchestrator
 
-Starts and supervises the automation loops of every enabled project in the back end.
+Starts and supervises the automation loops of each enabled project.
 
-- **Tick**: indexes main lines; while the feed has room, queues due cron triggers and one graph build run per workspace on its branch; starts queued runs within total and per-project limits
-- **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → summarization (no trigger entity); approved definitions are materialized again
+- **Tick**: indexes main lines; while the feed has room, queues due cron triggers and one graph build run per workspace; starts queued runs within total and per-project limits
+- **Events**: entity_ahead → implementation, implementation_finished → validation; artifact_ahead → one summarization run over every entity and its changed artifacts, each set updating; approved definitions rematerialized
 - **Enable**: materializes definitions, indexes, proposes default triggers, starts the build unless complete
-- **Disable**: stops a build; **reset** (not the harness): ends runs, drops run branches, the knowledge graph and the index
+- **Disable**: stops a build; **reset** (not the harness): ends runs, drops run branches, knowledge graph and index

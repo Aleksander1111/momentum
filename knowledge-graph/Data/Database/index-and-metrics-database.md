@@ -20,6 +20,6 @@ Postgres with pgvector, the queryable side of the knowledge base, migrated idemp
 | Schema | Holds |
 |---|---|
 | harness | project, setting, credential, session, usage_sample |
-| ws_<workspace> | entity (tsvector + 384-dim embedding), entity_artifact, entity_reference, automation, run (usage, model, risk), run_message, chat, transaction, attention_ranking (rank = sum of impacts), attention_metric, attention_pattern, understanding_metric, agent_metric, usage_share (a run's share of the usage limits), implementation_metric |
+| ws_<workspace> | entity (tsvector + 384-dim embedding), entity_state (verification and sync history), entity_artifact, entity_reference, automation, run (usage, model, risk, restarts), run_message, chat, transaction, attention_ranking (rank = sum of impacts), attention_metric, attention_pattern, understanding_metric, agent_metric, usage_share (a run's share of the limits), implementation_metric |
 
-The migration renames the mapping automation to graph-build.
+The migration renames mapping to graph-build and seeds entity_state with the states standing.

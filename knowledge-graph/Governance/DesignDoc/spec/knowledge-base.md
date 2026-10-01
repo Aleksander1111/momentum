@@ -22,4 +22,4 @@ Graph RAG per workspace; the entity is the unit and is its card.
 - Chats and actions (failures, conflicts) are entities too
 - Free writes on branches; the consistency guard validates transactions (card limit, references), raises issues, updates the index
 - Guard keeps sync: `updating`, `artifact_ahead`, `entity_ahead`, `synced`
-- No ingestion component: summarization turns artifacts into summaries
+- No ingestion: summarization turns artifacts into summaries, from each run's Stop hook and in one run per main-line change

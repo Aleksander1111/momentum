@@ -26,4 +26,4 @@ Fastify routes typed by `@momentum/contract` zod schemas; OpenAPI at `/openapi.j
 | Projects | GET /workspaces; GET …/metrics?range=24h\|7d\|30d; GET, PUT …/graph-build; POST …/reset |
 | Settings | GET, PUT /settings |
 
-Cookie or bearer session, else 401; errors `{error}` (400/404/409). `/mcp` serves voice tools; HTML page loads get the web app.
+Metrics carry entities per state and run histograms. Cookie or bearer session, else 401; errors `{error}` (400/404/409). `/mcp` serves voice tools.

@@ -12,15 +12,13 @@ artifacts:
 ---
 # Metrics
 
-Page tab charting a workspace's metrics over 24 h, 7 d or 30 d (hourly or daily buckets); workspace picker and range switch on top.
+Page tab charting a workspace's metrics over 24 h, 7 d or 30 d; workspace picker and range switch on top.
 
 | Panel | Shows |
 |---|---|
-| Usage | Rolling 5-hour and week limits: %, meter split by automation, line over range |
-| Attention | Time per item, approved, rejected, sent back, patterns automated |
-| Understanding | Consistency (0–1), open issues |
-| Agents | Misalignments, recurring issues, runs |
-| Implementation | Outstanding issues, bugs, defects |
-| Automations | Table of runs, failed, avg time, 5 h and week % per automation; stacked charts of each |
+| Usage | 5-hour and weekly limits: %, meter split by automation, line over range |
+| Over time | Picked metrics on one chart, two units at most, kept on the device; entities by verification or sync state by default, usage, runs, attention, understanding, agents, implementation |
+| Runs by parameter | Runs per automation binned by 5-hour or weekly usage, duration or messages |
+| Automations | Runs, failed, avg time, 5 h and week % per automation |
 
-Hovering a bucket shows its value; two columns when wide.
+Hover shows a bucket's value and parts; unmeasured counts show —.
