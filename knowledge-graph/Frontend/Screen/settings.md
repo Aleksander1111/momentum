@@ -3,11 +3,11 @@ type: Frontend/Screen
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 2
+product_impact: 3
 timeline_impact: 1
 unlocks: 1
 references:
-  - to: Harness/Automation/mapping
+  - to: Harness/Automation/graph-build
     relation: controls
   - to: Harness/Automation/summarization
     relation: configures
@@ -24,7 +24,7 @@ Settings tab; each change saves when editing ends.
 |---|---|
 | Appearance | System, light or dark; this device only |
 | Included projects | Switch per project |
-| Knowledge graph (enabled project) | State, runs, entities, time, 5 h/week usage; coverage, full-build estimate; Stop/Resume; Reset with a second tap |
+| Knowledge graph (enabled project) | State, runs, entities, time, 5 h/week usage; coverage, full-build estimate; Stop/Resume; Reset on a second tap |
 | Feed size | Items before loops pause |
 | Cards | Character limit; presentation rules |
 | Summarization | Never-summarized path patterns, one per line |
