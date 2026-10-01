@@ -230,8 +230,8 @@ function useCatalog(m: MetricsResponse): MetricDef[] {
     };
   };
   return [
-    byState('entities.verification', 'By verification', m.entities.verification, { unverified: C.warn, verified: C.ok }),
-    byState('entities.sync', 'By sync', m.entities.sync, { synced: C.faint, entity_ahead: C.accent, artifact_ahead: C.warn, updating: C.ink }),
+    byState('entities.verification', 'By verification', m.entities.verification, { unverified: C.stateUnverified, verified: C.stateVerified }),
+    byState('entities.sync', 'By sync', m.entities.sync, { synced: C.stateSynced, entity_ahead: C.stateEntityAhead, artifact_ahead: C.stateArtifactAhead, updating: C.stateUpdating }),
     single('Usage', 'usage.fiveHour', 'Account · 5-hour limit', 'points', 'line', m.usage.fiveHour),
     single('Usage', 'usage.week', 'Account · weekly limit', 'points', 'line', m.usage.week),
     byAutomation('automations.fiveHour', 'Usage · 5-hour limit', 'points', 'bars', (a) => a.usage.fiveHour),

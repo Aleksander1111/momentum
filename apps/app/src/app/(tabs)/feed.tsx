@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -20,8 +20,8 @@ import { entityKey } from '../../lib/format';
 import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { CardView } from '../../ui/CardView';
-import { Btn, Count } from '../../ui/parts';
-import { STATE_LABEL, StateBadge } from '../../ui/StateBadge';
+import { Btn } from '../../ui/parts';
+import { STATE_LABEL, StateIcon, Tip, type State } from '../../ui/StateBadge';
 
 const THRESHOLD = 110;
 const FLING = 800;
@@ -46,32 +46,42 @@ const cardSkin: ViewStyle = {
 const VERIFICATION: Verification[] = ['unverified', 'verified'];
 const SYNC: Sync[] = ['synced', 'entity_ahead', 'artifact_ahead', 'updating'];
 
-/** Entities of the enabled projects by state: verification first, then sync. */
+/** Entities of the enabled projects by state, verification and sync in one segment each; each state is named on hover or long-press. */
 function Counters({ counts, wide }: { counts: FeedCounts; wide: boolean }) {
-  const pill = (state: Verification | Sync, n: number) => (
-    <Count key={state}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-        <StateBadge state={state} />
+  const item = (state: State, n: number) => (
+    <Tip key={state} text={`${n} ${STATE_LABEL[state].toLowerCase()}`} touch>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: n ? 1 : 0.35 }}>
+        <StateIcon state={state} />
         <T style={{ color: C.ink, fontSize: 12, fontWeight: '700' }}>{n}</T>
-        <T style={{ color: C.muted, fontSize: 12 }}>{STATE_LABEL[state]}</T>
       </View>
-    </Count>
+    </Tip>
+  );
+  const segment = (items: [State, number][]) => (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: C.card,
+        borderRadius: 999,
+        paddingVertical: 4,
+        paddingHorizontal: 12,
+      }}
+    >
+      {items.map(([s, n]) => item(s, n))}
+    </View>
   );
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ flexGrow: 0 }}
-      contentContainerStyle={
+    <View
+      style={
         wide
-          ? { alignSelf: 'center', width: 560, paddingTop: 22, gap: 8, alignItems: 'center' }
-          : { paddingHorizontal: 16, paddingTop: 12, gap: 8, alignItems: 'center' }
+          ? { alignSelf: 'center', width: 560, paddingTop: 22, flexDirection: 'row', gap: 8 }
+          : { paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', gap: 8 }
       }
     >
-      {VERIFICATION.map((v) => pill(v, counts.verification[v]))}
-      <View style={{ width: 1, height: 14, backgroundColor: C.line, marginHorizontal: 2 }} />
-      {SYNC.map((v) => pill(v, counts.sync[v]))}
-    </ScrollView>
+      {segment(VERIFICATION.map((v) => [v, counts.verification[v]]))}
+      {segment(SYNC.map((v) => [v, counts.sync[v]]))}
+    </View>
   );
 }
 
