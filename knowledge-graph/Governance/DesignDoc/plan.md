@@ -3,24 +3,33 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 5
+product_impact: 4
 timeline_impact: 4
-unlocks: 5
+unlocks: 4
 references:
-  - to: Governance/DesignDoc/plan/pages
-    relation: contains
+  - to: Harness/Automation/summarization
+    relation: concerns
+  - to: Harness/Automation/graph-build
+    relation: concerns
+  - to: Harness/Automation/implementation
+    relation: concerns
 artifacts:
   - docs/PLAN.md
 ---
 # Momentum implementation plan
 
-How Momentum is built from SPEC.md, in one pass ordered by dependency.
+The harness built in one pass: 12 work packages (machine to end-to-end validation) ordered by dependency.
 
-- TypeScript monorepo: Expo app, Fastify back-end, packages for contract, entity, kb, runs
-- Knowledge graph as markdown entities, indexed in Postgres per workspace
-- One Claude Code run per worktree and branch, checked by a consistency guard
-- Ranked cross-project feed: swipe to approve or send back
-- Models set once for all runs, per automation, or by implementation risk
-- Self-hosted on this Windows 11 machine, reached over Tailscale
+| Area | Choice |
+|---|---|
+| Stack | TypeScript, Node 24, pnpm monorepo |
+| App | Expo web + mobile, polling |
+| Back-end | Fastify: API, orchestrator, guard, MCP |
+| Runs | Agent SDK, worktree + branch, procgov limits |
+| Store | Postgres 18 + pgvector per workspace |
 
-Open: tuning and measuring the attention ranking; scale, latency and usage targets.
+- Guard hooks validate each KB write; Stop hook hands artifacts to summarization
+- Approve commits the entity to main; send back starts a chat run
+- Graph build covers the repo on enable
+- Models: one for all, per automation, or by risk
+- Open: ranking tuning; scale, latency, usage targets
