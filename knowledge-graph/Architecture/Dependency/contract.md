@@ -20,5 +20,5 @@ kind: internal library
 - Card blocks as rendered from the markdown AST
 - Feed with counts of entities by verification and sync state
 - Mapping status with time spent, coverage, full-build estimate and whether the project can be reset
-- Entity detail, types tree, search, runs, chats, metrics, settings and every request body
-- `openapi.json` generated from the same schemas by `pnpm momentum openapi`, including project reset
+- Entity detail, types tree, search, runs, chats, metrics, settings, session, workspaces and every request body
+- `openapi.json` generated from the same schemas by `pnpm momentum openapi`, covering every route including project reset
