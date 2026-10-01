@@ -22,7 +22,7 @@ artifacts:
 
 Starts and supervises the automation loops of every enabled project in the back end.
 
-- **Tick**: indexes main lines; while the feed has room, queues due cron triggers and one mapping run per workspace; starts queued runs within total and per-project limits, one run per branch at a time
-- **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → summarization (no trigger entity)
+- **Tick**: indexes main lines; while the feed has room, queues due cron triggers and one mapping run per workspace and branch; starts queued runs within total and per-project limits
+- **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → summarization (no trigger entity); approved definitions are materialized again
 - **Enable**: materializes definitions, indexes, proposes default triggers, starts the build
-- **Disable**: stops a build; **reset**: ends runs, drops run branches, the knowledge graph and the index
+- **Disable**: stops a build; **reset** (not the harness): ends runs, drops run branches, the knowledge graph and the index
