@@ -3,24 +3,38 @@ type: Governance/DesignDoc
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 3
-timeline_impact: 2
-unlocks: 3
-references: []
+product_impact: 4
+timeline_impact: 3
+unlocks: 4
+references:
+  - to: Governance/DesignDoc/spec/components
+    relation: includes
+  - to: Governance/DesignDoc/spec/knowledge-base
+    relation: includes
+  - to: Governance/DesignDoc/spec/automations
+    relation: includes
+  - to: Governance/DesignDoc/spec/attention-feed
+    relation: includes
+  - to: Governance/DesignDoc/spec/database
+    relation: includes
+  - to: Governance/DesignDoc/spec/deployment
+    relation: includes
 artifacts:
   - docs/SPEC.md
-kind: design doc
 ---
 # Momentum harness spec
 
-Founding design document: dictionary, components, database, deployment, open questions.
+Orchestrator and single entry point between the user and the work around each project, explored through entities instead of raw artifacts.
 
-Settles:
-- Layers: attention (feed, approval), understanding (entities, index), implementation (automations, runs, validation)
-- Approved state is the system; one feed ranked by product impact, timeline impact and unlocks, counted by state
-- Entity is the unit; a summary adds artifacts; cards fit a phone
-- Automations defined by responsibility; AI only where rules cannot decide
-- Enabling a project maps its repository; a reset rebuilds it
-- Self-hosted on one machine behind a private mesh
+| Layer | Carries |
+|---|---|
+| Attention | Ranked feed, approval |
+| Understanding | Entities, index |
+| Implementation | Automations, runs, validation |
 
-Open: workspace add/retire, validation forms, ranking tuning, source sync, Claude Code surface, scale, offline.
+- Workspace = git repo on one machine, with its own knowledge base and goals
+- Single user, projects isolated, 5–20 enabled at once
+- Nothing counts until the guard validates it and the user approves it
+- Success: consistency grows, work arrives whole, no constant modification
+
+Parts: components, knowledge base, automations, attention feed, database, deployment.
