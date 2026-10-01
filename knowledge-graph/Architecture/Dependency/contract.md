@@ -12,6 +12,7 @@ artifacts:
   - packages/contract/tsconfig.json
   - packages/contract/src/index.ts
   - packages/contract/openapi.json
+kind: internal library
 ---
 # Contract
 
@@ -24,7 +25,7 @@ Internal library `@momentum/contract`: the zod schemas and types shared by the b
 | Feed | items, counts by state, approve, send back |
 | Runs, chats | automations, triggers, status, usage in % |
 | Graph build | state, coverage, estimate |
-| Metrics | 24h/7d/30d series, per automation |
+| Metrics | 24h/7d/30d series, usage split per automation |
 | Settings | projects, cards, exclusions, lifetimes, concurrency, models |
 
-`openapi.json` (OpenAPI 3.0.3) is generated from the backend by its `openapi` command.
+`openapi.json` (OpenAPI 3.0.3) is generated from these schemas by the backend's `openapi` command.
