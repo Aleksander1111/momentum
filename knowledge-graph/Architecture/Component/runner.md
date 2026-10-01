@@ -22,12 +22,13 @@ artifacts:
 ---
 # Runner
 
-Runs each automation as one Claude Code session on its own branch and checkout.
+One Claude Code session per run, on its own branch and checkout.
 
-- **Start**: worktree off the main line, guard watching; KB and run MCP, guard hooks, limits
-- **Model**: per settings or, for an implementation, by risk from its plans
-- **Stop hook**: hands summarization the changed artifacts and graph build documents
-- **Finish**: guard transaction, status, usage in 5-hour and weekly percent, metrics
-- **Then**: graph build records coverage; passed validation merges, failed holds, a conflict raises a Harness/Conflict
+- **Start**: worktree off the main line, guard watching; KB and run MCP, hooks, limits
+- **Model**: from settings; an implementation's by risk from its plans
+- **Stop hook**: hands summarization changed artifacts and graph build documents
+- **Usage**: each rise of the shared limits split among concurrent runs, 5-hour and weekly %
+- **Finish**: guard transaction, status, metrics
+- **Then**: graph build records coverage; validation merges, holds, or raises a Harness/Conflict
 - **Chat**: resumes its session; transcript to `chats/<id>.jsonl`
-- Stops runs per automation or workspace; fails runs lost at restart; removes done checkouts
+- Stops runs per automation or workspace; fails runs lost at restart; frees checkouts
