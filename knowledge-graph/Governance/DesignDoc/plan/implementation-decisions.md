@@ -7,16 +7,22 @@ product_impact: 3
 timeline_impact: 3
 unlocks: 2
 references:
-  - to: Governance/DesignDoc/plan
-    relation: part_of
+  - to: Harness/Automation/summarization
+    relation: concerns
+  - to: Harness/Automation/mapping
+    relation: concerns
+  - to: Harness/Automation/implementation
+    relation: concerns
+  - to: Harness/Automation/chat
+    relation: concerns
 artifacts:
   - docs/PLAN.md
 ---
 # Implementation decisions
 
-- Triggers: exploration and preparation every two hours; validation, consistency check, retention, optimization nightly; implementation on `entity_ahead`; all on demand
-- Summarization and mapping have no trigger entity: the harness starts them
-- A chat stays open ten minutes; transcript at `chats/<run-id>.jsonl`
-- Mapping continues run after run on one branch, bounded by feed room, reporting coverage; stop, resume, reset
-- Models: one for all, per automation, or by implementation risk judged by Haiku from `risk.md`
-- Usage per run and workspace as shares of the 5-hour and weekly limits
+- Triggers: exploration every 2 h, preparation at half past; validation 02:00 and on `implementation_finished`; consistency 03:00, retention 04:00, optimization 05:00; implementation on `entity_ahead`; all on demand
+- An artifact change starts summarization directly; mapping starts on enable; neither has a trigger
+- Chat stays open 10 min; transcript `chats/<run-id>.jsonl`
+- Mapping: one branch, runs bounded by feed room, coverage via `report_mapping`; stop, resume, two-tap reset
+- Models: one, per automation, or by implementation risk (Haiku + `risk.md`)
+- Usage as shares of the 5-hour and weekly limits; checkouts go with their branch
