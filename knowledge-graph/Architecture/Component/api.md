@@ -6,7 +6,11 @@ sync: synced
 product_impact: 3
 timeline_impact: 2
 unlocks: 3
-references: []
+references:
+  - to: Harness/Automation/chat
+    relation: concerns
+  - to: Harness/Automation/graph-build
+    relation: concerns
 artifacts:
   - apps/backend/src/api/http.ts
   - apps/backend/src/api/mcp.ts
@@ -15,12 +19,12 @@ artifacts:
 ---
 # API
 
-The harness's single entry point in `apps/backend/src/api`: each capability is written once in the `Momentum` class and served as Fastify routes and as MCP tools at `/mcp` for voice tools.
+The harness's single entry point: each capability is written once in the `Momentum` class and served as Fastify routes and as MCP tools at `/mcp` for voice tools.
 
 - Auth: one scrypt password; 30-day session tokens stored hashed, bearer or cookie; only sign-in is public
-- Feed: ranked items and entity counts by state; approve, send back (starts a chat run)
+- Feed: ranked items and counts; approve, send back (starts a chat run)
 - Entities, types, search; chats, runs, messages, kill
-- Metrics, mapping start/stop
+- Metrics; graph build status, stop/start
 - Settings: projects, feed size, cards, lifetimes, agents, models
 - Reset: wipes a project and rebuilds its graph; 409 on conflict
 - MCP only: `run_automation` on demand
