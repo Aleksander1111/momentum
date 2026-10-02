@@ -185,35 +185,46 @@ const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" heig
 
 // ---------------------------------------------------------------- 1. the loop
 function loop() {
-  const cx = 960, cy = 468, R = 330, r = 60;
+  // an ellipse: You on the right, the consistency gate on the left, the shortcut between them through the middle;
+  // the stations are listed as if You sat on the left and turned half a circle (ROT)
+  const cx = 960, cy = 468, Rx = 480, Ry = 310, r = 60, ROT = 180;
   const S = [
-    ['Triggers', 'FaClock', 'prod', 'schedule · event · on demand'],
-    ['Runs', 'FaTerminal', 'prod', 'own checkout of the main line'],
-    ['Work', 'FaFileCode', 'prod', 'entities and artifacts'],
-    ['Summarization', 'FaWandMagicSparkles', 'kn', 'artifacts into cards'],
-    ['Consistency gate', 'FaShieldHalved', 'kn', 'validated, then landed'],
-    ['Main line', 'FaCodeCommit', 'kn', 'one branch, a commit per run'],
-    ['Attention feed', 'FaLayerGroup', 'att', 'ranked, unverified first'],
-    ['You', 'FaUser', 'att', 'approve · send back · chat'],
+    ['You', 'FaUser', 'att', 'approve · send back · chat', 180],
+    ['Triggers', 'FaClock', 'prod', 'schedule · event · on demand', 222],
+    ['Runs', 'FaTerminal', 'prod', 'own checkout of the main line', 254],
+    ['Work', 'FaFileCode', 'prod', 'entities and artifacts', 286],
+    ['Summarization', 'FaWandMagicSparkles', 'kn', 'artifacts into cards', 318],
+    ['Consistency gate', 'FaShieldHalved', 'kn', 'validated, then landed', 360],
+    ['Main line', 'FaCodeCommit', 'kn', 'one branch, a commit per run', 420],
+    ['Attention feed', 'FaLayerGroup', 'att', 'ranked, unverified first', 480],
   ];
-  let g = circle(cx, cy, 178, { fill: C.paper });
-  g += graph(cx, cy - 30, 1.05);
-  g += caption(cx, cy + 108, 'Knowledge graph', 'one per project', { anchor: 'middle', italic: true });
-  const rad = (d) => (d * Math.PI) / 180, delta = (r + 18) / R;
-  S.forEach(([, , layer], i) => {
-    const a0 = rad(-90 + 45 * i) + delta, a1 = rad(-90 + 45 * (i + 1)) - delta;
-    g += path(`M${pt([cx + R * Math.cos(a0), cy + R * Math.sin(a0)])} A${R} ${R} 0 0 1 ${pt([cx + R * Math.cos(a1), cy + R * Math.sin(a1)])}`, { stroke: LAYER[layer].strong, sw: 6, head: layer });
+  const rad = (d) => (d * Math.PI) / 180;
+  const at = (deg, k = 0) => [cx + (Rx - k) * Math.cos(rad(deg + ROT)), cy + (Ry - k) * Math.sin(rad(deg + ROT))];
+  let g = circle(cx, cy, 200, { fill: C.paper });
+  g += graph(cx, cy - 104, 0.72);
+  g += caption(cx, cy + 112, 'Knowledge graph', 'one per project', { anchor: 'middle', italic: true });
+  // the outer loop, station to station along the ellipse
+  S.forEach(([, , layer, , a0], i) => {
+    const a1 = i < S.length - 1 ? S[i + 1][4] : 540, c0 = at(a0), c1 = at(a1), pts = [];
+    for (let d = a0; d <= a1; d += 0.5) {
+      const p = at(d);
+      if (Math.hypot(p[0] - c0[0], p[1] - c0[1]) > r + 16 && Math.hypot(p[0] - c1[0], p[1] - c1[1]) > r + 22) pts.push(p);
+    }
+    g += path(`M${pts.map(pt).join(' L')}`, { stroke: LAYER[layer].strong, sw: 6, head: layer });
   });
-  const onArc = (deg, s, layer) => pill(cx + (R - 52) * Math.cos(rad(deg)), cy + (R - 52) * Math.sin(rad(deg)), s, { color: LAYER[layer].strong });
-  g += onArc(-67.5, 'queued', 'prod');
-  g += onArc(67.5, 'transaction', 'kn');
-  g += onArc(112.5, 'one commit', 'kn');
-  g += onArc(-112.5, 'approval', 'att');
-  S.forEach(([name, ic, layer, sub], i) => {
-    const a = rad(-90 + 45 * i), x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+  const onArc = (deg, s, layer, k = 50) => pill(...at(deg, k), s, { color: LAYER[layer].strong });
+  g += onArc(201, 'approval', 'att', 84);
+  g += onArc(240, 'queued', 'prod');
+  g += onArc(339, 'transaction', 'kn', 96);
+  g += onArc(390, 'one commit', 'kn');
+  // the shortcut: a card you write yourself goes straight to the gate, verified, with no run behind it
+  g += line(cx + Rx - r - 12, cy, cx - Rx + r + 18, cy, { stroke: LAYER.att.strong, sw: 5, dash: '14 10', head: 'att' });
+  g += miniCard(cx - 75, cy - 40, 150, 80, { crumb: 'YOUR CARD', glyphs: ['verified'], bars: [0.9, 0.7], pad: 14, stroke: LAYER.att.strong, sw: 2.5 });
+  S.forEach(([name, ic, layer, sub, deg]) => {
+    const [x, y] = at(deg);
     g += medallion(x, y, r, LAYER[layer], ic);
-    const c = Math.cos(a), s = Math.sin(a), lx = cx + (R + r + 24) * c, ly = cy + (R + r + 24) * s;
-    const anchor = c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle';
+    const c = Math.cos(rad(deg + ROT)), s = Math.sin(rad(deg + ROT)), lx = x + (r + 24) * c, ly = y + (r + 24) * s;
+    const anchor = c > 0.4 ? 'start' : c < -0.4 ? 'end' : 'middle';
     const ty = s < -0.9 ? ly - 24 : s > 0.9 ? ly + 18 : ly - 2;
     g += caption(lx, ty, name, sub, { anchor });
   });
@@ -222,8 +233,9 @@ function loop() {
     const y = 790 + i * 44;
     g += circle(96, y, 13, { fill: LAYER[k].wash, stroke: LAYER[k].strong, sw: 3 }) + text(122, y + 7, s, { size: 21, fill: LAYER[k].strong, bold: true });
   });
-  // user runs bypass the queue
-  g += pod(1530, 820, 330, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
+  // what you do yourself: runs bypass the queue, cards need no run
+  g += pod(1530, 50, 330, 64, 'Your cards: no run', 'FaPenToSquare', LAYER.att);
+  g += pod(1530, 130, 330, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
   return svg(g);
 }
 
@@ -604,7 +616,7 @@ function actions() {
 
 // ---------------------------------------------------------------- slides
 const SLIDES = [
-  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. Runs the user starts go at once, alongside the queued automation runs.'],
+  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user writes needs no run: it goes straight through the consistency gate and lands verified. Runs the user starts go at once, alongside the queued automation runs.'],
   ['Entities', entities, 'The unit of the knowledge base. The type is the path on disk. The entity is its card, within the character limit. References link entities and are walked by Graph RAG. A summary is an entity with artifacts beneath it.'],
   ['Entity states', states, "Verification is the user's judgement: approval verifies, any rewrite by a run makes the entity unverified again. Sync is the entity against its artifacts and implementation. Contradictions count the open contradiction issues over the entity."],
   ['Automations', automations, 'Ten automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Automation runs go one at a time per project; runs the user starts go at once.'],

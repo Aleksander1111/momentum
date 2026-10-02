@@ -106,7 +106,9 @@ Starts and supervises the background automation loops, per project. It ships in 
 - The full list of entity types lives in a separate document: [Entity types](entity-types.tsv)
 - The unit is the entity; it is standalone and needs no artifact behind it
 - A summary is a flavour of entity: an entity with underlying artifacts, written by summarization
-- Entities arrive by three origins: added by the user directly, requested by the user and written by an automation, or raised by an automation on its own; every origin reaches the main line through the feed
+- Entities arrive by three origins: added by the user directly, requested by the user and written by an automation, or raised by an automation on its own; every origin reaches the main line through the consistency guard
+  - An entity the user adds directly needs no run: it passes the guard and lands verified
+  - An entity an automation writes lands unverified and reaches the user through the feed
 - Every entity is its card, written by whoever writes the entity; a card has no fixed structure
   - The user configures how cards are written; the one rule the configuration always sets is a character limit
   - The limit is sized so a card fits on a mobile screen; within it a card can be anything
