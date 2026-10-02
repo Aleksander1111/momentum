@@ -3,10 +3,12 @@ type: Frontend/Screen
 origin: automation
 verification: unverified
 sync: synced
-product_impact: 2
-timeline_impact: 0
+product_impact: 3
+timeline_impact: 1
 unlocks: 2
-references: []
+references:
+  - to: Harness/Automation/consistency-check
+    relation: resolves_issues_of
 artifacts:
   - apps/app/src/app/(tabs)/feed.tsx
   - apps/app/src/lib/feed.ts
@@ -23,12 +25,12 @@ kind: page
 ---
 # Feed screen
 
-Ranked cards across enabled projects, one at a time; the default tab.
+Ranked cards across enabled projects, one at a time.
 
-- Counters: two pills, verification then sync, each state a coloured line icon and count, dimmed at zero, named on hover or long-press
-- Swipe right approves; swipe left opens a Disapprove sheet whose comment is sent back; Cancel returns the card
-- Stamps and a green or red wash follow the drag; the wash redraws on light/dark change; two cards peek behind
-- Web drags with the mouse; no buttons
-- Time on the card is sent with the reaction
-- Polls `GET /feed` every 15 s; a reacted card leaves at once and stays hidden until a newer poll
-- Reactions queue offline and resume after restart; stale cached data is dropped
+- Counters: two pills, verification then sync, each state an icon and count, dimmed at zero, named on hover
+- Swipe right approves; swipe left opens a Disapprove sheet whose comment is sent back
+- An issue card adds severity, category, concerned entities and options, the recommended one picked: swipe right resolves with the pick; swipe left opens Your resolution: Send resolves with the text, Won't resolve closes with the reason
+- Stamps and a wash follow the drag
+- Time on the card goes with the reaction
+- Polls every 15 s; a reacted card leaves at once
+- Reactions queue offline and resume after restart; stale cache is dropped

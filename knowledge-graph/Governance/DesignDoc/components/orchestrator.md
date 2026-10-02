@@ -23,8 +23,8 @@ Starts and supervises the automation loops per enabled project, in the API's dep
 - Runs start from trigger entities: schedule, event or on demand
 - Loops pause when the feed reaches its limit
 - Enabling a project starts the graph build; disabling stops everything
-- Reset wipes a project's entities, runs and branches and rebuilds; the harness workspace cannot be reset
-- One killable Claude Code process per run, with its own checkout, branch and limits
-- A run cut off by a restart resumes, twice at most, then fails
-- Usage shows live; a killed run's writes still pass the guard to the feed
-- Concurrency is configurable, bounded by API limits and tuned from measurements
+- Reset wipes a project's entities, runs and database and rebuilds; not the harness workspace
+- One killable Claude Code process per run, in its own detached checkout of the main line, with its own limits; what it leaves lands when it ends
+- A run cut off by a restart resumes, twice at most
+- Automation runs go one at a time per project; user runs go at once
+- Usage shows live; a killed run's writes still reach the feed

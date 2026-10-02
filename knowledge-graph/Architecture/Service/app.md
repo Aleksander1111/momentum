@@ -22,6 +22,6 @@ One Expo (React Native) app, `apps/app`, for web and mobile.
 - Light or dark scheme follows the system
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL` over the mesh
 - A failed fetch pauses queries and queues reactions; a 5 s probe restores them
-- Typed client over `@momentum/contract`: feed, entities, search, chats, runs, metrics by range, graph build, project reset, settings
+- Typed client over `@momentum/contract`: feed and its reactions (approve, send back, resolve, won't resolve), entities, search, chats, runs, metrics by range, graph build, reset, settings
 - 401 clears the token and returns to sign-in; token in a cookie on web, SecureStore on mobile
 - Android APK built locally

@@ -17,9 +17,9 @@ artifacts:
 ---
 # Voice MCP API
 
-`/mcp` serves the API's handlers as a stateless MCP server (streamable HTTP, JSON responses, a server per request), so voice tools reach every capability without the UI:
+`/mcp` serves the API's handlers as a stateless MCP server (streamable HTTP, a server per request), so voice tools reach every capability without the UI:
 
-- **Feed:** `feed`, `approve`, `send_back` (comment starts a chat run)
+- **Feed:** `feed`, `approve`, `send_back` (comment starts a chat run), `resolve_issue` (an option by index or own text; a chat run applies it and retires the issue), `wont_resolve_issue` (closes with the reason)
 - **Entities:** `workspaces`, `entity`, `types`, `search`
 - **Runs:** `chats`, `chat`, `run_automation` (if its trigger allows on demand), `run`, `message`, `kill_run`
 - **Graph build:** `graph_build`, `set_graph_build` (stop or restart), `reset_project`

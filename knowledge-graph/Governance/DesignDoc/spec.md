@@ -26,7 +26,7 @@ The harness is the single entry point between the user and the work around each 
 
 - Workspace = git repo on the dedicated machine with its own knowledge base and goals; 5–20 enabled, isolated, single user
 - Layers: attention (feed, approval), understanding (entities, index), implementation (automations, runs, validation)
-- Nothing lands unattended: guard validates, user approves
+- Nothing lands unattended: the guard validates, the user approves on the main line
 - AI only for judgement; queries and rules for the rest
 - Self-hosted, no cloud, reached over a private mesh
 

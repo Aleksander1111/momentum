@@ -7,11 +7,13 @@ product_impact: 3
 timeline_impact: 3
 unlocks: 2
 references:
-  - to: Harness/Automation/graph-build
-    relation: concerns
+  - to: Governance/DesignDoc/plan
+    relation: part_of
+  - to: Governance/DesignDoc/plan/mapping
+    relation: continues_in
+  - to: Governance/DesignDoc/plan/models
+    relation: continues_in
   - to: Harness/Automation/summarization
-    relation: concerns
-  - to: Harness/Automation/implementation
     relation: concerns
   - to: Harness/Automation/chat
     relation: concerns
@@ -20,10 +22,9 @@ artifacts:
 ---
 # Implementation decisions
 
-- Triggers: exploration every 2 h, preparation at half past; validation 02:00 and on `implementation_finished`; consistency 03:00, retention 04:00, optimization 05:00; implementation on `entity_ahead`; all on demand
-- Summarization and graph build have no trigger entity
-- Chat open 10 min after last answer; transcript `chats/<run-id>.jsonl`
-- Graph build: one branch, runs bounded by feed room, coverage via `report_graph_build`; stop, resume, two-tap reset
-- Models: one, per automation, or by implementation risk (Haiku + `risk.md`)
-- Usage over rolling 5 h and week; checkouts go with their branch
-- Attention patterns: 10 same reactions per type, recorded only
+- Triggers: exploration every 2 h, preparation at half past; validation 02:00 and on `implementation_finished`; consistency check 03:00, retention 04:00, optimization 05:00; implementation on `entity_ahead`; all on demand; a trigger counts once approved
+- Artifact change: a summarization run, no trigger
+- Chat: a message after the run ended resumes it on a fresh checkout; transcript `chats/<run-id>.jsonl`
+- Checkouts: made at the main-line tip, removed once landed; legacy `momentum/*` branches landed at startup
+- Usage: per run from its first reading; per workspace the sum, over the rolling 5 h and week
+- Attention patterns: ten reactions to one type all alike; recorded, not applied

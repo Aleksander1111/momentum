@@ -22,8 +22,9 @@ artifacts:
 Graph RAG over the entity types in docs/entity-types.tsv.
 
 - The entity is the unit; a summary is an entity with artifacts, written by summarization
-- Origins: user, requested, automation; all reach the main line through the feed
+- Origins: user, requested, automation; the user's own entity lands verified, an automation's unverified, through the feed
 - Every entity is its card: a user-set character limit sized for mobile, free form; too big means split
 - A type is a path on disk; chats and actions are entities too
-- Free writes on branches; the gate is the main line: guard-validated and user-approved
-- No ingestion component: automations read sources themselves
+- Runs write freely in their own checkout; everything lands on the main line when the run ends; approval is a state, not a place
+- A plan is ordinary: approved, it stands entity_ahead until implemented
+- No ingestion component

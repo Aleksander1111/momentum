@@ -40,11 +40,11 @@ Defined by responsibility alone; definitions and triggers are entities.
 |---|---|
 | Exploration | next best action within goals |
 | Preparation | plans under `plans/` |
-| Consistency check | raises issues as entities |
+| Consistency check | raises issues as entities; counts contradictions |
 | Retention | retires spent entities by type rules |
-| Implementation | works on own branch |
-| Validation | gates merges; regression runs |
+| Implementation | works in its own checkout; lands on the main line |
+| Validation | validates landed work and the project; failures raise issues |
 | Optimization | fixes recurring chat issues |
 | Summarization | Stop-hook sub-agent; one run per main-line change |
-| Chat | user-started run |
+| Chat | user-started run, alongside the loops |
 | Graph build | builds graph on enable |

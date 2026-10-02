@@ -23,4 +23,4 @@ One store per workspace on the dedicated machine, updated by the guard on every 
 | Attention | attention_ranking, attention_metric, attention_pattern |
 | Metrics | understanding, agent, implementation |
 
-entity_state logs each verification and sync change, none once the entity is gone. Usage is percentage points of the 5-hour and weekly limits, split evenly among concurrent runs. Ranking is precomputed so polls do no work.
+An entity carries its contradictions, counted from references; one with an artifact row is a summary. entity_state logs each verification and sync change, none once the entity is gone. Usage is percentage points of the 5-hour and weekly limits, split evenly among concurrent runs. Ranking is precomputed so polls do no work.

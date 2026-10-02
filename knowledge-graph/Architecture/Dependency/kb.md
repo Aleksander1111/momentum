@@ -19,7 +19,9 @@ kind: internal library
 
 `@momentum/kb`, internal library: the index side of the knowledge base.
 
-- Postgres DDL: harness schema with projects, settings, login and usage samples; per workspace, entities and their state history, runs with model, risk, usage and restarts, transactions, attention, agent metrics and per-run usage shares
-- Workspace index: upsert, references both ways, types tree, state changes logged, full text + pgvector search fused by reciprocal rank and expanded along references, ranking, cross-project feed, state counts
-- In-process embeddings: bge-small over ONNX, 384 dimensions
-- `momentum-kb` MCP server for every run: search, read, references, validated write, record_agent_metric
+- Postgres DDL: harness schema and one per workspace: entities with state history, runs, transactions, attention, metrics, usage shares
+- Workspace index: upsert, references both ways, types tree, full text + pgvector search fused by reciprocal rank, expanded along references
+- Contradictions recounted from the `concerns` references of open contradiction issues, won't-resolve ones left out
+- Cross-project feed by rank, issue items with options and concerned entities; state counts; reactions with time spent
+- bge-small embeddings in-process
+- `momentum-kb` MCP server: search, read, references, write, record_agent_metric

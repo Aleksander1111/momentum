@@ -27,8 +27,6 @@ flowchart LR
   App & Me & Au --> V[11 End-to-end]
 ```
 
-- 3 KB: full text, pgvector, `momentum-kb` MCP server
-- 4 Runs: worktree, SDK session, usage as share of limits
-- 5 Guard: hooks, validation, issue entities, sync state
+- 7 API: session, feed reactions (approve, send back, resolve, won't resolve), entities, chats, runs, metrics, settings; MCP over the same handlers
 - 8 Automations: ten definitions; default triggers for eight (not summarization, run by the Stop hook, nor graph build, started on enabling)
 - 11: this repository runs as a live workspace

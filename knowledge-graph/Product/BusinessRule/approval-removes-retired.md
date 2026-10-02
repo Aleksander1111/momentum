@@ -18,7 +18,7 @@ artifacts:
 ---
 # Approval removes retired entities
 
-A retirement is a Harness/Plan with a `retires` reference to each entity it retires. The retired files stay on the plan's branch, so every reference resolves and the consistency guard accepts it.
+A retirement is a Harness/Plan with a `retires` reference to each entity it retires; retention and chat write retirements this way.
 
-- Approving the plan removes each `retires` target from the main line, whether or not the branch still has it
-- Retention and chat write retirements this way
+- Approving the plan makes one commit on the main line: the plan verified, and every `retires` target still standing there deleted, whether or not the run already deleted it in its checkout
+- The main line is reindexed after the commit, so the retired entities leave the index and the feed with the same change

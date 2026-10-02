@@ -14,8 +14,9 @@ artifacts:
 ---
 # Technology: runs and guard
 
-- **Runs:** Claude Agent SDK, one subprocess per run, cwd = its checkout
-- **Isolation:** git worktree per run under `C:\Projects\.runs\<workspace>\<run-id>` on `momentum/<automation>/<run-id>`; procgov job object caps CPU and memory; killed with its process tree
-- **KB access:** in-process MCP `momentum-kb` (search, read, references, write, record_agent_metric); `momentum-run` for validation
-- **Guard:** PostToolUse validates each KB write, Stop sends the run back to fix rejects, chokidar watches `knowledge-graph/`; one run is one transaction, indexed once validated
-- **Assumed, not verified:** procgov limits hold for the Claude Code process tree
+- **Runs:** Agent SDK, one subprocess per run, cwd = its checkout
+- **Isolation:** detached worktree per run under `C:\Projects\.runs\<workspace>\<run-id>`, no branch; procgov job caps CPU and memory; killed with its tree
+- **Landing:** the checkout lands on the main line as one commit, fast-forwarded or replayed; a conflicting file takes the run's side and raises a Harness/Conflict
+- **Scheduling:** automation runs one at a time per project; user runs at once
+- **KB access:** MCP `momentum-kb`; `momentum-run` for the graph build
+- **Guard:** PostToolUse validates each write, Stop sends the run back; chokidar watches `knowledge-graph/`; one transaction per run

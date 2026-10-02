@@ -6,17 +6,19 @@ sync: synced
 product_impact: 4
 timeline_impact: 3
 unlocks: 3
-references: []
+references:
+  - to: Governance/DesignDoc/plan
+    relation: part_of
+  - to: Harness/Automation/chat
+    relation: concerns
 artifacts:
   - docs/PLAN.md
 ---
-# Approval and send back
+# Approval, send back and issue resolution
 
-- `verification` (user judgement) and `sync` (entity vs artifact): independent
-- Approve: committed to main as verified, with its `retires` (removed), `implements` (`synced`) and `chats/`; implementable without `implements` → `entity_ahead`
-- Send back: chat run on the branch, comment as prompt; `updating` till validated
-- Implementation: target `updating`, then both `synced`
-- Artifact change → `artifact_ahead`; summarization rewrites the card
-- Validation merges implementation branches, keeping main's `knowledge-graph/`; conflicts → Harness/Conflict
-- Invalid transaction → guard Harness/Issue, out of the feed
-- Approving retention's Harness/Plan removes retired entities
+- `verification` and `sync` are independent states
+- Approve: one commit sets verified, removes `retires` targets, syncs `implements` targets; an implementable entity without `implements` becomes `entity_ahead`
+- Send back: a chat run with the comment as prompt, the entity as target; `updating` till it lands
+- Resolve an issue: the picked option (approved) or the user's text (sent back) starts a chat run that applies it to the concerned entities and retires the issue
+- Won't resolve: verified with `wont_resolve`, no longer a contradiction; rejected
+- Artifact change → `artifact_ahead`; failed validation, landing conflicts and invalid transactions → issue or conflict entities

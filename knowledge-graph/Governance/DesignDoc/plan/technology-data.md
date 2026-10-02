@@ -14,9 +14,9 @@ artifacts:
 ---
 # Technology: knowledge base and index
 
-- **Entities:** markdown at `knowledge-graph/<type path>/<name>.md`; frontmatter holds type, references, ranking; body is the card
-- **Validator:** unified with remark-parse, -gfm, -frontmatter; enforces the card limit, resolves references
-- **Store:** Postgres 18 + pgvector in Docker, one schema `ws_<workspace>` each, postgres.js; tsvector + GIN search; settings in schema `harness`
+- **Entities:** markdown at `knowledge-graph/<type path>/<name>.md`; frontmatter: type, references, ranking; body: the card
+- **Validator:** unified (remark-parse, -gfm, -frontmatter); card limit, references
+- **Store:** Postgres 18 + pgvector in Docker, schema `ws_<workspace>`, postgres.js; tsvector + GIN; `harness` schema for settings
 - **Retrieval:** ts_rank + pgvector cosine + recursive-CTE reference traversal; bge-small embeddings in-process
 - **Ranking:** product_impact + timeline_impact + unlocks (0–5 each) as a generated column; ties to the earlier feed entry
-- **Feed:** one `UNION ALL` over enabled projects' schemas per request
+- **Feed:** one `UNION ALL` over enabled schemas, a second for the counters

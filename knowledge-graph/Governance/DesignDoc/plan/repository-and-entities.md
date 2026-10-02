@@ -7,6 +7,8 @@ product_impact: 3
 timeline_impact: 2
 unlocks: 3
 references:
+  - to: Governance/DesignDoc/plan
+    relation: part_of
   - to: Harness/Automation/summarization
     relation: concerns
   - to: Harness/Automation/graph-build
@@ -20,11 +22,11 @@ artifacts:
 |---|---|
 | apps/ | Expo app; Fastify API, orchestrator, guard |
 | packages/ | contract, entity, kb, runs |
-| automations/<name>/ | Claude Code files of a definition; trigger.md is its default trigger |
-| knowledge-graph/ | The harness's own knowledge base |
+| automations/<name>/ | Claude Code files of a definition; trigger.md its default trigger |
+| knowledge-graph/ | harness knowledge base |
 
-- Definitions materialize into `<workspace>\.claude\` on approval, excluded from git
-- Stop hook blocks once, hands changed artifacts, transcripts and graph build documents (minus excluded paths) to summarization: a hook, not a trigger
-- Entity: frontmatter + card; extra fields on Trigger, Issue, Automation
-- Acted-on relations: implements, retires, concerns
+- Definitions materialize into `<workspace>\.claude\` on approval
+- Stop hook hands changed artifacts and graph-build documents to the summarization sub-agent
+- Entity: frontmatter + card; extra fields on Trigger, Issue (severity, options, recommended, wont_resolve), Conflict, Automation
+- Relations acted on: implements, retires, concerns
 - Validator: card limit, type fits path, references resolve

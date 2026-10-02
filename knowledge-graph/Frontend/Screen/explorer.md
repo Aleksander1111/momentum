@@ -21,8 +21,9 @@ kind: page
 
 Browse a workspace's entities by domain and type, search them, or hand the exploration to an agent.
 
-- Workspace picker with the entity total; a collapsible tree of types with counts, entities with verification and sync badges
+- Workspace picker with the entity total; a collapsible tree of domains and types with counts; entity rows show a domain badge, the title and the verification, sync and contradiction badges
 - Search, debounced 300 ms, replaces the tree with a flat result list
 - "Explore through an agent" opens the Chat tab with the workspace chosen and the composer focused
-- Wide layouts show the selected entity beside the tree, keyed by URL params; narrow ones push the entity screen with a back link
-- Every route subscribes to the theme, so a light/dark switch in Settings applies instantly
+- A breadcrumb elsewhere opens a workspace with the tree unfolded to one folder
+- Wide layouts show the selected entity beside the tree, keyed by URL params; narrow ones push the entity screen
+- A light/dark switch applies instantly

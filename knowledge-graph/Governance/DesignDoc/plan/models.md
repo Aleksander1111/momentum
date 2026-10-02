@@ -7,6 +7,8 @@ product_impact: 3
 timeline_impact: 1
 unlocks: 2
 references:
+  - to: Governance/DesignDoc/plan/implementation-decisions
+    relation: part_of
   - to: Harness/Automation/implementation
     relation: concerns
 artifacts:

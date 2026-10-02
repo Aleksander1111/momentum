@@ -17,9 +17,9 @@ artifacts:
 Graph RAG per workspace; the entity is the unit and is its card.
 
 - Types are paths; a summary is an entity with artifacts
-- Origins: user, requested, automation; all reach the main line via the feed
+- Origins: user, requested, automation; the user's land verified, an automation's unverified
 - Card: no fixed structure, a user-set character limit sized for mobile; split entities that do not fit
 - Chats and actions (failures, conflicts) are entities too
-- Free writes on branches; the consistency guard validates transactions (card limit, references), raises issues, updates the index
-- Guard keeps sync: `updating`, `artifact_ahead`, `entity_ahead`, `synced`
-- No ingestion: summarization turns artifacts into summaries, from each run's Stop hook and in one run per main-line change
+- Runs write freely in their own checkout; everything lands on the main line when the run ends; approval is a state, not a place; a plan is ordinary
+- The guard validates transactions (card limit, references), raises issues, keeps sync
+- No ingestion: summarization turns artifacts into summaries

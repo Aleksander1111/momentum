@@ -20,10 +20,10 @@ Fastify routes typed by `@momentum/contract` zod schemas; OpenAPI at `/openapi.j
 | Area | Routes |
 |---|---|
 | Session | POST, DELETE /session |
-| Feed | GET /feed; POST /feed/{path}/approve, /send-back |
+| Feed | GET /feed; POST /feed/{path}/approve, /send-back, /resolve (option or comment), /wont-resolve |
 | Entities | GET /workspaces/{ws}/entities/*, /types, /search?q= |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
 | Projects | GET /workspaces; GET …/metrics?range=24h\|7d\|30d; GET, PUT …/graph-build; POST …/reset |
 | Settings | GET, PUT /settings |
 
-Metrics carry entities per state and run histograms. Cookie or bearer session, else 401; errors `{error}` (400/404/409). `/mcp` serves voice tools.
+Send back and resolve return the chat run's id; approve and won't resolve 204. Cookie or bearer session, else 401; errors `{error}`. `/mcp` serves voice tools.
