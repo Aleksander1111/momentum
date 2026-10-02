@@ -185,27 +185,32 @@ const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" heig
 
 // ---------------------------------------------------------------- 1. the loop
 function loop() {
-  // an ellipse: You on the right, the consistency gate on the left, the shortcut between them through the middle;
-  // the stations are listed as if You sat on the left and turned half a circle (ROT)
-  const cx = 960, cy = 468, Rx = 480, Ry = 310, r = 60, ROT = 180;
+  // You on top, the consistency gate at the bottom, the shortcut between them straight down the middle
+  const cx = 960, cy = 468, Rx = 480, Ry = 310, r = 60;
   const S = [
-    ['You', 'FaUser', 'att', 'approve · send back · chat', 180],
-    ['Triggers', 'FaClock', 'prod', 'schedule · event · on demand', 222],
-    ['Runs', 'FaTerminal', 'prod', 'own checkout of the main line', 254],
-    ['Work', 'FaFileCode', 'prod', 'entities and artifacts', 286],
-    ['Summarization', 'FaWandMagicSparkles', 'kn', 'artifacts into cards', 318],
-    ['Consistency gate', 'FaShieldHalved', 'kn', 'validated, then landed', 360],
-    ['Main line', 'FaCodeCommit', 'kn', 'one branch, a commit per run', 420],
-    ['Attention feed', 'FaLayerGroup', 'att', 'ranked, unverified first', 480],
+    ['You', 'FaUser', 'att', 'approve · send back · chat', 270],
+    ['Triggers', 'FaClock', 'prod', 'schedule · event · on demand', 301],
+    ['Runs', 'FaTerminal', 'prod', 'own checkout of the main line', 338],
+    ['Work', 'FaFileCode', 'prod', 'entities and artifacts', 383],
+    ['Summarization', 'FaWandMagicSparkles', 'prod', 'artifacts into cards', 419],
+    ['Consistency gate', 'FaShieldHalved', 'kn', 'validated, then landed', 450],
+    ['Main line', 'FaCodeCommit', 'kn', 'one branch, a commit per run', 504],
+    ['Attention feed', 'FaLayerGroup', 'att', 'ranked, unverified first', 576],
   ];
   const rad = (d) => (d * Math.PI) / 180;
-  const at = (deg, k = 0) => [cx + (Rx - k) * Math.cos(rad(deg + ROT)), cy + (Ry - k) * Math.sin(rad(deg + ROT))];
-  let g = circle(cx, cy, 200, { fill: C.paper });
-  g += graph(cx, cy - 104, 0.72);
-  g += caption(cx, cy + 112, 'Knowledge graph', 'one per project', { anchor: 'middle', italic: true });
+  const at = (deg, k = 0) => [cx + (Rx - k) * Math.cos(rad(deg)), cy + (Ry - k) * Math.sin(rad(deg))];
+  let g = circle(cx, cy, 215, { fill: C.paper });
+  // the knowledge graph on both sides of the shortcut; your card joins it in the middle
+  const N = [[-160, -30, 'prod'], [-110, -112, 'kn'], [-150, 72, 'att'], [-78, 128, 'kn'], [62, -166, 'kn'], [122, -104, 'att'], [166, -24, 'prod'], [100, 48, 'ink']]
+    .map(([x, y, k]) => [cx + x, cy + y, k]);
+  const card = [cx, cy - 10];
+  for (const [a, b] of [[0, 1], [0, 2], [2, 3], [1, 4], [4, 5], [5, 6], [6, 7]]) g += line(N[a][0], N[a][1], N[b][0], N[b][1], { stroke: '#A9B4AE', sw: 3.5 });
+  for (const i of [0, 3, 6, 7]) g += line(card[0], card[1], N[i][0], N[i][1], { stroke: '#A9B4AE', sw: 3.5 });
+  N.forEach(([x, y, k]) => (g += circle(x, y, 14, { fill: C.white, stroke: LAYER[k].strong, sw: 4 })));
+  g += caption(cx + 24, cy + 112, 'Knowledge graph', 'one per project', { italic: true, size: 22, subSize: 18, gap: 26 });
   // the outer loop, station to station along the ellipse
   S.forEach(([, , layer, , a0], i) => {
-    const a1 = i < S.length - 1 ? S[i + 1][4] : 540, c0 = at(a0), c1 = at(a1), pts = [];
+    const a1 = i < S.length - 1 ? S[i + 1][4] : 630, c0 = at(a0), c1 = at(a1), pts = [];
     for (let d = a0; d <= a1; d += 0.5) {
       const p = at(d);
       if (Math.hypot(p[0] - c0[0], p[1] - c0[1]) > r + 16 && Math.hypot(p[0] - c1[0], p[1] - c1[1]) > r + 22) pts.push(p);
@@ -213,17 +218,17 @@ function loop() {
     g += path(`M${pts.map(pt).join(' L')}`, { stroke: LAYER[layer].strong, sw: 6, head: layer });
   });
   const onArc = (deg, s, layer, k = 50) => pill(...at(deg, k), s, { color: LAYER[layer].strong });
-  g += onArc(201, 'approval', 'att', 84);
-  g += onArc(240, 'queued', 'prod');
-  g += onArc(339, 'transaction', 'kn', 96);
-  g += onArc(390, 'one commit', 'kn');
+  g += onArc(286, 'approval', 'att', 56);
+  g += onArc(320, 'queued', 'prod', 60);
+  g += onArc(435, 'transaction', 'prod', 56);
+  g += onArc(477, 'one commit', 'kn', 60);
   // the shortcut: a card you write yourself goes straight to the gate, verified, with no run behind it
-  g += line(cx + Rx - r - 12, cy, cx - Rx + r + 18, cy, { stroke: LAYER.att.strong, sw: 5, dash: '14 10', head: 'att' });
-  g += miniCard(cx - 75, cy - 40, 150, 80, { crumb: 'YOUR CARD', glyphs: ['verified'], bars: [0.9, 0.7], pad: 14, stroke: LAYER.att.strong, sw: 2.5 });
+  g += line(cx, cy - Ry + r + 12, cx, cy + Ry - r - 18, { stroke: LAYER.att.strong, sw: 5, dash: '14 10', head: 'att' });
+  g += miniCard(card[0] - 75, card[1] - 40, 150, 80, { crumb: 'YOUR CARD', glyphs: ['verified'], bars: [0.9, 0.7], pad: 14, stroke: LAYER.att.strong, sw: 2.5 });
   S.forEach(([name, ic, layer, sub, deg]) => {
     const [x, y] = at(deg);
     g += medallion(x, y, r, LAYER[layer], ic);
-    const c = Math.cos(rad(deg + ROT)), s = Math.sin(rad(deg + ROT)), lx = x + (r + 24) * c, ly = y + (r + 24) * s;
+    const c = Math.cos(rad(deg)), s = Math.sin(rad(deg)), lx = x + (r + 24) * c, ly = y + (r + 24) * s;
     const anchor = c > 0.4 ? 'start' : c < -0.4 ? 'end' : 'middle';
     const ty = s < -0.9 ? ly - 24 : s > 0.9 ? ly + 18 : ly - 2;
     g += caption(lx, ty, name, sub, { anchor });
@@ -234,8 +239,8 @@ function loop() {
     g += circle(96, y, 13, { fill: LAYER[k].wash, stroke: LAYER[k].strong, sw: 3 }) + text(122, y + 7, s, { size: 21, fill: LAYER[k].strong, bold: true });
   });
   // what you do yourself: runs bypass the queue, cards need no run
-  g += pod(1530, 50, 330, 64, 'Your cards: no run', 'FaPenToSquare', LAYER.att);
-  g += pod(1530, 130, 330, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
+  g += pod(1530, 740, 330, 64, 'Your cards: no run', 'FaPenToSquare', LAYER.att);
+  g += pod(1530, 820, 330, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
   return svg(g);
 }
 
@@ -563,29 +568,38 @@ function entityTypes() {
     .map((l) => l.split('\t')).filter(([d, t]) => d && t);
   const by = new Map();
   for (const [d, t] of rows) by.set(d, [...(by.get(d) ?? []), t]);
-  const ICON = {
-    Product: 'FaCubes', Governance: 'FaScaleBalanced', Architecture: 'FaSitemap', Code: 'FaCode', Data: 'FaDatabase',
-    Frontend: 'FaDisplay', Testing: 'FaFlaskVial', Security: 'FaShieldHalved', Infrastructure: 'FaServer',
-    Organization: 'FaPeopleGroup', Knowledge: 'FaBook', Harness: 'FaGears',
-  };
-  const order = Object.keys(ICON).filter((d) => by.has(d)).concat([...by.keys()].filter((d) => !ICON[d]));
-  let g = caption(70, 62, `${rows.length} types in ${order.length} domains`, 'the type is the path: knowledge-graph/<Domain>/<Type>/', { size: 30 });
-  const cols = 4, gx = 20, gy = 20, x0 = 60, y0 = 112, w = (1800 - gx * (cols - 1)) / cols, h = (H - y0 - 24 - gy * 2) / 3;
-  order.forEach((d, i) => {
-    const x = x0 + (i % cols) * (w + gx), y = y0 + Math.floor(i / cols) * (h + gy), L = d === 'Harness' ? LAYER.att : LAYER.ink;
+  // The app's domain glyphs and light colours (apps/app/src/ui/domains.tsx), with example types
+  const D = [
+    ['Product', 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5', '#C2410C', ['Feature', 'UserStory', 'Bug', 'Epic']],
+    ['Governance', 'M7 20h10M6 6l6-1 6 1M12 3v17M9 12L6 6l-3 6a3 3 0 0 0 6 0M21 12l-3-6-3 6a3 3 0 0 0 6 0', '#7C3AED', ['Requirement', 'Decision', 'Risk', 'Policy']],
+    ['Architecture', 'M6 7h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2v-4a4 4 0 0 0-8 0v4H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z', '#1D6FD6', ['Service', 'Component', 'Api', 'Event']],
+    ['Code', 'M7 8l-4 4 4 4M17 8l4 4-4 4M14 4l-4 16', '#15803D', ['Repository', 'SourceFile', 'Function', 'FeatureFlag']],
+    ['Data', 'M4 6a8 3 0 1 0 16 0 8 3 0 1 0-16 0M4 6v6a8 3 0 0 0 16 0V6M4 12v6a8 3 0 0 0 16 0v-6', '#0F766E', ['Schema', 'DbTable', 'Migration', 'Dataset']],
+    ['Frontend', 'M6 4h2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM6 13h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2zM16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z', '#C0266D', ['Screen', 'Form', 'UiComponent', 'DesignToken']],
+    ['Testing', 'M9 3h6M10 9h4M10 3v6L6 20a.7.7 0 0 0 .5 1h11a.7.7 0 0 0 .5-1l-4-11V3', '#A16207', ['TestCase', 'TestSuite', 'TestRun', 'Mock']],
+    ['Security', 'M12 3a12 12 0 0 0 8.5 3A12 12 0 0 1 12 21 12 12 0 0 1 3.5 6 12 12 0 0 0 12 3', '#C62828', ['Role', 'Permission', 'Threat', 'Vulnerability']],
+    ['Infrastructure', 'M6 4h12a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3zM6 12h12a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3zM7 8v.01M7 16v.01', '#52606A', ['Deployment', 'Cluster', 'Metric', 'Incident']],
+    ['Organization', 'M5 7a4 4 0 1 0 8 0 4 4 0 1 0-8 0M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85', '#8A5A2B', ['Team', 'Person', 'Vendor', 'Customer']],
+    ['Knowledge', 'M3 19a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6v13M12 6v13M21 6v13', '#0369A1', ['MeetingNote', 'Faq', 'HowToGuide', 'ReleaseNote']],
+    ['Harness', 'M8 4h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM12 2v2M9 12v9M15 12v9M5 16l4-2M15 14l4 2M9 18h6M10 8v.01M14 8v.01', '#B85042', ['Automation', 'Trigger', 'Issue', 'Chat']],
+  ];
+  for (const [d, , , ex] of D) for (const t of ex) if (!by.get(d)?.includes(t)) throw new Error(`${d}/${t} is not in entity-types.tsv`);
+  const glyph = (d, cx, cy, size, color) =>
+    `<g transform="translate(${n(cx - size / 2)} ${n(cy - size / 2)}) scale(${n((size / 24) * 1000) / 1000})"><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  let g = caption(70, 62, `${rows.length} types in ${by.size} domains`, 'the type is the path: knowledge-graph/<Domain>/<Type>/ · examples below', { size: 30 });
+  const cols = 4, gx = 24, gy = 24, x0 = 60, y0 = 116, w = (1800 - gx * (cols - 1)) / cols, h = (H - y0 - 30 - gy * 2) / 3;
+  D.forEach(([d, p, color, ex], i) => {
+    const x = x0 + (i % cols) * (w + gx), y = y0 + Math.floor(i / cols) * (h + gy);
     g += rect(x, y, w, h, { r: 18, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
-    g += circle(x + 40, y + 40, 24, { fill: L.wash }) + iconAt(ICON[d] ?? 'FaFolder', x + 40, y + 40, 24, L.strong);
-    g += text(x + 76, y + 49, d, { head: true, bold: true, size: 24 });
-    g += text(x + w - 22, y + 49, String(by.get(d).length), { head: true, bold: true, size: 24, anchor: 'end', fill: C.accent });
-    // the types, wrapped to the tile
-    const size = 17, max = (w - 40) / (size * 0.47);
-    const lines = by.get(d).reduce((ls, t) => {
-      const last = ls[ls.length - 1];
-      if (last && (last + ' · ' + t).length <= max) ls[ls.length - 1] = last + ' · ' + t;
-      else ls.push(t);
-      return ls;
-    }, []);
-    lines.forEach((l, j) => (g += text(x + 20, y + 94 + j * 24, l, { size, fill: C.muted })));
+    g += rect(x, y + 18, 6, h - 36, { r: 3, fill: color });
+    g += `<circle cx="${n(x + 58)}" cy="${n(y + 58)}" r="34" fill="${color}" fill-opacity="0.16"/>` + glyph(p, x + 58, y + 58, 38, color);
+    g += text(x + 108, y + 56, d, { head: true, bold: true, size: 26, fill: color });
+    g += text(x + 108, y + 82, `${by.get(d).length} types`, { size: 17, fill: C.muted });
+    ex.forEach((t, j) => {
+      const cw = (w - 56 - 12) / 2, cx = x + 28 + (j % 2) * (cw + 12), cy = y + 112 + Math.floor(j / 2) * 46;
+      g += `<rect x="${n(cx)}" y="${n(cy)}" width="${n(cw)}" height="36" rx="18" fill="${color}" fill-opacity="0.08" stroke="${color}" stroke-opacity="0.35" stroke-width="1.5"/>`;
+      g += text(cx + cw / 2, cy + 24, t, { size: 17, anchor: 'middle' });
+    });
   });
   return svg(g);
 }
@@ -875,7 +889,7 @@ function actions() {
 const SLIDES = [
   ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user writes needs no run: it goes straight through the consistency gate and lands verified. Runs the user starts go at once, alongside the queued automation runs.'],
   ['Entities', entities, 'The unit of the knowledge base. The type is the path on disk. The entity is its card, within the character limit. References link entities and are walked by Graph RAG. A summary is an entity with artifacts beneath it.'],
-  ['Entity types', entityTypes, 'Every entity has one of the types in docs/entity-types.tsv, grouped in domains. The type is the path of the entity in the knowledge graph. The Harness domain holds the entities of Momentum itself: automations, triggers, issues, conflicts, chats, plans and research.'],
+  ['Entity types', entityTypes, 'Every entity has one of the types in docs/entity-types.tsv, grouped in domains, each with the colour and glyph the app shows; four examples per domain. The type is the path of the entity in the knowledge graph. The Harness domain holds the entities of Momentum itself: automations, triggers, issues, conflicts, chats, plans and research.'],
   ['Entity states', states, "Verification is the user's judgement: approval verifies, any rewrite by a run makes the entity unverified again. Sync is the entity against its artifacts and implementation. Contradictions count the open contradiction issues over the entity."],
   ['Automations', automations, 'Ten automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Automation runs go one at a time per project; runs the user starts go at once.'],
   ['Triggers', triggers, 'Each automation has a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand. Exploration every two hours, preparation every two hours at half past, validation at 02:00, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Summarization runs in the Stop hook of every run and graph build while the project is enabled, so neither has a trigger entity. Triggered loops pause while the feed is at its limit.'],
