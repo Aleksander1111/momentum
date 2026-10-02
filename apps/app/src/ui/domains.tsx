@@ -1,5 +1,6 @@
+import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import type { Scheme } from './theme';
+import { useTheme, type Scheme } from './theme';
 
 /**
  * The main entity types (the first segment of a type path, as in docs/entity-types.tsv): a stroked glyph on a 24 grid
@@ -80,5 +81,25 @@ export function DomainIcon({ type, size, color }: { type: string; size: number; 
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d={domain(type).path} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
+  );
+}
+
+/** Glyph of the main type of `type` in a circle tinted with its colour. */
+export function DomainBadge({ type, size = 26 }: { type: string; size?: number }) {
+  const colour = domainColour(type, useTheme().scheme);
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: colour + '29',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <DomainIcon type={type} size={Math.round(size * 0.58)} color={colour} />
+    </View>
   );
 }

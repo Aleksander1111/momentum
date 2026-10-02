@@ -12,6 +12,7 @@ import { Field } from '../../../ui/Field';
 import { Count, List, Pick, Row, RowText } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { EntityView } from '../../../ui/EntityView';
+import { DomainBadge } from '../../../ui/domains';
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -39,6 +40,7 @@ function EntityRow({
 }) {
   return (
     <Row first={first} selected={selected} onPress={() => onOpen(e.path)} style={{ paddingLeft: indent(depth) }}>
+      <DomainBadge type={e.type} />
       <RowText title={e.title} size={14.5} />
       <States verification={e.verification} sync={e.sync} contradictions={e.contradictions} />
     </Row>
@@ -64,6 +66,7 @@ function treeRows(
         style={{ paddingLeft: indent(depth) }}
       >
         <Triangle open={isOpen} />
+        <DomainBadge type={n.path} />
         <RowText title={n.name} />
         <Count>{n.count}</Count>
       </Row>,
