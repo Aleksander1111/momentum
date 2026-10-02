@@ -532,19 +532,31 @@ function issues() {
   ].forEach((c, i) => (g += tile(70, 130 + i * 175, 470, 150, c, LAYER.kn)));
   g += line(600, 60, 600, 650, { stroke: C.line, sw: 2 });
 
-  // by reading: the cards themselves
+  // by reading: the cards themselves, one row per severity
   g += caption(660, 70, 'By reading', 'the cards themselves, never the artifacts', { size: 32, fill: C.red });
   [
-    ['Contradiction', 'FaBolt', ['clash of claims across', 'entities · counted on each']],
-    ['Repetition', 'FaClone', ['same facts restated', 'elsewhere']],
-    ['Ambiguity', 'FaCodeFork', ['wording open to more', 'than one reading']],
-    ['Design gap', 'FaPuzzlePiece', ['missing flow, mechanism', 'or rule']],
-    ['Logical', 'FaNotEqual', ['claims of one entity that', 'cannot all be true']],
-    ['Naming', 'FaTag', ['unintroduced name, or two', 'names for one concept']],
-    ['Struct', 'FaTableCells', ['format that hides', 'the information']],
-    ['Verbose', 'FaScissors', ['more words than', 'meaning']],
-    ['Split', 'FaObjectGroup', ['fragment of another', 'entity']],
-  ].forEach((c, i) => (g += tile(660 + (i % 3) * 405, 130 + Math.floor(i / 3) * 175, 380, 150, c, LAYER.att, { badge: i === 0 ? '1' : null })));
+    ['High', [
+      ['Contradiction', 'FaBolt', ['clash of claims across', 'entities · counted on each']],
+      ['Logical', 'FaNotEqual', ['claims of one entity that', 'cannot all be true']],
+      ['Ambiguity', 'FaCodeFork', ['wording open to more', 'than one reading']],
+    ]],
+    ['Medium', [
+      ['Design gap', 'FaPuzzlePiece', ['missing flow, mechanism', 'or rule']],
+      ['Naming', 'FaTag', ['unintroduced name, or two', 'names for one concept']],
+      ['Repetition', 'FaClone', ['same facts restated', 'elsewhere']],
+    ]],
+    ['Low', [
+      ['Verbose', 'FaScissors', ['more words than', 'meaning']],
+      ['Struct', 'FaTableCells', ['format that hides', 'the information']],
+      ['Split', 'FaObjectGroup', ['fragment of another', 'entity']],
+    ]],
+  ].forEach(([level, cats], r) => {
+    const y = 130 + r * 175;
+    // severity: three bars, as many filled as the level is high
+    [0, 1, 2].forEach((b) => (g += rect(694 + b * 16, y + 64 - b * 12, 10, 22 + b * 12, { r: 3, fill: b < 3 - r ? C.red : C.bar })));
+    g += text(718, y + 116, level, { head: true, bold: true, size: 22, anchor: 'middle', fill: C.red });
+    cats.forEach((c, i) => (g += tile(780 + i * 360, y, 340, 150, c, LAYER.att, { badge: r === 0 && i === 0 ? '1' : null })));
+  });
 
   // every finding: one issue
   g += rect(60, 700, 1800, 230, { r: 22, fill: C.paper });
@@ -896,7 +908,7 @@ const SLIDES = [
   ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. The user edits them, or optimization proposes changes; either way the change passes the consistency gate, lands on the main line and is verified through the feed. Runs start on demand from the chat and stop from the chat; models and concurrency are settings.'],
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
   ['Consistency gate', gate, 'Every write is checked while the run works. When it ends, the transaction passes the gate: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
-  ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, cards over the character limit, types outside entity-types.tsv or their directory. By reading: contradiction, repetition, ambiguity, design gap, logical, naming, struct, verbose and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
+  ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, cards over the character limit, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
   ['Git', git,"One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],
   ['User actions', actions, 'Swipe right approves: one commit, verified; an implementable entity with nothing implementing it starts an implementation run. Swipe left sends back with a comment: a chat run works on the entity. Chat, run on demand, stop a run, manage projects, edit entities and change settings.'],
   ['Settings', settings, 'The Settings tab: theme on this device; included projects, each enabled or disabled, with its knowledge graph build; feed size, the items before loops pause; cards, the character limit and presentation rules; paths never summarized; lifetimes per entity type; concurrent runs in total; models, one for all, per automation or by implementation risk. Values shown are the harness defaults, with models shown by risk.'],
