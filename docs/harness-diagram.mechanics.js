@@ -4,7 +4,7 @@
 const React = require('react');
 const RDS = require('react-dom/server');
 const fa = require('react-icons/fa6');
-const { mkdirSync, writeFileSync } = require('node:fs');
+const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 
 const W = 1920, H = 950;
@@ -506,7 +506,264 @@ function gate() {
   return svg(g);
 }
 
-// ---------------------------------------------------------------- 7. git
+// ---------------------------------------------------------------- 7. issue types
+// The categories of automations/consistency-check/agents/momentum-consistency-check.md
+function issues() {
+  let g = '';
+  const tile = (x, y, w, h, [name, ic, sub], L, o = {}) => {
+    let s = rect(x, y, w, h, { r: 18, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+    s += circle(x + 58, y + h / 2, 36, { fill: L.wash, stroke: L.strong, sw: 3 }) + iconAt(ic, x + 58, y + h / 2, 30, L.strong);
+    if (o.badge) s += badge(x + 86, y + h / 2 - 30, o.badge);
+    s += text(x + 112, y + h / 2 - 8, name, { head: true, bold: true, size: 24 });
+    [].concat(sub).forEach((t, i) => (s += text(x + 112, y + h / 2 + 22 + i * 22, t, { size: 18, fill: C.muted })));
+    return s;
+  };
+  // by rule: the gate's checks, over every entity
+  g += caption(70, 70, 'By rule', "queries over the graph · the gate's checks", { size: 32, fill: C.ochre });
+  [
+    ['Reference', 'FaLinkSlash', 'unresolved reference'],
+    ['Card limit', 'FaRulerHorizontal', ['card over the', 'character limit']],
+    ['Type path', 'FaFolderTree', ['type outside entity-types.tsv', 'or its directory']],
+  ].forEach((c, i) => (g += tile(70, 130 + i * 175, 470, 150, c, LAYER.kn)));
+  g += line(600, 60, 600, 650, { stroke: C.line, sw: 2 });
+
+  // by reading: the cards themselves
+  g += caption(660, 70, 'By reading', 'the cards themselves, never the artifacts', { size: 32, fill: C.red });
+  [
+    ['Contradiction', 'FaBolt', ['clash of claims across', 'entities · counted on each']],
+    ['Repetition', 'FaClone', ['same facts restated', 'elsewhere']],
+    ['Ambiguity', 'FaCodeFork', ['wording open to more', 'than one reading']],
+    ['Design gap', 'FaPuzzlePiece', ['missing flow, mechanism', 'or rule']],
+    ['Logical', 'FaNotEqual', ['claims of one entity that', 'cannot all be true']],
+    ['Naming', 'FaTag', ['unintroduced name, or two', 'names for one concept']],
+    ['Struct', 'FaTableCells', ['format that hides', 'the information']],
+    ['Verbose', 'FaScissors', ['more words than', 'meaning']],
+    ['Split', 'FaObjectGroup', ['fragment of another', 'entity']],
+  ].forEach((c, i) => (g += tile(660 + (i % 3) * 405, 130 + Math.floor(i / 3) * 175, 380, 150, c, LAYER.att, { badge: i === 0 ? '1' : null })));
+
+  // every finding: one issue
+  g += rect(60, 700, 1800, 230, { r: 22, fill: C.paper });
+  g += caption(100, 760, 'One issue per finding', 'raised, never fixed by the check', { size: 30 });
+  g += miniCard(700, 725, 300, 180, { crumb: 'HARNESS / ISSUE', title: 'Repetition', flag: true, stroke: C.red, sw: 2.5, bars: [0.85, 0.7, 0.5] });
+  g += curve([1000, 790], [1200, 770], 0, 30, -16, { stroke: C.red, head: 'att', label: 'concerns' });
+  g += curve([1000, 850], [1200, 860], 0, 30, 16, { stroke: C.red, head: 'att', label: 'concerns', dy: 8 });
+  g += miniCard(1220, 722, 220, 96, { crumb: 'AT FAULT', crumbSize: 11, bars: [0.85, 0.7], stroke: C.red, sw: 2.5, pad: 16 });
+  g += miniCard(1220, 826, 220, 96, { crumb: 'REPEATS IT', crumbSize: 11, bars: [0.85, 0.7], pad: 16 });
+  [['FaListCheck', '2–4 options to resolve'], ['FaSliders', 'impact and unlocks, 0–5']].forEach(([ic, s], i) => {
+    const y = 790 + i * 70;
+    g += iconAt(ic, 1520, y, 30, C.ink) + text(1550, y + 7, s, { size: 21 });
+  });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- entity types
+// Read from docs/entity-types.tsv, so the slide follows the list
+function entityTypes() {
+  const rows = readFileSync(join(__dirname, 'entity-types.tsv'), 'utf8').split(/\r?\n/).slice(1)
+    .map((l) => l.split('\t')).filter(([d, t]) => d && t);
+  const by = new Map();
+  for (const [d, t] of rows) by.set(d, [...(by.get(d) ?? []), t]);
+  const ICON = {
+    Product: 'FaCubes', Governance: 'FaScaleBalanced', Architecture: 'FaSitemap', Code: 'FaCode', Data: 'FaDatabase',
+    Frontend: 'FaDisplay', Testing: 'FaFlaskVial', Security: 'FaShieldHalved', Infrastructure: 'FaServer',
+    Organization: 'FaPeopleGroup', Knowledge: 'FaBook', Harness: 'FaGears',
+  };
+  const order = Object.keys(ICON).filter((d) => by.has(d)).concat([...by.keys()].filter((d) => !ICON[d]));
+  let g = caption(70, 62, `${rows.length} types in ${order.length} domains`, 'the type is the path: knowledge-graph/<Domain>/<Type>/', { size: 30 });
+  const cols = 4, gx = 20, gy = 20, x0 = 60, y0 = 112, w = (1800 - gx * (cols - 1)) / cols, h = (H - y0 - 24 - gy * 2) / 3;
+  order.forEach((d, i) => {
+    const x = x0 + (i % cols) * (w + gx), y = y0 + Math.floor(i / cols) * (h + gy), L = d === 'Harness' ? LAYER.att : LAYER.ink;
+    g += rect(x, y, w, h, { r: 18, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+    g += circle(x + 40, y + 40, 24, { fill: L.wash }) + iconAt(ICON[d] ?? 'FaFolder', x + 40, y + 40, 24, L.strong);
+    g += text(x + 76, y + 49, d, { head: true, bold: true, size: 24 });
+    g += text(x + w - 22, y + 49, String(by.get(d).length), { head: true, bold: true, size: 24, anchor: 'end', fill: C.accent });
+    // the types, wrapped to the tile
+    const size = 17, max = (w - 40) / (size * 0.47);
+    const lines = by.get(d).reduce((ls, t) => {
+      const last = ls[ls.length - 1];
+      if (last && (last + ' · ' + t).length <= max) ls[ls.length - 1] = last + ' · ' + t;
+      else ls.push(t);
+      return ls;
+    }, []);
+    lines.forEach((l, j) => (g += text(x + 20, y + 94 + j * 24, l, { size, fill: C.muted })));
+  });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- triggers
+// The trigger entities of automations/*/trigger.md
+function triggers() {
+  let g = '';
+  // the day: schedules
+  g += caption(70, 62, 'Schedule', 'cron, in each trigger entity', { size: 30, fill: C.ok });
+  const X0 = 360, X1 = 1840, hx = (t) => X0 + ((X1 - X0) * t) / 24;
+  const lanes = [
+    ['Exploration', 'FaCompass', 'every 2 hours', Array.from({ length: 12 }, (_, i) => i * 2)],
+    ['Preparation', 'FaListCheck', 'every 2 hours, at half past', Array.from({ length: 12 }, (_, i) => i * 2 + 0.5)],
+    ['Validation', 'FaFlaskVial', '02:00', [2]],
+    ['Consistency check', 'FaScaleBalanced', '03:00', [3]],
+    ['Retention', 'FaBroom', '04:00', [4]],
+    ['Optimization', 'FaWandMagicSparkles', '05:00', [5]],
+  ];
+  for (let t = 0; t <= 24; t += 2) {
+    g += line(hx(t), 100, hx(t), 100 + lanes.length * 46 + 6, { stroke: C.line, sw: 1.5 });
+    g += text(hx(t), 96, `${String(t).padStart(2, '0')}:00`, { size: 15, anchor: 'middle', fill: C.muted });
+  }
+  lanes.forEach(([name, ic, when, at], i) => {
+    const y = 130 + i * 46;
+    g += iconAt(ic, 86, y, 24, C.ok) + text(110, y + 7, name, { size: 20, bold: true });
+    g += line(X0, y, X1, y, { stroke: C.bar, sw: 2 });
+    at.forEach((t) => (g += circle(hx(t), y, 9, { fill: C.ok, stroke: C.white, sw: 2.5 })));
+    if (at.length === 1) g += text(hx(at[0]) + 20, y + 6, when, { size: 17, fill: C.muted, italic: true });
+  });
+
+  // events
+  const ey = 470;
+  g += caption(70, ey, 'Events', 'one run starts the next', { size: 30, fill: C.ochre });
+  const chain = (y, from, fromIc, ev, to, toIc) => {
+    let s = pod(70, y, 300, 60, from, fromIc, LAYER.ink, { size: 18 });
+    s += line(380, y + 30, 560, y + 30, { stroke: C.ochre, sw: 4, head: 'kn' }) + pill(470, y + 30 - 24, ev, { color: C.ochre, size: 15 });
+    return s + pod(570, y, 260, 60, to, toIc, LAYER.kn, { size: 18 });
+  };
+  g += chain(ey + 40, 'Approved, unimplemented', 'FaHandPointer', 'entity_ahead', 'Implementation', 'FaCode');
+  g += chain(ey + 120, 'Implementation finished', 'FaCodeCommit', 'implementation_finished', 'Validation', 'FaFlaskVial');
+
+  // on demand
+  g += caption(70, ey + 250, 'On demand', 'every trigger entity · chat on demand only', { size: 30, fill: C.red });
+  g += pod(70, ey + 290, 300, 60, 'Run on demand', 'FaPlay', LAYER.att, { size: 18 });
+  g += pod(400, ey + 290, 220, 60, 'Chat', 'FaComments', LAYER.att, { size: 18 });
+
+  // the trigger entity
+  const cx = 960, cy = 440, cw = 460;
+  g += rect(cx, cy, cw, 300, { r: 18, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+  g += text(cx + 24, cy + 40, 'HARNESS / TRIGGER', { size: 13, bold: true, fill: C.accent, spacing: 2 });
+  g += text(cx + 24, cy + 80, 'Consistency check trigger', { head: true, bold: true, size: 24 });
+  [['automation', 'consistency-check'], ['schedule', '"0 3 * * *"'], ['events', '[]'], ['on_demand', 'true']].forEach(([k, v], i) => {
+    const y = cy + 130 + i * 36;
+    g += text(cx + 24, y, `${k}:`, { size: 19, fill: C.muted }) + text(cx + 170, y, v, { size: 19, bold: true });
+  });
+  g += text(cx + 24, cy + 278, 'one per automation, in each workspace', { size: 17, italic: true, fill: C.muted });
+
+  // no trigger entity
+  const nx = 1470;
+  g += caption(nx, ey, 'No trigger entity', null, { size: 26 });
+  g += pod(nx, ey + 40, 370, 60, 'Summarization', 'FaFileLines', LAYER.ink, { size: 18 }) + text(nx + 20, ey + 128, 'Stop hook of every run', { size: 17, italic: true, fill: C.muted });
+  g += pod(nx, ey + 160, 370, 60, 'Graph build', 'FaDiagramProject', LAYER.ink, { size: 18 }) + text(nx + 20, ey + 248, 'project enabled, until covered', { size: 17, italic: true, fill: C.muted });
+  // the feed limit
+  g += rect(nx, ey + 290, 370, 70, { r: 16, fill: C.paper });
+  g += iconAt('FaPause', nx + 36, ey + 325, 26, C.red) + text(nx + 66, ey + 320, 'Feed at its limit', { size: 19, bold: true }) + text(nx + 66, ey + 344, 'triggered loops pause', { size: 16, fill: C.muted });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- automation management
+function management() {
+  let g = '';
+  // the harness workspace: one definition per automation
+  g += rect(60, 60, 560, 520, { r: 22, fill: C.paper });
+  g += caption(100, 112, 'Harness workspace', 'one definition per automation', { size: 26 });
+  g += miniCard(100, 160, 300, 210, { crumb: 'HARNESS / AUTOMATION', crumbSize: 11, title: ['Consistency check'], glyphs: ['verified'], bars: [0.9, 0.75, 0.85, 0.6] });
+  g += path('M400 300 C440 300 440 420 470 420', { stroke: C.ink, sw: 3, dash: '9 7' });
+  g += doc(440, 420, 110, 136, { icon: 'FaRobot', stroke: C.ink, iconColor: C.ochre });
+  g += text(100, 420, 'artifacts: the Claude Code', { size: 18, fill: C.muted }) + text(100, 444, 'files of the automation', { size: 18, fill: C.muted });
+  g += text(100, 510, 'automations/<name>/agents/', { size: 17, fill: C.ink, bold: true });
+  g += text(100, 534, 'momentum-<name>.md', { size: 17, fill: C.ink, bold: true });
+
+  // each workspace: one trigger per automation
+  g += rect(60, 610, 560, 320, { r: 22, fill: C.paper });
+  g += caption(100, 662, 'Each workspace', 'one trigger per automation', { size: 26 });
+  [0, 1, 2].forEach((i) => (g += miniCard(100 + i * 30, 700 + i * 22, 300, 150, { crumb: 'HARNESS / TRIGGER', crumbSize: 11, bars: [0.6, 0.8, 0.5] })));
+  g += text(500, 790, 'schedule', { size: 18, fill: C.muted }) + text(500, 816, 'events', { size: 18, fill: C.muted }) + text(500, 842, 'on demand', { size: 18, fill: C.muted });
+
+  // two ways in, one path
+  const y = 360;
+  g += pod(720, 200, 300, 66, 'Your edit', 'FaPenToSquare', LAYER.att);
+  g += pod(720, 460, 300, 66, 'Optimization', 'FaWandMagicSparkles', LAYER.prod);
+  g += text(870, 560, 'proposes definition', { size: 18, italic: true, fill: C.muted, anchor: 'middle' }) + text(870, 584, 'and trigger changes', { size: 18, italic: true, fill: C.muted, anchor: 'middle' });
+  g += path(`M1020 233 C1080 233 1080 ${y} 1130 ${y}`, { stroke: C.red, sw: 4, head: 'att' });
+  g += path(`M1020 493 C1080 493 1080 ${y} 1130 ${y}`, { stroke: C.ok, sw: 4, head: 'ok' });
+  const steps = [['FaShieldHalved', 'Consistency gate', LAYER.kn], ['FaCodeCommit', 'Main line', LAYER.kn], ['FaLayerGroup', 'Feed', LAYER.att], ['FaCircleCheck', 'Verified', LAYER.prod]];
+  steps.forEach(([ic, s, L], i) => {
+    const x = 1190 + i * 180;
+    g += medallion(x, y, 52, L, ic, { k: 0.75 });
+    g += text(x, y + 88, s, { head: true, bold: true, size: 20, anchor: 'middle' });
+    if (i < steps.length - 1) g += line(x + 60, y, x + 112, y, { stroke: C.muted, sw: 4, head: 'muted' });
+  });
+  g += text(1460, y - 100, 'like any other entity', { head: true, italic: true, size: 26, anchor: 'middle', fill: C.muted });
+
+  // controls
+  g += line(680, 680, 1860, 680, { stroke: C.line, sw: 2 });
+  [
+    ['FaPlay', 'Run on demand', 'from the chat'], ['FaStop', 'Stop a run', 'what it wrote lands'],
+    ['FaMicrochip', 'Models', 'settings: per automation'], ['FaLayerGroup', 'Concurrent runs', 'settings: in total'],
+  ].forEach(([ic, name, sub], i) => {
+    const x = 740 + (i % 2) * 560, yy = 760 + Math.floor(i / 2) * 110;
+    g += circle(x, yy, 40, { fill: C.white, stroke: C.ink, sw: 3, shadow: true }) + iconAt(ic, x, yy, 34, C.ink);
+    g += text(x + 60, yy - 4, name, { head: true, bold: true, size: 22 }) + text(x + 60, yy + 22, sub, { size: 18, fill: C.muted });
+  });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- settings
+// The sections of the app's Settings tab (apps/app/src/app/(tabs)/settings.tsx), with the harness defaults
+function settings() {
+  let g = '';
+  const sw = (x, y, on) => rect(x, y, 46, 26, { r: 13, fill: on ? C.ok : C.line }) + circle(on ? x + 33 : x + 13, y + 13, 10, { fill: C.white });
+  const num = (x, y, v) => rect(x - 64, y, 64, 30, { r: 8, fill: C.paper }) + text(x - 32, y + 21, v, { size: 17, anchor: 'middle' });
+  const chev = (x, y) => path(`M${x - 12} ${y - 7} L${x - 4} ${y} L${x - 12} ${y + 7}`, { stroke: C.muted, sw: 2.5 });
+  const seg = (x, y, w, opts, on) => {
+    let s = rect(x, y, w, 32, { r: 8, fill: C.paper });
+    const sw2 = w / opts.length;
+    opts.forEach((o, i) => {
+      if (i === on) s += rect(x + i * sw2 + 3, y + 3, sw2 - 6, 26, { r: 6, fill: C.white, shadow: true });
+      s += text(x + i * sw2 + sw2 / 2, y + 21, o, { size: 14, anchor: 'middle', bold: i === on, fill: i === on ? C.ink : C.muted });
+    });
+    return s;
+  };
+  const row = (x, y, w, title, sub, ctl) =>
+    text(x + 20, y + (sub ? 24 : 38), title, { size: 18 }) + (sub ? text(x + 20, y + 46, sub, { size: 14, fill: C.muted }) : '') + ctl(x + w - 20, y + 16);
+  const sections = [
+    ['Appearance', 'FaCircleHalfStroke', [['Theme', 'this device only', (r, y) => seg(r - 240, y, 240, ['System', 'Light', 'Dark'], 0)]]],
+    ['Included projects', 'FaToggleOn', [
+      ['momentum', 'enabled: loops run', (r, y) => sw(r - 46, y + 2, true)],
+      ['stock-fly', 'disabled: no loops', (r, y) => sw(r - 46, y + 2, false)],
+      ['Knowledge graph', 'build: stop, resume, reset', (r, y) => chev(r, y + 14)],
+    ]],
+    ['Feed size', 'FaLayerGroup', [['Items before loops pause', null, (r, y) => num(r, y, '40')]]],
+    ['Cards', 'FaIdCard', [['Character limit', 'a card fits on a mobile screen', (r, y) => num(r, y, '700')], ['Presentation rules', null, (r, y) => chev(r, y + 14)]]],
+    ['Summarization', 'FaFileLines', [['Never summarized', 'path patterns, such as **/*.lock', (r, y) => chev(r, y + 14)]]],
+    ['Lifetimes', 'FaHourglassHalf', [
+      ['Product/DevTask', '30 days after resolved, unless referenced', (r, y) => chev(r, y + 14)],
+      ['Harness/Research', '60 days after delivered', (r, y) => chev(r, y + 14)],
+      ['Governance/Decision', 'kept while referenced', (r, y) => chev(r, y + 14)],
+    ]],
+    ['Agents', 'FaTerminal', [['Concurrent runs in total', 'across projects', (r, y) => num(r, y, '8')]]],
+    ['Models', 'FaMicrochip', [
+      ['Mode', null, (r, y) => seg(r - 330, y, 330, ['One model', 'Per automation', 'By risk'], 2)],
+      ['Implementation, low risk', 'Haiku', (r, y) => chev(r, y + 14)],
+      ['Implementation, medium risk', 'Sonnet', (r, y) => chev(r, y + 14)],
+      ['Implementation, high risk', 'Opus', (r, y) => chev(r, y + 14)],
+    ]],
+  ];
+  const cols = [[0, 1, 2, 3], [4, 5, 6, 7]], w = 880, rh = 64;
+  cols.forEach((ids, c) => {
+    let y = 40;
+    const x = 60 + c * (w + 40);
+    ids.forEach((id) => {
+      const [name, ic, rows] = sections[id];
+      g += iconAt(ic, x + 14, y + 16, 24, C.accent) + text(x + 40, y + 24, name, { head: true, bold: true, size: 22 });
+      y += 40;
+      g += rect(x, y, w, rows.length * rh, { r: 14, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+      rows.forEach(([t, sub, ctl], j) => {
+        if (j) g += line(x, y + j * rh, x + w, y + j * rh, { stroke: C.line, sw: 1.5 });
+        g += row(x, y + j * rh, w, t, sub, ctl);
+      });
+      y += rows.length * rh + 26;
+    });
+  });
+  return svg(g);
+}
+
+// ---------------------------------------------------------------- 8. git
 function git() {
   let g = '';
   const Y = 540;
@@ -566,7 +823,7 @@ function git() {
   return svg(g);
 }
 
-// ---------------------------------------------------------------- 8. user actions
+// ---------------------------------------------------------------- 9. user actions
 function actions() {
   let g = '';
   // the phone with a feed card
@@ -618,12 +875,17 @@ function actions() {
 const SLIDES = [
   ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user writes needs no run: it goes straight through the consistency gate and lands verified. Runs the user starts go at once, alongside the queued automation runs.'],
   ['Entities', entities, 'The unit of the knowledge base. The type is the path on disk. The entity is its card, within the character limit. References link entities and are walked by Graph RAG. A summary is an entity with artifacts beneath it.'],
+  ['Entity types', entityTypes, 'Every entity has one of the types in docs/entity-types.tsv, grouped in domains. The type is the path of the entity in the knowledge graph. The Harness domain holds the entities of Momentum itself: automations, triggers, issues, conflicts, chats, plans and research.'],
   ['Entity states', states, "Verification is the user's judgement: approval verifies, any rewrite by a run makes the entity unverified again. Sync is the entity against its artifacts and implementation. Contradictions count the open contradiction issues over the entity."],
   ['Automations', automations, 'Ten automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Automation runs go one at a time per project; runs the user starts go at once.'],
+  ['Triggers', triggers, 'Each automation has a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand. Exploration every two hours, preparation every two hours at half past, validation at 02:00, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Summarization runs in the Stop hook of every run and graph build while the project is enabled, so neither has a trigger entity. Triggered loops pause while the feed is at its limit.'],
+  ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. The user edits them, or optimization proposes changes; either way the change passes the consistency gate, lands on the main line and is verified through the feed. Runs start on demand from the chat and stop from the chat; models and concurrency are settings.'],
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
   ['Consistency gate', gate, 'Every write is checked while the run works. When it ends, the transaction passes the gate: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
-  ['Git', git, "One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],
+  ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, cards over the character limit, types outside entity-types.tsv or their directory. By reading: contradiction, repetition, ambiguity, design gap, logical, naming, struct, verbose and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
+  ['Git', git,"One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],
   ['User actions', actions, 'Swipe right approves: one commit, verified; an implementable entity with nothing implementing it starts an implementation run. Swipe left sends back with a comment: a chat run works on the entity. Chat, run on demand, stop a run, manage projects, edit entities and change settings.'],
+  ['Settings', settings, 'The Settings tab: theme on this device; included projects, each enabled or disabled, with its knowledge graph build; feed size, the items before loops pause; cards, the character limit and presentation rules; paths never summarized; lifetimes per entity type; concurrent runs in total; models, one for all, per automation or by implementation risk. Values shown are the harness defaults, with models shown by risk.'],
 ];
 
 async function renderPngs(svgs) {
