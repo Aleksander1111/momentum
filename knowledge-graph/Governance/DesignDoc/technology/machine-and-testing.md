@@ -15,8 +15,8 @@ artifacts:
 # Machine and testing
 
 - **Machine:** this Windows 11 PC, workspaces root `C:\Projects`
-- **Service:** back-end as a Windows service (WinSW, config in `apps/backend/service/`) under the user's account, for its Claude Code login and git identity
-- **Package 0:** Tailscale for Windows, Claude Code CLI, Node 24 (Node.js installer), procgov from winget; this repository as the first workspace
-- **Testing:** Vitest for parser, guard, hooks, ranking and orchestrator against a separate `momentum_test` database; Playwright for the web app; end-to-end on a throwaway copy of the harness repository and database, so the harness manages itself
+- **Service:** the `Momentum` scheduled task serves the back-end at every logon; `serve.ps1` waits for Postgres and runs `pnpm dev` hidden under the user's account (its Claude Code login and git identity), restarting on every change on main
+- **Package 0:** Momentum scheduled task, Tailscale, Claude Code CLI, Node 24, procgov; this repository as the first workspace
+- **Testing:** Vitest (parser, guard, hooks, ranking, orchestrator) against `momentum_test`; Playwright for web; end-to-end on a throwaway copy of the harness repository and database
 
-Assumed, not verified: procgov limits hold for the Claude Code subprocess tree.
+Assumed: procgov limits hold for the Claude Code subprocess tree.

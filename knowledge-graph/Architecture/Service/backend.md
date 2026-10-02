@@ -25,13 +25,14 @@ artifacts:
   - apps/backend/src/app.ts
   - apps/backend/src/server.ts
   - apps/backend/src/cli.ts
-  - apps/backend/service/momentum.xml
+  - apps/backend/service/install.ps1
+  - apps/backend/service/serve.ps1
 ---
 # Back-end
 
-One Node process, `apps/backend`: the API, the orchestrator and the consistency guard together, with only the runs as separate processes. Runs as the Windows service "Momentum" under the user's account, after Tailscale.
+One Node process, `apps/backend`: API, orchestrator and consistency guard; only runs are separate processes. The "Momentum" scheduled task (`install.ps1`) serves it at every logon, hidden under the user's account: `serve.ps1` waits for Postgres and runs `pnpm dev`, which restarts on every change on main.
 
 - Fastify + zod, port 7300, listening only on the Tailscale interface
 - Serves the web build of the app on page loads
-- On start: connects to Postgres, indexes the harness workspace first, materializes definitions into enabled workspaces, then starts the orchestrator
+- On start: connects to Postgres, indexes the harness workspace, materializes definitions into enabled workspaces, starts the orchestrator
 - CLI `pnpm momentum`: generate-password, set-password, enable, disable, index, openapi
