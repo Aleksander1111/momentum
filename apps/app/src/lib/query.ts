@@ -30,8 +30,9 @@ export const queryClient = new QueryClient({
 
 export type ApproveVars = { workspace: string; path: string; timeSpentMs: number };
 export type SendBackVars = ApproveVars & { comment: string };
+export type ResolveVars = ApproveVars & { option?: number; comment?: string };
 
-export const REACTIONS = ['approve', 'sendBack'] as const;
+export const REACTIONS = ['approve', 'sendBack', 'resolve', 'wontResolve'] as const;
 
 function dropFromFeed(v: { workspace: string; path: string }) {
   queryClient.setQueryData<FeedResponse>(['feed'], (old) => (old ? withoutItem(old, v) : old));
@@ -53,6 +54,25 @@ queryClient.setMutationDefaults(['sendBack'], {
     dropFromFeed(v);
     void queryClient.invalidateQueries({ queryKey: ['feed'] });
     void queryClient.invalidateQueries({ queryKey: ['chats'] });
+  },
+});
+
+queryClient.setMutationDefaults(['resolve'], {
+  mutationFn: (v: ResolveVars) =>
+    api.resolve(v.path, { workspace: v.workspace, option: v.option, comment: v.comment, timeSpentMs: v.timeSpentMs }),
+  onSuccess: (_d: unknown, v: ResolveVars) => {
+    dropFromFeed(v);
+    void queryClient.invalidateQueries({ queryKey: ['feed'] });
+    void queryClient.invalidateQueries({ queryKey: ['chats'] });
+  },
+});
+
+queryClient.setMutationDefaults(['wontResolve'], {
+  mutationFn: (v: SendBackVars) =>
+    api.wontResolve(v.path, { workspace: v.workspace, comment: v.comment, timeSpentMs: v.timeSpentMs }),
+  onSuccess: (_d: unknown, v: SendBackVars) => {
+    dropFromFeed(v);
+    void queryClient.invalidateQueries({ queryKey: ['feed'] });
   },
 });
 

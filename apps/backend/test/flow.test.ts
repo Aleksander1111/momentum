@@ -207,6 +207,49 @@ describe('guard, feed and approval', () => {
     const feed = await m.momentum.feed();
     expect(feed.items.find((i) => i.path === 'Product/UserStory/rank')?.contradictions).toBe(1);
   });
+
+  it('offers the options of an issue in the feed and resolves it with one in a chat run', async () => {
+    const options = [
+      '  - label: Rank by impact\n    change: Swipe adopts impact and unlocks.',
+      '  - label: Rank by age\n    change: Ranking drops impact; oldest first.',
+    ];
+    await run('r7', {
+      'knowledge-graph/Harness/Issue/order.md': entity(
+        'Harness/Issue',
+        'Feed order differs',
+        'Ranking orders by impact; swipe by age.',
+        [],
+        `source: consistency_check\ncategory: contradiction\nseverity: high\noptions:\n${options.join('\n')}\nrecommended: 0\n`,
+      ).replace('references: []', 'references:\n  - to: Product/UserStory/rank\n    relation: concerns\n  - to: Product/Feature/swipe\n    relation: concerns'),
+    });
+    const item = (await m.momentum.feed()).items.find((i) => i.path === 'Harness/Issue/order');
+    expect(item?.issue).toMatchObject({
+      category: 'contradiction',
+      severity: 'high',
+      recommended: 0,
+      concerns: ['Product/UserStory/rank', 'Product/Feature/swipe'],
+    });
+    expect(item?.issue?.options.map((o) => o.label)).toEqual(['Rank by impact', 'Rank by age']);
+    // Any other entity, and an issue without options, carries none
+    expect((await m.momentum.feed()).items.find((i) => i.path === 'Harness/Issue/guard-r2')?.issue).toBeNull();
+
+    await expect(m.momentum.resolve('alpha', 'Harness/Issue/order', { option: 5 }, 0)).rejects.toThrow('no option 5');
+    const { runId } = await m.momentum.resolve('alpha', 'Harness/Issue/order', { option: 0 }, 700);
+    const r = await m.momentum.run(runId);
+    expect(r).toMatchObject({ automation: 'chat', targetPath: 'Harness/Issue/order' });
+    expect(r.messages[0]).toMatchObject({ role: 'user', text: 'Rank by impact: Swipe adopts impact and unlocks.' });
+    expect((await m.momentum.feed()).items.map((i) => i.path)).not.toContain('Harness/Issue/order');
+  });
+
+  it("closes an issue as won't resolve: verified with the reason, no longer counted", async () => {
+    await m.momentum.wontResolve('alpha', 'Harness/Issue/clash', 'Both orders are intended.', 300);
+    const onMain = git(repo, 'show', 'main:knowledge-graph/Harness/Issue/clash.md');
+    expect(onMain).toContain('verification: verified');
+    expect(onMain).toContain('wont_resolve: Both orders are intended.');
+    expect((await m.momentum.feed()).items.map((i) => i.path)).not.toContain('Harness/Issue/clash');
+    expect((await m.momentum.entity('alpha', 'Product/Feature/swipe')).contradictions).toBe(1); // the order issue stays open
+    await expect(m.momentum.wontResolve('alpha', 'Product/Feature/swipe', 'x', 0)).rejects.toThrow('not an issue');
+  });
 });
 
 describe('orchestrator', () => {

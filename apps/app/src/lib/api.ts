@@ -19,7 +19,9 @@ import {
   type PostRunMessage,
   type PutGraphBuild,
   type PutSettings,
+  type ResolveRequest,
   type SendBackRequest,
+  type WontResolveRequest,
   type SessionRequest,
 } from '@momentum/contract';
 import { clearToken, getToken, setToken } from './token';
@@ -126,6 +128,13 @@ export const api = {
   async sendBack(path: string, req: SendBackRequest): Promise<{ runId: string }> {
     const res = await request('POST', `/feed/${seg(path)}/send-back`, req);
     return RunIdResponse.parse(await res.json());
+  },
+  async resolve(path: string, req: ResolveRequest): Promise<{ runId: string }> {
+    const res = await request('POST', `/feed/${seg(path)}/resolve`, req);
+    return RunIdResponse.parse(await res.json());
+  },
+  async wontResolve(path: string, req: WontResolveRequest): Promise<void> {
+    await request('POST', `/feed/${seg(path)}/wont-resolve`, req);
   },
   entity: (ws: string, path: string) => get(`/workspaces/${seg(ws)}/entities/${segs(path)}`, EntityDetail),
   types: (ws: string) => get(`/workspaces/${seg(ws)}/types`, TypesResponse),

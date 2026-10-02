@@ -13,6 +13,7 @@ import type {
   TypeNode,
   Verification,
 } from '@momentum/contract';
+import { IssueFields } from '@momentum/contract';
 import { typeOfPath } from '@momentum/entity';
 import { schemaOf, type Sql } from './db.ts';
 import { toVector } from './embeddings.ts';
@@ -144,12 +145,14 @@ export class WorkspaceIndex {
 
   /**
    * The contradictions of every entity: the open contradiction issues the consistency check raised over it, counted
-   * from the references so the figure follows the issues as they are raised and retired
+   * from the references so the figure follows the issues as they are raised and retired; an issue closed as won't
+   * resolve no longer counts
    */
   async refreshContradictions(tx: Sql = this.sql): Promise<void> {
     await tx`update ${this.t('entity')} e set contradictions = (
       select count(*)::int from ${this.t('entity_reference')} x join ${this.t('entity')} i on i.path = x.from_path
-      where x.to_path = e.path and x.relation_type = 'concerns' and i.type = 'Harness/Issue' and i.frontmatter->>'category' = 'contradiction')`;
+      where x.to_path = e.path and x.relation_type = 'concerns' and i.type = 'Harness/Issue' and i.frontmatter->>'category' = 'contradiction'
+        and i.frontmatter->>'wont_resolve' is null)`;
   }
 
   async detail(path: string): Promise<EntityDetail | null> {
@@ -289,7 +292,7 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
   const parts = workspaces.map((w) => {
     const s = schemaOf(w);
     return `select '${w.replaceAll("'", "''")}' as workspace, e.path, e.type, e.title, e.card_blocks, e.verification, e.sync, e.contradictions,
-      a.rank, a.entered_at from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
+      e.frontmatter, a.rank, a.entered_at from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
   });
   const rows = await sql.unsafe<(EntityRow & { workspace: string; rank: number })[]>(
     `${parts.join(' union all ')} order by rank desc, entered_at asc limit $1`,
@@ -305,7 +308,23 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
     sync: r.sync,
     contradictions: r.contradictions,
     rank: Number(r.rank),
+    issue: issueOf(r.type, r.frontmatter),
   }));
+}
+
+/** The options of an issue the user resolves from the feed; null for any other entity or an issue without options */
+function issueOf(type: string, frontmatter: EntityFrontmatter): FeedItem['issue'] {
+  if (type !== 'Harness/Issue') return null;
+  const f = IssueFields.safeParse(frontmatter);
+  if (!f.success || f.data.options.length === 0) return null;
+  const { category, severity, options, recommended } = f.data;
+  return {
+    category,
+    severity,
+    options,
+    recommended: recommended !== undefined && recommended < options.length ? recommended : undefined,
+    concerns: frontmatter.references.filter((r) => r.relation === 'concerns').map((r) => r.to),
+  };
 }
 
 /** Entities of the enabled projects counted by verification and by sync state */

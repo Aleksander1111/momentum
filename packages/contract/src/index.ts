@@ -43,6 +43,25 @@ export const TriggerFields = z.object({
 });
 export type TriggerFields = z.infer<typeof TriggerFields>;
 
+export const Severity = z.enum(['high', 'medium', 'low']);
+export type Severity = z.infer<typeof Severity>;
+
+/** One way to resolve an issue: a short label and one sentence of what it changes */
+export const IssueOption = z.object({ label: z.string().min(1), change: z.string().min(1) });
+export type IssueOption = z.infer<typeof IssueOption>;
+
+/** Frontmatter extension of a Harness/Issue entity raised by the consistency check */
+export const IssueFields = z.object({
+  category: z.string().optional(),
+  severity: Severity.optional(),
+  options: z.array(IssueOption).default([]),
+  /** Index of the option that is obviously best, when one is */
+  recommended: z.number().int().nonnegative().optional(),
+  /** The user's reason when the issue is closed without a change */
+  wont_resolve: z.string().optional(),
+});
+export type IssueFields = z.infer<typeof IssueFields>;
+
 // Card, rendered from the markdown AST; mermaid is rendered to SVG on the server
 
 export type Inline =
@@ -161,6 +180,11 @@ export const FeedItem = z.object({
   sync: Sync,
   contradictions: z.number().int().nonnegative(),
   rank: z.number(),
+  /** An issue with options to resolve it; the entities it concerns, the one at fault first */
+  issue: IssueFields.pick({ category: true, severity: true, options: true, recommended: true })
+    .extend({ concerns: z.array(z.string()) })
+    .nullable()
+    .default(null),
 });
 export type FeedItem = z.infer<typeof FeedItem>;
 
@@ -186,6 +210,21 @@ export const SendBackRequest = z.object({
   timeSpentMs: z.number().int().nonnegative(),
 });
 export type SendBackRequest = z.infer<typeof SendBackRequest>;
+
+/** Resolves an issue with one of its options or with the user's own resolution */
+export const ResolveRequest = z
+  .object({
+    workspace: z.string(),
+    option: z.number().int().nonnegative().optional(),
+    comment: z.string().min(1).optional(),
+    timeSpentMs: z.number().int().nonnegative(),
+  })
+  .refine((r) => (r.option === undefined) !== (r.comment === undefined), 'Either an option or a comment');
+export type ResolveRequest = z.infer<typeof ResolveRequest>;
+
+/** Closes an issue without a change, with the user's reason */
+export const WontResolveRequest = SendBackRequest;
+export type WontResolveRequest = SendBackRequest;
 
 // Runs and chats
 

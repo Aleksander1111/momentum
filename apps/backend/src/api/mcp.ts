@@ -24,6 +24,18 @@ function createServer(m: Momentum): McpServer {
     { workspace: z.string(), path: z.string(), comment: z.string() },
     (a) => m.sendBack(a.workspace, a.path, a.comment, 0),
   );
+  t(
+    'resolve_issue',
+    'Resolve an issue in the feed with one of its options (by index) or with your own resolution; starts a chat run that applies it and retires the issue.',
+    { workspace: z.string(), path: z.string(), option: z.number().int().nonnegative().optional(), comment: z.string().optional() },
+    (a) => m.resolve(a.workspace, a.path, { option: a.option, comment: a.comment }, 0),
+  );
+  t(
+    'wont_resolve_issue',
+    'Close an issue in the feed without a change, with the reason.',
+    { workspace: z.string(), path: z.string(), reason: z.string() },
+    (a) => m.wontResolve(a.workspace, a.path, a.reason, 0),
+  );
   t('entity', 'Read one entity in full.', { workspace: z.string(), path: z.string() }, (a) => m.entity(a.workspace, a.path));
   t('types', 'Browse a workspace\'s entities by type path.', { workspace: z.string() }, (a) => m.types(a.workspace));
   t('search', 'Search a workspace\'s entities.', { workspace: z.string(), query: z.string() }, (a) => m.search(a.workspace, a.query));

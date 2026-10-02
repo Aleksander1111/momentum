@@ -16,7 +16,9 @@ import {
   PutSettings,
   RunDetail,
   SearchResult,
+  ResolveRequest,
   SendBackRequest,
+  WontResolveRequest,
   SessionRequest,
   SessionResponse,
   Settings,
@@ -115,6 +117,22 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
     '/feed/:path/send-back',
     { schema: { params: z.object({ path: z.string() }), body: SendBackRequest, response: { 200: z.object({ runId: z.string() }), ...errors } } },
     (req) => momentum.sendBack(req.body.workspace, req.params.path, req.body.comment, req.body.timeSpentMs),
+  );
+
+  app.post(
+    '/feed/:path/resolve',
+    { schema: { params: z.object({ path: z.string() }), body: ResolveRequest, response: { 200: z.object({ runId: z.string() }), ...errors } } },
+    (req) =>
+      momentum.resolve(req.body.workspace, req.params.path, { option: req.body.option, comment: req.body.comment }, req.body.timeSpentMs),
+  );
+
+  app.post(
+    '/feed/:path/wont-resolve',
+    { schema: { params: z.object({ path: z.string() }), body: WontResolveRequest, response: { 204: z.null(), ...errors } } },
+    async (req, reply) => {
+      await momentum.wontResolve(req.body.workspace, req.params.path, req.body.comment, req.body.timeSpentMs);
+      return reply.code(204).send(null);
+    },
   );
 
   app.get(

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -14,12 +14,13 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useMutation, useMutationState, useQuery } from '@tanstack/react-query';
 import type { FeedCounts, FeedItem, FeedResponse, Sync, Verification } from '@momentum/contract';
 import { api } from '../../lib/api';
-import { REACTIONS, type ApproveVars, type SendBackVars } from '../../lib/query';
+import { REACTIONS, type ApproveVars, type ResolveVars, type SendBackVars } from '../../lib/query';
 import { withoutItem } from '../../lib/feed';
 import { entityKey } from '../../lib/format';
 import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { CardView } from '../../ui/CardView';
+import { IssueHead, IssueOptions } from '../../ui/IssueOptions';
 import { Btn } from '../../ui/parts';
 import { STATE_LABEL, StateIcon, Tip, type State } from '../../ui/StateBadge';
 
@@ -85,7 +86,7 @@ function Counters({ counts, wide }: { counts: FeedCounts; wide: boolean }) {
   );
 }
 
-function Stamp({ kind }: { kind: 'ok' | 'no' }) {
+function Stamp({ kind, label }: { kind: 'ok' | 'no'; label: string }) {
   const colour = kind === 'ok' ? C.ok : C.no;
   return (
     <View
@@ -100,7 +101,7 @@ function Stamp({ kind }: { kind: 'ok' | 'no' }) {
       }}
     >
       <T style={{ color: colour, fontWeight: '700', letterSpacing: 3, fontSize: 15 }}>
-        {kind === 'ok' ? 'APPROVE' : 'DISAPPROVE'}
+        {label}
       </T>
     </View>
   );
@@ -112,6 +113,7 @@ function TopCard({
   wash,
   sheetOpen,
   onApprove,
+  onResolve,
   onDisapprove,
 }: {
   item: FeedItem;
@@ -119,11 +121,20 @@ function TopCard({
   wash: SharedValue<number>;
   sheetOpen: boolean;
   onApprove: () => void;
+  onResolve: (option: number) => void;
   onDisapprove: () => void;
 }) {
   const { width } = useWindowDimensions();
   const tx = useSharedValue(0);
   const hold = useSharedValue(0);
+  // An issue with options resolves with the picked one; the recommended one starts picked
+  const issue = item.issue;
+  const [picked, setPicked] = useState<number | null>(issue?.recommended ?? null);
+  const canSwipeRight = useSharedValue(issue && picked === null ? 0 : 1);
+  useEffect(() => {
+    canSwipeRight.value = issue && picked === null ? 0 : 1;
+  }, [issue, picked, canSwipeRight]);
+  const right = () => (issue && picked !== null ? onResolve(picked) : onApprove());
 
   useEffect(() => {
     if (!sheetOpen && hold.value) {
@@ -141,10 +152,10 @@ function TopCard({
       wash.value = e.translationX;
     })
     .onEnd((e) => {
-      if (e.translationX > THRESHOLD || e.velocityX > FLING) {
+      if (canSwipeRight.value && (e.translationX > THRESHOLD || e.velocityX > FLING)) {
         wash.value = withTiming(0, { duration: 400 });
         tx.value = withTiming(width * 1.2, { duration: 220 }, (finished) => {
-          if (finished) scheduleOnRN(onApprove);
+          if (finished) scheduleOnRN(right);
         });
       } else if (e.translationX < -THRESHOLD || e.velocityX < -FLING) {
         hold.value = 1;
@@ -171,30 +182,45 @@ function TopCard({
         style={[cardFrame(wide), cardSkin, { boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
       >
         <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} />
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 22, top: 210 }, okStamp]}>
-          <Stamp kind="ok" />
+        {issue ? (
+          <>
+            <IssueHead issue={issue} />
+            <IssueOptions issue={issue} picked={picked} onPick={setPicked} />
+          </>
+        ) : null}
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 22, top: issue ? 150 : 210 }, okStamp]}>
+          <Stamp kind="ok" label={issue ? 'RESOLVE' : 'APPROVE'} />
         </Animated.View>
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 18, top: 330 }, noStamp]}>
-          <Stamp kind="no" />
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 18, top: issue ? 150 : 330 }, noStamp]}>
+          <Stamp kind="no" label={issue ? 'OTHER' : 'DISAPPROVE'} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>
   );
 }
 
+/** Disapprove with a comment; for an issue, the user's own resolution or the reason it won't be resolved */
 function Sheet({
   wide,
+  issue,
   onCancel,
   onSend,
+  onWontResolve,
 }: {
   wide: boolean;
+  issue: boolean;
   onCancel: () => void;
   onSend: (comment: string) => void;
+  onWontResolve: (reason: string) => void;
 }) {
   const [comment, setComment] = useState('');
   return (
     <>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.dim }} />
+      <Pressable
+        onPress={onCancel}
+        accessibilityLabel="Cancel"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.dim }}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={
@@ -225,7 +251,7 @@ function Sheet({
               marginBottom: 14,
             }}
           />
-          <H style={{ fontSize: 22, marginBottom: 12 }}>Disapprove</H>
+          <H style={{ fontSize: 22, marginBottom: 12 }}>{issue ? 'Your resolution' : 'Disapprove'}</H>
           <TextInput
             value={comment}
             onChangeText={setComment}
@@ -251,9 +277,19 @@ function Sheet({
             ]}
           />
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Btn label="Cancel" kind="ghost" onPress={onCancel} style={{ flex: 1 }} />
+            {issue ? (
+              <Btn
+                label="Won't resolve"
+                kind="ghost"
+                disabled={!comment.trim()}
+                onPress={() => onWontResolve(comment.trim())}
+                style={{ flex: 1 }}
+              />
+            ) : (
+              <Btn label="Cancel" kind="ghost" onPress={onCancel} style={{ flex: 1 }} />
+            )}
             <Btn
-              label="Send back"
+              label={issue ? 'Send' : 'Send back'}
               kind="primary"
               disabled={!comment.trim()}
               onPress={() => onSend(comment.trim())}
@@ -272,6 +308,8 @@ export default function Feed() {
   const feed = useQuery({ queryKey: ['feed'], queryFn: api.feed, refetchInterval: 15_000 });
   const approve = useMutation<void, Error, ApproveVars>({ mutationKey: ['approve'] });
   const sendBack = useMutation<{ runId: string }, Error, SendBackVars>({ mutationKey: ['sendBack'] });
+  const resolve = useMutation<{ runId: string }, Error, ResolveVars>({ mutationKey: ['resolve'] });
+  const wontResolve = useMutation<void, Error, SendBackVars>({ mutationKey: ['wontResolve'] });
 
   // Items with a reaction in flight (or queued offline) leave the stack at once; a successful
   // reaction keeps its item hidden until a feed poll newer than the reaction arrives.
@@ -346,6 +384,9 @@ export default function Feed() {
             onApprove={() => {
               approve.mutate({ workspace: top.workspace, path: top.path, timeSpentMs: spent() });
             }}
+            onResolve={(option) => {
+              resolve.mutate({ workspace: top.workspace, path: top.path, option, timeSpentMs: spent() });
+            }}
             onDisapprove={() => setSheetFor({ item: top })}
           />
         ) : null}
@@ -353,10 +394,19 @@ export default function Feed() {
       {sheetFor ? (
         <Sheet
           wide={wide}
+          issue={!!sheetFor.item.issue}
           onCancel={() => setSheetFor(null)}
           onSend={(comment) => {
             const { item } = sheetFor;
-            sendBack.mutate({ workspace: item.workspace, path: item.path, comment, timeSpentMs: spent() });
+            const vars = { workspace: item.workspace, path: item.path, comment, timeSpentMs: spent() };
+            if (item.issue) resolve.mutate(vars);
+            else sendBack.mutate(vars);
+            wash.value = withTiming(0);
+            setSheetFor(null);
+          }}
+          onWontResolve={(comment) => {
+            const { item } = sheetFor;
+            wontResolve.mutate({ workspace: item.workspace, path: item.path, comment, timeSpentMs: spent() });
             wash.value = withTiming(0);
             setSheetFor(null);
           }}

@@ -573,6 +573,62 @@ function issues() {
   return svg(g);
 }
 
+// ---------------------------------------------------------------- issue resolution
+// The options an issue offers, resolved from the feed (apps/app/src/ui/IssueOptions.tsx, approval.ts)
+function resolution() {
+  let g = '';
+  // the issue card in the feed
+  g += rect(60, 40, 560, 860, { r: 22, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+  g += text(92, 92, 'HARNESS / ISSUE', { size: 14, bold: true, fill: C.accent, spacing: 1.5 });
+  g += text(92, 138, 'Feed ranked by impact in', { head: true, bold: true, size: 28 });
+  g += text(92, 172, 'one entity, by age in another', { head: true, bold: true, size: 28 });
+  g += rect(92, 196, 70, 30, { r: 15, fill: C.red }) + text(127, 217, 'High', { size: 15, bold: true, fill: C.white, anchor: 'middle' });
+  g += rect(172, 196, 138, 30, { r: 15, fill: LAYER.att.wash }) + text(241, 217, 'Contradiction', { size: 15, bold: true, fill: C.red, anchor: 'middle' });
+  [0.92, 0.7].forEach((b, i) => (g += rect(92, 254 + i * 20, 496 * b, 9, { r: 4.5, fill: C.bar })));
+  g += text(92, 330, 'Concerns', { size: 17, fill: C.muted });
+  g += text(92, 356, 'Product / UserStory / ranking', { size: 17 }) + text(330, 356, 'AT FAULT', { size: 13, bold: true, fill: C.red, spacing: 1.5 });
+  g += text(92, 382, 'Frontend / Screen / feed-tab', { size: 17 });
+  g += text(92, 446, 'Resolve', { head: true, bold: true, size: 22 });
+  ['Rank by impact', 'Rank by age', 'A setting picks the order'].forEach((label, i) => {
+    const y = 466 + i * 128, on = i === 0;
+    g += rect(92, y, 496, 112, { r: 14, fill: on ? '#F3F8F4' : C.white, stroke: on ? C.ok : C.line, sw: on ? 2.5 : 1.5 });
+    g += circle(124, y + 36, 10, { fill: C.white, stroke: on ? C.ok : C.line, sw: on ? 7 : 3 });
+    g += text(150, y + 43, label, { size: 21, bold: true });
+    if (on) g += text(312, y + 42, 'RECOMMENDED', { size: 13, bold: true, fill: C.ok, spacing: 1.5 });
+    [0.8, 0.5].forEach((b, j) => (g += rect(150, y + 64 + j * 18, 400 * b, 8, { r: 4, fill: C.bar })));
+  });
+
+  // the three ways out of the card
+  const lane = (y, title, sub, color, head, x2) =>
+    caption(780, y - 52, title, sub, { anchor: 'middle', fill: color, size: 26, subSize: 18 }) +
+    line(640, y, x2, y, { stroke: color, sw: 6, head });
+  g += lane(240, 'Swipe right', 'the picked option', C.ok, 'ok', 930);
+  g += lane(440, 'Swipe left', 'your own resolution', C.red, 'att', 930);
+  g += lane(760, "Won't resolve", 'with the reason', C.red, 'att', 1320);
+
+  // a chat run applies it and retires the issue
+  g += rect(940, 160, 280, 340, { r: 34, fill: LAYER.att.wash, stroke: C.red, sw: 2.5, shadow: true });
+  g += iconAt('FaComments', 1080, 250, 56, C.red);
+  g += text(1080, 320, 'Chat run', { head: true, bold: true, size: 28, anchor: 'middle' });
+  ['applies it to the', 'concerned entities', 'and retires the issue'].forEach((s, i) => (g += text(1080, 356 + i * 26, s, { size: 18, fill: C.muted, anchor: 'middle' })));
+  g += line(1220, 245, 1320, 245, { stroke: C.ink, sw: 5, head: 'ink' });
+  g += line(1220, 455, 1320, 455, { stroke: C.ink, sw: 5, head: 'ink' });
+  g += miniCard(1330, 150, 220, 90, { crumb: 'PRODUCT / USERSTORY', crumbSize: 11, bars: [0.85, 0.6], glyphs: ['unverified'], pad: 16 });
+  g += miniCard(1350, 256, 220, 90, { crumb: 'FRONTEND / SCREEN', crumbSize: 11, bars: [0.85, 0.6], glyphs: ['unverified'], pad: 16 });
+  g += caption(1600, 236, 'Concerned entities', 'changed, unverified, back in the feed', { size: 24, subSize: 18 });
+  g += `<g opacity="0.45">${miniCard(1330, 410, 220, 90, { crumb: 'HARNESS / ISSUE', crumbSize: 11, bars: [0.85, 0.6], pad: 16 })}</g>`;
+  g += circle(1550, 414, 20, { fill: C.red, stroke: C.white, sw: 3 }) + iconAt('FaXmark', 1550, 414, 20, C.white);
+  g += caption(1600, 450, 'Issue retired', 'deleted by the same run', { size: 24, subSize: 18 });
+
+  // won't resolve: kept, verified, with the reason
+  g += line(940, 600, 1860, 600, { stroke: C.line, sw: 2 });
+  g += miniCard(1330, 690, 220, 140, { crumb: 'HARNESS / ISSUE', crumbSize: 11, bars: [0.85, 0.6], glyphs: ['verified'], pad: 16 });
+  g += rect(1346, 776, 188, 34, { r: 8, fill: C.paper }) + text(1440, 799, 'wont_resolve: reason', { size: 14, anchor: 'middle', fill: C.muted });
+  g += caption(1600, 746, 'Issue kept, verified', 'with the reason in its frontmatter', { size: 24, subSize: 18 });
+  g += text(1600, 806, 'not raised again', { size: 18, fill: C.muted }) + text(1600, 832, 'no longer a contradiction', { size: 18, fill: C.muted });
+  return svg(g);
+}
+
 // ---------------------------------------------------------------- entity types
 // Read from docs/entity-types.tsv, so the slide follows the list
 function entityTypes() {
@@ -909,6 +965,7 @@ const SLIDES = [
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
   ['Consistency gate', gate, 'Every write is checked while the run works. When it ends, the transaction passes the gate: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
   ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, cards over the character limit, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
+  ['Issue resolution', resolution, "Every issue the consistency check raises offers two to four options to resolve it, each a label and one sentence of what it changes, with the obviously best one recommended when there is one. The feed card shows them with the recommended option picked; a tap picks another. Swipe right resolves with the picked option, swipe left with the user's own resolution: either starts a chat run that applies it to the concerned entities and retires the issue, and the changed entities come back to the feed unverified. Won't resolve keeps the issue, verified, with the reason: the check does not raise it again and it no longer counts as a contradiction."],
   ['Git', git,"One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],
   ['User actions', actions, 'Swipe right approves: one commit, verified; an implementable entity with nothing implementing it starts an implementation run. Swipe left sends back with a comment: a chat run works on the entity. Chat, run on demand, stop a run, manage projects, edit entities and change settings.'],
   ['Settings', settings, 'The Settings tab: theme on this device; included projects, each enabled or disabled, with its knowledge graph build; feed size, the items before loops pause; cards, the character limit and presentation rules; paths never summarized; lifetimes per entity type; concurrent runs in total; models, one for all, per automation or by implementation risk. Values shown are the harness defaults, with models shown by risk.'],

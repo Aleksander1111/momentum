@@ -61,6 +61,16 @@ export class Momentum {
     return { runId };
   }
 
+  async resolve(workspace: string, path: string, choice: { option?: number; comment?: string }, timeSpentMs: number): Promise<{ runId: string }> {
+    const runId = await this.approval.resolve(workspace, path, choice, timeSpentMs);
+    void this.orchestrator.tick();
+    return { runId };
+  }
+
+  async wontResolve(workspace: string, path: string, reason: string, timeSpentMs: number): Promise<void> {
+    await this.approval.wontResolve(workspace, path, reason, timeSpentMs);
+  }
+
   async entity(workspace: string, path: string): Promise<EntityDetail> {
     const d = await (await this.workspaces.get(workspace)).index.detail(path);
     if (!d) throw new NotFound(`No entity ${path} in ${workspace}`);

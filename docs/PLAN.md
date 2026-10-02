@@ -101,7 +101,7 @@ Frontmatter beyond the fields above:
 | Entity type | Fields |
 |---|---|
 | Harness/Trigger | `automation`, `schedule` (cron), `events` (`entity_ahead`, `implementation_finished`), `on_demand` |
-| Harness/Issue | `source`: guard, consistency_check or validation; `category` on consistency_check issues: reference, card-limit, type-path, contradiction, repetition, ambiguity, design-gap, logical, naming, struct, verbose, split; a contradiction issue counts on every entity it concerns as its `contradictions` |
+| Harness/Issue | `source`: guard, consistency_check or validation; `category` on consistency_check issues: reference, card-limit, type-path, contradiction, repetition, ambiguity, design-gap, logical, naming, struct, verbose, split; `severity` on content categories: high, medium or low; `options` (label, change) and an optional `recommended` index on consistency_check issues; `wont_resolve`, the user's reason, on an issue closed without a change; an open contradiction issue counts on every entity it concerns as its `contradictions` |
 | Harness/Conflict | `source`: guard; `artifacts`: the files outside the knowledge graph that conflicted; `concerns` references to the entities that conflicted or stand over the artifacts |
 | Harness/Automation | `variant`, when competing implementations are compared |
 
@@ -118,17 +118,19 @@ Relations the harness acts on: `implements` (sync), `retires` (retention), `conc
 | 4 | Runs package | 0 | Worktree lifecycle, Agent SDK session per run, job object limits, kill, usage capture from the SDK as a share of the 5-hour and weekly limits |
 | 5 | Consistency guard | 2, 3, 4 | Hooks and watcher per run, transaction grouping, validation, issue entities, sync state, index update, ranking |
 | 6 | Orchestrator | 4, 5 | Loops per enabled project, schedule, event and on-demand triggers read from each workspace's trigger entities, feed-size bound, concurrency semaphore, chat runs |
-| 7 | API | 1, 3, 6 | Session, feed, approve, send back, entities, search, chats, runs, metrics, settings; MCP surface over the same handlers |
+| 7 | API | 1, 3, 6 | Session, feed, approve, send back, resolve, won't resolve, entities, search, chats, runs, metrics, settings; MCP surface over the same handlers |
 | 8 | Automations | 3, 4 | Ten definition entities in `knowledge-graph/Harness/Automation/` with artifacts in `automations/`: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, graph build; a default trigger entity for each of the eight automations that start by schedule, event or on demand (summarization runs from the Stop hook, the graph build starts with enabling, so they have none), committed unverified to the main line when a workspace is enabled, so they wait in the feed; materialization on approval |
 | 9 | App | 1, 7 | Seven pages below, web and mobile |
 | 10 | Metrics | 3, 5, 7 | Attention, understanding, agents, implementation metrics; usage as percentage points of the rolling 5-hour and weekly limits; attention patterns |
 | 11 | End-to-end validation | all | The harness repository runs as a workspace on the machine: loops produce feed items, approval lands on the main line, metrics fill |
 
-## Approval and send back
+## Approval, send back and issue resolution
 
 - Two independent states per entity: `verification` (unverified, verified) is the user's judgement; `sync` (synced, entity_ahead, artifact_ahead, updating) is the entity against its artifact or implementation.
 - Approve: the entity already stands on the main line; one commit sets `verification: verified` in its file, removes the entities it `retires` and sets the entities it `implements` to `synced`. The commit is made without a working tree; in the checkout that has the main line, only files that were clean are updated. An `attention_metric` row is recorded. An implementable entity (Product/Feature, FeatureRequest, UserStory, DevTask, Bug, TechDebt, Harness/Plan) with no `implements` reference becomes `entity_ahead`: approved, awaiting implementation. A plan is such an entity and nothing more: approved and ahead of its artifacts.
 - Send back: the comment starts a chat run with the comment as its prompt and the entity as its `target_path`; `sync` is `updating` until that run's transaction lands. What happens to the entity is decided by the comment, not by a state.
+- Resolve an issue: an issue with `options` shows them on its feed card, the recommended one picked. Swipe right resolves with the picked option, swipe left with the user's own text: either starts a chat run that applies it to the entities the issue `concerns` and retires the issue. A picked option is recorded as approved, the user's own as sent back.
+- Won't resolve: one commit sets `verification: verified` and `wont_resolve` to the user's reason; the issue stays in the knowledge graph, so the consistency check does not raise it again, and no longer counts as a contradiction. Recorded as rejected.
 - Implementation run: targets an `entity_ahead` entity, which is `updating` while it runs; the approved result carries an `implements` reference and both become `synced`.
 - Artifact change: the guard sets `artifact_ahead` and summarization rewrites the card; `verification` is untouched until the rewrite reaches the feed.
 - Implementation: the work lands on the main line when the run ends, like every run's; `implementation_finished` starts a validation run over it, and a failed validation raises a Harness/Issue with `source: validation`. Nothing is merged and nothing is held.
