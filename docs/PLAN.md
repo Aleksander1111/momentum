@@ -29,7 +29,7 @@ The infrastructure is built in one pass. Work packages below are ordered by depe
 | Harness settings | Schema `harness` in the same Postgres database: enabled projects and the state of their knowledge graph build, feed size, lifetime rules, card configuration (character limit, presentation rules), path patterns never summarized, concurrency, models, sessions, the workspace of every run id, usage readings | Enabling a project must not create commits in it |
 | Authentication | Single user; password generated at install into `C:\Projects\.momentum\password.txt` (`pnpm momentum generate-password`), or chosen with `pnpm momentum set-password`; session token in an httpOnly cookie on web and SecureStore on mobile, as a bearer token for MCP; API listens only on the Tailscale interface, `MOMENTUM_HOST` overrides it for local testing | Per-user session on top of the mesh; no port on the public internet |
 | Voice tools | The API doubles as an MCP server (streamable HTTP, `/mcp`, behind the same session) over the same handlers, plus `run_automation` for automations whose trigger allows starting on demand | Every capability reachable without the UI |
-| Machine | This machine: Windows 11, workspaces root `C:\Projects`; back-end as a Windows service (WinSW, config in `apps/backend/service/`, running under the user's account for its Claude Code login and git identity), Tailscale for Windows, Claude Code CLI, Node 24 from the Node.js installer, procgov from winget | Self-hosted on the dedicated machine as it is |
+| Machine | This machine: Windows 11, workspaces root `C:\Projects`; back-end served at every logon by the `Momentum` scheduled task (`apps/backend/service/install.ps1` registers it; `serve.ps1` waits for Postgres and runs `pnpm dev` hidden under the user's account for its Claude Code login and git identity, restarting on every change on main), Tailscale for Windows, Claude Code CLI, Node 24 from the Node.js installer, procgov from winget | Self-hosted on the dedicated machine as it is |
 | Mobile distribution | Android APK built locally with the Android SDK and sideloaded; iPhone runs the web build installed as a PWA, since iOS cannot be built on Windows | No cloud build service |
 | Testing | Vitest for parser, guard, hooks, ranking and orchestrator, against a separate `momentum_test` database; Playwright for the web app; end-to-end runs on a throwaway copy of the harness repository and database | The harness manages itself |
 
@@ -41,7 +41,7 @@ Assumed, not verified: procgov limits hold for the Claude Code subprocess tree.
 momentum/
   apps/
     app/                Expo app: web + iOS + Android
-    backend/            Fastify API, orchestrator, guard, MCP surface; service/ holds the WinSW config
+    backend/            Fastify API, orchestrator, guard, MCP surface; service/ holds the scheduled task that serves it
   packages/
     contract/           zod schemas and types shared by app and backend; generated openapi.json
     entity/             markdown parser, validator, mermaid renderer
@@ -111,7 +111,7 @@ Relations the harness acts on: `implements` (sync), `retires` (retention), `conc
 
 | # | Package | Depends on | Delivers |
 |---|---|---|---|
-| 0 | Machine | — | Tailscale, Node, Claude Code CLI, procgov, WinSW service, `C:\Projects` as the workspaces root, this repository as the first workspace |
+| 0 | Machine | — | Tailscale, Node, Claude Code CLI, procgov, Momentum scheduled task, `C:\Projects` as the workspaces root, this repository as the first workspace |
 | 1 | Contract | — | zod schemas for entity, feed item, run, chat, metrics, settings; generated OpenAPI |
 | 2 | Entity package | 1 | Parser, validator, mermaid renderer, golden fixtures |
 | 3 | KB package | 2 | Schema of the tables from SPEC.md per workspace (see Database below), full text, pgvector, embeddings, retrieval, `momentum-kb` MCP server |
