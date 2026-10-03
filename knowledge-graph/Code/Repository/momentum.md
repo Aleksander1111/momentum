@@ -24,5 +24,6 @@ pnpm monorepo of the Momentum harness: TypeScript everywhere, Node 24.
 | automations/ | Claude Code files of the automation definitions |
 | knowledge-graph/ | This knowledge base |
 | docs/ | Presentation, slides, entity-types.tsv |
+| examples/ | todo-cli, bookshelf-api, handbook: projects the end-to-end scenarios run over |
 
-Scripts: `pnpm dev` (watch mode), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI).
+Scripts: `pnpm dev` (watch mode), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI), `pnpm e2e` (Playwright scenarios, apps/backend/e2e).

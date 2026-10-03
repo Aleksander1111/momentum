@@ -26,13 +26,12 @@ artifacts:
 
 One Claude Code session per run, in a detached checkout of the main line.
 
-- **Queue**: automation serialized per workspace; user runs at once
-- **Start**: checkout at the tip; guard, KB and run MCP, hooks
+- **Start**: checkout at the tip; guard, KB and run MCP, hooks; automation runs one per workspace
 - **Model**: from settings, or by risk for an implementation
-- **Context**: card parts ahead of the prompt: file > headings > quote or element
+- **Context**: card selections; optimization also gets the enabled projects
+- **Messages**: in order; one to a starting run waits for it, to a queued run joins its prompt
 - **Stop hook**: changed artifacts, graph-build documents to summarization
-- **Usage**: limit rises split among runs
+- **Usage**: split among runs
 - **Finish**: guard lands it; metrics, coverage
-- **Restart**: lost runs resume twice at most; chats, interviews on the next message
-- **Chat**: transcript `chats/<id>.jsonl`
-- **Interview**: summary and commit message once done
+- **Restart**: lost runs resume twice at most
+- **Chat**: transcript `chats/<id>.jsonl`; **interview**: summary and commit message once done

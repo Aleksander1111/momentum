@@ -14,9 +14,10 @@ artifacts:
 
 Aligns the automations with the user, measured on the collected metrics.
 
-- Analyzes the chats since its last run and the issues raised: misalignments and recurring issues
-- Records their counts with `record_agent_metric`
-- Resolves the most recurring: a skill, sub-agent, definition change, new tool or MCP server, or trigger change
-- Proposes through the feed: definition entities and automations/<name>/ files in the harness workspace, trigger entities in any workspace
+- Runs in the harness workspace alone, over every enabled project, which it reads but never writes
+- Analyzes each project's chats since its last run and the issues raised: misalignments and recurring issues
+- Records their counts across projects with `record_agent_metric`
+- Resolves the most recurring: skill, sub-agent, definition, tool, MCP server or trigger change
+- Proposes through the feed: definition entities and automations/<name>/ files, trigger changes in its trigger.md
 - Competing implementations get a `variant` so the metrics compare them
-- Each card gives the evidence and the expected effect
+- Each card gives the evidence, by project, and the expected effect
