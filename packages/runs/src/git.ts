@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, rm } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
@@ -119,6 +120,27 @@ export async function commitAll(checkout: string, message: string): Promise<stri
   if (await isClean(checkout)) return null;
   await git(checkout, [...IDENTITY, 'commit', '-q', '-m', message]);
   return head(checkout);
+}
+
+/** Where a run leaves the commit message for its changes: the checkout's own git directory, so it is never committed */
+export async function messageFile(checkout: string): Promise<string> {
+  return resolve(checkout, (await git(checkout, ['rev-parse', '--git-path', 'MOMENTUM_MSG'])).trim());
+}
+
+/**
+ * The tree the checkout would commit, untracked files included, without touching its index: the same tree for the
+ * same changes. A copy of the index keeps its stat cache, so unchanged files are not hashed again.
+ */
+export async function workingTree(checkout: string): Promise<string> {
+  const index = join(tmpdir(), `momentum-index-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const env = { ...process.env, GIT_INDEX_FILE: index };
+  try {
+    await copyFile(resolve(checkout, (await git(checkout, ['rev-parse', '--git-path', 'index'])).trim()), index);
+    await exec('git', ['add', '-A'], { cwd: checkout, env, ...OPTIONS });
+    return (await exec('git', ['write-tree'], { cwd: checkout, env, ...OPTIONS })).stdout.trim();
+  } finally {
+    await rm(index, { force: true });
+  }
 }
 
 export interface Change {

@@ -50,7 +50,12 @@ export class Approval {
       files.push({ path: fileOf(target), content: serializeEntity(t) });
     }
 
-    await commitPathsFrom(ws.path, ws.main, files, `momentum: approve ${path}`);
+    const touched = (target: string) => files.some((f) => f.path === fileOf(target));
+    const effects = [
+      ...retired.filter(touched).map((t) => `Retire ${t}`),
+      ...implemented.filter(touched).map((t) => `Bring ${t} back in sync`),
+    ];
+    await commitPathsFrom(ws.path, ws.main, files, [`Approve ${entity.title}`, ...(effects.length ? ['', ...effects] : [])].join('\n'));
     await ws.index.recordReaction(path, row.type, 'approved', timeSpentMs);
     await this.guard.indexMainLine(ws);
     for (const target of implemented) await ws.index.setSync(target, 'synced');
@@ -133,7 +138,7 @@ export class Approval {
     entity.frontmatter.verification = 'verified';
     entity.frontmatter.wont_resolve = reason;
 
-    await commitPathsFrom(ws.path, ws.main, [{ path: fileOf(path), content: serializeEntity(entity) }], `momentum: won't resolve ${path}`);
+    await commitPathsFrom(ws.path, ws.main, [{ path: fileOf(path), content: serializeEntity(entity) }], `Won't resolve ${entity.title}\n\n${reason}`);
     await ws.index.recordReaction(path, row.type, 'rejected', timeSpentMs);
     await this.guard.indexMainLine(ws);
     this.bus.emit('feed_changed');

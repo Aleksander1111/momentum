@@ -89,7 +89,7 @@ export class Orchestrator {
       await this.removeCheckouts(ws);
       const files = await listFiles(ws.path, `refs/heads/${ws.main}`, KNOWLEDGE_GRAPH);
       if (files.length > 0) {
-        await commitPathsFrom(ws.path, ws.main, files.map((path) => ({ path, content: null })), 'momentum: reset the knowledge graph');
+        await commitPathsFrom(ws.path, ws.main, files.map((path) => ({ path, content: null })), 'Reset the knowledge graph');
       }
       await this.workspaces.drop(ws.name);
       await this.settings.resetProject(ws.name);
@@ -158,7 +158,7 @@ export class Orchestrator {
     if ((await ws.index.byType(TRIGGER_TYPE)).length > 0) return;
     const defaults = await this.automations.defaultTriggers();
     if (defaults.length === 0) return;
-    await commitPathsFrom(ws.path, ws.main, defaults.map((t) => ({ path: fileOf(t.path), content: t.text })), 'momentum: default triggers');
+    await commitPathsFrom(ws.path, ws.main, defaults.map((t) => ({ path: fileOf(t.path), content: t.text })), 'Add the default triggers');
     await this.guard.indexMainLine(ws);
   }
 

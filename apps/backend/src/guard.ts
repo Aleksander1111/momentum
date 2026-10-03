@@ -13,10 +13,10 @@ import {
   type ValidationIssue,
 } from '@momentum/entity';
 import type { Embed } from '@momentum/kb';
-import { changes, head, land, listFiles, mergeBase, show, workingChanges, type Landed } from '@momentum/runs';
+import { changes, head, land, listFiles, mergeBase, messageFile, show, workingChanges, type Landed } from '@momentum/runs';
 import { watch, type FSWatcher } from 'chokidar';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
@@ -214,7 +214,7 @@ export class Guard {
     const valid = issues.length === 0;
     if (!valid) await this.raiseIssue(ws, run, issues);
 
-    const landed = await this.land(ws, run, `momentum: ${run.automation} run ${run.id}`);
+    const landed = await this.land(ws, run, await this.message(run, written));
     await this.indexMainLine(ws);
     if (run.targetPath && !written.some((w) => w.path === run.targetPath)) {
       const row = await ws.index.row(run.targetPath);
@@ -231,6 +231,21 @@ export class Guard {
     await this.recordMetrics(ws);
     this.bus.emit('transaction', { workspace: ws.name, runId: run.id, commit: landed?.commit ?? null, paths, valid });
     return { valid, paths, issues, conflicts: landed?.conflicts ?? [], commit: landed?.commit ?? null };
+  }
+
+  /**
+   * The commit message the run wrote for its changes, taken out of its checkout; without one, what changed: the
+   * titles of the entities it wrote and the paths of everything else
+   */
+  private async message(run: RunRef, written: { path: string; entity: ParsedEntity }[]): Promise<string> {
+    const file = await messageFile(run.checkout);
+    const text = (await readFile(file, 'utf8').catch(() => '')).trim();
+    await rm(file, { force: true });
+    if (text) return text;
+    const titles = new Map(written.map((w) => [w.path, w.entity.title]));
+    const names = (await workingChanges(run.checkout, await head(run.checkout))).map((c) => titles.get(entityPathOf(c.path) ?? '') ?? c.path);
+    if (names.length <= 1) return `Update ${names[0] ?? 'the knowledge graph'}`;
+    return `Update ${names[0]} and ${names.length - 1} more\n\n${names.map((n) => `- ${n}`).join('\n')}`;
   }
 
   /** Lands the checkout on the main line; conflicted files take the run's version, raised as a Harness/Conflict in the same commit */

@@ -26,7 +26,7 @@ export async function landRunBranches(ws: Workspace): Promise<{ landed: string[]
     if (!merged) {
       let result = null;
       for (let attempt = 0; attempt < 5 && !result; attempt++) {
-        result = await landCommit(ws.path, ws.main, tip, `momentum: land ${branch}`);
+        result = await landCommit(ws.path, ws.main, tip, (await git(ws.path, ['log', '-1', '--format=%B', tip])).trim());
       }
       if (!result) throw new Error(`${ws.name}: could not land ${branch}`);
       landed.push(branch);

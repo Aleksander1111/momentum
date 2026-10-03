@@ -36,6 +36,7 @@ ${body}
 type M = Awaited<ReturnType<typeof import('../src/app.ts').createMomentum>>;
 let m: M;
 let ensureCheckout: typeof import('@momentum/runs').ensureCheckout;
+let messageFile: typeof import('@momentum/runs').messageFile;
 
 const checkoutOf = (id: string) => join(root, '.runs', 'alpha', id);
 const ref = (id: string, automation = 'chat') => ({ id, workspace: 'alpha', automation, checkout: checkoutOf(id), targetPath: null });
@@ -71,7 +72,7 @@ beforeAll(async () => {
   git(harness, 'commit', '-q', '--allow-empty', '-m', 'init');
 
   const app = await import('../src/app.ts');
-  ({ ensureCheckout } = await import('@momentum/runs'));
+  ({ ensureCheckout, messageFile } = await import('@momentum/runs'));
   m = await app.createMomentum();
   await m.settings.setEnabled('alpha', true);
   await m.guard.indexMainLine(await m.workspaces.get('alpha'));
@@ -411,7 +412,30 @@ describe('guard hooks in a run', () => {
 
     put(checkout, file, entity('Product/Bug', 'Crash', 'Crashes.', ['Architecture/Api/session']));
     expect(await post({ ...base, hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: file }, tool_response: {}, tool_use_id: 't' } as never, 't', opts)).toEqual({});
-    expect(await stop(stopInput, undefined, opts)).toEqual({});
+    const message = await messageFile(checkout);
+    expect(await stop(stopInput, undefined, opts)).toMatchObject({ decision: 'block', reason: expect.stringContaining(message) });
+    writeFileSync(message, 'Record the crash bug\n');
+    expect(await stop(stopInput, undefined, opts)).toEqual({}); // the message describes the changes as they stand
+
+    put(checkout, file, entity('Product/Bug', 'Crash', 'Crashes on start.', ['Architecture/Api/session']));
+    expect(await stop(stopInput, undefined, opts)).toMatchObject({ decision: 'block', reason: expect.stringContaining(message) });
+  });
+
+  it('lands a run with the commit message it wrote, and without one with what it changed', async () => {
+    const ws = await m.workspaces.get('alpha');
+    const land = async (id: string, file: string, message: string | null) => {
+      const checkout = checkoutOf(id);
+      await ensureCheckout(repo, checkout, 'main');
+      put(checkout, file, entity('Product/Bug', `Bug ${id}`, 'Crashes.'));
+      if (message) writeFileSync(await messageFile(checkout), message);
+      await m.guard.transaction(ref(id));
+      return git(repo, 'log', '-1', '--format=%B', 'main').trim();
+    };
+    expect(await land('m1', 'knowledge-graph/Product/Bug/m1.md', 'Record the start-up crash\n\nIt crashes before the window opens.\n'))
+      .toBe('Record the start-up crash\n\nIt crashes before the window opens.');
+    expect(await land('m2', 'knowledge-graph/Product/Bug/m2.md', null)).toBe('Update Bug m2');
+    expect(existsSync(await messageFile(checkoutOf('m1')))).toBe(false);
+    await m.guard.indexMainLine(ws);
   });
 
   it('hands the artifacts to summarization once, when the run stops by itself', async () => {
