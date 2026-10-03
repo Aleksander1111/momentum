@@ -11,6 +11,7 @@ import { landRunBranches } from './legacy.ts';
 import { Momentum } from './momentum.ts';
 import { Orchestrator } from './orchestrator.ts';
 import { Runner } from './runner.ts';
+import { Timeline } from './timeline.ts';
 import { Voice } from './voice/voice.ts';
 import { Workspaces } from './workspaces.ts';
 
@@ -23,6 +24,9 @@ export async function createMomentum() {
   await settings.migrate();
   await settings.discover();
   const bus = createBus();
+  const timeline = new Timeline(sql);
+  await timeline.migrate();
+  timeline.listen(bus);
   const embed = createEmbedder();
   const workspaces = new Workspaces(sql, settings);
   // Branches left by runs from before everything went to the main line are landed on it once
@@ -37,12 +41,12 @@ export async function createMomentum() {
   }
   const guard = new Guard(workspaces, settings, bus, createDiagramRenderer(), embed);
   const automations = new Automations(workspaces);
-  const runner = new Runner(workspaces, settings, guard, automations, bus, embed);
-  const approval = new Approval(workspaces, settings, guard, runner, bus);
+  const runner = new Runner(workspaces, settings, guard, automations, bus, embed, timeline);
+  const approval = new Approval(workspaces, settings, guard, runner, bus, timeline);
   const orchestrator = new Orchestrator(workspaces, settings, guard, runner, automations, bus);
-  const momentum = new Momentum(sql, workspaces, settings, approval, runner, orchestrator, automations, embed);
+  const momentum = new Momentum(sql, workspaces, settings, approval, runner, orchestrator, automations, embed, timeline);
   const auth = new Auth(sql);
   // Followed only once the server starts it: the CLI never acts on what is said
   const voice = new Voice(sql, momentum, config.commandStream, config.voiceSources);
-  return { sql, settings, bus, workspaces, guard, automations, runner, approval, orchestrator, momentum, auth, voice };
+  return { sql, settings, bus, timeline, workspaces, guard, automations, runner, approval, orchestrator, momentum, auth, voice };
 }

@@ -24,6 +24,8 @@ import {
   SessionRequest,
   SessionResponse,
   Settings,
+  TimelineQuery,
+  TimelineResponse,
   TypesResponse,
   VoiceUp,
   Workspace,
@@ -46,7 +48,7 @@ import { mcpHandler } from './mcp.ts';
 
 export const COOKIE = 'momentum_session';
 const PUBLIC = new Set(['POST /session']);
-const API = /^\/(workspaces|feed|runs|settings|session|mcp|voice)(\/|\?|$)/;
+const API = /^\/(workspaces|feed|runs|settings|session|mcp|voice|timeline)(\/|\?|$)/;
 
 function tokenOf(req: FastifyRequest): string | undefined {
   const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
@@ -92,14 +94,19 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
   app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
 
   app.post('/session', { schema: { body: SessionRequest, response: { 200: SessionResponse, 401: ErrorResponse } } }, async (req, reply) => {
-    if (!(await auth.verify(req.body.password))) return reply.code(401).send({ error: 'Wrong password' });
+    if (!(await auth.verify(req.body.password))) {
+      await momentum.timeline.record({ actor: 'user', kind: 'sign_in_failed', title: 'Sign in refused: wrong password', detail: req.ip });
+      return reply.code(401).send({ error: 'Wrong password' });
+    }
     const { token, expiresAt } = await auth.createSession();
+    await momentum.timeline.record({ actor: 'user', kind: 'signed_in', title: 'Signed in', detail: req.ip });
     reply.setCookie(COOKIE, token, { httpOnly: true, sameSite: 'strict', path: '/', expires: expiresAt, secure: false });
     return { token, expiresAt: expiresAt.toISOString() };
   });
 
   app.delete('/session', async (req: FastifyRequest, reply: FastifyReply) => {
     const token = tokenOf(req);
+    if (token) await momentum.timeline.record({ actor: 'user', kind: 'signed_out', title: 'Signed out' });
     if (token) await auth.endSession(token);
     reply.clearCookie(COOKIE, { path: '/' });
     return reply.code(204).send();
@@ -220,6 +227,10 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
 
   app.delete('/workspaces/:ws/logo', { schema: { params: ws, response: { 200: Workspace, ...errors } } }, (req) =>
     momentum.setProjectLogo(req.params.ws, null),
+  );
+
+  app.get('/timeline', { schema: { querystring: TimelineQuery, response: { 200: TimelineResponse, ...errors } } }, (req) =>
+    momentum.events(req.query),
   );
 
   app.get('/settings', { schema: { response: { 200: Settings, ...errors } } }, () => momentum.getSettings());

@@ -14,6 +14,7 @@ import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { guardHooks } from './hooks.ts';
+import { endKind, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
 import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
@@ -96,6 +97,7 @@ interface Active {
   interview?: InterviewState | null;
   /** Settles once the run's changes have landed on the main line and its status is recorded */
   finished?: Promise<void>;
+  stoppedByUser?: boolean;
 }
 
 /** How often a run lost at restart is queued again before it fails */
@@ -125,6 +127,7 @@ export class Runner {
     private readonly automations: Automations,
     private readonly bus: Bus,
     private readonly embed: Embed,
+    private readonly timeline: Timeline,
   ) {}
 
   private t(ws: Workspace, table: string) {
@@ -215,6 +218,12 @@ export class Runner {
     }
     if (spec.automation === 'interview') await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt);
     if (spec.targetPath) await this.guard.markUpdating(ws, spec.targetPath);
+    // A chat's or an interview's turns are the user's messages; their runs are recorded when they land, fail or stop
+    if (!conversational(spec.automation)) {
+      await this.timeline.run(
+        runEvent(ws.name, { id, automation: spec.automation, title: spec.title, targetPath: spec.targetPath }, 'run_queued', { facts: { trigger: spec.trigger } }),
+      );
+    }
     return id;
   }
 
@@ -256,7 +265,10 @@ export class Runner {
       where automation = ${automation} and status in ('queued', 'running')`;
     for (const r of rows) {
       if (this.active.has(r.id)) this.active.get(r.id)!.handle.kill();
-      else await this.setStatus(ws, r.id, 'killed', { ended_at: new Date() });
+      else {
+        await this.setStatus(ws, r.id, 'killed', { ended_at: new Date() });
+        await this.timeline.run(runEvent(ws.name, await this.row(ws, r.id), 'run_killed', { facts: { status: 'killed' } }));
+      }
     }
     return rows.map((r) => r.id);
   }
@@ -292,6 +304,7 @@ export class Runner {
         if (this.active.has(r.id)) continue;
         if (!conversational(r.automation) && r.restarts < MAX_RESTARTS && existsSync(r.checkout)) {
           await this.setStatus(ws, r.id, 'queued', { restarts: r.restarts + 1 });
+          await this.timeline.run(runEvent(ws.name, r, 'run_requeued'));
           console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart and is queued again`);
           continue;
         }
@@ -300,6 +313,7 @@ export class Runner {
           await removeWorktree(ws.path, r.checkout).catch(() => {});
         }
         await this.setStatus(ws, r.id, 'failed', { ended_at: new Date(), error: 'lost at restart' });
+        await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: 'Lost at restart', facts: { status: 'failed' } }));
         console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart`);
       }
     }
@@ -334,6 +348,7 @@ export class Runner {
       await this.launch(ws, r, ref, prompt, r.session_id);
     } catch (e) {
       await this.setStatus(ws, id, 'failed', { error: (e as Error).message, ended_at: new Date() });
+      await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } }));
       await this.guard.unwatch(id);
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
     }
@@ -342,7 +357,13 @@ export class Runner {
   private async launch(ws: Workspace, r: RunRow, ref: RunRef, prompt: string, resume: string | null): Promise<void> {
     const definition = await this.automations.definition(ws, r.automation);
     const { cards, lifetimes, models } = await this.settings.values();
-    const model = r.model ?? (await this.chooseModel(ws, r, models));
+    const { model, risk } = r.model ? { model: r.model, risk: r.risk } : await this.chooseModel(ws, r, models);
+    // A chat's or an interview's turns are the user's messages; their runs are recorded when they fail
+    if (!conversational(r.automation)) {
+      await this.timeline.run(
+        runEvent(ws.name, r, resume ? 'run_resumed' : 'run_started', { facts: { model, trigger: r.trigger, ...(risk ? { risk } : {}) } }),
+      );
+    }
     const entry: Active = {
       ref,
       ws,
@@ -433,7 +454,7 @@ export class Runner {
   }
 
   /** The model a run starts on; in risk mode an implementation gets the one set for its estimated risk */
-  private async chooseModel(ws: Workspace, r: RunRow, models: ModelSettings): Promise<ModelChoice> {
+  private async chooseModel(ws: Workspace, r: RunRow, models: ModelSettings): Promise<{ model: ModelChoice; risk: Risk | null }> {
     let model = setModel(models, r.automation);
     let risk: Risk | null = null;
     if (models.mode === 'risk' && r.automation === 'implementation') {
@@ -445,7 +466,7 @@ export class Runner {
     }
     await ws.index.sql`update ${this.t(ws, 'run')} set model = ${model}, risk = ${risk} where id = ${r.id}`;
     console.log(`run ${r.id} (${r.automation}, ${ws.name}) on ${model}${risk ? `, ${risk} risk` : ''}`);
-    return model;
+    return { model, risk };
   }
 
   /** The user's risk rules applied to the target and its plans; null without rules or a target */
@@ -521,8 +542,12 @@ export class Runner {
     await this.launch(ws, r, this.ref(ws, r), prompt, r.session_id);
   }
 
-  async kill(id: string): Promise<void> {
-    this.active.get(id)?.handle.kill();
+  /** Ends a run; one the user stops says so on its event */
+  async kill(id: string, byUser = false): Promise<void> {
+    const entry = this.active.get(id);
+    if (!entry) return;
+    entry.stoppedByUser ||= byUser;
+    entry.handle.kill();
   }
 
   /**
@@ -560,12 +585,28 @@ export class Runner {
       await this.guard.transaction(entry.ref);
       if (r.automation === 'chat') await this.recordTranscript(ws, r);
       const status: RunStatus = result.error === 'killed' ? 'killed' : result.ok ? 'finished' : 'failed';
+      const endedAt = new Date();
+      const usage = { fiveHour: entry.base.fiveHour + entry.usage.fiveHour, week: entry.base.week + entry.usage.week };
       await this.setStatus(ws, id, status, {
-        ended_at: new Date(),
+        ended_at: endedAt,
         error: result.ok ? null : result.error,
-        usage_five_hour: entry.base.fiveHour + entry.usage.fiveHour,
-        usage_week: entry.base.week + entry.usage.week,
+        usage_five_hour: usage.fiveHour,
+        usage_week: usage.week,
       });
+      if (!conversational(r.automation) || status !== 'finished') {
+        await this.timeline.run(
+          runEvent(ws.name, r, endKind(status), {
+            byUser: entry.stoppedByUser,
+            detail: result.ok ? null : result.error,
+            facts: {
+              status,
+              usage,
+              ...(r.model ? { model: r.model } : {}),
+              ...(r.started_at ? { durationMs: endedAt.getTime() - r.started_at.getTime() } : {}),
+            },
+          }),
+        );
+      }
       const variant = (await this.automations.approved()).find((d) => d.name === r.automation)?.variant ?? null;
       await ws.index.sql`insert into ${this.t(ws, 'agent_metric')} ${ws.index.sql({
         run_id: id,
@@ -580,6 +621,7 @@ export class Runner {
       }
     } catch (e) {
       await this.setStatus(ws, id, 'failed', { ended_at: new Date(), error: (e as Error).message });
+      await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } }));
     } finally {
       this.active.delete(id);
       await this.guard.unwatch(id);
@@ -595,6 +637,7 @@ export class Runner {
     if (status !== 'finished') return;
     if (report?.complete && (await this.settings.graphBuild(ws.name)).state === 'building') {
       await this.settings.setGraphBuild(ws.name, 'complete');
+      await this.timeline.record({ workspace: ws.name, actor: 'harness', kind: 'graph_build_complete', title: 'Knowledge graph build complete' });
     }
   }
 

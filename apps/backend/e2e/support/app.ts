@@ -8,6 +8,7 @@ import { pace } from './pace.ts';
 declare global {
   interface Window {
     loadApp(url: string): Promise<boolean>;
+    loadTimeline(url: string): Promise<boolean>;
   }
 }
 
@@ -23,8 +24,17 @@ export class App {
   ) {}
 
   frame(): Frame {
-    const f = this.observer.frames().find((x) => x.url().startsWith(this.env.url));
-    if (!f) throw new Error('The app is not loaded in the observer');
+    return this.named('app');
+  }
+
+  /** The app's timeline the observer shows beside it */
+  timeline(): Frame {
+    return this.named('timeline');
+  }
+
+  private named(name: 'app' | 'timeline'): Frame {
+    const f = this.observer.frame({ name });
+    if (!f?.url().startsWith(this.env.url)) throw new Error(`The ${name} is not loaded in the observer`);
     return f;
   }
 
@@ -39,6 +49,9 @@ export class App {
     await this.observer.evaluate((url) => window.loadApp(url), `${this.env.url}/`);
     await this.frame().getByPlaceholder('Password').waitFor({ timeout: 30_000 });
     await this.signIn();
+    await this.signedIn();
+    // Signed in, the timeline beside the app shares its session
+    await this.observer.evaluate((url) => window.loadTimeline(url), `${this.env.url}/timeline?embed=1`);
   }
 
   async signIn(password = PASSWORD): Promise<void> {
@@ -53,9 +66,11 @@ export class App {
     await expect(this.frame().getByPlaceholder('Password')).toHaveCount(0, { timeout: 30_000 });
   }
 
-  async tab(name: 'Feed' | 'Explorer' | 'Chat' | 'Metrics' | 'Settings'): Promise<void> {
+  async tab(name: 'Feed' | 'Explorer' | 'Chat' | 'Timeline' | 'Metrics' | 'Settings'): Promise<void> {
     await pace('action', `Open the ${name} tab`);
-    await this.text(name).click();
+    // On a phone Settings is the icon in the top-right corner
+    const target = name === 'Settings' ? this.frame().getByLabel('Settings', { exact: true }).or(this.text(name)).first() : this.text(name);
+    await target.click();
     await this.frame().waitForURL(new RegExp(`/${name.toLowerCase()}`));
   }
 

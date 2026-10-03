@@ -16,6 +16,7 @@ import { Count, List, Pick, Row, RowText } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { EntityView } from '../../../ui/EntityView';
 import { DomainBadge } from '../../../ui/domains';
+import { useCornerRoom } from '../../../ui/SettingsButton';
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -94,6 +95,7 @@ function treeRows(
 export default function Explorer() {
   useTheme();
   const wide = useWide();
+  const corner = useCornerRoom();
   const params = useLocalSearchParams<{ ws?: string; path?: string; folder?: string }>();
   const [ws, setWs, names] = useCurrentWorkspace();
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -166,6 +168,7 @@ export default function Explorer() {
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 12,
+          paddingRight: corner,
           zIndex: 10,
         }}
       >

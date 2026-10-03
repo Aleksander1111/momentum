@@ -614,6 +614,108 @@ export const PutSettings = Settings.partial().extend({
 });
 export type PutSettings = z.infer<typeof PutSettings>;
 
+// Timeline: what happened in the harness, newest first
+
+/** Who did it: the user, an automation run, or the harness itself */
+export const TimelineActor = z.enum(['user', 'automation', 'harness']);
+export type TimelineActor = z.infer<typeof TimelineActor>;
+
+export const TimelineKind = z.enum([
+  // The user
+  'signed_in',
+  'sign_in_failed',
+  'signed_out',
+  'approved',
+  'sent_back',
+  'resolved',
+  'wont_resolve',
+  'chat_started',
+  'message_sent',
+  'interview_started',
+  'graph_build_started',
+  'graph_build_stopped',
+  'project_enabled',
+  'project_disabled',
+  'project_reset',
+  'logo_changed',
+  'settings_changed',
+  // Automation runs
+  'run_queued',
+  'run_started',
+  'run_resumed',
+  'run_requeued',
+  'run_finished',
+  'run_failed',
+  'run_killed',
+  'changes_landed',
+  // The harness
+  'graph_build_complete',
+]);
+export type TimelineKind = z.infer<typeof TimelineKind>;
+
+/** What an event carries beyond its title, each where it applies */
+export const TimelineFacts = z
+  .object({
+    trigger: RunTrigger,
+    status: RunStatus,
+    model: z.string(),
+    risk: Risk,
+    durationMs: z.number(),
+    usage: Usage,
+    commit: z.string(),
+    /** Entities the event wrote or concerns */
+    paths: z.array(z.string()),
+    issues: z.number().int(),
+    conflicts: z.array(z.string()),
+    /** Time the user spent on a feed item before reacting */
+    timeSpentMs: z.number(),
+    /** Settings the user changed, by name */
+    changed: z.array(z.string()),
+    /** A run's own title, such as a chat's question */
+    runTitle: z.string(),
+    /** The first line of the commit message of what a run landed: what it did */
+    subject: z.string(),
+    /** A run the user stopped */
+    byUser: z.boolean(),
+  })
+  .partial();
+export type TimelineFacts = z.infer<typeof TimelineFacts>;
+
+export const TimelineEvent = z.object({
+  id: z.number().int(),
+  at: z.string(),
+  /** None for what concerns no one project, such as signing in */
+  workspace: z.string().nullable(),
+  actor: TimelineActor,
+  kind: TimelineKind,
+  title: z.string(),
+  /** A comment, an error, a commit message: shown when the event is opened */
+  detail: z.string().nullable(),
+  runId: z.string().nullable(),
+  /** The automation of the run, by name */
+  automation: z.string().nullable(),
+  /** The entity the event concerns */
+  path: z.string().nullable(),
+  facts: TimelineFacts,
+});
+export type TimelineEvent = z.infer<typeof TimelineEvent>;
+
+export const TimelineQuery = z.object({
+  workspace: z.string().optional(),
+  actor: TimelineActor.optional(),
+  /** Events older than this id: the `next` of the page before */
+  before: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+});
+export type TimelineQuery = z.infer<typeof TimelineQuery>;
+
+export const TimelineResponse = z.object({
+  events: z.array(TimelineEvent),
+  /** The `before` of the next, older page; none at the first event */
+  next: z.number().int().nullable(),
+});
+export type TimelineResponse = z.infer<typeof TimelineResponse>;
+
 // Session
 
 export const SessionRequest = z.object({ password: z.string().min(1) });

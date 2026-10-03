@@ -4038,6 +4038,295 @@
         }
       }
     },
+    "/timeline": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "workspace",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "automation",
+                "harness"
+              ]
+            },
+            "in": "query",
+            "name": "actor",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "before",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 100,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "at": {
+                            "type": "string"
+                          },
+                          "workspace": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "actor": {
+                            "type": "string",
+                            "enum": [
+                              "user",
+                              "automation",
+                              "harness"
+                            ]
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "signed_in",
+                              "sign_in_failed",
+                              "signed_out",
+                              "approved",
+                              "sent_back",
+                              "resolved",
+                              "wont_resolve",
+                              "chat_started",
+                              "message_sent",
+                              "interview_started",
+                              "graph_build_started",
+                              "graph_build_stopped",
+                              "project_enabled",
+                              "project_disabled",
+                              "project_reset",
+                              "logo_changed",
+                              "settings_changed",
+                              "run_queued",
+                              "run_started",
+                              "run_resumed",
+                              "run_requeued",
+                              "run_finished",
+                              "run_failed",
+                              "run_killed",
+                              "changes_landed",
+                              "graph_build_complete"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "detail": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "runId": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "automation": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "path": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "facts": {
+                            "type": "object",
+                            "properties": {
+                              "trigger": {
+                                "type": "string",
+                                "enum": [
+                                  "schedule",
+                                  "event",
+                                  "on_demand"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "queued",
+                                  "running",
+                                  "finished",
+                                  "failed",
+                                  "killed"
+                                ]
+                              },
+                              "model": {
+                                "type": "string"
+                              },
+                              "risk": {
+                                "type": "string",
+                                "enum": [
+                                  "low",
+                                  "medium",
+                                  "high"
+                                ]
+                              },
+                              "durationMs": {
+                                "type": "number"
+                              },
+                              "usage": {
+                                "type": "object",
+                                "properties": {
+                                  "fiveHour": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  },
+                                  "week": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "fiveHour",
+                                  "week"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "commit": {
+                                "type": "string"
+                              },
+                              "paths": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "issues": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "conflicts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeSpentMs": {
+                                "type": "number"
+                              },
+                              "changed": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "at",
+                          "workspace",
+                          "actor",
+                          "kind",
+                          "title",
+                          "detail",
+                          "runId",
+                          "automation",
+                          "path",
+                          "facts"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "next": {
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "events",
+                    "next"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/settings": {
       "get": {
         "responses": {

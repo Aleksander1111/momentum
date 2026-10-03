@@ -97,7 +97,8 @@ export const FEATURES = {
   'api.auth': 'A session needs the password; a wrong one is refused',
   'api.http': 'Every HTTP route answers to its contract',
   'api.mcp': 'The momentum MCP server drives the feed, chats, automations, graph build and reset',
-  'app.pages': 'Every app page loads and acts on the backend: feed, explorer, entity, chat, metrics, settings',
+  'app.pages': 'Every app page loads and acts on the backend: feed, explorer, entity, chat, timeline, metrics, settings',
+  'app.timeline': "The timeline lists the user's actions and one event per run, kept up to date as it runs and lands, newest first, by project and actor, live beside the app in the observer",
   'settings.persist': 'Settings persist: feed size, card limit and rules, exclusions, lifetimes, total runs, models',
 
   // Legacy

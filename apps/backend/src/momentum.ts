@@ -11,6 +11,8 @@ import type {
   RunDetail,
   SearchResult,
   Settings,
+  TimelineQuery,
+  TimelineResponse,
   TypesResponse,
   Workspace as WorkspaceView,
 } from '@momentum/contract';
@@ -23,7 +25,18 @@ import { graphBuildStatus } from './graph-build.ts';
 import { detectPatterns, workspaceMetrics } from './metrics.ts';
 import type { Orchestrator } from './orchestrator.ts';
 import type { Runner } from './runner.ts';
+import { automationLabel, type Timeline } from './timeline.ts';
 import { NotFound, type Workspaces } from './workspaces.ts';
+
+/** Settings as the timeline names them when the user changes them */
+const SETTING_LABEL = {
+  feedSize: 'the feed size',
+  cards: 'the card rules',
+  summarization: 'the summarization exclusions',
+  lifetimes: 'the lifetimes',
+  agents: 'the total of runs',
+  models: 'the models',
+} satisfies Partial<Record<keyof Settings, string>>;
 
 /** Every capability of the harness, shared by the HTTP API and its MCP surface */
 export class Momentum {
@@ -36,7 +49,22 @@ export class Momentum {
     private readonly orchestrator: Orchestrator,
     private readonly automations: Automations,
     private readonly embed: Embed,
+    readonly timeline: Timeline,
   ) {}
+
+  /** What happened in the harness, newest first */
+  events(q: TimelineQuery): Promise<TimelineResponse> {
+    return this.timeline.list(q);
+  }
+
+  /** The automation and title of a run, for the events about it */
+  private async runOf(id: string): Promise<{ workspace: string; automation: string; title: string }> {
+    const ws = await this.runner.workspaceOf(id);
+    const [r] = await ws.index.sql<{ automation: string; title: string }[]>`
+      select automation, title from ${ws.index.sql(`${ws.index.schema}.run`)} where id = ${id}`;
+    if (!r) throw new NotFound(`No run ${id}`);
+    return { workspace: ws.name, ...r };
+  }
 
   async workspaceList(): Promise<WorkspaceView[]> {
     return this.settings.projects();
@@ -44,6 +72,12 @@ export class Momentum {
 
   async setProjectLogo(name: string, logo: string | null): Promise<WorkspaceView> {
     if (!(await this.settings.setLogo(name, logo))) throw new NotFound(`No workspace ${name}`);
+    await this.timeline.record({
+      workspace: name,
+      actor: 'user',
+      kind: 'logo_changed',
+      title: logo ? `Changed the logo of ${name}` : `Removed the logo of ${name}`,
+    });
     return (await this.settings.projects()).find((p) => p.name === name)!;
   }
 
@@ -155,6 +189,7 @@ export class Momentum {
       targetPath: targetPath ?? null,
       context,
     });
+    await this.timeline.record({ workspace, actor: 'user', kind: 'chat_started', title: 'Started a chat', detail: text, runId, automation: 'chat', path: targetPath ?? null });
     void this.orchestrator.tick();
     return { runId };
   }
@@ -167,6 +202,7 @@ export class Momentum {
     await this.workspaces.get(workspace);
     const prompt = `Interview: ${topic}`;
     const runId = await this.runner.create({ workspace, automation: 'interview', trigger: 'on_demand', prompt, title: prompt.slice(0, 80) });
+    await this.timeline.record({ workspace, actor: 'user', kind: 'interview_started', title: 'Started an interview', detail: topic, runId, automation: 'interview' });
     void this.orchestrator.tick();
     return { runId };
   }
@@ -191,13 +227,23 @@ export class Momentum {
   }
 
   async postMessage(id: string, text: string, context: ContextItem[] = []): Promise<void> {
+    const run = await this.runOf(id);
+    await this.timeline.record({
+      workspace: run.workspace,
+      actor: 'user',
+      kind: 'message_sent',
+      title: run.automation === 'chat' || run.automation === 'interview' ? `Wrote in ${run.title ? `“${run.title}”` : `the ${run.automation}`}` : `Steered ${automationLabel(run.automation)}`,
+      detail: text,
+      runId: id,
+      automation: run.automation,
+    });
     await this.runner.send(id, text, context);
   }
 
   /** Ends a run: its process is killed; what it wrote so far still passes the guard and reaches the feed */
   async killRun(id: string): Promise<void> {
     await this.runner.workspaceOf(id);
-    await this.runner.kill(id);
+    await this.runner.kill(id, true);
   }
 
   /** The knowledge graph build of a workspace: state, runs, entities written and everything they used */
@@ -209,6 +255,12 @@ export class Momentum {
   async setGraphBuild(workspace: string, building: boolean): Promise<GraphBuildStatus> {
     const ws = await this.workspaces.get(workspace);
     await this.orchestrator.setGraphBuild(ws, building);
+    await this.timeline.record({
+      workspace,
+      actor: 'user',
+      kind: building ? 'graph_build_started' : 'graph_build_stopped',
+      title: building ? 'Started the knowledge graph build' : 'Stopped the knowledge graph build',
+    });
     if (building) void this.orchestrator.tick();
     return graphBuildStatus(ws, this.settings);
   }
@@ -216,6 +268,7 @@ export class Momentum {
   /** Removes every entity and database entry of a project, then builds its knowledge graph afresh */
   async resetProject(workspace: string): Promise<GraphBuildStatus> {
     await this.orchestrator.reset(await this.workspaces.get(workspace));
+    await this.timeline.record({ workspace, actor: 'user', kind: 'project_reset', title: `Reset ${workspace}: its knowledge graph builds afresh` });
     void this.orchestrator.tick();
     return graphBuildStatus(await this.workspaces.get(workspace), this.settings);
   }
@@ -229,11 +282,27 @@ export class Momentum {
   }
 
   async putSettings(change: PutSettings): Promise<Settings> {
+    const previous = await this.settings.get();
     const before = new Set((await this.settings.enabled()).map((p) => p.name));
     const after = await this.settings.put(change);
     for (const p of after.projects) {
-      if (p.enabled && !before.has(p.name)) await this.orchestrator.enable(await this.workspaces.get(p.name));
-      if (!p.enabled && before.has(p.name)) await this.orchestrator.disable(await this.workspaces.get(p.name));
+      const kind = p.enabled && !before.has(p.name) ? 'project_enabled' : !p.enabled && before.has(p.name) ? 'project_disabled' : null;
+      if (!kind) continue;
+      await this.timeline.record({ workspace: p.name, actor: 'user', kind, title: `${p.enabled ? 'Enabled' : 'Disabled'} ${p.name}` });
+      if (p.enabled) await this.orchestrator.enable(await this.workspaces.get(p.name));
+      else await this.orchestrator.disable(await this.workspaces.get(p.name));
+    }
+    const changed = (Object.keys(SETTING_LABEL) as (keyof typeof SETTING_LABEL)[]).filter(
+      (k) => JSON.stringify(previous[k]) !== JSON.stringify(after[k]),
+    );
+    if (changed.length) {
+      await this.timeline.record({
+        actor: 'user',
+        kind: 'settings_changed',
+        title: `Changed ${changed.map((k) => SETTING_LABEL[k]).join(', ')}`,
+        detail: changed.map((k) => `${SETTING_LABEL[k]}: ${JSON.stringify(after[k])}`).join('\n'),
+        facts: { changed },
+      });
     }
     void this.orchestrator.tick();
     return after;

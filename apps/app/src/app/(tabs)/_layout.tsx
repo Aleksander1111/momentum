@@ -5,14 +5,17 @@ import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getToken } from '../../lib/token';
 import { useChatContext } from '../../lib/context';
+import { embedded } from '../../lib/embed';
 import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
+import { SettingsButton } from '../../ui/SettingsButton';
 
 const TABS = [
   { name: 'feed', label: 'Feed' },
   { name: 'explorer', label: 'Explorer' },
   { name: 'chat', label: 'Chat' },
+  { name: 'timeline', label: 'Timeline' },
   { name: 'metrics', label: 'Metrics' },
   { name: 'settings', label: 'Settings' },
 ] as const;
@@ -50,7 +53,8 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
     >
       {state.routes.map((route, index) => {
         const tab = TABS.find((t) => t.name === route.name);
-        if (!tab) return null;
+        // On a phone Settings is the icon in the top-right corner
+        if (!tab || (!wide && tab.name === 'settings')) return null;
         const on = state.index === index;
         const color = on ? C.accent : C.muted;
         const onPress = () => {
@@ -109,17 +113,20 @@ export default function TabsLayout() {
   if (auth === 'no') return <Redirect href="/session" />;
 
   return (
-    <Tabs
-      tabBar={(props) => <Nav {...props} wide={wide} />}
-      screenOptions={{
-        headerShown: false,
-        tabBarPosition: wide ? 'left' : 'bottom',
-        sceneStyle: { backgroundColor: C.screen, paddingTop: wide ? 0 : insets.top },
-      }}
-    >
-      {TABS.map((t) => (
-        <Tabs.Screen key={t.name} name={t.name} />
-      ))}
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      <Tabs
+        tabBar={(props) => (embedded ? null : <Nav {...props} wide={wide} />)}
+        screenOptions={{
+          headerShown: false,
+          tabBarPosition: wide ? 'left' : 'bottom',
+          sceneStyle: { backgroundColor: C.screen, paddingTop: wide ? 0 : insets.top },
+        }}
+      >
+        {TABS.map((t) => (
+          <Tabs.Screen key={t.name} name={t.name} />
+        ))}
+      </Tabs>
+      {wide || embedded ? null : <SettingsButton />}
+    </View>
   );
 }

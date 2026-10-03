@@ -2,7 +2,20 @@ import { EventEmitter } from 'node:events';
 
 export interface Events {
   /** A transaction of a run passed or failed the guard and landed on the main line */
-  transaction: [{ workspace: string; runId: string; commit: string | null; paths: string[]; valid: boolean }];
+  transaction: [
+    {
+      workspace: string;
+      runId: string;
+      automation: string;
+      commit: string | null;
+      /** The commit message */
+      message: string;
+      paths: string[];
+      valid: boolean;
+      issues: number;
+      conflicts: string[];
+    },
+  ];
   /** An implementable entity was approved with nothing implementing it */
   entity_ahead: [{ workspace: string; path: string }];
   /** Artifacts changed on the main line under these entities; one summarization run rewrites their cards */

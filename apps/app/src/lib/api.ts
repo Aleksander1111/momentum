@@ -12,8 +12,10 @@ import {
   SearchResult,
   SessionResponse,
   Settings,
+  TimelineResponse,
   TypesResponse,
   Workspace,
+  type TimelineActor,
   type ApproveRequest,
   type CreateChatRequest,
   type PostRunMessage,
@@ -170,6 +172,12 @@ export const api = {
   async deleteProjectLogo(ws: string): Promise<Workspace> {
     const res = await request('DELETE', `/workspaces/${seg(ws)}/logo`);
     return Workspace.parse(await res.json());
+  },
+  timeline(q: { workspace?: string; actor?: TimelineActor; before?: number; limit?: number }) {
+    const params = Object.entries(q)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`);
+    return get(`/timeline${params.length ? `?${params.join('&')}` : ''}`, TimelineResponse);
   },
   settings: () => get('/settings', Settings),
   async putSettings(req: PutSettings): Promise<Settings> {

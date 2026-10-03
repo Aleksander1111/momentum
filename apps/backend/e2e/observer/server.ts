@@ -1,6 +1,6 @@
-// The observer: one page wrapping the app, with the scenario list, the progress of each scenario's steps, the runs of
-// the scenario under way and the share of the 5-hour limit the suite has used. The reporter and the scenarios post
-// what happens; the page follows it over server-sent events.
+// The observer: one page wrapping the app and, beside it, the app's timeline, with the scenario list, the progress of
+// each scenario's steps, the runs of the scenario under way and the share of the 5-hour limit the suite has used. The
+// reporter and the scenarios post what happens; the page follows it over server-sent events.
 import { readFileSync } from 'node:fs';
 import { createServer, type ServerResponse } from 'node:http';
 import { join } from 'node:path';

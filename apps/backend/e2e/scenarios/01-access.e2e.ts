@@ -1,4 +1,6 @@
+import type { TimelineResponse } from '@momentum/contract';
 import { WebSocket } from 'ws';
+import { until } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 
 const WS = 'bookshelf-api';
@@ -17,6 +19,7 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
       `/workspaces/${WS}/artifact/src/server.js`,
       `/workspaces/${WS}/metrics`,
       `/workspaces/${WS}/graph-build`,
+      '/timeline',
       '/settings',
     ];
     for (const r of routes) {
@@ -86,5 +89,34 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
 
     const chat = await app.chat(WS, 'Summarize the API in one sentence.');
     expect((await api.run(chat)).automation).toBe('chat');
+  });
+
+  await step(4, async () => {
+    const { events } = await api.call<TimelineResponse>('GET', '/timeline?limit=500');
+    const kinds = events.map((e) => e.kind);
+    for (const kind of ['sign_in_failed', 'signed_in', 'settings_changed', 'chat_started', 'message_sent', 'run_killed', 'approved', 'sent_back'] as const) {
+      expect(kinds, kind).toContain(kind);
+    }
+    expect(events.map((e) => e.at)).toEqual(events.map((e) => e.at).sort().reverse());
+    // One event per run: the chat stopped through MCP is one event, and says who stopped it
+    const stopped = events.filter((e) => e.kind === 'run_killed');
+    expect(new Set(stopped.map((e) => e.runId)).size).toBe(stopped.length);
+    expect(stopped.some((e) => e.title.startsWith('Chat stopped by you'))).toBe(true);
+    const mine = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&actor=user`);
+    expect(mine.events.length).toBeGreaterThan(0);
+    expect(mine.events.every((e) => e.workspace === WS && e.actor === 'user')).toBe(true);
+    const page = await api.mcp<TimelineResponse>('timeline', { limit: 3 });
+    expect(page.events).toHaveLength(3);
+    expect(page.next).toBe(page.events[2]!.id);
+
+    // In the app, and beside it in the observer, where the next action shows up without a reload
+    const approved = events.find((e) => e.kind === 'approved')!;
+    await app.tab('Timeline');
+    // One line each: the title, then who did it and where
+    await expect(app.text(approved.title, false)).toBeVisible();
+    await expect(app.timeline().getByText(approved.title).first()).toBeVisible({ timeout: 15_000 });
+    await api.putSettings({ feedSize: 30 });
+    await until('the settings change in the timeline', async () => (await api.call<TimelineResponse>('GET', '/timeline?limit=1')).events[0]?.kind === 'settings_changed');
+    await expect(app.timeline().getByText('Changed the feed size').first()).toBeVisible({ timeout: 15_000 });
   });
 });

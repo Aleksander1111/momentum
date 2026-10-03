@@ -206,12 +206,13 @@ export const SCENARIOS: Scenario[] = [
     title: 'API, MCP and app',
     projects: ['bookshelf-api'],
     real: false,
-    covers: ['api.auth', 'api.http', 'api.mcp', 'voice.auth', 'app.pages', 'settings.persist', 'kb.search', 'kb.types'],
+    covers: ['api.auth', 'api.http', 'api.mcp', 'voice.auth', 'app.pages', 'app.timeline', 'settings.persist', 'kb.search', 'kb.types'],
     steps: [
       'Wrong password refused; every HTTP route answers to its contract with a session and refuses without',
       'Every momentum MCP tool works against the project',
       'Voice sockets refuse an app that is not signed in',
       'Every app page loads and approves, sends back and chats against the backend',
+      'The timeline lists the sign-ins, settings, reactions, chats and one event per run newest first, and shows the next one live beside the app',
     ],
   },
 ];

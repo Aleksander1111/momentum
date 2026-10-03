@@ -8,7 +8,8 @@ import { automationLabel, usagePct } from '../../lib/format';
 import { useCurrentWorkspace } from '../../lib/workspace';
 import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
-import { Pick } from '../../ui/parts';
+import { Pick, Segmented } from '../../ui/parts';
+import { useCornerRoom } from '../../ui/SettingsButton';
 import { STATE_LABEL } from '../../ui/StateBadge';
 import { Chart, TimeChart, timeTicks, when, type ChartAxis, type ChartLayer, type ChartSeries } from '../../ui/TimeChart';
 import { automationSeries, UsageLegend, UsageMeter, useAutomationColor, useSegments, type Segment } from '../../ui/UsageMeter';
@@ -137,27 +138,6 @@ function AutomationTable({ automations, range }: { automations: AutomationMetric
           <Cell i={4}>{show(a.usage.week.value, pct)}</Cell>
         </View>
       ))}
-    </View>
-  );
-}
-
-function Segmented<V extends string>({ value, options, onChange }: { value: V; options: { value: V; label: string }[]; onChange: (v: V) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignSelf: 'flex-start', backgroundColor: C.card, borderRadius: 999, padding: 2 }}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            onPress={() => onChange(o.value)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            style={{ paddingVertical: 2, paddingHorizontal: 10, borderRadius: 999, backgroundColor: on ? C.surface : undefined }}
-          >
-            <T style={{ fontSize: 12, color: on ? C.ink : C.muted, fontWeight: on ? '700' : '400' }}>{o.label}</T>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
@@ -450,6 +430,7 @@ function RunHistogram({ h, range }: { h: RunHistograms; range: string }) {
 export default function Metrics() {
   useTheme();
   const wide = useWide();
+  const corner = useCornerRoom();
   const [ws, setWs, names] = useCurrentWorkspace();
   const [range, setRange] = useState<MetricsRange>('30d');
   const { data: m } = useQuery({
@@ -475,7 +456,7 @@ export default function Metrics() {
       }
     >
       <View
-        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, zIndex: 10 }}
+        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingRight: corner, zIndex: 10 }}
       >
         <Pick value={ws} options={names} onChange={setWs} />
         <Segmented value={range} options={RANGES} onChange={setRange} />

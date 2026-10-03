@@ -43,10 +43,15 @@
   .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-left: auto; }
   .toggle button { border: 0; background: transparent; color: var(--muted); padding: 2px 10px; font: inherit; cursor: pointer; }
   .toggle button.on { background: var(--run-bg); color: var(--run); }
-  .device { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .device { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 22px; padding: 12px; }
   iframe { border: 0; background: var(--bg); display: block; }
-  .mobile iframe { width: 390px; height: min(844px, calc(100vh - 150px)); border-radius: 28px; outline: 10px solid #2c2c2a; }
-  .web iframe { width: min(1180px, calc(100vw - 720px)); height: calc(100vh - 150px); border-radius: 8px; outline: 1px solid var(--line); }
+  .mobile #app { width: 390px; height: min(844px, calc(100vh - 150px)); border-radius: 28px; outline: 10px solid #2c2c2a; }
+  .web #app { width: min(1180px, calc(100vw - 720px)); height: calc(100vh - 150px); border-radius: 8px; outline: 1px solid var(--line); }
+  /* The app's timeline beside it: what the scenario's actions and runs leave, as the user would see it */
+  #timeline { width: 420px; height: calc(100vh - 150px); border-radius: 8px; outline: 1px solid var(--line); }
+  .mobile #timeline { height: min(844px, calc(100vh - 150px)); }
+  .web.with-timeline #app { width: max(480px, min(1180px, calc(100vw - 1160px))); }
+  .device:not(.with-timeline) #timeline { display: none; }
   .empty { color: var(--faint); padding: 24px; text-align: center; }
   .runs td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   .runs td.t { white-space: normal; color: var(--muted); }
@@ -94,9 +99,11 @@
   <section class="stage" id="stage">
     <h2 style="align-self: stretch">App <span id="app-label" class="tag"></span>
       <span class="toggle"><button data-view="mobile" class="on">Mobile</button><button data-view="web">Web</button></span>
+      <span class="toggle" style="margin-left: 0"><button id="timeline-toggle" class="on" title="Show the app's timeline beside it">Timeline</button></span>
     </h2>
-    <div class="device mobile" id="device">
-      <iframe id="app" title="Momentum app" allow="microphone"></iframe>
+    <div class="device mobile with-timeline" id="device">
+      <iframe id="app" name="app" title="Momentum app" allow="microphone"></iframe>
+      <iframe id="timeline" name="timeline" title="Momentum timeline"></iframe>
     </div>
   </section>
   <section>
@@ -115,20 +122,33 @@
   const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
   const open = new Set();
 
-  /** The scenarios drive the frame; the page loads the app once the scenario's back-end is up */
-  window.loadApp = (url) =>
+  const load = (frame, url) =>
     new Promise((resolve) => {
-      const f = $('app');
-      f.onload = () => resolve(true);
-      f.src = url;
+      frame.onload = () => resolve(true);
+      frame.src = url;
     });
+  /** The scenarios drive the frame; the page loads the app once the scenario's back-end is up */
+  window.loadApp = (url) => {
+    // The timeline of the scenario before goes; the scenario shows its own once it is signed in
+    $('timeline').src = 'about:blank';
+    return load($('app'), url);
+  };
+  /** The app's timeline page without its tabs, beside the app and signed in with it */
+  window.loadTimeline = (url) => load($('timeline'), url);
 
-  document.querySelectorAll('.toggle button').forEach((b) =>
+  let view = 'mobile';
+  const layout = () => ($('device').className = `device ${view}${$('timeline-toggle').classList.contains('on') ? ' with-timeline' : ''}`);
+  document.querySelectorAll('[data-view]').forEach((b) =>
     b.addEventListener('click', () => {
-      document.querySelectorAll('.toggle button').forEach((x) => x.classList.toggle('on', x === b));
-      $('device').className = `device ${b.dataset.view}`;
+      document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('on', x === b));
+      view = b.dataset.view;
+      layout();
     }),
   );
+  $('timeline-toggle').addEventListener('click', (e) => {
+    e.target.classList.toggle('on');
+    layout();
+  });
 
   function render(s) {
     const chosen = s.scenarios.filter((x) => x.selected);
@@ -158,7 +178,11 @@
     const cur = s.current;
     $('current').textContent = cur ? cur.id : '';
     $('app-label').textContent = cur ? cur.workspaces.join(', ') : '';
-    if (cur && !$('app').src) $('app').src = cur.appUrl;
+    if (cur && !$('app').src) {
+      // The observer opened while a scenario runs: the browser holds its session already
+      $('app').src = cur.appUrl;
+      $('timeline').src = `${cur.appUrl}timeline?embed=1`;
+    }
 
     $('runs').innerHTML = s.runs.length
       ? s.runs

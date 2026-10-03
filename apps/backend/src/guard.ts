@@ -243,7 +243,8 @@ export class Guard {
     const valid = issues.length === 0;
     if (!valid) await this.raiseIssue(ws, run, issues);
 
-    const landed = await this.land(ws, run, await this.message(run, written));
+    const message = await this.message(run, written);
+    const landed = await this.land(ws, run, message);
     await this.indexMainLine(ws);
     if (run.targetPath && !written.some((w) => w.path === run.targetPath)) {
       const row = await ws.index.row(run.targetPath);
@@ -258,7 +259,17 @@ export class Guard {
       conflicts: landed?.conflicts ?? [],
     })}`;
     await this.recordMetrics(ws);
-    this.bus.emit('transaction', { workspace: ws.name, runId: run.id, commit: landed?.commit ?? null, paths, valid });
+    this.bus.emit('transaction', {
+      workspace: ws.name,
+      runId: run.id,
+      automation: run.automation,
+      commit: landed?.commit ?? null,
+      message,
+      paths,
+      valid,
+      issues: issues.length,
+      conflicts: landed?.conflicts ?? [],
+    });
     return { valid, paths, issues, conflicts: landed?.conflicts ?? [], commit: landed?.commit ?? null };
   }
 
