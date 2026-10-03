@@ -253,7 +253,7 @@ async function render(pres, T) {
 }
 
 // ---------------------------------------------------------------- mobile app slide
-// example cards: momentum's own work, taken from SPEC.md
+// example cards: momentum's own work
 const CARDS = [
   {
     type: 'PLAN', project: 'momentum', title: 'Consistency guard on every change',

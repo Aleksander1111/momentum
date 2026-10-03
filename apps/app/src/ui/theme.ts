@@ -115,7 +115,7 @@ export const F = {
   mono: Platform.select({ web: 'Consolas, monospace', default: 'monospace' }),
 };
 
-/** Width at which the web layout (left rail, split panes) applies, as in pages.html. */
+/** Width at which the web layout (left rail, split panes) applies. */
 export const WIDE = 700;
 
 export function useWide(): boolean {

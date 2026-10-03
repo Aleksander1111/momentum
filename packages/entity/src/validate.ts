@@ -29,7 +29,7 @@ export function cardLength(body: string): number {
 /** Diagrams are PlantUML: a mermaid code block is not accepted */
 const MERMAID = /^ {0,3}(`{3,}|~{3,})\s*mermaid\b/im;
 
-/** Validator rules, PLAN.md → Entity file format */
+/** Validator rules */
 export function validateEntity(path: string, entity: ParsedEntity, ctx: ValidationContext): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const { frontmatter, body } = entity;

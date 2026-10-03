@@ -11,7 +11,7 @@ type Props = TextInputProps & {
   trailing?: ReactNode;
 };
 
-/** The pages.html `.field`: white, bordered, rounded input with an optional leading glyph. */
+/** White, bordered, rounded input with an optional leading glyph. */
 export const Field = forwardRef<TextInput, Props>(function Field(
   { icon, containerStyle, invalid, trailing, style, ...props },
   ref,

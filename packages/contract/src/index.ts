@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Entity states, SPEC.md → Database → entity
+// Entity states
 
 export const Verification = z.enum(['unverified', 'verified']);
 export type Verification = z.infer<typeof Verification>;
@@ -467,7 +467,7 @@ export type GraphBuildStatus = z.infer<typeof GraphBuildStatus>;
 export const PutGraphBuild = z.object({ building: z.boolean() });
 export type PutGraphBuild = z.infer<typeof PutGraphBuild>;
 
-// Metrics, SPEC.md → Index and metrics database
+// Metrics
 
 /** The span the metrics cover: hourly points over a day, or daily points over a week or a month */
 export const MetricsRange = z.enum(['24h', '7d', '30d']);
@@ -544,7 +544,7 @@ export const MetricsResponse = z.object({
 });
 export type MetricsResponse = z.infer<typeof MetricsResponse>;
 
-// Settings, PLAN.md → Harness settings
+// Settings
 
 export const LifetimeRule = z.object({
   type: z.string().min(1),

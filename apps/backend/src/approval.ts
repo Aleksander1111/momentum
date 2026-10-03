@@ -8,7 +8,7 @@ import type { HarnessSettings } from './harness.ts';
 import type { Runner } from './runner.ts';
 import { Conflict, NotFound, type Workspaces } from './workspaces.ts';
 
-/** Approve, send back and resolve an issue, PLAN.md → Approval, send back and issue resolution */
+/** Approve, send back and resolve an issue */
 export class Approval {
   constructor(
     private readonly workspaces: Workspaces,

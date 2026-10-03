@@ -2,7 +2,7 @@ import { View, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { C } from './theme';
 
-/** Glyph paths from docs/designs/pages.html. */
+/** Glyph paths. */
 export const PATHS = {
   feed: 'M12 3 2 8l10 5 10-5-10-5zm-7.6 8.4L2 12.6l10 5 10-5-2.4-1.2L12 15.2zm0 4.2L2 16.8l10 5 10-5-2.4-1.2L12 19.4z',
   explorer: 'M5 3h5v5H5zm9 0h5v5h-5zM9.5 16h5v5h-5zM7.5 8v3h9V8h-1.5v1.5h-6V8zM11.25 11h1.5v5h-1.5z',
