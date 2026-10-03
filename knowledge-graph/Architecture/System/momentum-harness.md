@@ -11,9 +11,7 @@ references:
     relation: hosted_in
   - to: Infrastructure/Environment/dedicated-machine
     relation: runs_on
-artifacts:
-  - docs/diagrams/01-layers.md
-  - docs/diagrams/02-deployment.md
+artifacts: []
 ---
 # Momentum harness system
 

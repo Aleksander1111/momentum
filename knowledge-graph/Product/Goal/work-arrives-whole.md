@@ -13,12 +13,11 @@ references:
     relation: served_by
   - to: Harness/Automation/implementation
     relation: served_by
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Work arrives as one consistent piece
 
-Success criterion from the spec: work reaches the user whole, not as fragments to assemble.
+Success criterion: work reaches the user whole, not as fragments to assemble.
 
 - A run's Stop hook hands every artifact it touched to summarization before it ends, so no work waits unsummarized
 - A main-line change, such as the user's own commit, is summarized in one run listing every entity over it

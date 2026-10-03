@@ -17,8 +17,7 @@ references:
     relation: concerns
   - to: Harness/Automation/chat
     relation: concerns
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Implementation decisions
 

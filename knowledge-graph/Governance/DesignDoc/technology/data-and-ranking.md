@@ -9,12 +9,11 @@ unlocks: 3
 references:
   - to: Governance/DesignDoc/plan/technology-data
     relation: concerns
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Data, retrieval and ranking
 
-- **Database:** Postgres 18 + pgvector (Docker), schema `ws_<workspace>`, postgres.js; SPEC tables plus `transaction`, `run_message`
+- **Database:** Postgres 18 + pgvector (Docker), schema `ws_<workspace>`, postgres.js; index and metrics tables plus `transaction`, `run_message`
 - **Graph RAG:** `ts_rank` + pgvector cosine (bge-small, in-process) + recursive CTE over `entity_reference`
 - **Ranking:** product_impact + timeline_impact + unlocks (0–5, author-set), generated on index update; earliest wins ties
 - **Cross-project feed:** `UNION ALL` of enabled schemas; counters by state

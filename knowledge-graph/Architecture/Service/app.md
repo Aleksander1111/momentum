@@ -12,7 +12,6 @@ artifacts:
   - apps/app/app.json
   - apps/app/src/app/(tabs)/_layout.tsx
   - apps/app/src/lib/api.ts
-  - docs/diagrams/03-front-end.md
 ---
 # App
 

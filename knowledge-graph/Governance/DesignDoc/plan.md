@@ -13,12 +13,11 @@ references:
     relation: contains
   - to: Governance/DesignDoc/plan/technology
     relation: contains
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Momentum implementation plan
 
-How Momentum is built from SPEC.md, in one pass ordered by dependency.
+How Momentum is built, in one pass ordered by dependency.
 
 - TypeScript monorepo: Expo app, Fastify back-end, packages for contract, entity, kb, runs
 - Knowledge graph as markdown entities on the main line, indexed in Postgres per workspace

@@ -11,8 +11,7 @@ references:
     relation: part_of
   - to: Harness/Automation/graph-build
     relation: concerns
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Graph build plan
 

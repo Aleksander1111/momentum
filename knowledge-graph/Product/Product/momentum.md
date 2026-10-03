@@ -7,8 +7,7 @@ product_impact: 5
 timeline_impact: 3
 unlocks: 5
 references: []
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Momentum
 

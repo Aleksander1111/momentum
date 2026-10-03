@@ -14,7 +14,6 @@ references:
   - to: Harness/Automation/summarization
     relation: concerns
 artifacts:
-  - docs/SPEC.md
   - docs/entity-types.tsv
 ---
 # Knowledge base

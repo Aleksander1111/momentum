@@ -20,7 +20,6 @@ references:
   - to: Governance/DesignDoc/components/attention-feed
     relation: concerns
 artifacts:
-  - docs/SPEC.md
   - docs/slides/slide-1.png
 ---
 # Components

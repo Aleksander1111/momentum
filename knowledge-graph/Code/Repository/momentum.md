@@ -23,6 +23,6 @@ pnpm monorepo of the Momentum harness: TypeScript everywhere, Node 24.
 | packages/ | contract, entity, kb, runs |
 | automations/ | Claude Code files of the automation definitions |
 | knowledge-graph/ | This knowledge base |
-| docs/ | SPEC, PLAN, diagrams, designs, entity-types.tsv |
+| docs/ | Presentation, slides, entity-types.tsv |
 
 Scripts: `pnpm dev` (watch mode), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI).

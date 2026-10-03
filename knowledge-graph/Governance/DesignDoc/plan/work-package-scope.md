@@ -9,8 +9,7 @@ unlocks: 5
 references:
   - to: Governance/DesignDoc/plan/work-packages
     relation: part_of
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Plan: work package scope
 

@@ -15,12 +15,6 @@ artifacts:
   - apps/app/src/lib/query.ts
   - apps/app/src/ui/CardView.tsx
   - apps/app/src/ui/StateBadge.tsx
-  - docs/designs/feed-web.png
-  - docs/designs/feed-mobile.png
-  - docs/designs/feed-approve-web.png
-  - docs/designs/feed-approve-mobile.png
-  - docs/designs/feed-sendback-web.png
-  - docs/designs/feed-sendback-mobile.png
 kind: page
 ---
 # Feed screen

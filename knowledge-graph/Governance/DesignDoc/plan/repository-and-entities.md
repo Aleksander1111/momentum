@@ -13,8 +13,7 @@ references:
     relation: concerns
   - to: Harness/Automation/graph-build
     relation: concerns
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Repository and entities
 

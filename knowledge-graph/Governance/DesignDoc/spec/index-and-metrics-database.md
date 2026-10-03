@@ -9,8 +9,7 @@ unlocks: 3
 references:
   - to: Harness/Automation/optimization
     relation: concerns
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Index and metrics database
 

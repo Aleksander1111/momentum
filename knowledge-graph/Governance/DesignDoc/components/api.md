@@ -11,8 +11,7 @@ references:
     relation: part_of
   - to: Governance/DesignDoc/components/orchestrator
     relation: concerns
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # API
 

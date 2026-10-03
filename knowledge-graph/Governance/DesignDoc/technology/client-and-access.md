@@ -9,8 +9,7 @@ unlocks: 1
 references:
   - to: Governance/DesignDoc/plan/technology
     relation: concerns
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Client and access
 

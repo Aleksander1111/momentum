@@ -13,8 +13,7 @@ references:
     relation: concerns
   - to: Harness/Automation/optimization
     relation: concerns
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Index and metrics database
 

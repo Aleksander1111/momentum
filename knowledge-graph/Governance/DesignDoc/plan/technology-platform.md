@@ -9,8 +9,7 @@ unlocks: 2
 references:
   - to: Governance/DesignDoc/plan/technology
     relation: part_of
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Technology: access, hosting and testing
 

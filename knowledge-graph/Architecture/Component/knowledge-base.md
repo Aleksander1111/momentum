@@ -17,7 +17,6 @@ references:
     relation: depends_on
 artifacts:
   - docs/entity-types.tsv
-  - docs/diagrams/07-change-to-main-line.md
 ---
 # Knowledge base
 

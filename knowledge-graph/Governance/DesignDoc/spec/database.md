@@ -9,8 +9,7 @@ unlocks: 3
 references:
   - to: Governance/DesignDoc/spec
     relation: part_of
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Spec: index and metrics database
 

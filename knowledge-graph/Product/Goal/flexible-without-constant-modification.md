@@ -11,12 +11,11 @@ references:
     relation: served_by
   - to: Harness/Automation/exploration
     relation: guides
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Flexible enough to keep working
 
-Success criterion from the spec: the system does not need constant modification to keep working.
+Success criterion: the system does not need constant modification to keep working.
 
 - Automations defined by responsibility alone; no entity type belongs to one
 - Definitions (harness workspace) and triggers (per workspace) are entities, edited or proposed and approved through the feed; step automations have no trigger

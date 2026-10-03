@@ -11,7 +11,6 @@ references:
     relation: concerns
 artifacts:
   - packages/kb/src/db.ts
-  - docs/diagrams/11-database.md
 ---
 # Index and metrics database
 

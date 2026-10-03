@@ -11,8 +11,7 @@ references:
     relation: part_of
   - to: Harness/Automation/implementation
     relation: concerns
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Models
 

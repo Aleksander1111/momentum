@@ -11,8 +11,7 @@ references:
     relation: part_of
   - to: Governance/DesignDoc/components/index-and-metrics-database
     relation: depends_on
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Attention feed
 

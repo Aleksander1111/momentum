@@ -29,8 +29,7 @@ references:
     relation: concerns
   - to: Harness/Automation/graph-build
     relation: concerns
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Spec: automations
 

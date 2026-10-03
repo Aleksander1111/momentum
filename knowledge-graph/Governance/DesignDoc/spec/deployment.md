@@ -7,9 +7,7 @@ product_impact: 4
 timeline_impact: 3
 unlocks: 3
 references: []
-artifacts:
-  - docs/SPEC.md
-  - docs/diagrams/02-deployment.md
+artifacts: []
 ---
 # Deployment and remote access
 

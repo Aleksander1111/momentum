@@ -13,8 +13,7 @@ references:
     relation: concerns
   - to: Harness/Automation/consistency-check
     relation: concerns
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Consistency guard
 

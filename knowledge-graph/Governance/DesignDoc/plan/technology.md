@@ -15,8 +15,7 @@ references:
     relation: continues_in
   - to: Governance/DesignDoc/plan/technology-platform
     relation: continues_in
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Technology decisions
 

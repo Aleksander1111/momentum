@@ -17,9 +17,6 @@ artifacts:
   - apps/app/src/app/(tabs)/chat/_layout.tsx
   - apps/app/src/ui/Composer.tsx
   - apps/app/src/ui/Conversation.tsx
-  - docs/designs/chats-web.png
-  - docs/designs/chats-mobile.png
-  - docs/designs/chat-mobile.png
 ---
 # Chat screen
 

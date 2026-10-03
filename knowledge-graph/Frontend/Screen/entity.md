@@ -10,8 +10,6 @@ references: []
 artifacts:
   - apps/app/src/app/(tabs)/explorer/entity.tsx
   - apps/app/src/ui/EntityView.tsx
-  - docs/designs/entity-web.png
-  - docs/designs/entity-mobile.png
 kind: page
 ---
 # Entity screen

@@ -15,7 +15,6 @@ references:
     relation: starts
 artifacts:
   - apps/backend/src/approval.ts
-  - docs/diagrams/09-attention-feed.md
 ---
 # Attention feed
 

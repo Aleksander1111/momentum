@@ -9,8 +9,7 @@ unlocks: 4
 references:
   - to: Harness/Automation/consistency-check
     relation: concerns
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Consistency guard
 

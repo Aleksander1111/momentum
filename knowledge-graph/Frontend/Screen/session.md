@@ -9,8 +9,6 @@ unlocks: 2
 references: []
 artifacts:
   - apps/app/src/app/session.tsx
-  - docs/designs/session-web.png
-  - docs/designs/session-mobile.png
 ---
 # Session screen
 

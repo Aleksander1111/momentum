@@ -11,8 +11,7 @@ references:
     relation: part_of
   - to: Governance/DesignDoc/plan/work-package-scope
     relation: contains
-artifacts:
-  - docs/PLAN.md
+artifacts: []
 ---
 # Plan: work packages
 

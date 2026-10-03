@@ -15,8 +15,6 @@ artifacts:
   - apps/app/src/app/(tabs)/explorer/index.tsx
   - apps/app/src/app/(tabs)/explorer/entity.tsx
   - apps/app/src/app/(tabs)/explorer/_layout.tsx
-  - docs/designs/explorer-web.png
-  - docs/designs/explorer-mobile.png
 kind: page
 ---
 # Explorer screen

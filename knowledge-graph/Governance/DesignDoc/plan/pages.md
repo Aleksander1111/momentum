@@ -9,9 +9,7 @@ unlocks: 2
 references:
   - to: Governance/DesignDoc/plan
     relation: part_of
-artifacts:
-  - docs/PLAN.md
-  - docs/designs/pages.html
+artifacts: []
 ---
 # Plan: pages
 

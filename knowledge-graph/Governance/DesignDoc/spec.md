@@ -17,8 +17,7 @@ references:
     relation: consists_of
   - to: Governance/DesignDoc/spec/database
     relation: consists_of
-artifacts:
-  - docs/SPEC.md
+artifacts: []
 ---
 # Momentum harness spec
 
