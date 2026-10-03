@@ -23,7 +23,8 @@ Fastify routes typed by `@momentum/contract` zod; OpenAPI at `/openapi.json`.
 | Feed | GET /feed; POST /feed/{path}/approve, /send-back, /resolve, /wont-resolve |
 | Entities | GET /workspaces/{ws}/entities/*, /artifact/*, /types, /search |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
-| Projects | GET /workspaces; GET …/metrics?range=; GET, PUT …/graph-build; POST …/reset; PUT, DELETE …/logo |
+| Projects | GET /workspaces; …/metrics?range=; GET, PUT …/graph-build; POST …/reset; PUT, DELETE …/logo |
+| Timeline | GET /timeline?workspace, actor, before, limit → events, next |
 | Settings | GET, PUT /settings |
 
-`/artifact/*`: a main-line file. Chats, messages carry card parts. Cookie or bearer, else 401; errors `{error}`. WebSockets `/voice`, `/voice/audio`; `/mcp`: voice tools.
+Cookie or bearer, else 401. WebSockets `/voice`, `/voice/audio`; `/mcp`: voice tools.

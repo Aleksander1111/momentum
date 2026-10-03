@@ -24,7 +24,7 @@ In-process MCP server the runner gives every run next to `momentum-kb`; the harn
 
 | Input | Effect |
 |---|---|
-| complete | Marks a building graph build complete once the run finished; coverage 1 |
+| complete | Marks a building graph build complete once the run finished; coverage 1; on the timeline |
 | progress | The next run's prompt carries it |
 | coverage 0–1 | Estimates the full build |
 | documents | Handed by the Stop hook to summarization |
@@ -35,4 +35,4 @@ In-process MCP server the runner gives every run next to `momentum-kb`; the harn
 |---|---|
 | question | Next question, or closing remark |
 | done | Unlocks the summary and commit message |
-| document | Repository file outside knowledge-graph/; summarized when done |
+| document | File outside knowledge-graph/; summarized when done |

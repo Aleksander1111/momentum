@@ -23,6 +23,6 @@ One feed across enabled projects where everything needing the user's attention s
 - Rank = product_impact + timeline_impact + unlocks; ties to the earlier entry; the feed size bounds the loops
 - Approve: one commit "Approve <title>" sets the entity verified, deletes what it `retires`, sets what it `implements` synced, listing each effect
 - Send back: the comment starts a chat run targeting the entity
-- Resolve an issue: a picked option (approved) or the user's text (sent back) starts a chat run that applies it to the concerned entities and retires the issue
-- Won't resolve: a commit with the reason sets it verified; rejected
-- Each reaction records the time spent
+- Resolve an issue: a picked option or the user's text starts a chat run that applies it and retires the issue
+- Won't resolve: a commit with the reason sets it verified
+- Each reaction goes on the timeline with its effects, comment or reason, run and time spent
