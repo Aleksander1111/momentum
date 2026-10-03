@@ -49,6 +49,8 @@ const test = base.extend<object, { observer: Page }>({
         const runner = await playwright.chromium.connectOverCDP(process.env.E2E_CDP, { timeout: 30_000 });
         const page = runner.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith(OBSERVER));
         if (!page) throw new Error('The test runner window is not open on the observer');
+        // Attaching resets the window to Playwright's default light scheme; keep it dark like the runner opened it
+        await page.emulateMedia({ colorScheme: 'dark' });
         await use(page);
         return;
       }

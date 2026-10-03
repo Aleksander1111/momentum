@@ -21,8 +21,11 @@ async function focusOpenRunner(): Promise<boolean> {
   if (!(await up(OBSERVER)) || !(await up(`${cdp}/json/version`))) return false;
   const browser = await chromium.connectOverCDP(cdp, { timeout: 10_000 });
   const page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith(OBSERVER));
-  await page?.bringToFront();
-  return Boolean(page);
+  if (!page) return false;
+  // Attaching resets the window to Playwright's default light scheme
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.bringToFront();
+  return true;
 }
 
 async function main(): Promise<void> {

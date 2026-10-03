@@ -25,7 +25,7 @@ Content categories, by severity:
 | logical | high | The entity contradicts itself: its claims cannot all be true at once, without needing other entities |
 | ambiguity | high | The entity can be read more than one way, so no one can act on it; the problem is unclear wording in this entity, not a missing neighbouring design |
 | design-gap | medium | The entity asserts something that cannot be implemented as written: a flow, mechanism or rule it needs is missing; the problem is incomplete design, not unclear wording |
-| naming | medium | The entity uses a name not introduced in the knowledge base, or nearby entities call the same concept by different names; the fix aligns to the established name or introduces the term |
+| naming | medium | The entity uses a name not introduced in the knowledge base, nearby entities call the same concept by different names, or entities use the same or a near-identical name for different concepts; the fix aligns to the established name, introduces the term or renames one of the clashing entities |
 | repetition | medium | Other entities restate the same information with no added constraint; different wording of the same facts still counts |
 | verbose | low | The entity uses too many words for the meaning it carries; cutting words would drop no constraint; the problem is word count inside this entity, not duplicates elsewhere |
 | struct | low | The format hides the information (dense prose, wrong grouping); a list, table, diagram or split into entities would make the same content clearer |
