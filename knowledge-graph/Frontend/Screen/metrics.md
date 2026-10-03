@@ -12,7 +12,7 @@ artifacts:
 ---
 # Metrics
 
-Page tab charting a workspace's metrics over 24 h, 7 d or 30 d (30 d default); workspace picker and range switch on top, clear of the phone's Settings icon.
+Page tab charting a workspace's metrics over 24 h, 7 d or 30 d (30 d default); workspace picker (names led by logos) and range switch on top, clear of the phone's Settings icon.
 
 | Panel | Shows |
 |---|---|

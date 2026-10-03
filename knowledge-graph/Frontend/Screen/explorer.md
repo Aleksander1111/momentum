@@ -21,7 +21,7 @@ kind: page
 
 Browse a workspace's entities by domain and type, search them, or hand the exploration to an agent.
 
-- Workspace picker with the entity total; a collapsible domain/type tree with counts; entity rows with domain, title and state badges
+- Workspace picker with logos, entity total; a collapsible domain/type tree with counts; entity rows with domain, title and state badges
 - Search, debounced 300 ms, replaces the tree with a flat result list
 - A mic in the search field: spoken words fill the search; an interview started by voice opens its chat
 - "Explore through an agent" opens the Chat tab with the workspace chosen and the composer focused

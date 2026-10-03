@@ -26,4 +26,4 @@ pnpm monorepo of the Momentum harness: TypeScript everywhere, Node 24.
 | docs/ | Presentation, slides, entity-types.tsv |
 | examples/ | todo-cli, bookshelf-api, handbook: projects the end-to-end scenarios run over |
 
-Scripts: `pnpm dev` (watch mode), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI), `pnpm e2e` (Playwright scenarios, apps/backend/e2e).
+Scripts: `pnpm dev` (watch mode), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI), `pnpm e2e` (Playwright scenarios, apps/backend/e2e), `pnpm e2e:runner` (test runner window).

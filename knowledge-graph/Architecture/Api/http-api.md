@@ -21,10 +21,10 @@ Fastify routes typed by `@momentum/contract` zod; OpenAPI at `/openapi.json`.
 |---|---|
 | Session | POST, DELETE /session |
 | Feed | GET /feed; POST /feed/{path}/approve, /send-back, /resolve, /wont-resolve |
-| Entities | GET /workspaces/{ws}/entities/*, /artifact/*, /types, /search |
+| Entities | GET /workspaces/{ws}/entities/*, artifact/*, types, search |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
 | Projects | GET /workspaces; …/metrics?range=; GET, PUT …/graph-build; POST …/reset; PUT, DELETE …/logo |
-| Timeline | GET /timeline?workspace, actor, before, limit → events, next |
+| Timeline | GET /timeline?workspace, actor, before, limit |
 | Settings | GET, PUT /settings |
 
-Cookie or bearer, else 401. WebSockets `/voice`, `/voice/audio`; `/mcp`: voice tools.
+Cookie or bearer, else 401; pages: web app, 503 mid-rebuild. WebSockets `/voice`, `/voice/audio`; `/mcp`: voice tools.

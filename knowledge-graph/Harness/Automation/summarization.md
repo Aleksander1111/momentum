@@ -16,5 +16,6 @@ Summarizes repository artifacts: chats, plans, results implemented by AI, docume
 
 - A sub-agent of every run: a Stop hook hands it the run's artifacts before the run ends; a run of its own when an artifact changes
 - The only writer of summaries: runs never summarize their own artifacts
+- Never commits, pushes or switches branches: the harness commits what it leaves in the checkout
 - Each summary is an entity with its artifacts listed; the entity is its card: paragraph, bullets, table or PlantUML diagram (mermaid is not accepted)
 - Skips the path patterns the user excludes

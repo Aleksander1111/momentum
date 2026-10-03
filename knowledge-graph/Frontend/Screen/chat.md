@@ -22,7 +22,7 @@ artifacts:
 
 Chats per workspace, each a conversation attached to a run.
 
-- Chats grouped by workspace, polled every 15 s; rows show kind, status, age, state badges
+- Chats grouped by workspace, led by its logo, polled every 15 s; rows show kind, status, age, state badges
 - The composer starts a chat run in the chosen workspace
 - Card parts in the context wait as chips above the composer (× removes one) and go with the next message
 - A mic beside send: the field shows the words as heard; its outcome opens the chat; a failed item returns

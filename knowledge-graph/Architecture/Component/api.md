@@ -28,4 +28,4 @@ The backend's interface: Fastify routes typed by `@momentum/contract` zod (OpenA
 | Voice | `/voice`, `/voice/audio` |
 
 - Sign-ins, refused sign-ins and sign-outs go on the timeline
-- Cookie or bearer, else 401; page loads get the web build; errors `{error}`
+- Cookie or bearer, else 401; page loads get the web build, 503 while it is rebuilt; errors `{error}`
