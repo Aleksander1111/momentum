@@ -18,6 +18,8 @@ kind: page
 
 One entity in full, opened from the Explorer: breadcrumb of its path, verification and sync badges with labels, the card, references in both directions (each opening its entity) and the artifacts behind it with their kind.
 
+- A card changed since the user last verified it shows the diff against that version, as in the feed
+- Selected text and diagram shapes can be added to the chat context
 - Web (700px and wider) shows it in a pane beside the Explorer tree; mobile opens it as its own page with a Back link to the Explorer
 - Follows the light or dark colour scheme from the theme context
-- Reads `GET /workspaces/{ws}/entities/{path}`
+- Reads `GET /workspaces/{ws}/entities/{path}`, card diff included

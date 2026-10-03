@@ -20,12 +20,13 @@ The backend's interface: Fastify routes typed by `@momentum/contract` zod schema
 | Area | Routes |
 |---|---|
 | Session | POST, DELETE `/session` |
-| Feed | `/feed`; approve, send back, resolve an issue (option or own text), won't resolve |
-| Workspaces | entities, types, search, chats, metrics (`range`, 30d default), graph-build, reset |
+| Feed | `/feed`; approve, send back, resolve an issue, won't resolve |
+| Workspaces | entities, types, search, chats, metrics (`range`), graph-build, reset |
 | Runs | `/runs/:id`, messages, kill |
 | Settings | GET, PUT `/settings` |
 
-- Session by cookie or bearer token; every API route but sign-in needs one (401)
+- New chats and messages take card parts as context
+- Session by cookie or bearer token; all but sign-in need one (401)
 - Page loads get the web build
 - Errors as `{error}`: 400/404/409/500
 - MCP adds `run_automation`

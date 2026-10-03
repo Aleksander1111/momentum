@@ -25,5 +25,5 @@ kind: internal library
 
 - Parser and serializer: YAML frontmatter, `# title`, the rest is the card; file path to entity path, type path = its first two segments
 - Validator: known type, type matches the directory, card within the character limit (code points), every reference resolves on the branch
-- Card builder: markdown AST (remark, GFM) to blocks; plantuml blocks rendered to SVG by the local PlantUML server, text labels so mobile can draw them; mermaid blocks rejected by the validator
+- Card builder: markdown AST (remark, GFM) to blocks; plantuml blocks rendered to SVG by the local PlantUML server and made pickable shape by shape, a diff card's before diagrams too; mermaid blocks rejected by the validator
 - Entity types loaded from `docs/entity-types.tsv`

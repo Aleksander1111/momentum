@@ -27,10 +27,10 @@ kind: page
 
 Ranked cards across enabled projects, one at a time.
 
-- Counters: two pills, verification then sync, each state an icon and count, dimmed at zero, named on hover
-- Swipe right approves; swipe left opens a Disapprove sheet whose comment is sent back
-- An issue card adds severity, category, concerned entities and options, the recommended one picked: swipe right resolves with the pick; swipe left opens Your resolution: Send resolves with the text, Won't resolve closes with the reason
-- Stamps and a wash follow the drag
+- Counters: verification and sync pills, a count per state
+- A card changed since last verified shows the diff: −/+ word counts; words, rows, items and code lines marked; whole blocks tinted; a diagram as Before/After/Diff
+- Selected text and diagram shapes go to the chat context; on the web the right button selects, the left swipes
+- Swipe right approves; left opens a Disapprove sheet whose comment is sent back
+- Issue cards add severity, category, concerns, options: right resolves with the pick; left takes your resolution or a won't-resolve reason
 - Time on the card goes with the reaction
-- Polls every 15 s; a reacted card leaves at once
-- Reactions queue offline and resume after restart; stale cache is dropped
+- Polls every 15 s; reactions queue offline

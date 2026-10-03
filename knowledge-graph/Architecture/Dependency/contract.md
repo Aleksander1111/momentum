@@ -16,16 +16,17 @@ kind: internal library
 ---
 # Contract
 
-`@momentum/contract`: zod schemas and types shared by backend and app.
+`@momentum/contract`: zod schemas and types for backend and app.
 
 | Area | Schemas |
 |---|---|
-| Entity | frontmatter, states, 0–5 impacts, references; trigger and issue fields (severity, options, recommended, wont_resolve) |
-| Card | markdown AST blocks, PlantUML as SVG |
-| Feed | items with issue options and concerns, state counts; approve, send back, resolve, won't resolve |
-| Runs, chats | automations, triggers, status, usage in % |
+| Entity | frontmatter, states, impacts, references, issue fields |
+| Card | markdown blocks; PlantUML SVG with pickable elements |
+| Card diff | ins/del marks; line spans for code and diagram source; before diagram; word counts |
+| Feed | items with card diff and issue options; state counts; reactions |
+| Runs, chats | automations, triggers, status, usage %; messages with context items (quote or diagram element) |
 | Graph build | state, coverage, estimate |
-| Metrics | series by range, usage, entities per state, histograms |
+| Metrics | series, usage, states, histograms |
 | Settings | projects, cards, exclusions, lifetimes, models |
 
-`openapi.json` is generated from them.
+`openapi.json` is generated.
