@@ -21,7 +21,7 @@ artifacts:
 | Path | Holds |
 |---|---|
 | apps/ | Expo app; Fastify API, orchestrator, guard |
-| packages/ | contract, entity, kb, runs |
+| packages/ | contract, entity (PlantUML renderer), kb, runs |
 | automations/<name>/ | Claude Code files of a definition; trigger.md its default trigger |
 | knowledge-graph/ | harness knowledge base |
 
@@ -29,4 +29,4 @@ artifacts:
 - Stop hook hands changed artifacts and graph-build documents to the summarization sub-agent
 - Entity: frontmatter + card; extra fields on Trigger, Issue (severity, options, recommended, wont_resolve), Conflict, Automation
 - Relations acted on: implements, retires, concerns
-- Validator: card limit, type fits path, references resolve
+- Validator: card limit, type fits path, references resolve, no mermaid

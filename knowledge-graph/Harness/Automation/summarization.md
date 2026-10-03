@@ -1,7 +1,7 @@
 ---
 type: Harness/Automation
 origin: user
-verification: verified
+verification: unverified
 sync: synced
 product_impact: 0
 timeline_impact: 0
@@ -16,5 +16,5 @@ Summarizes repository artifacts: chats, plans, results implemented by AI, docume
 
 - A sub-agent of every run: a Stop hook hands it the run's artifacts before the run ends; a run of its own when an artifact changes
 - The only writer of summaries: runs never summarize their own artifacts
-- Each summary is an entity with its artifacts listed; the entity is its card
+- Each summary is an entity with its artifacts listed; the entity is its card: paragraph, bullets, table or PlantUML diagram (mermaid is not accepted)
 - Skips the path patterns the user excludes

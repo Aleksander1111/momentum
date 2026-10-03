@@ -26,5 +26,5 @@ Graph RAG over 152 entity types (`docs/entity-types.tsv`), one knowledge base pe
 - Entities are markdown files at `knowledge-graph/<Domain>/<Type>/[<parent>/]<name>.md`; the type is the path
 - Frontmatter: type, origin, verification, sync, the three ranking integers, references, artifacts; the body is the card
 - A summary is an entity with artifacts; chats, plans, issues, triggers and automation definitions are entities too
-- Runs read and write freely on their own branch; the main line changes only by approval from the feed or a validated merge
+- Runs write freely in a detached checkout; the guard lands each as one commit on the main line, conflicts as a Conflict entity; unverified entities enter the feed
 - Retrieval: full text and embeddings fused by reciprocal rank, then expanded along references
