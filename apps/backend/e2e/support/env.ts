@@ -41,6 +41,7 @@ function initRepo(dir: string, message: string) {
   git(dir, 'init', '-q', '-b', 'main');
   git(dir, 'config', 'user.email', 'e2e@momentum.test');
   git(dir, 'config', 'user.name', 'Momentum e2e');
+  git(dir, 'config', 'core.autocrlf', 'false');
   git(dir, 'add', '-A');
   git(dir, 'commit', '-q', '--allow-empty', '-m', message);
 }

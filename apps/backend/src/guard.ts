@@ -239,6 +239,12 @@ export class Guard {
   async transaction(run: RunRef): Promise<TransactionResult> {
     const ws = await this.workspaces.get(run.workspace);
     const { written, deleted, issues } = await this.check(run);
+    // Only the user verifies: an entity a run changed lands unverified, whatever the run left in its frontmatter
+    for (const w of written) {
+      if (w.entity.frontmatter.verification === 'unverified') continue;
+      w.entity.frontmatter.verification = 'unverified';
+      await this.writeEntity(run.checkout, w.path, w.entity);
+    }
     const paths = [...written.map((w) => w.path), ...deleted];
     const valid = issues.length === 0;
     if (!valid) await this.raiseIssue(ws, run, issues);
