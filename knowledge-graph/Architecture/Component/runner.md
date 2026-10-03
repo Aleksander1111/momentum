@@ -7,6 +7,8 @@ product_impact: 4
 timeline_impact: 2
 unlocks: 3
 references:
+  - to: Harness/Automation/interview
+    relation: concerns
   - to: Harness/Automation/summarization
     relation: concerns
   - to: Harness/Automation/validation
@@ -25,11 +27,12 @@ artifacts:
 One Claude Code session per run, in a detached checkout of the main line.
 
 - **Queue**: automation serialized per workspace; user runs at once
-- **Start**: checkout at the tip, guard watching; KB and run MCP, hooks, limits
+- **Start**: checkout at the tip; guard, KB and run MCP, hooks
 - **Model**: from settings, or by risk for an implementation
-- **Context**: a chat's card parts go ahead of the prompt as references: file > headings > quote or diagram element
-- **Stop hook**: changed artifacts and graph-build documents to summarization
-- **Usage**: limit rises split among concurrent runs
+- **Context**: card parts ahead of the prompt: file > headings > quote or element
+- **Stop hook**: changed artifacts, graph-build documents to summarization
+- **Usage**: limit rises split among runs
 - **Finish**: guard lands it; metrics, coverage
-- **Restart**: lost runs resume, twice at most
-- **Chat**: resumes on a fresh checkout; transcript `chats/<id>.jsonl`
+- **Restart**: lost runs resume twice at most; chats, interviews on the next message
+- **Chat**: transcript `chats/<id>.jsonl`
+- **Interview**: summary and commit message once done
