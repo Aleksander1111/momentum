@@ -14,6 +14,7 @@ import {
   MetricsResponse,
   PostRunMessage,
   PutGraphBuild,
+  PutProjectLogo,
   PutSettings,
   RunDetail,
   SearchResult,
@@ -211,6 +212,14 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     '/workspaces/:ws/reset',
     { schema: { params: ws, response: { 200: GraphBuildStatus, 409: ErrorResponse, ...errors } } },
     (req) => momentum.resetProject(req.params.ws),
+  );
+
+  app.put('/workspaces/:ws/logo', { schema: { params: ws, body: PutProjectLogo, response: { 200: Workspace, ...errors } } }, (req) =>
+    momentum.setProjectLogo(req.params.ws, req.body.logo),
+  );
+
+  app.delete('/workspaces/:ws/logo', { schema: { params: ws, response: { 200: Workspace, ...errors } } }, (req) =>
+    momentum.setProjectLogo(req.params.ws, null),
   );
 
   app.get('/settings', { schema: { response: { 200: Settings, ...errors } } }, () => momentum.getSettings());

@@ -5,14 +5,20 @@
     "scheme": "momentum",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F7F5F0",
     "android": {
       "package": "com.momentum.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F7F5F0"
+      },
       "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
+      "favicon": "./public/favicon.png",
       "output": "single",
       "name": "momentum",
       "shortName": "momentum",

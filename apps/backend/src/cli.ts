@@ -1,12 +1,14 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, extname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
+import { ProjectLogo } from '@momentum/contract';
 import { createHttp } from './api/http.ts';
 import { createMomentum } from './app.ts';
 import { config } from './config.ts';
 
 const [command, ...args] = process.argv.slice(2);
+const LOGO_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const m = await createMomentum();
 
 async function ask(question: string): Promise<string> {
@@ -43,6 +45,21 @@ try {
       console.log(`${name} ${command}d.`);
       break;
     }
+    case 'logo': {
+      const [name, file] = args;
+      if (!name || !file) throw new Error('Usage: momentum logo <workspace> <image file | --remove>');
+      if (file === '--remove') {
+        await m.momentum.setProjectLogo(name, null);
+        console.log(`${name} logo removed; the app draws one from the name.`);
+        break;
+      }
+      const type = LOGO_TYPES[extname(file).toLowerCase()];
+      if (!type) throw new Error('A logo is a .png, .jpg, .webp or .svg file');
+      const logo = ProjectLogo.parse(`data:${type};base64,${(await readFile(file)).toString('base64')}`);
+      await m.momentum.setProjectLogo(name, logo);
+      console.log(`${name} logo set from ${file}.`);
+      break;
+    }
     case 'index': {
       for (const name of args.length ? args : (await m.settings.projects()).map((p) => p.name)) {
         const ws = await m.workspaces.get(name);
@@ -61,7 +78,7 @@ try {
       break;
     }
     default:
-      console.log('Commands: generate-password | set-password [password] | enable <workspace> | disable <workspace> | index [workspace...] | openapi');
+      console.log('Commands: generate-password | set-password [password] | enable <workspace> | disable <workspace> | logo <workspace> <file | --remove> | index [workspace...] | openapi');
   }
 } finally {
   await m.sql.end();

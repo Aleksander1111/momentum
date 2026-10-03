@@ -4,9 +4,9 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { C, F, useTheme } from '../ui/theme';
-import { T } from '../ui/Text';
+import { C, useTheme } from '../ui/theme';
 import { Field } from '../ui/Field';
+import { Logo } from '../ui/Logo';
 import { Btn } from '../ui/parts';
 
 export default function Session() {
@@ -34,7 +34,7 @@ export default function Session() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.screen }}>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 18 }}>
-        <T style={{ fontFamily: F.head, fontSize: 34, letterSpacing: 1.4, marginBottom: 26 }}>momentum</T>
+        <Logo width={260} style={{ marginBottom: 26 }} />
         <Field
           icon="lock"
           placeholder="Password"

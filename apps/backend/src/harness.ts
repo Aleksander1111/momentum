@@ -60,6 +60,7 @@ export class HarnessSettings {
     await this.sql`alter table harness.project add column if not exists graph_build_progress text`;
     await this.sql`alter table harness.project add column if not exists graph_build_since timestamptz`;
     await this.sql`alter table harness.project add column if not exists graph_build_coverage real`;
+    await this.sql`alter table harness.project add column if not exists logo text`;
   }
 
   /** A git repository under the root is a workspace; deleting the directory retires it */
@@ -78,7 +79,7 @@ export class HarnessSettings {
   }
 
   async projects(): Promise<ProjectSetting[]> {
-    return this.sql<ProjectSetting[]>`select name, path, enabled from harness.project order by name`;
+    return this.sql<ProjectSetting[]>`select name, path, enabled, logo from harness.project order by name`;
   }
 
   async enabled(): Promise<ProjectSetting[]> {
@@ -87,6 +88,12 @@ export class HarnessSettings {
 
   async setEnabled(name: string, enabled: boolean): Promise<void> {
     await this.sql`update harness.project set enabled = ${enabled} where name = ${name}`;
+  }
+
+  /** Sets the logo a project uploaded, or clears it so the app draws one from the name; false when there is no such project */
+  async setLogo(name: string, logo: string | null): Promise<boolean> {
+    const rows = await this.sql`update harness.project set logo = ${logo} where name = ${name} returning name`;
+    return rows.length > 0;
   }
 
   /** The main line commit the index stands at; none when the index was built by an older version and is rebuilt whole */

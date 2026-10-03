@@ -552,10 +552,19 @@ export const LifetimeRule = z.object({
 });
 export type LifetimeRule = z.infer<typeof LifetimeRule>;
 
+/** A project logo as a data URL: a PNG, JPEG, WebP or SVG image of at most 256 KB */
+export const LOGO_MAX_BYTES = 256 * 1024;
+export const ProjectLogo = z
+  .string()
+  .regex(/^data:image\/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/]+=*$/, 'A logo is a PNG, JPEG, WebP or SVG image')
+  .max(Math.ceil(LOGO_MAX_BYTES / 3) * 4 + 30, 'A logo is at most 256 KB');
+
 export const ProjectSetting = z.object({
   name: z.string(),
   path: z.string(),
   enabled: z.boolean(),
+  /** The uploaded logo; none means the app draws one from the name */
+  logo: ProjectLogo.nullable(),
 });
 export type ProjectSetting = z.infer<typeof ProjectSetting>;
 
@@ -613,7 +622,10 @@ export type SessionRequest = z.infer<typeof SessionRequest>;
 export const SessionResponse = z.object({ token: z.string(), expiresAt: z.string() });
 export type SessionResponse = z.infer<typeof SessionResponse>;
 
-export const Workspace = z.object({ name: z.string(), path: z.string(), enabled: z.boolean() });
+export const PutProjectLogo = z.object({ logo: ProjectLogo });
+export type PutProjectLogo = z.infer<typeof PutProjectLogo>;
+
+export const Workspace = ProjectSetting;
 export type Workspace = z.infer<typeof Workspace>;
 
 export const ErrorResponse = z.object({ error: z.string() });

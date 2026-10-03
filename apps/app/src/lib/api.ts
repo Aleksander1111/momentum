@@ -163,6 +163,14 @@ export const api = {
     const res = await request('POST', `/workspaces/${seg(ws)}/reset`);
     return GraphBuildStatus.parse(await res.json());
   },
+  async putProjectLogo(ws: string, logo: string): Promise<Workspace> {
+    const res = await request('PUT', `/workspaces/${seg(ws)}/logo`, { logo });
+    return Workspace.parse(await res.json());
+  },
+  async deleteProjectLogo(ws: string): Promise<Workspace> {
+    const res = await request('DELETE', `/workspaces/${seg(ws)}/logo`);
+    return Workspace.parse(await res.json());
+  },
   settings: () => get('/settings', Settings),
   async putSettings(req: PutSettings): Promise<Settings> {
     const res = await request('PUT', '/settings', req);

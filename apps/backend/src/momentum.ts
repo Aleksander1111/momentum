@@ -42,6 +42,11 @@ export class Momentum {
     return this.settings.projects();
   }
 
+  async setProjectLogo(name: string, logo: string | null): Promise<WorkspaceView> {
+    if (!(await this.settings.setLogo(name, logo))) throw new NotFound(`No workspace ${name}`);
+    return (await this.settings.projects()).find((p) => p.name === name)!;
+  }
+
   async feed(): Promise<FeedResponse> {
     const enabled = await this.settings.enabled();
     const { feedSize } = await this.settings.values();

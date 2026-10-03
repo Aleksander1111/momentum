@@ -7,6 +7,7 @@ import { H, T } from './Text';
 import { Diagram } from './Diagram';
 import { DiagramDiff, SpanText } from './DiagramDiff';
 import { DomainIcon, domainColour } from './domains';
+import { ProjectLogo } from './ProjectLogo';
 import { SelectionMenu } from './SelectionMenu';
 import { SelectionScope } from './SelectionScope';
 import { chatContext } from '../lib/context';
@@ -241,7 +242,7 @@ function Crumb({ label, onPress }: { label: string; onPress: () => void }) {
 
 const Sep = () => <T style={{ fontSize: 13, color: C.faint }}>›</T>;
 
-/** Breadcrumb: project, type in a pill coloured by its main type, then the folders below the type. */
+/** Breadcrumb: project logo, type in a pill coloured by its main type, then the folders below the type. */
 function Crumbs({ workspace, type, path }: { workspace: string; type: string; path: string }) {
   const { scheme } = useTheme();
   const colour = domainColour(type, scheme);
@@ -250,12 +251,8 @@ function Crumbs({ workspace, type, path }: { workspace: string; type: string; pa
   const folders = typeSegs.every((t, i) => segs[i] === t) ? segs.slice(typeSegs.length, -1) : [];
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 6, rowGap: 4, flexShrink: 1 }}>
-      <Pressable onPress={() => openInExplorer(workspace)} accessibilityRole="link">
-        {({ hovered }) => (
-          <T style={{ fontSize: 13, fontWeight: '700', textDecorationLine: hovered ? 'underline' : 'none' }}>
-            {workspace}
-          </T>
-        )}
+      <Pressable onPress={() => openInExplorer(workspace)} accessibilityRole="link" accessibilityLabel={workspace}>
+        {({ hovered }) => <ProjectLogo name={workspace} size={32} style={{ opacity: hovered ? 0.8 : 1 }} />}
       </Pressable>
       <Sep />
       <Pressable

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AutomationName, Risk } from '@momentum/contract';
-import type { GraphBuildState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT } from '@momentum/contract';
+import { AutomationName, ProjectLogo as LogoSchema, Risk } from '@momentum/contract';
+import type { GraphBuildState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT, Workspace } from '@momentum/contract';
 import { api } from '../../lib/api';
+import { pickLogo } from '../../lib/pickLogo';
 import { automationLabel, durationMs, usagePct } from '../../lib/format';
 import { C, F, useTheme, useWide, type Appearance } from '../../ui/theme';
 import { Btn, Chevron, List, Row, RowText, Sect } from '../../ui/parts';
+import { ProjectLogo } from '../../ui/ProjectLogo';
 import { T } from '../../ui/Text';
 
 const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null;
@@ -277,6 +279,42 @@ function Models({ m, onSave }: { m: ModelSettings; onSave: (m: ModelSettings) =>
 const GRAPH_BUILD: Record<GraphBuildState, string> = { building: 'building', stopped: 'stopped', complete: 'complete' };
 
 /**
+ * The logo of an enabled project, shown on its cards: Upload picks an image (PNG, JPEG, WebP or SVG, at most 256 KB),
+ * Remove goes back to the one drawn from the name.
+ */
+function LogoRow({ name, logo }: { name: string; logo: string | null }) {
+  const qc = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const saved = (next: Workspace) => {
+    setError(null);
+    qc.setQueryData<Workspace[]>(['workspaces'], (ws) => ws?.map((w) => (w.name === name ? next : w)));
+    void qc.invalidateQueries({ queryKey: ['workspaces'] });
+    void qc.invalidateQueries({ queryKey: ['settings'] });
+  };
+  const upload = useMutation({
+    mutationFn: async () => {
+      const picked = await pickLogo();
+      if (!picked) return null;
+      const checked = LogoSchema.safeParse(picked);
+      if (!checked.success) throw new Error(checked.error.issues[0]?.message ?? 'Not an image');
+      return api.putProjectLogo(name, checked.data);
+    },
+    onSuccess: (next) => next && saved(next),
+    onError: (e) => setError(e instanceof Error ? e.message : String(e)),
+  });
+  const remove = useMutation({ mutationFn: () => api.deleteProjectLogo(name), onSuccess: saved });
+  const busy = upload.isPending || remove.isPending;
+  const sub = error ?? (logo ? 'Uploaded' : 'Drawn from the name until one is uploaded');
+  return (
+    <Row style={{ paddingLeft: 28, backgroundColor: C.card }}>
+      <RowText title="Logo" sub={sub} size={14} />
+      <Btn small kind="ghost" label={logo ? 'Replace' : 'Upload'} disabled={busy} onPress={() => upload.mutate()} />
+      {logo ? <Btn small kind="ghost" label="Remove" disabled={busy} onPress={() => remove.mutate()} style={{ marginLeft: 6 }} /> : null}
+    </Row>
+  );
+}
+
+/**
  * The knowledge graph build of an enabled project: its state, what it produced and what it used, refreshed while it
  * builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again. Reset removes every
  * entity and database entry of the project and builds the knowledge graph afresh; it asks for a second tap first.
@@ -401,6 +439,7 @@ export default function Settings() {
         {s.projects.map((p, i) => (
           <View key={p.name}>
             <Row first={i === 0}>
+              <ProjectLogo name={p.name} size={32} />
               <RowText title={p.name} sub={p.path} />
               <Switch
                 on={p.enabled}
@@ -411,6 +450,7 @@ export default function Settings() {
                 }}
               />
             </Row>
+            {p.enabled ? <LogoRow name={p.name} logo={p.logo} /> : null}
             {p.enabled ? <GraphBuildRow name={p.name} /> : null}
           </View>
         ))}
