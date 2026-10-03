@@ -108,6 +108,7 @@ const seg = (s: string) => encodeURIComponent(s);
 const segs = (p: string) => p.split('/').map(encodeURIComponent).join('/');
 
 const RunIdResponse = { parse: (d: unknown) => d as { runId: string } };
+const ArtifactResponse = { parse: (d: unknown) => d as { path: string; text: string } };
 const SearchResponse = {
   parse: (d: unknown) => ({ results: SearchResult.array().parse((d as { results: unknown }).results) }),
 };
@@ -138,6 +139,7 @@ export const api = {
   },
   entity: (ws: string, path: string) => get(`/workspaces/${seg(ws)}/entities/${segs(path)}`, EntityDetail),
   types: (ws: string) => get(`/workspaces/${seg(ws)}/types`, TypesResponse),
+  artifact: (ws: string, path: string) => get(`/workspaces/${seg(ws)}/artifact/${segs(path)}`, ArtifactResponse),
   search: (ws: string, q: string) => get(`/workspaces/${seg(ws)}/search?q=${encodeURIComponent(q)}`, SearchResponse),
   chats: (ws: string) => get(`/workspaces/${seg(ws)}/chats`, ChatsResponse),
   async createChat(ws: string, req: CreateChatRequest): Promise<{ runId: string }> {

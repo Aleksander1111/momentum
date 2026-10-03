@@ -88,6 +88,15 @@ export default function Chats() {
           ref={composer}
           placeholder={`Ask ${target ?? ''}`.trim()}
           context={context}
+          voice={{
+            target: target ? { kind: 'chat', workspace: target, context } : null,
+            onOutcome: (o) => {
+              if (!o.runId || !o.workspace) return;
+              if (o.created && o.workspace === target) chatContext.clear(target);
+              void qc.invalidateQueries({ queryKey: ['chats', o.workspace] });
+              openRun(o.runId);
+            },
+          }}
           onSend={async (text) => {
             if (!target) return;
             const { runId } = await api.createChat(target, { text, context });

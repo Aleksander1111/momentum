@@ -8,7 +8,8 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F7F5F0",
     "android": {
-      "package": "com.momentum.app"
+      "package": "com.momentum.app",
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",

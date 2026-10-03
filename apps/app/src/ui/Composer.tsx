@@ -1,15 +1,18 @@
 import { forwardRef, useState } from 'react';
 import { Pressable, View, type TextInput } from 'react-native';
-import type { ContextItem } from '@momentum/contract';
+import type { ContextItem, VoiceItem, VoiceOutcome, VoiceTarget } from '@momentum/contract';
 import { chatContext } from '../lib/context';
+import { useVoice } from '../lib/voice';
 import { C, F } from './theme';
 import { Field } from './Field';
 import { Icon } from './icons';
+import { MicButton } from './MicButton';
 import { T } from './Text';
 
-/** How a context item reads on its chip: the entity, then the quote or the diagram element */
+/** How a context item reads on its chip: the entity, then the quote or the diagram element; a whole card is its title */
 export function contextLabel(c: ContextItem): string {
-  return `${c.title} › ${c.element !== undefined ? `< ${c.element} >` : `“${c.quote}”`}`;
+  if (c.element !== undefined) return `${c.title} › < ${c.element} >`;
+  return c.quote !== undefined ? `${c.title} › “${c.quote}”` : c.title;
 }
 
 /** One part of a card added to the context; × takes it out */
@@ -40,13 +43,33 @@ export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; on
   );
 }
 
-/** Field plus round accent send button; the context items waiting for this chat as chips above them. */
+/** Spoken items from this composer's mic: where they go, and what the screen does with each outcome */
+export interface ComposerVoice {
+  target: VoiceTarget | null;
+  onOutcome: (outcome: VoiceOutcome, item: VoiceItem) => void;
+}
+
+/**
+ * Field plus round accent send button; the context items waiting for this chat as chips above them. With `voice`, a mic
+ * beside send: while it listens the field shows the text as heard so far; an item that failed comes back to the field.
+ */
 export const Composer = forwardRef<
   TextInput,
-  { placeholder: string; onSend: (text: string) => Promise<unknown> | void; autoFocus?: boolean; context?: ContextItem[] }
->(function Composer({ placeholder, onSend, autoFocus, context }, ref) {
+  {
+    placeholder: string;
+    onSend: (text: string) => Promise<unknown> | void;
+    autoFocus?: boolean;
+    context?: ContextItem[];
+    voice?: ComposerVoice;
+  }
+>(function Composer({ placeholder, onSend, autoFocus, context, voice }, ref) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const mic = useVoice(voice?.target ?? null, (outcome, item) => {
+    if (outcome.kind === 'failed') setText(item.text);
+    voice?.onOutcome(outcome, item);
+  });
+  const heard = mic.listening || mic.partial !== null;
   const send = async () => {
     const t = text.trim();
     if (!t || busy) return;
@@ -71,12 +94,16 @@ export const Composer = forwardRef<
         <Field
           ref={ref}
           placeholder={placeholder}
-          value={text}
+          value={heard ? (mic.partial ?? '') : text}
           onChangeText={setText}
           onSubmitEditing={send}
           autoFocus={autoFocus}
+          editable={!heard}
           containerStyle={{ flex: 1 }}
         />
+        {voice ? (
+          <MicButton listening={mic.listening} available={mic.available && !!voice.target} onPress={mic.listening ? mic.stop : mic.start} />
+        ) : null}
         <Pressable
           onPress={send}
           disabled={busy}

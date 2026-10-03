@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { lastSegment } from '../lib/format';
@@ -7,6 +8,10 @@ import { T } from './Text';
 import { States } from './StateBadge';
 import { CardView } from './CardView';
 import { Chevron, List, Row, RowText, Sect } from './parts';
+import { MicButton } from './MicButton';
+import { useVoice } from '../lib/voice';
+import { openRun } from '../lib/runs';
+import { useWide } from './theme';
 
 export function useEntity(ws: string | null | undefined, path: string | null | undefined) {
   return useQuery({
@@ -27,6 +32,14 @@ export function EntityView({
   onOpen: (path: string) => void;
 }) {
   const { data: e } = useEntity(ws, path);
+  const wide = useWide();
+  const qc = useQueryClient();
+  // Said about this entity: a command changes it, a question asks about it; either opens its chat
+  const mic = useVoice({ kind: 'entity', workspace: ws, path }, (o) => {
+    if (!o.runId) return;
+    void qc.invalidateQueries({ queryKey: ['entity', ws, path] });
+    openRun(o.runId, wide);
+  });
   if (!e) return null;
   return (
     <View>
@@ -67,6 +80,9 @@ export function EntityView({
           </List>
         </>
       ) : null}
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
+        <MicButton listening={mic.listening} available={mic.available} onPress={mic.listening ? mic.stop : mic.start} />
+      </View>
     </View>
   );
 }

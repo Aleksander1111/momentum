@@ -15,6 +15,7 @@ export const PATHS = {
   agent:
     'M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-1.2l-2.3 3-1.6-1.2 1.4-1.8H9.7l1.4 1.8-1.6 1.2-2.3-3H6a3 3 0 0 1-3-3v-5a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v1h6V7a3 3 0 0 0-3-3zM9 12a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
   send: 'M3 11 21 3l-8 18-2-8z',
+  mic: 'M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z',
 } as const;
 
 export function Icon({ name, size, color }: { name: keyof typeof PATHS; size: number; color: string }) {

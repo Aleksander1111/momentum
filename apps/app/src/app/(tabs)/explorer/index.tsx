@@ -9,6 +9,9 @@ import { C, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
 import { Icon, Triangle } from '../../../ui/icons';
 import { Field } from '../../../ui/Field';
+import { MicButton } from '../../../ui/MicButton';
+import { useVoice } from '../../../lib/voice';
+import { openRun } from '../../../lib/runs';
 import { Count, List, Pick, Row, RowText } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { EntityView } from '../../../ui/EntityView';
@@ -106,6 +109,11 @@ export default function Explorer() {
     setOpen((s) => new Set([...s, ...segs.map((_, i) => segs.slice(0, i + 1).join('/'))]));
   }, [params.ws, params.folder]);
   const dq = useDebounced(q.trim(), 300);
+  // Spoken search words fill the search; an interview started by voice opens
+  const mic = useVoice(ws ? { kind: 'search', workspace: ws } : null, (o) => {
+    if (o.kind === 'search' && o.text) setQ(o.text);
+    else if (o.runId) openRun(o.runId, wide);
+  });
   const [lastOpened, setLastOpened] = useState<string | null>(null);
 
   const types = useQuery({ queryKey: ['types', ws], queryFn: () => api.types(ws as string), enabled: !!ws });
@@ -164,7 +172,15 @@ export default function Explorer() {
         <Pick value={ws} options={names} onChange={setWs} />
         {types.data ? <Count>{`${types.data.total} entities`}</Count> : null}
       </View>
-      <Field icon="search" placeholder="Search entities" value={q} onChangeText={setQ} autoCorrect={false} />
+      <Field
+        icon="search"
+        placeholder="Search entities"
+        value={mic.listening || mic.partial !== null ? (mic.partial ?? '') : q}
+        onChangeText={setQ}
+        autoCorrect={false}
+        editable={!mic.listening}
+        trailing={<MicButton bare listening={mic.listening} available={mic.available && !!ws} onPress={mic.listening ? mic.stop : mic.start} />}
+      />
       <Pressable
         onPress={() => ws && router.navigate({ pathname: '/chat', params: { ws, compose: '1' } })}
         style={{

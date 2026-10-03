@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import { Platform, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { C, F } from './theme';
 import { Icon, type PATHS } from './icons';
@@ -7,11 +7,13 @@ type Props = TextInputProps & {
   icon?: keyof typeof PATHS;
   containerStyle?: StyleProp<ViewStyle>;
   invalid?: boolean;
+  /** At the end of the field, such as a mic */
+  trailing?: ReactNode;
 };
 
 /** The pages.html `.field`: white, bordered, rounded input with an optional leading glyph. */
 export const Field = forwardRef<TextInput, Props>(function Field(
-  { icon, containerStyle, invalid, style, ...props },
+  { icon, containerStyle, invalid, trailing, style, ...props },
   ref,
 ) {
   return (
@@ -42,6 +44,7 @@ export const Field = forwardRef<TextInput, Props>(function Field(
           style,
         ]}
       />
+      {trailing}
     </View>
   );
 });

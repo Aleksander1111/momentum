@@ -15,6 +15,7 @@ import type {
   Workspace as WorkspaceView,
 } from '@momentum/contract';
 import { crossProjectEntityCounts, crossProjectFeed, type Embed, type Sql } from '@momentum/kb';
+import { show } from '@momentum/runs';
 import type { Approval } from './approval.ts';
 import type { Automations } from './automations.ts';
 import type { HarnessSettings } from './harness.ts';
@@ -76,6 +77,14 @@ export class Momentum {
     const d = await (await this.workspaces.get(workspace)).index.detail(path);
     if (!d) throw new NotFound(`No entity ${path} in ${workspace}`);
     return d;
+  }
+
+  /** A repository file as it stands on the main line, such as an interview's document */
+  async artifact(workspace: string, path: string): Promise<{ path: string; text: string }> {
+    const ws = await this.workspaces.get(workspace);
+    const text = await show(ws.path, `refs/heads/${ws.main}`, path);
+    if (text === null) throw new NotFound(`No ${path} on the main line of ${workspace}`);
+    return { path, text };
   }
 
   async types(workspace: string): Promise<TypesResponse> {

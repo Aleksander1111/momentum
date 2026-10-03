@@ -1,10 +1,11 @@
 import { useRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { RunDetail } from '@momentum/contract';
+import type { RunDetail, VoiceTarget } from '@momentum/contract';
 import { api } from '../lib/api';
 import { automationLabel, duration, usagePct } from '../lib/format';
-import { C, F } from './theme';
+import { openRun } from '../lib/runs';
+import { C, F, useWide } from './theme';
 import { T } from './Text';
 import { Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
@@ -50,9 +51,27 @@ function RunHead({ run, onStop }: { run: RunDetail; onStop: () => void }) {
 
 const bubbleText = { fontSize: 14.5, lineHeight: 20 };
 
+/** The document an interview writes, as it stands on the main line after the last answer */
+function InterviewDocument({ run }: { run: RunDetail }) {
+  const document = run.interview?.document;
+  const { data } = useQuery({
+    queryKey: ['artifact', run.workspace, document, run.messages.length, run.status],
+    queryFn: () => api.artifact(run.workspace, document as string),
+    enabled: !!document,
+    retry: false,
+  });
+  if (!data) return null;
+  return (
+    <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 }}>
+      <Markdown text={data.text} style={{ fontSize: 13.5, lineHeight: 19 }} />
+    </View>
+  );
+}
+
 /** Run header, messages and the message composer; polls the run while it is active. */
 export function Conversation({ runId }: { runId: string }) {
   const qc = useQueryClient();
+  const wide = useWide();
   const scroll = useRef<ScrollView>(null);
   const { data: run } = useQuery({
     queryKey: ['run', runId],
@@ -60,6 +79,12 @@ export function Conversation({ runId }: { runId: string }) {
     refetchInterval: (q) => (q.state.data && !ACTIVE.has(q.state.data.status) ? false : 3_000),
   });
   const context = useChatContext(run?.workspace ?? null);
+  const interview = run?.automation === 'interview';
+  const target: VoiceTarget | null = !run
+    ? null
+    : interview
+      ? { kind: 'interview', workspace: run.workspace, runId }
+      : { kind: 'chat', workspace: run.workspace, runId, context };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -78,6 +103,7 @@ export function Conversation({ runId }: { runId: string }) {
         contentContainerStyle={{ gap: 10, paddingVertical: 12 }}
         onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}
       >
+        {run && interview ? <InterviewDocument run={run} /> : null}
         {(run?.messages ?? []).map((m) =>
           m.role === 'user' ? (
             <View
@@ -122,11 +148,20 @@ export function Conversation({ runId }: { runId: string }) {
         )}
       </ScrollView>
       <Composer
-        placeholder="Message"
-        context={context}
+        placeholder={interview ? 'Answer' : 'Message'}
+        context={interview ? undefined : context}
+        voice={{
+          target,
+          onOutcome: (o) => {
+            if (!o.runId) return;
+            if (o.runId !== runId) return openRun(o.runId, wide);
+            if (run && !interview) chatContext.clear(run.workspace);
+            void qc.invalidateQueries({ queryKey: ['run', runId] });
+          },
+        }}
         onSend={async (text) => {
-          await api.postMessage(runId, { text, context });
-          if (run) chatContext.clear(run.workspace);
+          await api.postMessage(runId, { text, context: interview ? [] : context });
+          if (run && !interview) chatContext.clear(run.workspace);
           await qc.invalidateQueries({ queryKey: ['run', runId] });
         }}
       />

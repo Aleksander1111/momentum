@@ -145,6 +145,12 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     (req) => momentum.entity(req.params.ws, req.params['*']),
   );
 
+  app.get(
+    '/workspaces/:ws/artifact/*',
+    { schema: { params: ws.extend({ '*': z.string() }), response: { 200: z.object({ path: z.string(), text: z.string() }), ...errors } } },
+    (req) => momentum.artifact(req.params.ws, req.params['*']),
+  );
+
   app.get('/workspaces/:ws/types', { schema: { params: ws, response: { 200: TypesResponse, ...errors } } }, (req) =>
     momentum.types(req.params.ws),
   );
