@@ -20,8 +20,7 @@ artifacts:
 
 Validates each run's knowledge-base changes; keeps the index true to the main line.
 
-- Hooks in every run: PostToolUse reports issues on each write; Stop first hands the run's artifacts to summarization (once), then sends the run back to fix issues (twice at most)
-- chokidar watches `knowledge-graph/` of each run checkout
-- Run end: changes against main form one transaction, checked for type, path, card limit and references; valid → indexed unverified into the feed, invalid → a Harness/Issue
+- Hooks: PostToolUse reports issues on each write; Stop hands artifacts to summarization (once), sends the run back to fix issues (twice at most), then asks for a commit message, again if changes move on
+- Run end: changes form one transaction checked for type, path, card limit, references; landed with the run's message, else entity titles and paths; invalid → Harness/Issue, conflicts → Harness/Conflict
 - Main line: reindexes changed entities; those over changed artifacts go artifact_ahead in one event unless they changed too
-- Metrics: entities per state, run histograms; unmeasured counts are no data
+- Metrics: entities per state, run histograms

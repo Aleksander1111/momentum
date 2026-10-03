@@ -22,8 +22,8 @@ artifacts:
 One feed across enabled projects where everything needing the user's attention shows up as an entity.
 
 - Rank = product_impact + timeline_impact + unlocks; ties to the earlier entry; the feed size bounds the loops
-- Approve: one commit on the main line sets the entity verified, deletes what it `retires`, sets what it `implements` synced
+- Approve: one commit "Approve <title>" sets the entity verified, deletes what it `retires`, sets what it `implements` synced, listing each effect
 - Send back: the comment starts a chat run targeting the entity
 - Resolve an issue: a picked option (approved) or the user's text (sent back) starts a chat run that applies it to the concerned entities and retires the issue
-- Won't resolve: a commit sets it verified with the reason; rejected
+- Won't resolve: a commit with the reason sets it verified; rejected
 - Each reaction records the time spent
