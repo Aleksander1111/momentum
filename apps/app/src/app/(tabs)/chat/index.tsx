@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
 import { useWorkspaces } from '../../../lib/workspace';
+import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { chatContext, useChatContext } from '../../../lib/context';
 import { relativeTime, runKind } from '../../../lib/format';
 import { useTheme, useWide } from '../../../ui/theme';
@@ -59,7 +60,9 @@ export default function Chats() {
           if (!items.length) return null;
           return (
             <View key={ws}>
-              <Sect first={names.findIndex((n, j) => (chats[j]?.data?.chats.length ?? 0) > 0) === i}>{ws}</Sect>
+              <Sect first={names.findIndex((n, j) => (chats[j]?.data?.chats.length ?? 0) > 0) === i} icon={<ProjectLogo name={ws} size={22} />}>
+                {ws}
+              </Sect>
               <List>
                 {items.map((c, k) => (
                   <Row

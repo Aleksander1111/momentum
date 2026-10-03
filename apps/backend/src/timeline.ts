@@ -74,27 +74,27 @@ const subjectOf = (message: string | null | undefined) => {
  * where it stands while it waits or runs
  */
 export function describeRun(automation: string, kind: TimelineKind, facts: TimelineFacts, detail: string | null): string {
-  const label = automationLabel(automation);
+  // The automation is shown beside the title and the icon says what happened: the title is what the run did
   const own = facts.runTitle ? `: ${facts.runTitle}` : '';
   const counts = [facts.issues ? plural(facts.issues, 'issue') : '', facts.conflicts?.length ? plural(facts.conflicts.length, 'conflict') : ''].filter(Boolean);
   const did = facts.subject ? `${facts.subject}${counts.length ? ` · ${counts.join(', ')}` : ''}` : null;
   switch (kind) {
     case 'run_queued':
-      return `${label} queued${facts.trigger ? ` ${TRIGGER_LABEL[facts.trigger]}` : ''}${own}`;
+      return `Queued${facts.trigger ? ` ${TRIGGER_LABEL[facts.trigger]}` : ''}${own}`;
     case 'run_requeued':
-      return `${label} queued again after a restart${own}`;
+      return `Queued again after a restart${own}`;
     case 'run_started':
     case 'run_resumed':
-      return `${label} running${own}`;
+      return `Running${own}`;
     case 'run_failed':
-      return `${label} failed: ${firstLine(detail) ?? 'no reason given'}`;
+      return `Failed: ${firstLine(detail) ?? 'no reason given'}`;
     case 'run_killed':
-      return `${label} stopped${facts.byUser ? ' by you' : ''}${did ? ` after: ${did}` : own}`;
+      return `Stopped${facts.byUser ? ' by you' : ''}${did ? `: ${did}` : own}`;
     case 'run_finished':
     case 'changes_landed':
-      return `${label}: ${did ?? (facts.paths?.length ? `updated ${plural(facts.paths.length, 'entity', 'entities')}` : 'no changes')}`;
+      return did ?? (facts.paths?.length ? `Updated ${plural(facts.paths.length, 'entity', 'entities')}` : 'No changes');
   }
-  return `${label}${own}`;
+  return facts.runTitle ?? automationLabel(automation);
 }
 
 /** A run as it stands; its title says what it did */
@@ -171,7 +171,7 @@ const landedFacts = (l: Pick<Landed, 'paths' | 'issues' | 'conflicts' | 'commit'
 });
 
 /** Run events are rebuilt from the projects' runs when the way they are kept changes */
-const RUN_EVENTS_VERSION = '4';
+const RUN_EVENTS_VERSION = '5';
 
 /**
  * Everything that happened in the harness: one event per thing the user did, and one per automation run, kept up to date

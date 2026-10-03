@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { EntityListItem, TypeNode } from '@momentum/contract';
 import { api } from '../../../lib/api';
 import { useCurrentWorkspace } from '../../../lib/workspace';
+import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { C, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
 import { Icon, Triangle } from '../../../ui/icons';
@@ -172,7 +173,7 @@ export default function Explorer() {
           zIndex: 10,
         }}
       >
-        <Pick value={ws} options={names} onChange={setWs} />
+        <Pick value={ws} options={names} onChange={setWs} icon={(o, size) => <ProjectLogo name={o} size={size} />} />
         {types.data ? <Count>{`${types.data.total} entities`}</Count> : null}
       </View>
       <Field

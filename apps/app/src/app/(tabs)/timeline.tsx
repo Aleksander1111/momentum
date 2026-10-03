@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { AutomationName, TimelineActor, TimelineEvent } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { embedded } from '../../lib/embed';
-import { automationLabel, durationMs, usagePct } from '../../lib/format';
+import { automationLabel, durationMs, pathSegments, usagePct } from '../../lib/format';
 import { useWorkspaces } from '../../lib/workspace';
-import { C, F, useTheme, useWide } from '../../ui/theme';
+import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon, type PATHS } from '../../ui/icons';
+import { TypePill } from '../../ui/domains';
+import { ProjectLogo, ProjectName } from '../../ui/ProjectLogo';
 import { useCornerRoom } from '../../ui/SettingsButton';
 import { Btn, Chevron, List, Pick, Row, Sect, Segmented } from '../../ui/parts';
 
@@ -131,61 +133,164 @@ function facts(e: TimelineEvent): string[] {
   ].filter((x): x is string => x !== null);
 }
 
+const STARTED_BY: Record<string, string> = { schedule: 'Schedule', event: 'An event', on_demand: 'You' };
+
+/** The facts of an opened event, each under its label */
+function factRows(e: TimelineEvent): [string, string][] {
+  const f = e.facts;
+  const usage = [f.usage?.fiveHour ? `${usagePct(f.usage.fiveHour)} of 5 h` : null, f.usage?.week ? `${usagePct(f.usage.week)} of week` : null]
+    .filter(Boolean)
+    .join(' · ');
+  const rows: [string, string | null][] = [
+    ['By', who(e)],
+    ['Project', e.workspace],
+    ['Started by', f.trigger ? STARTED_BY[f.trigger]! : null],
+    ['Took', f.durationMs !== undefined ? took(f.durationMs) : null],
+    ['Usage', usage || null],
+    ['Model', f.model ? `${f.model}${f.risk ? ` · ${f.risk} risk` : ''}` : null],
+    ['Issues', f.issues ? String(f.issues) : null],
+    ['Conflicts', f.conflicts?.length ? String(f.conflicts.length) : null],
+    ['Read for', f.timeSpentMs ? took(f.timeSpentMs) : null],
+    ['Commit', f.commit ? f.commit.slice(0, 7) : null],
+  ];
+  return rows.filter((r): r is [string, string] => r[1] !== null);
+}
+
+/** The detail without what the title already says: a commit message's body, a comment, an error */
+function body(e: TimelineEvent): string | null {
+  // A stopped run's error only says it was killed, as its title does
+  if (!e.detail || (e.kind === 'run_killed' && e.detail.trim() === 'killed')) return null;
+  const lines = e.detail.split('\n');
+  const first = lines.findIndex((l) => l.trim());
+  const head = lines[first]?.trim();
+  const rest = head && (head === e.facts.subject || e.title.includes(head)) ? lines.slice(first + 1) : lines;
+  return rest.join('\n').trim() || null;
+}
+
+/** "Architecture/Component/consistency-guard" → "Consistency guard" of type "Architecture/Component" */
+function entityName(path: string): { name: string; type: string } {
+  const parts = pathSegments(path);
+  const last = (parts.pop() ?? path).replace(/[-_]/g, ' ');
+  return { name: last.charAt(0).toUpperCase() + last.slice(1), type: parts.slice(0, 2).join('/') };
+}
+
+/** Entities grouped by type, in the order their types first appear, each group sorted by name */
+function byType(paths: string[]): [string, { path: string; name: string }[]][] {
+  const groups = new Map<string, { path: string; name: string }[]>();
+  for (const path of paths) {
+    const { name, type } = entityName(path);
+    groups.set(type, [...(groups.get(type) ?? []), { path, name }]);
+  }
+  return [...groups].map(([type, entities]) => [type, entities.sort((x, y) => x.name.localeCompare(y.name))]);
+}
+
+function Label({ children }: { children: string }) {
+  return <T style={{ color: C.muted, fontSize: 11.5 }}>{children}</T>;
+}
+
+function Link({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="link" hitSlop={6}>
+      <T style={{ color: C.accent, fontSize: 13.5, fontWeight: '700' }}>{label}</T>
+    </Pressable>
+  );
+}
+
+/** An opened event: its facts, what the title leaves out, the entities it touched and where to go from it */
+function Details({ e }: { e: TimelineEvent }) {
+  // What a run wrote, or the one entity a reaction concerns
+  const paths = e.facts.paths?.length ? e.facts.paths : e.path ? [e.path] : [];
+  const text = body(e);
+  const ws = e.workspace;
+  const openEntity = ws && !embedded ? (path: string) => router.push({ pathname: '/explorer/entity', params: { ws, path } }) : null;
+  return (
+    <View style={{ marginTop: 8, padding: 12, gap: 12, backgroundColor: C.card, borderRadius: 10 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 8 }}>
+        {factRows(e).map(([label, value]) => (
+          <View key={label} style={{ width: '50%', paddingRight: 8 }}>
+            <Label>{label}</Label>
+            {label === 'Project' ? <ProjectName name={value} style={{ fontSize: 13.5 }} /> : <T style={{ fontSize: 13.5 }}>{value}</T>}
+          </View>
+        ))}
+      </View>
+      {text ? <T style={{ fontSize: 13.5, lineHeight: 19 }}>{text}</T> : null}
+      {paths.length ? (
+        <View style={{ gap: 10 }}>
+          <Label>{paths.length === 1 ? 'Entity' : `${paths.length} entities`}</Label>
+          {/* By type, as cards show it: the type's coloured pill, then every entity of it */}
+          {byType(paths).map(([type, entities]) => (
+            <View key={type} style={{ gap: 4, alignItems: 'flex-start' }}>
+              {type ? <TypePill type={type} /> : null}
+              <View style={{ paddingLeft: 10, gap: 2, alignSelf: 'stretch' }}>
+                {entities.map(({ path, name }) =>
+                  openEntity ? (
+                    <Pressable key={path} onPress={() => openEntity(path)} accessibilityRole="link">
+                      {({ hovered }) => (
+                        <T style={{ fontSize: 13.5, textDecorationLine: hovered ? 'underline' : 'none' }} numberOfLines={1}>
+                          {name}
+                        </T>
+                      )}
+                    </Pressable>
+                  ) : (
+                    <T key={path} style={{ fontSize: 13.5 }} numberOfLines={1}>
+                      {name}
+                    </T>
+                  ),
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {!embedded && (e.runId || (e.path && openEntity)) ? (
+        <View style={{ flexDirection: 'row', gap: 18 }}>
+          {e.runId ? <Link label="Open run" onPress={() => router.push({ pathname: '/chat/[runId]', params: { runId: e.runId! } })} /> : null}
+          {e.path && openEntity && !paths.includes(e.path) ? <Link label="Open entity" onPress={() => openEntity(e.path!)} /> : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function Event({ e, first, showProject }: { e: TimelineEvent; first: boolean; showProject: boolean }) {
   const [open, setOpen] = useState(false);
   const at = new Date(e.at);
-  const paths = e.facts.paths ?? [];
-  const canOpen = !embedded && (e.runId !== null || (e.path !== null && e.workspace !== null));
-  const more = e.detail !== null || paths.length > 0 || canOpen;
-  const sub = [who(e), showProject ? e.workspace : null, ...facts(e)].filter(Boolean).join(' · ');
+  const project = showProject ? e.workspace : null;
+  const after = facts(e).join(' · ');
   const fresh = Date.now() - at.getTime() < FRESH_MS;
   return (
     <Row
       first={first}
-      onPress={more ? () => setOpen((o) => !o) : undefined}
-      // One line each, no rules between them; opened, the line wraps and the detail follows
+      onPress={() => setOpen((o) => !o)}
+      // One line each, no rules between them; opened, the title wraps and the details follow
       style={{ alignItems: 'flex-start', paddingVertical: 7, borderTopWidth: 0, backgroundColor: fresh ? C.card : undefined }}
     >
       <View style={{ marginTop: 1 }}>
         <Icon name={glyph(e)} size={17} color={tone(e)} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <T numberOfLines={open ? undefined : 1} style={{ fontSize: 14 }}>
-          {e.title}
-          <T style={{ color: C.muted, fontSize: 12.5 }}>{`  ${sub}`}</T>
-        </T>
         {open ? (
-          <View style={{ marginTop: 8, gap: 8 }}>
-            {e.detail ? <T style={{ fontSize: 13.5, color: C.ink }}>{e.detail}</T> : null}
-            {paths.length ? (
-              <View>
-                {paths.slice(0, 12).map((p) => (
-                  <T key={p} style={{ fontFamily: F.mono, fontSize: 12, color: C.muted }}>
-                    {p}
-                  </T>
-                ))}
-                {paths.length > 12 ? <T style={{ fontSize: 12, color: C.muted }}>{`and ${paths.length - 12} more`}</T> : null}
-              </View>
-            ) : null}
-            {canOpen ? (
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {e.runId ? (
-                  <Btn small kind="ghost" label="Open run" onPress={() => router.push({ pathname: '/chat/[runId]', params: { runId: e.runId! } })} />
-                ) : null}
-                {e.path && e.workspace ? (
-                  <Btn
-                    small
-                    kind="ghost"
-                    label="Open entity"
-                    onPress={() => router.push({ pathname: '/explorer/entity', params: { ws: e.workspace!, path: e.path! } })}
-                  />
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
+          <T style={{ fontSize: 14, fontWeight: '700' }}>{e.title}</T>
+        ) : (
+          <T numberOfLines={1} style={{ fontSize: 14 }}>
+            {e.title}
+            <T style={{ color: C.muted, fontSize: 12.5 }}>
+              {`  ${who(e)}`}
+              {/* The project, led by its logo inline */}
+              {project ? (
+                <>
+                  {' · '}
+                  <ProjectLogo name={project} size={13} style={{ transform: [{ translateY: 2 }] }} />
+                  {` ${project}`}
+                </>
+              ) : null}
+              {after ? ` · ${after}` : ''}
+            </T>
+          </T>
+        )}
+        {open ? <Details e={e} /> : null}
       </View>
-      {more ? <Chevron open={open} style={{ marginTop: 5 }} /> : null}
+      <Chevron open={open} style={{ marginTop: 5 }} />
     </Row>
   );
 }
@@ -226,6 +331,7 @@ export default function Timeline() {
         <Pick
           value={workspace ?? ALL}
           options={[ALL, ...(workspaces ?? []).map((w) => w.name)]}
+          icon={(o, size) => (o === ALL ? null : <ProjectLogo name={o} size={size} />)}
           onChange={(v) => setWorkspace(v === ALL ? null : v)}
         />
         <Segmented value={actor} options={ACTORS} onChange={setActor} />

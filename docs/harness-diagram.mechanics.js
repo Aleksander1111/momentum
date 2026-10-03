@@ -953,6 +953,97 @@ function actions() {
   return svg(g);
 }
 
+// ---------------------------------------------------------------- agent tools
+function tools() {
+  let g = '';
+  const PW = 568, PH = 410, X = [70, 70 + PW + 36, 70 + 2 * (PW + 36)], Y = [70, 510];
+  // a paper panel: medallion, crumb, title and what it is for
+  const panel = (x, y, layer, ic, crumb, title, sub) => {
+    g += rect(x, y, PW, PH, { r: 24, fill: C.paper });
+    g += medallion(x + 72, y + 76, 44, layer, ic, { color: layer.strong, k: 0.7 });
+    g += text(x + 134, y + 50, crumb, { size: 13, bold: true, fill: C.accent, spacing: 1.5 });
+    g += caption(x + 134, y + 82, title, sub, { size: 26, subSize: 18, gap: 27 });
+  };
+  // one tool per line: its name and what it does
+  const rows = (x, y, items, layer) =>
+    items.forEach(([name, what], i) => {
+      const yy = y + 160 + i * 50;
+      if (i) g += line(x + 36, yy - 32, x + PW - 36, yy - 32, { stroke: C.line, sw: 1.5 });
+      g += text(x + 36, yy, name, { size: 20, bold: true, fill: layer.strong }) + text(x + 248, yy, what, { size: 18, fill: C.muted });
+    });
+  // tools as chips, flowed into the panel
+  const chips = (x, y, names, o = {}) => {
+    const size = o.size ?? 19, h = size + 22, gap = o.gap ?? 12;
+    let cx = x + 36, cy = y + 140;
+    for (const s of names) {
+      const w = s.length * size * 0.52 + 30;
+      if (cx + w > x + PW - 36) (cx = x + 36), (cy += h + gap);
+      g += rect(cx, cy, w, h, { r: h / 2, fill: C.white, stroke: C.line, sw: 1.5 });
+      g += text(cx + w / 2, cy + h / 2 + size * 0.35, s, { size, anchor: 'middle', bold: o.bold ?? true, fill: o.color ?? C.ink });
+      cx += w + gap;
+    }
+  };
+  // two lines per item: a named thing and what it does
+  const pairs = (x, y, items, layer, ic) =>
+    items.forEach(([name, what], i) => {
+      const yy = y + 168 + i * 92;
+      g += circle(x + 62, yy, 26, { fill: C.white, stroke: layer.strong, sw: 2.5 }) + iconAt(ic, x + 62, yy, 24, layer.strong);
+      g += text(x + 104, yy - 4, name, { size: 21, bold: true }) + text(x + 104, yy + 23, what, { size: 18, fill: C.muted });
+    });
+  const foot = (x, y, s, layer) => (g += text(x + 36, y + PH - 30, s, { size: 17, italic: true, fill: layer?.strong ?? C.muted }));
+
+  // 1. Claude Code's own tools
+  panel(X[0], Y[0], LAYER.ink, 'FaTerminal', 'CLAUDE CODE', 'Built-in tools', 'files, shell and web in the run\'s checkout');
+  chips(X[0], Y[0], ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash', 'WebSearch', 'WebFetch', 'Task', 'Skill', 'TodoWrite']);
+  foot(X[0], Y[0], 'project settings, permissions bypassed, limits per process');
+
+  // 2. the knowledge base
+  panel(X[1], Y[0], LAYER.kn, 'FaDiagramProject', 'MCP · IN-PROCESS', 'momentum-kb', 'the knowledge base of the workspace');
+  rows(X[1], Y[0], [
+    ['search', 'text, semantic, Graph RAG'],
+    ['read', 'one entity, checkout first'],
+    ['references', 'links in both directions'],
+    ['write', 'an entity, validated on write'],
+    ['record_agent_metric', 'misalignments, recurring'],
+  ], LAYER.kn);
+
+  // 3. reports to the harness
+  panel(X[2], Y[0], LAYER.prod, 'FaClipboardCheck', 'MCP · IN-PROCESS', 'momentum-run', 'what the run reports to the harness');
+  rows(X[2], Y[0], [
+    ['report_graph_build', 'coverage, next, documents'],
+    ['report_interview', 'next question, done'],
+  ], LAYER.prod);
+  // the graph build's coverage, as the observer shows it
+  const bx = X[2] + 36, by = Y[0] + 270, bw = PW - 72;
+  g += text(bx, by, 'Knowledge graph build', { size: 17, bold: true }) + text(bx + bw, by, '62%', { size: 17, bold: true, fill: C.ok, anchor: 'end' });
+  g += rect(bx, by + 14, bw, 16, { r: 8, fill: C.white, stroke: C.line, sw: 1.5 }) + rect(bx, by + 14, bw * 0.62, 16, { r: 8, fill: C.ok });
+  foot(X[2], Y[0], 'report_interview in interview runs only');
+
+  // 4. sub-agents
+  panel(X[0], Y[1], LAYER.prod, 'FaRobot', 'TASK TOOL', 'Sub-agents', 'work handed off inside the run');
+  pairs(X[0], Y[1], [
+    ['momentum-summarization', 'artifacts into entities, at Stop'],
+    ['momentum-card', 'one card, within the limit'],
+  ], LAYER.prod, 'FaRobot');
+  foot(X[0], Y[1], 'from .claude/agents of the project');
+
+  // 5. hooks around the tools
+  panel(X[1], Y[1], LAYER.kn, 'FaShieldHalved', 'CLAUDE CODE HOOKS', 'Hooks on the tools', 'the consistency guard inside the run');
+  pairs(X[1], Y[1], [
+    ['PostToolUse', 'every write: the guard\'s issues at once'],
+    ['Stop', 'summarize, fix issues, commit message'],
+  ], LAYER.kn, 'FaBolt');
+  foot(X[1], Y[1], 'Write · Edit · MultiEdit · NotebookEdit · kb write');
+
+  // 6. the user's voice tools: the API as MCP
+  panel(X[2], Y[1], LAYER.att, 'FaMicrophone', 'MCP · HTTP /mcp', 'momentum', 'the user\'s voice tools: the API, no UI');
+  chips(X[2], Y[1], [
+    'feed', 'approve', 'send_back', 'resolve_issue', 'wont_resolve_issue', 'entity', 'types', 'search', 'chats', 'chat', 'run_automation',
+    'run', 'message', 'kill_run', 'graph_build', 'set_graph_build', 'reset_project', 'metrics', 'timeline', 'settings', 'update_settings', 'workspaces',
+  ], { size: 14, gap: 7, bold: false, color: LAYER.att.strong });
+  return svg(g);
+}
+
 // ---------------------------------------------------------------- slides
 const SLIDES = [
   ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user writes needs no run: it goes straight through the consistency gate and lands verified. Runs the user starts go at once, alongside the queued automation runs.'],
@@ -962,6 +1053,7 @@ const SLIDES = [
   ['Automations', automations, 'Ten automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Automation runs go one at a time per project; runs the user starts go at once.'],
   ['Triggers', triggers, 'Each automation has a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand. Exploration every two hours, preparation every two hours at half past, validation at 02:00, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Summarization runs in the Stop hook of every run and graph build while the project is enabled, so neither has a trigger entity. Triggered loops pause while the feed is at its limit.'],
   ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. The user edits them, or optimization proposes changes; either way the change passes the consistency gate, lands on the main line and is verified through the feed. Runs start on demand from the chat and stop from the chat; models and concurrency are settings.'],
+  ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the run's own checkout with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and coverage, and an interview's next question. Sub-agents take work handed off by the Task tool: summarization at Stop, and the card step. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools every API handler without the UI."],
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
   ['Consistency gate', gate, 'Every write is checked while the run works. When it ends, the transaction passes the gate: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
   ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, cards over the character limit, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],

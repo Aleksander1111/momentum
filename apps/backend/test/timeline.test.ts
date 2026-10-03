@@ -58,7 +58,7 @@ describe('timeline', () => {
     const { events } = await timeline.list({ limit: 100 });
     expect(events.map((e) => e.kind).reverse()).toEqual(['run_finished', 'chat_started', 'approved']);
     const finished = events.find((e) => e.kind === 'run_finished')!;
-    expect(finished).toMatchObject({ workspace: 'shop', actor: 'automation', runId: 'r1', title: 'Exploration: Summarize the goals' });
+    expect(finished).toMatchObject({ workspace: 'shop', actor: 'automation', runId: 'r1', title: 'Summarize the goals' });
     expect(finished.facts).toMatchObject({
       trigger: 'schedule',
       status: 'finished',
@@ -96,10 +96,10 @@ describe('timeline', () => {
     timeline.listen(bus);
     const run = { id: 'g1', automation: 'graph-build', title: 'Knowledge graph' };
     await timeline.run(runEvent('shop', run, 'run_queued', { facts: { trigger: 'event' } }));
-    expect((await timeline.list({ limit: 1 })).events[0]!.title).toBe('Graph build queued by an event: Knowledge graph');
+    expect((await timeline.list({ limit: 1 })).events[0]!.title).toBe('Queued by an event: Knowledge graph');
     await timeline.record({ actor: 'user', kind: 'signed_in', title: 'Signed in' });
     await timeline.run(runEvent('shop', run, 'run_started', { facts: { model: 'sonnet' } }));
-    expect((await timeline.list({ limit: 1 })).events[0]!.title).toBe('Graph build running: Knowledge graph');
+    expect((await timeline.list({ limit: 1 })).events[0]!.title).toBe('Running: Knowledge graph');
     const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, conflicts: [] };
     // Landing and ending one right after the other, as a run does: neither is lost
     bus.emit('transaction', { ...base, runId: 'g1', commit: 'def', paths: ['Architecture/Api/a', 'Architecture/Api/b'], issues: 1 });
@@ -110,7 +110,7 @@ describe('timeline', () => {
     expect(events[0]).toMatchObject({
       runId: 'g1',
       kind: 'run_finished',
-      title: 'Graph build: Map the API · 1 issue',
+      title: 'Map the API · 1 issue',
       detail: 'Map the API\n\n- Books API',
       facts: { trigger: 'event', model: 'sonnet', status: 'finished', durationMs: 5000, commit: 'def', issues: 1, paths: ['Architecture/Api/a', 'Architecture/Api/b'] },
     });
@@ -125,7 +125,7 @@ describe('timeline', () => {
     await new Promise((r) => setTimeout(r, 200));
     const { events } = await timeline.list({ workspace: 'shop', actor: 'automation', limit: 10 });
     expect(events.map((e) => e.runId)).not.toContain('c0');
-    expect(events[0]).toMatchObject({ runId: 'c3', kind: 'changes_landed', title: 'Chat: Rename the goal' });
+    expect(events[0]).toMatchObject({ runId: 'c3', kind: 'changes_landed', title: 'Rename the goal' });
   });
 
   it('rebuilds run events kept another way, keeping what the user did', async () => {
@@ -135,7 +135,7 @@ describe('timeline', () => {
     await new Timeline(sql).migrate();
     const { events } = await timeline.list({ limit: 100 });
     expect(events.some((e) => (e.kind as string) === 'artifact_ahead')).toBe(false);
-    expect(events.filter((e) => e.runId === 'r1')).toMatchObject([{ title: 'Exploration: Summarize the goals' }]);
+    expect(events.filter((e) => e.runId === 'r1')).toMatchObject([{ title: 'Summarize the goals' }]);
     expect(events.filter((e) => e.actor === 'user')).toHaveLength(users);
   });
 });
@@ -143,15 +143,15 @@ describe('timeline', () => {
 describe('run titles', () => {
   it('say what a run did, why it failed or where it stands', () => {
     expect(runEvent('shop', { id: 'x', automation: 'summarization', title: 'Main line changes (2)' }, 'run_queued', { facts: { trigger: 'event' } }).title).toBe(
-      'Summarization queued by an event: Main line changes (2)',
+      'Queued by an event: Main line changes (2)',
     );
-    expect(describeRun('exploration', 'run_finished', {}, null)).toBe('Exploration: no changes');
-    expect(describeRun('summarization', 'run_finished', { paths: ['a', 'b'] }, null)).toBe('Summarization: updated 2 entities');
-    expect(describeRun('implementation', 'run_failed', {}, 'Tests failed\nat step 3')).toBe('Implementation failed: Tests failed');
+    expect(describeRun('exploration', 'run_finished', {}, null)).toBe('No changes');
+    expect(describeRun('summarization', 'run_finished', { paths: ['a', 'b'] }, null)).toBe('Updated 2 entities');
+    expect(describeRun('implementation', 'run_failed', {}, 'Tests failed\nat step 3')).toBe('Failed: Tests failed');
     expect(describeRun('summarization', 'run_finished', { subject: 'Update Books API and 2 more', conflicts: ['a'] }, null)).toBe(
-      'Summarization: Update Books API and 2 more · 1 conflict',
+      'Update Books API and 2 more · 1 conflict',
     );
-    expect(runEvent('shop', { id: 'x', automation: 'consistency-check' }, 'run_killed').title).toBe('Consistency check stopped');
-    expect(runEvent('shop', { id: 'x', automation: 'chat', title: 'Ask' }, 'run_killed', { byUser: true }).title).toBe('Chat stopped by you: Ask');
+    expect(runEvent('shop', { id: 'x', automation: 'consistency-check' }, 'run_killed').title).toBe('Stopped');
+    expect(runEvent('shop', { id: 'x', automation: 'chat', title: 'Ask' }, 'run_killed', { byUser: true }).title).toBe('Stopped by you: Ask');
   });
 });

@@ -1,5 +1,6 @@
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { T } from './Text';
 import { useTheme, type Scheme } from './theme';
 
 /**
@@ -101,5 +102,33 @@ export function DomainBadge({ type, size = 26 }: { type: string; size?: number }
     >
       <DomainIcon type={type} size={Math.round(size * 0.58)} color={colour} />
     </View>
+  );
+}
+
+/** An entity type as cards show it: its glyph and its segments in a pill tinted with its main type's colour. */
+export function TypePill({ type, onPress }: { type: string; onPress?: () => void }) {
+  const colour = domainColour(type, useTheme().scheme);
+  const body = (hovered: boolean) => (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: colour + (hovered ? '40' : '29'),
+        borderRadius: 999,
+        paddingVertical: 3,
+        paddingLeft: 8,
+        paddingRight: 10,
+      }}
+    >
+      <DomainIcon type={type} size={15} color={colour} />
+      <T style={{ fontSize: 13, color: colour }}>{type.split('/').join(' · ')}</T>
+    </View>
+  );
+  if (!onPress) return body(false);
+  return (
+    <Pressable onPress={onPress} accessibilityRole="link">
+      {({ hovered }) => body(!!hovered)}
+    </Pressable>
   );
 }

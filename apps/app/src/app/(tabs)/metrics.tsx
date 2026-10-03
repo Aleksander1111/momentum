@@ -9,6 +9,7 @@ import { useCurrentWorkspace } from '../../lib/workspace';
 import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { Pick, Segmented } from '../../ui/parts';
+import { ProjectLogo } from '../../ui/ProjectLogo';
 import { useCornerRoom } from '../../ui/SettingsButton';
 import { STATE_LABEL } from '../../ui/StateBadge';
 import { Chart, TimeChart, timeTicks, when, type ChartAxis, type ChartLayer, type ChartSeries } from '../../ui/TimeChart';
@@ -304,31 +305,33 @@ function Picker({ catalog, selected, onToggle }: { catalog: MetricDef[]; selecte
   return (
     <View style={{ gap: 6, marginTop: 10 }}>
       {groups.map((g) => (
-        <View key={g} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          <T style={{ color: C.muted, fontSize: 11.5, width: 96 }}>{g}</T>
-          {catalog
-            .filter((d) => d.group === g)
-            .map((d) => {
-              const on = selected.includes(d.key);
-              return (
-                <Pressable
-                  key={d.key}
-                  onPress={() => onToggle(d.key)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                  style={{
-                    paddingVertical: 3,
-                    paddingHorizontal: 10,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: on ? C.ink : C.line,
-                    backgroundColor: on ? C.ink : undefined,
-                  }}
-                >
-                  <T style={{ fontSize: 12, color: on ? C.surface : C.muted }}>{d.label}</T>
-                </Pressable>
-              );
-            })}
+        <View key={g} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+          <T style={{ color: C.muted, fontSize: 11.5, width: 96, paddingTop: 5 }}>{g}</T>
+          <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {catalog
+              .filter((d) => d.group === g)
+              .map((d) => {
+                const on = selected.includes(d.key);
+                return (
+                  <Pressable
+                    key={d.key}
+                    onPress={() => onToggle(d.key)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                    style={{
+                      paddingVertical: 3,
+                      paddingHorizontal: 10,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: on ? C.ink : C.line,
+                      backgroundColor: on ? C.ink : undefined,
+                    }}
+                  >
+                    <T style={{ fontSize: 12, color: on ? C.surface : C.muted }}>{d.label}</T>
+                  </Pressable>
+                );
+              })}
+          </View>
         </View>
       ))}
     </View>
@@ -458,7 +461,7 @@ export default function Metrics() {
       <View
         style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingRight: corner, zIndex: 10 }}
       >
-        <Pick value={ws} options={names} onChange={setWs} />
+        <Pick value={ws} options={names} onChange={setWs} icon={(o, size) => <ProjectLogo name={o} size={size} />} />
         <Segmented value={range} options={RANGES} onChange={setRange} />
       </View>
       {m ? (

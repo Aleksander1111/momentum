@@ -1,4 +1,4 @@
-import { Image, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Image, Platform, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { useWorkspaces } from '../lib/workspace';
 import { T } from './Text';
@@ -64,6 +64,18 @@ export function ProjectLogo({ name, size, style }: { name: string; size: number;
       ) : (
         <Image source={{ uri: logo }} style={{ width: size, height: size }} resizeMode="contain" />
       )}
+    </View>
+  );
+}
+
+/** A project's name led by its logo, wherever the name is shown */
+export function ProjectName({ name, size = 16, style }: { name: string; size?: number; style?: StyleProp<TextStyle> }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: size * 0.4, minWidth: 0 }}>
+      <ProjectLogo name={name} size={size} />
+      <T style={[{ flexShrink: 1 }, style]} numberOfLines={1}>
+        {name}
+      </T>
     </View>
   );
 }

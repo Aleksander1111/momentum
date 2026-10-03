@@ -4,8 +4,16 @@ import { C } from './theme';
 import { H, T } from './Text';
 import { Chevron } from './icons';
 
-export function Sect({ children, first }: { children: ReactNode; first?: boolean }) {
-  return <H style={{ fontSize: 16, marginTop: first ? 0 : 22, marginBottom: 8 }}>{children}</H>;
+/** A section heading, optionally led by an icon such as a project's logo */
+export function Sect({ children, first, icon }: { children: ReactNode; first?: boolean; icon?: ReactNode }) {
+  const space = { marginTop: first ? 0 : 22, marginBottom: 8 };
+  if (!icon) return <H style={{ fontSize: 16, ...space }}>{children}</H>;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, ...space }}>
+      {icon}
+      <H style={{ fontSize: 16, flexShrink: 1 }}>{children}</H>
+    </View>
+  );
 }
 
 export function List({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -137,20 +145,23 @@ export function Btn({
   );
 }
 
-/** Serif picker with a down chevron and a dropdown of options. */
+/** Serif picker with a down chevron and a dropdown of options, each optionally led by an icon such as a project's logo. */
 export function Pick({
   value,
   options,
   onChange,
+  icon,
 }: {
   value: string | null;
   options: string[];
   onChange: (v: string) => void;
+  icon?: (option: string, size: number) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <View style={{ zIndex: 10 }}>
       <Pressable onPress={() => setOpen((o) => !o)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {value !== null && icon ? icon(value, 22) : null}
         <H style={{ fontSize: 17 }}>{value ?? ''}</H>
         <View
           style={{
@@ -175,6 +186,7 @@ export function Pick({
                 onChange(o);
               }}
             >
+              {icon ? icon(o, 20) : null}
               <RowText title={o} />
             </Row>
           ))}

@@ -2,11 +2,11 @@ import { Fragment, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Block, Card, CardDiff, ContextItem, Inline, Mark } from '@momentum/contract';
-import { C, F, useTheme } from './theme';
+import { C, F } from './theme';
 import { H, T } from './Text';
 import { Diagram } from './Diagram';
 import { DiagramDiff, SpanText } from './DiagramDiff';
-import { DomainIcon, domainColour } from './domains';
+import { TypePill } from './domains';
 import { ProjectLogo } from './ProjectLogo';
 import { SelectionMenu } from './SelectionMenu';
 import { SelectionScope } from './SelectionScope';
@@ -244,8 +244,6 @@ const Sep = () => <T style={{ fontSize: 13, color: C.faint }}>›</T>;
 
 /** Breadcrumb: project logo, type in a pill coloured by its main type, then the folders below the type. */
 function Crumbs({ workspace, type, path }: { workspace: string; type: string; path: string }) {
-  const { scheme } = useTheme();
-  const colour = domainColour(type, scheme);
   const typeSegs = type.split('/');
   const segs = pathSegments(path);
   const folders = typeSegs.every((t, i) => segs[i] === t) ? segs.slice(typeSegs.length, -1) : [];
@@ -255,23 +253,7 @@ function Crumbs({ workspace, type, path }: { workspace: string; type: string; pa
         {({ hovered }) => <ProjectLogo name={workspace} size={32} style={{ opacity: hovered ? 0.8 : 1 }} />}
       </Pressable>
       <Sep />
-      <Pressable
-        onPress={() => openInExplorer(workspace, type)}
-        accessibilityRole="link"
-        style={({ hovered }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-          backgroundColor: colour + (hovered ? '40' : '29'),
-          borderRadius: 999,
-          paddingVertical: 3,
-          paddingLeft: 8,
-          paddingRight: 10,
-        })}
-      >
-        <DomainIcon type={type} size={15} color={colour} />
-        <T style={{ fontSize: 13, color: colour }}>{typeSegs.join(' · ')}</T>
-      </Pressable>
+      <TypePill type={type} onPress={() => openInExplorer(workspace, type)} />
       {folders.map((f, i) => (
         <Fragment key={i}>
           <Sep />
