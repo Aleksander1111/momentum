@@ -660,13 +660,13 @@ describe('voice', () => {
     };
 
     const posted: [string, string, unknown][] = [];
-    const started: [string, string, string | undefined][] = [];
+    const started: [string, string][] = [];
     const actions = {
       createChat: m.momentum.createChat.bind(m.momentum),
       entity: m.momentum.entity.bind(m.momentum),
       postMessage: async (id: string, text: string, context?: unknown) => void posted.push([id, text, context ?? []]),
-      runAutomation: async (ws: string, automation: string, prompt?: string) => {
-        started.push([ws, automation, prompt]);
+      startInterview: async (ws: string, topic: string) => {
+        started.push([ws, topic]);
         return { runId: 'iv1' };
       },
     };
@@ -733,7 +733,7 @@ describe('voice', () => {
     expect(await lastOutcome(7)).toEqual({ kind: 'ignored', detail: 'no interview open' });
     say(10, 'Interview: onboarding.');
     expect(await lastOutcome(8)).toEqual({ kind: 'chat', workspace: 'alpha', runId: 'iv1', created: true });
-    expect(started).toEqual([['alpha', 'interview', 'Interview: onboarding']]);
+    expect(started).toEqual([['alpha', 'onboarding']]);
     voice.setTarget('phone', { kind: 'interview', workspace: 'alpha', runId: 'iv1' });
     say(11, 'New users sign in with a password.');
     say(12, 'what should I cover', 'question');
@@ -773,6 +773,36 @@ describe('voice', () => {
     tablet.emit('close');
     await vi.waitFor(() => expect(audio.filter((a) => a.includes('stop'))).toHaveLength(2));
     await stream.close();
+  });
+
+  it('summarizes an interview document once, when the interview is done, and lands its answers without asking for a message', async () => {
+    const { runId } = await m.momentum.startInterview('alpha', 'onboarding');
+    const r = await m.momentum.run(runId);
+    expect(r).toMatchObject({ automation: 'interview', trigger: 'on_demand', interview: null });
+    expect(r.messages).toMatchObject([{ role: 'user', text: 'Interview: onboarding' }]);
+    expect((await m.momentum.chats('alpha')).chats.find((c) => c.runId === runId)?.title).toBe('Interview: onboarding');
+
+    const ws = await m.workspaces.get('alpha');
+    await ensureCheckout(repo, checkoutOf(runId), 'main');
+    await m.sql`update ws_alpha.run set base_commit = ${git(checkoutOf(runId), 'rev-parse', 'HEAD')} where id = ${runId}`;
+    const [row] = await m.sql`select * from ws_alpha.run where id = ${runId}`;
+    const summary = (interview: unknown) => (m.runner as never as { summaryRequest: Function }).summaryRequest(ws, row, { interview });
+    put(checkoutOf(runId), 'interviews/onboarding.md', '# Onboarding\n\nUsers sign in with a password.\n');
+    expect(await summary({ question: 'Who signs up?', done: false, document: 'interviews/onboarding.md' })).toBeNull();
+    // The last turn wrote nothing: the document is still handed over
+    git(checkoutOf(runId), 'add', '-A');
+    git(checkoutOf(runId), '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'answer');
+    await m.sql`update ws_alpha.run set base_commit = ${git(checkoutOf(runId), 'rev-parse', 'HEAD')} where id = ${runId}`;
+    expect(await summary({ question: 'Thanks.', done: true, document: 'interviews/onboarding.md' })).toContain('- interviews/onboarding.md (interview)');
+
+    const { guardHooks } = await import('../src/hooks.ts');
+    put(checkoutOf(runId), 'interviews/onboarding.md', '# Onboarding\n\nUsers sign in with a password or a passkey.\n');
+    const stop = (describe: boolean) => guardHooks(m.guard, ref(runId, 'interview'), async () => null, () => describe).Stop![0]!.hooks[0]!;
+    const input = { session_id: 's', transcript_path: '', cwd: checkoutOf(runId), hook_event_name: 'Stop', stop_hook_active: false };
+    const opts = { signal: new AbortController().signal };
+    expect(await stop(false)(input as never, undefined, opts)).toEqual({});
+    expect(await stop(true)(input as never, undefined, opts)).toMatchObject({ decision: 'block' });
+    git(repo, 'worktree', 'remove', '--force', checkoutOf(runId));
   });
 
   it('lets only a signed-in app open the voice sockets', async () => {

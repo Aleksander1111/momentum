@@ -27,12 +27,14 @@ function writtenFile(run: RunRef, input: HookInput): string | null {
  * Claude Code hooks that put the consistency guard inside the run: every write to the knowledge base is checked as it
  * happens, and the run cannot end with changes the guard would not accept until it has had a chance to fix them.
  * Before that, the Stop hook hands the run's artifacts to summarization: `summarize` returns what to summarize, or null.
- * Last, it asks the run for the commit message its changes land with, again whenever they change after it wrote one.
+ * Last, it asks the run for the commit message its changes land with, again whenever they change after it wrote one,
+ * unless `describe` says this stop needs none (an interview's answers land with what they changed until it is done).
  */
 export function guardHooks(
   guard: Guard,
   run: RunRef,
   summarize: () => Promise<string | null> = async () => null,
+  describe: () => boolean = () => true,
 ): Partial<Record<HookEvent, HookCallbackMatcher[]>> {
   let blocks = 0;
   let described: string | null = null; // the working tree the run's commit message describes
@@ -76,6 +78,7 @@ export function guardHooks(
                 };
               }
             }
+            if (!describe()) return {};
             const tree = await workingTree(run.checkout);
             if (tree === described || tree === (await head(run.checkout, 'HEAD^{tree}'))) return {};
             described = tree;

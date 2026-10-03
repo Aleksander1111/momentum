@@ -145,6 +145,18 @@ export class Momentum {
     return { runId };
   }
 
+  /**
+   * An interview: one question at a time, each answer written into a document, which becomes entities when it is done.
+   * Started by the user like a chat, so it runs at once.
+   */
+  async startInterview(workspace: string, topic: string): Promise<{ runId: string }> {
+    await this.workspaces.get(workspace);
+    const prompt = `Interview: ${topic}`;
+    const runId = await this.runner.create({ workspace, automation: 'interview', trigger: 'on_demand', prompt, title: prompt.slice(0, 80) });
+    void this.orchestrator.tick();
+    return { runId };
+  }
+
   /** Starts an automation whose trigger entity allows starting on demand */
   async runAutomation(workspace: string, automation: AutomationName, prompt?: string): Promise<{ runId: string }> {
     const ws = await this.workspaces.get(workspace);

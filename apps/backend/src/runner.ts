@@ -1,5 +1,5 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
-import type { AutomationName, ContextItem, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
+import type { AutomationName, ContextItem, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
 import { ask, ensureCheckout, head, removeWorktree, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
@@ -42,6 +42,8 @@ interface RunRow {
   risk: Risk | null;
   /** How often a restart has requeued the run */
   restarts: number;
+  /** An interview as its last turn reported it */
+  interview: InterviewState | null;
 }
 
 export interface NewRun {
@@ -91,6 +93,7 @@ interface Active {
   base: Rise;
   usage: Rise;
   graphBuild?: { complete: boolean; progress: string; coverage: number; documents?: string[] };
+  interview?: InterviewState | null;
   /** Settles once the run's changes have landed on the main line and its status is recorded */
   finished?: Promise<void>;
 }
@@ -98,6 +101,9 @@ interface Active {
 /** How often a run lost at restart is queued again before it fails */
 const MAX_RESTARTS = 2;
 const RESUME = 'The harness restarted while you were working. Continue where you left off.';
+
+/** Runs the user talks to turn by turn: each turn ends the run, the next message resumes its session */
+const conversational = (automation: AutomationName) => automation === 'chat' || automation === 'interview';
 
 /** Runs the user starts: a chat, a send back, an automation started on demand */
 export const userStarted = (trigger: RunTrigger) => trigger === 'on_demand';
@@ -154,7 +160,7 @@ export class Runner {
     const r = await this.row(ws, id);
     const messages = await ws.index.sql<{ seq: number; role: RunMessage['role']; text: string; context: ContextItem[]; at: Date }[]>`
       select seq, role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${id} order by seq`;
-    return { ...this.view(ws, r), messages: messages.map((m) => ({ ...m, at: m.at.toISOString() })) };
+    return { ...this.view(ws, r), messages: messages.map((m) => ({ ...m, at: m.at.toISOString() })), interview: r.interview ?? null };
   }
 
   private async setStatus(ws: Workspace, id: string, status: RunStatus, extra: Partial<RunRow> = {}) {
@@ -192,6 +198,7 @@ export class Runner {
       await ws.index.sql`insert into ${this.t(ws, 'chat')} ${ws.index.sql({ run_id: id, entity_path: null })}`;
       await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt, spec.context ?? []);
     }
+    if (spec.automation === 'interview') await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt);
     if (spec.targetPath) await this.guard.markUpdating(ws, spec.targetPath);
     return id;
   }
@@ -257,8 +264,8 @@ export class Runner {
 
   /**
    * Runs a restart left `running`: their processes are gone. Each is queued again and resumes its session on the same
-   * checkout, up to MAX_RESTARTS times. A run past that, or a chat, is failed: what it wrote still lands on the main
-   * line and reaches the feed, and a chat resumes its session on the next message.
+   * checkout, up to MAX_RESTARTS times. A run past that, a chat or an interview, is failed: what it wrote still lands on
+   * the main line and reaches the feed, and a chat or an interview resumes its session on the next message.
    */
   async recover(): Promise<void> {
     const refs = await this.workspaces.sql<{ workspace: string }[]>`select distinct workspace from harness.run_ref`;
@@ -268,7 +275,7 @@ export class Runner {
       const rows = await ws.index.sql<RunRow[]>`select * from ${this.t(ws, 'run')} where status = 'running'`;
       for (const r of rows) {
         if (this.active.has(r.id)) continue;
-        if (r.automation !== 'chat' && r.restarts < MAX_RESTARTS && existsSync(r.checkout)) {
+        if (!conversational(r.automation) && r.restarts < MAX_RESTARTS && existsSync(r.checkout)) {
           await this.setStatus(ws, r.id, 'queued', { restarts: r.restarts + 1 });
           console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart and is queued again`);
           continue;
@@ -319,6 +326,7 @@ export class Runner {
       seen: false,
       base: { fiveHour: r.usage_five_hour ?? 0, week: r.usage_week ?? 0 },
       usage: { fiveHour: 0, week: 0 },
+      interview: r.interview,
     };
     const kb = createKbServer({
       index: ws.index,
@@ -354,6 +362,24 @@ export class Runner {
             return { content: [{ type: 'text', text: 'Recorded' }] };
           },
         ),
+        ...(r.automation === 'interview'
+          ? [
+              tool(
+                'report_interview',
+                'Report this turn of the interview: the question you ask next (or, when done, your one-line closing remark), whether the interview is done, and the path of the document it writes, relative to the checkout. Call it once every turn, before you stop.',
+                { question: z.string(), done: z.boolean(), document: z.string() },
+                async (v) => {
+                  const document = v.document.replaceAll('\\', '/').replace(/^\.\//, '');
+                  if (posix.isAbsolute(document) || document.startsWith('../') || document.startsWith('knowledge-graph/')) {
+                    return { content: [{ type: 'text', text: 'The document is a repository file outside knowledge-graph/, relative to the checkout' }], isError: true };
+                  }
+                  entry.interview = { ...v, document };
+                  await ws.index.sql`update ${this.t(ws, 'run')} set interview = ${ws.index.sql.json(entry.interview as never)} where id = ${r.id}`;
+                  return { content: [{ type: 'text', text: 'Recorded' }] };
+                },
+              ),
+            ]
+          : []),
       ],
     });
     const instructions = [
@@ -366,7 +392,8 @@ export class Runner {
       instructions,
       agents: await this.automations.subAgents(ws, (step) => (models.mode === 'single' ? undefined : sdkModel(models.perAutomation[step]))),
       mcpServers: { 'momentum-kb': kb, 'momentum-run': harnessTools },
-      hooks: guardHooks(this.guard, ref, () => this.summaryRequest(ws, r, entry)),
+      // An interview's answers land with what they changed; its commit message, like its summary, waits until it is done
+      hooks: guardHooks(this.guard, ref, () => this.summaryRequest(ws, r, entry), () => r.automation !== 'interview' || entry.interview?.done === true),
       resume: resume ?? undefined,
       model: sdkModel(model),
       limits: config.limits,
@@ -545,10 +572,12 @@ export class Runner {
 
   /**
    * What the Stop hook hands the summarization sub-agent: the artifacts the run added, changed or deleted and the
-   * documents a graph build run listed, minus the knowledge graph and the user's exclusions; null when there are none
+   * documents a graph build run listed, minus the knowledge graph and the user's exclusions; null when there are none.
+   * An interview's document is summarized once, when the interview is done, never half written.
    */
   private async summaryRequest(ws: Workspace, r: RunRow, entry: Active): Promise<string | null> {
     if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
+    if (r.automation === 'interview' && !entry.interview?.done) return null;
     const { summarization } = await this.settings.values();
     const excluded = (path: string) =>
       path.startsWith('knowledge-graph/') || summarization.exclude.some((pattern) => posix.matchesGlob(path, pattern));
@@ -558,6 +587,9 @@ export class Runner {
       if (!excluded(c.path)) artifacts.set(c.path, c.status === 'A' ? 'added' : c.status === 'D' ? 'deleted' : 'changed');
     }
     for (const d of entry.graphBuild?.documents ?? []) if (!excluded(d) && !artifacts.has(d)) artifacts.set(d, 'to map');
+    // Each answer resumed the session on a fresh checkout: the document is listed whether or not the last turn changed it
+    const document = r.automation === 'interview' ? entry.interview?.document : undefined;
+    if (document && !excluded(document) && !artifacts.has(document)) artifacts.set(document, 'interview');
     if (artifacts.size === 0) return null;
     const list = [...artifacts].map(([path, what]) => `- ${path} (${what})`).join('\n');
     const target = r.target_path ? ` The run's target entity is ${r.target_path}.` : '';

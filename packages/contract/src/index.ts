@@ -354,7 +354,11 @@ export const RunMessage = z.object({
 });
 export type RunMessage = z.infer<typeof RunMessage>;
 
-export const RunDetail = Run.extend({ messages: z.array(RunMessage) });
+/** An interview as its last turn left it: the question it asked, whether it is done, the document it writes */
+export const InterviewState = z.object({ question: z.string(), done: z.boolean(), document: z.string() });
+export type InterviewState = z.infer<typeof InterviewState>;
+
+export const RunDetail = Run.extend({ messages: z.array(RunMessage), interview: InterviewState.nullable().default(null) });
 export type RunDetail = z.infer<typeof RunDetail>;
 
 export const PostRunMessage = z.object({ text: z.string().min(1), context: z.array(ContextItem).default([]) });

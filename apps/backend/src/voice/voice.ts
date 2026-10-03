@@ -1,4 +1,4 @@
-import type { AutomationName, ContextItem, VoiceDown, VoiceOutcome, VoiceTarget } from '@momentum/contract';
+import type { ContextItem, VoiceDown, VoiceOutcome, VoiceTarget } from '@momentum/contract';
 import type { WebSocket as Socket } from '@fastify/websocket';
 import type { Sql } from '@momentum/kb';
 import { CommandFeed, type StreamEvent } from './feed.ts';
@@ -7,7 +7,7 @@ import { CommandFeed, type StreamEvent } from './feed.ts';
 export interface VoiceActions {
   createChat(workspace: string, text: string, targetPath?: string, context?: ContextItem[]): Promise<{ runId: string }>;
   postMessage(id: string, text: string, context?: ContextItem[]): Promise<void>;
-  runAutomation(workspace: string, automation: AutomationName, prompt?: string): Promise<{ runId: string }>;
+  startInterview(workspace: string, topic: string): Promise<{ runId: string }>;
   entity(workspace: string, path: string): Promise<{ title: string }>;
 }
 
@@ -200,7 +200,7 @@ export class Voice {
     const started = INTERVIEW.exec(said);
     if (started && target) {
       const workspace = target.workspace;
-      const { runId } = await this.actions.runAutomation(workspace, 'interview', `Interview: ${started.groups!.topic}`);
+      const { runId } = await this.actions.startInterview(workspace, started.groups!.topic!);
       return { kind: 'chat', workspace, runId, created: true };
     }
     if (END_INTERVIEW.test(said) && target?.kind !== 'interview') return { kind: 'ignored', detail: 'no interview open' };
