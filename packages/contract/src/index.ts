@@ -62,7 +62,7 @@ export const IssueFields = z.object({
 });
 export type IssueFields = z.infer<typeof IssueFields>;
 
-// Card, rendered from the markdown AST; mermaid is rendered to SVG on the server
+// Card, rendered from the markdown AST; PlantUML is rendered to SVG on the server
 
 export type Inline =
   | { t: 'text'; v: string }

@@ -1,4 +1,4 @@
-/** Intrinsic width and aspect ratio of a server-rendered SVG (mermaid sets viewBox and a max-width style). */
+/** Intrinsic width and aspect ratio of a server-rendered SVG (PlantUML sets viewBox and width/height). */
 export function svgSize(svg: string): { width: number; ratio: number } {
   const open = /<svg\b[^>]*>/i.exec(svg)?.[0] ?? '';
   const vb = /viewBox\s*=\s*["']\s*([-\d.]+)[\s,]+([-\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(open);

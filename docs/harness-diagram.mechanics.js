@@ -1,5 +1,5 @@
 // Mechanics slides: how everything works together, as illustrations.
-// Each slide is an SVG drawn here, rendered by Edge (playwright-core, as the mermaid renderer does) and placed under the
+// Each slide is an SVG drawn here, rendered by Edge (playwright-core) and placed under the
 // deck's title bar. Labels are noun phrases; the picture carries the mechanism.
 const React = require('react');
 const RDS = require('react-dom/server');

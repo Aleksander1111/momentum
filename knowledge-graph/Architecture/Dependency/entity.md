@@ -15,7 +15,7 @@ artifacts:
   - packages/entity/src/parse.ts
   - packages/entity/src/validate.ts
   - packages/entity/src/card.ts
-  - packages/entity/src/mermaid.ts
+  - packages/entity/src/plantuml.ts
   - packages/entity/src/types.ts
 kind: internal library
 ---
@@ -25,5 +25,5 @@ kind: internal library
 
 - Parser and serializer: YAML frontmatter, `# title`, the rest is the card; file path to entity path, type path = its first two segments
 - Validator: known type, type matches the directory, card within the character limit (code points), every reference resolves on the branch
-- Card builder: markdown AST (remark, GFM) to blocks; mermaid blocks rendered to SVG on the server by mermaid-isomorphic in Edge through Playwright, text labels so mobile can draw them
+- Card builder: markdown AST (remark, GFM) to blocks; plantuml blocks rendered to SVG by the local PlantUML server, text labels so mobile can draw them; mermaid blocks rejected by the validator
 - Entity types loaded from `docs/entity-types.tsv`

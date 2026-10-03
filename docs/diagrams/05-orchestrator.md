@@ -2,40 +2,40 @@
 
 Source: [SPEC.md → Orchestrator](../SPEC.md#orchestrator), [Automations → Chat](../SPEC.md#automations)
 
-```mermaid
-flowchart TB
-  Trig["Trigger entities, per workspace<br/>schedule, event, on demand"]
-  Demand["Chat, send back, automation on demand<br/>started by the user"]
-  Enable["Project enabled by the user"]
-  subgraph Backend["One back-end deployable"]
-    API["API"]
-    Orch["Orchestrator"]
-  end
-  Enabled{"Project enabled?"}
-  NoLoops["No loops"]
-  Queue["Automation runs, per project<br/>queued, one at a time"]
-  GraphBuild["Graph build: knowledge graph built from the repository<br/>run after run until covered or stopped"]
-  subgraph Procs["Run processes — isolated, killable, own resource limits"]
-    R1["Automation run<br/>Claude Code process<br/>own checkout of the main line"]
-    R2["User-started run<br/>Claude Code process<br/>own checkout of the main line"]
-  end
-  Main["Main line — the one branch<br/>every run lands on it when it ends"]
-  Feed["Attention feed"]
-  Limits["Anthropic API limits"]
-  Trig --> Orch
-  Demand --> Orch
-  Enable --> Orch
-  Orch --> Enabled
-  Enabled -->|"no"| NoLoops
-  Enabled -->|"yes"| Queue
-  Enabled -->|"yes, until covered"| GraphBuild
-  Queue -->|"one automation run per project"| R1
-  GraphBuild -->|"one run at a time<br/>at most the feed's room"| R1
-  Demand -->|"at once, alongside"| R2
-  R1 --> Main
-  R2 --> Main
-  Limits -. "bound the total" .-> Procs
-  Feed -. "at its limit: loops pause" .-> Queue
-  Feed -. "at its limit: the build pauses" .-> GraphBuild
-  User(["User"]) -. "watches usage, stops" .-> GraphBuild
+```plantuml
+rectangle "Trigger entities, per workspace\nschedule, event, on demand" as Trig
+rectangle "Chat, send back, automation on demand\nstarted by the user" as Demand
+rectangle "Project enabled by the user" as Enable
+rectangle "One back-end deployable" as Backend {
+  rectangle "API" as API
+  rectangle "Orchestrator" as Orch
+}
+hexagon "Project enabled?" as Enabled
+rectangle "No loops" as NoLoops
+rectangle "Automation runs, per project\nqueued, one at a time" as Queue
+rectangle "Graph build: knowledge graph built from the repository\nrun after run until covered or stopped" as GraphBuild
+rectangle "Run processes — isolated, killable, own resource limits" as Procs {
+  rectangle "Automation run\nClaude Code process\nown checkout of the main line" as R1
+  rectangle "User-started run\nClaude Code process\nown checkout of the main line" as R2
+}
+rectangle "Main line — the one branch\nevery run lands on it when it ends" as Main
+rectangle "Attention feed" as Feed
+rectangle "Anthropic API limits" as Limits
+rectangle "User" as User
+Trig --> Orch
+Demand --> Orch
+Enable --> Orch
+Orch --> Enabled
+Enabled --> NoLoops : no
+Enabled --> Queue : yes
+Enabled --> GraphBuild : yes, until covered
+Queue --> R1 : one automation run per project
+GraphBuild --> R1 : one run at a time\nat most the feed's room
+Demand --> R2 : at once, alongside
+R1 --> Main
+R2 --> Main
+Limits ..> Procs : bound the total
+Feed ..> Queue : at its limit: loops pause
+Feed ..> GraphBuild : at its limit: the build pauses
+User ..> GraphBuild : watches usage, stops
 ```

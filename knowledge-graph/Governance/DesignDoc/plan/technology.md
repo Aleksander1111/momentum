@@ -27,7 +27,7 @@ TypeScript throughout: Node 24 LTS, pnpm workspaces monorepo, matching Claude Co
 | Front-end | Expo + Expo Router; web via react-native-web, served by the back-end |
 | Gestures | gesture-handler + reanimated: swipe right approves, left disapproves with a comment |
 | Polling | TanStack Query `refetchInterval`, no sockets |
-| Cards | Markdown AST; mermaid rendered to SVG on the server by the guard, no WebView |
+| Cards | Markdown AST; PlantUML rendered to SVG on the server by the guard, no WebView |
 | Back-end | Fastify + zod, one process: API, orchestrator, guard |
 
 Runs, data and platform decisions continue in the sibling cards. Assumed, not verified: procgov limits hold for the Claude Code subprocess tree.

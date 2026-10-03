@@ -107,7 +107,7 @@ describe('guard, feed and approval', () => {
       'knowledge-graph/Governance/Decision/private-mesh.md': entity(
         'Governance/Decision',
         'Remote access over a private mesh',
-        'Clients reach the machine through a mesh.\n\n```mermaid\nflowchart LR\n  Client --> Mesh --> API\n```',
+        'Clients reach the machine through a mesh.\n\n```plantuml\nrectangle Client\nrectangle Mesh\nrectangle API\nClient -> Mesh\nMesh -> API\n```',
         ['Architecture/Api/session'],
       ),
     });

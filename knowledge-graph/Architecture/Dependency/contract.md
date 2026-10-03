@@ -21,7 +21,7 @@ kind: internal library
 | Area | Schemas |
 |---|---|
 | Entity | frontmatter, states, 0–5 impacts, references; trigger and issue fields (severity, options, recommended, wont_resolve) |
-| Card | markdown AST blocks, mermaid as SVG |
+| Card | markdown AST blocks, PlantUML as SVG |
 | Feed | items with issue options and concerns, state counts; approve, send back, resolve, won't resolve |
 | Runs, chats | automations, triggers, status, usage in % |
 | Graph build | state, coverage, estimate |

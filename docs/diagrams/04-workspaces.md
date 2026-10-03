@@ -2,41 +2,40 @@
 
 Source: [SPEC.md → Workspaces and projects](../SPEC.md#workspaces-and-projects), [Automations → Optimization](../SPEC.md#automations)
 
-```mermaid
-flowchart TB
-  Orch["Orchestrator"]
-  ChatTool["Chat tool"]
-  DirectEdit["Direct entity edit"]
-  Proposal["Automation proposal<br/>approved by the user"]
-  subgraph Root["Root directory on the dedicated machine"]
-    subgraph Harness["Harness repository — a workspace"]
-      subgraph HKB["Knowledge base"]
-        HGoals["Goals"]
-        HDefs["Definition entities<br/>one per automation"]
-      end
-      HArt["automations/<br/>agent, skill, sub-agent and MCP files<br/>artifacts of the definitions"]
-    end
-    subgraph WA["Workspace A — enabled"]
-      subgraph AKB["Knowledge base"]
-        AGoals["Goals"]
-        ATrig["Trigger entities"]
-      end
-      AVariants["Materialized variants"]
-    end
-    subgraph WB["Workspace B — disabled"]
-      subgraph BKB["Knowledge base"]
-        BGoals["Goals"]
-        BTrig["Trigger entities"]
-      end
-    end
-  end
-  ATrig -->|"read by"| Orch
-  Orch -->|"schedules loops<br/>5 to 20 enabled projects expected"| WA
-  Orch -. "no loops" .-> WB
-  ChatTool --> AGoals
-  DirectEdit --> AGoals
-  Proposal --> AGoals
-  HDefs --- HArt
-  HArt -->|"materialized on approval<br/>into the workspaces that use them"| AVariants
-  AKB x--x|"isolated: no entities, findings or knowledge cross"| BKB
+```plantuml
+rectangle "Orchestrator" as Orch
+rectangle "Chat tool" as ChatTool
+rectangle "Direct entity edit" as DirectEdit
+rectangle "Automation proposal\napproved by the user" as Proposal
+rectangle "Root directory on the dedicated machine" as Root {
+  rectangle "Harness repository — a workspace" as Harness {
+    rectangle "Knowledge base" as HKB {
+      rectangle "Goals" as HGoals
+      rectangle "Definition entities\none per automation" as HDefs
+    }
+    rectangle "automations/\nagent, skill, sub-agent and MCP files\nartifacts of the definitions" as HArt
+  }
+  rectangle "Workspace A — enabled" as WA {
+    rectangle "Knowledge base" as AKB {
+      rectangle "Goals" as AGoals
+      rectangle "Trigger entities" as ATrig
+    }
+    rectangle "Materialized variants" as AVariants
+  }
+  rectangle "Workspace B — disabled" as WB {
+    rectangle "Knowledge base" as BKB {
+      rectangle "Goals" as BGoals
+      rectangle "Trigger entities" as BTrig
+    }
+  }
+}
+ATrig --> Orch : read by
+Orch --> WA : schedules loops\n5 to 20 enabled projects expected
+Orch ..> WB : no loops
+ChatTool --> AGoals
+DirectEdit --> AGoals
+Proposal --> AGoals
+HDefs -- HArt
+HArt --> AVariants : materialized on approval\ninto the workspaces that use them
+AKB x--x BKB : isolated: no entities, findings or knowledge cross
 ```

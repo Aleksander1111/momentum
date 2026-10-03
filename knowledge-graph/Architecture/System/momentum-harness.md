@@ -19,14 +19,19 @@ artifacts:
 
 Three layers: attention on top (ranked feed and approval, shared across projects), understanding beneath (entities and index), implementation at the base (automations, runs, validation); the lower two exist once per project.
 
-```mermaid
-flowchart LR
-  App["App: web + mobile"] -->|polls over the mesh| API
-  subgraph Backend["One back-end process"]
-    API --> Orch["Orchestrator"]
-    Guard["Consistency guard"]
-  end
-  Orch --> Runs["Claude Code run processes"]
-  Runs --> KB["Knowledge base + index, per workspace"]
-  Guard --> KB
+```plantuml
+left to right direction
+rectangle "App: web + mobile" as App
+rectangle "One back-end process" {
+  rectangle API
+  rectangle "Orchestrator" as Orch
+  rectangle "Consistency guard" as Guard
+}
+rectangle "Claude Code run processes" as Runs
+rectangle "Knowledge base + index, per workspace" as KB
+App --> API : polls over the mesh
+API --> Orch
+Orch --> Runs
+Runs --> KB
+Guard --> KB
 ```

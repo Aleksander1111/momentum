@@ -22,7 +22,10 @@ No port is exposed to the public internet; clients reach the machine through a W
 |---|---|
 | Tunnel | End-to-end encryption |
 
-```mermaid
-flowchart LR
-  Client --> Mesh --> API
+```plantuml
+rectangle Client
+rectangle Mesh
+rectangle API
+Client -> Mesh
+Mesh -> API
 ```

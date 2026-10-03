@@ -5,7 +5,7 @@ import { DiagramFull } from './DiagramFull';
 import { svgSize } from './svgSize';
 import { C } from './theme';
 
-/** Native: server-rendered mermaid SVG with its embedded <style>, scaled to the card width; a tap opens it full size. */
+/** Native: server-rendered PlantUML SVG with its embedded <style>, scaled to the card width; a tap opens it full size. */
 export function Diagram({ svg }: { svg: string }) {
   const [box, setBox] = useState(0);
   const [open, setOpen] = useState(false);

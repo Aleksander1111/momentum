@@ -59,7 +59,7 @@ function block(node: RootContent, diagrams: Block[]): Block | null {
       };
     }
     case 'code': {
-      if (node.lang !== 'mermaid') return { t: 'code', lang: node.lang ?? null, v: node.value };
+      if (node.lang !== 'plantuml') return { t: 'code', lang: node.lang ?? null, v: node.value };
       const diagram: Block = { t: 'diagram', svg: '', source: node.value };
       diagrams.push(diagram);
       return diagram;
@@ -79,7 +79,7 @@ function blocks(nodes: RootContent[], diagrams: Block[]): Block[] {
   return nodes.map((c) => block(c, diagrams)).filter((b): b is Block => b !== null);
 }
 
-/** Card from the markdown AST; mermaid code blocks become diagrams rendered to SVG */
+/** Card from the markdown AST; plantuml code blocks become diagrams rendered to SVG */
 export async function toCard(body: string, render?: DiagramRenderer): Promise<Card> {
   const tree = processor.parse(body) as Root;
   const diagrams: Block[] = [];

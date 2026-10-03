@@ -2,64 +2,64 @@
 
 Source: [SPEC.md → Automations](../SPEC.md#automations)
 
-```mermaid
-flowchart LR
-  KB["Knowledge base — every layer"]
-  Goals["Goals"]
-  Feed["Attention feed"]
-  Artifacts["Repository artifacts<br/>chats, plans, results implemented by AI"]
-  Repo["Repository"]
-  Metrics["Index and metrics database"]
-  HarnessRepo["Definition entities, harness workspace<br/>artifacts: agents, skills, sub-agents, MCP"]
-  Triggers["Trigger entities, per workspace"]
-  Workspaces["Workspaces using a variant"]
-  User(["User"])
-  subgraph Auto["Automations — per project, defined by responsibility alone"]
-    Exploration["Exploration"]
-    Preparation["Preparation"]
-    Consistency["Consistency check"]
-    Retention["Retention"]
-    Implementation["Implementation"]
-    Validation["Validation"]
-    Optimization["Optimization"]
-    Summarization["Summarization<br/>step inside the other automations"]
-    Card["Card<br/>step inside the other automations"]
-    Chat["Chat"]
-    GraphBuild["Graph build<br/>started by enabling the project"]
-  end
-  Auto <-->|"search and write in own checkout; everything lands on the main line"| KB
-  Goals -->|"guide; all met → idle"| Exploration
-  Exploration -->|"next best action"| Feed
-  Preparation -->|"plans as summaries"| Feed
-  Consistency -->|"issue entities; knowledge graph only"| Feed
-  Retention -->|"retirement proposals"| Feed
-  KB -->|"verified, entity_ahead"| Implementation
-  Implementation -->|"landed on the main line; target updating"| Validation
-  Validation -->|"issue entities"| Feed
-  Artifacts --> Summarization
-  Summarization -->|"summaries"| KB
-  Card -->|"cards within the character limit"| KB
-  Metrics --> Optimization
-  Optimization -->|"proposals to definitions and triggers"| Feed
-  Feed -->|"approved"| HarnessRepo
-  Feed -->|"approved"| Triggers
-  HarnessRepo -->|"materialized on approval"| Workspaces
-  User -->|"starts"| Chat
-  Chat -->|"results"| Feed
-  Repo -->|"read run after run"| GraphBuild
-  GraphBuild -->|"entities, at most the feed's room"| Feed
-  User -. "watches usage, stops" .-> GraphBuild
+```plantuml
+left to right direction
+rectangle "Knowledge base — every layer" as KB
+rectangle "Goals" as Goals
+rectangle "Attention feed" as Feed
+rectangle "Repository artifacts\nchats, plans, results implemented by AI" as Artifacts
+rectangle "Repository" as Repo
+rectangle "Index and metrics database" as Metrics
+rectangle "Definition entities, harness workspace\nartifacts: agents, skills, sub-agents, MCP" as HarnessRepo
+rectangle "Trigger entities, per workspace" as Triggers
+rectangle "Workspaces using a variant" as Workspaces
+rectangle "User" as User
+rectangle "Automations — per project, defined by responsibility alone" as Auto {
+  rectangle "Exploration" as Exploration
+  rectangle "Preparation" as Preparation
+  rectangle "Consistency check" as Consistency
+  rectangle "Retention" as Retention
+  rectangle "Implementation" as Implementation
+  rectangle "Validation" as Validation
+  rectangle "Optimization" as Optimization
+  rectangle "Summarization\nstep inside the other automations" as Summarization
+  rectangle "Card\nstep inside the other automations" as Card
+  rectangle "Chat" as Chat
+  rectangle "Graph build\nstarted by enabling the project" as GraphBuild
+}
+Auto <--> KB : search and write in own checkout; everything lands on the main line
+Goals --> Exploration : guide; all met → idle
+Exploration --> Feed : next best action
+Preparation --> Feed : plans as summaries
+Consistency --> Feed : issue entities; knowledge graph only
+Retention --> Feed : retirement proposals
+KB --> Implementation : verified, entity_ahead
+Implementation --> Validation : landed on the main line; target updating
+Validation --> Feed : issue entities
+Artifacts --> Summarization
+Summarization --> KB : summaries
+Card --> KB : cards within the character limit
+Metrics --> Optimization
+Optimization --> Feed : proposals to definitions and triggers
+Feed --> HarnessRepo : approved
+Feed --> Triggers : approved
+HarnessRepo --> Workspaces : materialized on approval
+User --> Chat : starts
+Chat --> Feed : results
+Repo --> GraphBuild : read run after run
+GraphBuild --> Feed : entities, at most the feed's room
+User ..> GraphBuild : watches usage, stops
 ```
 
 ## Step mechanism
 
-```mermaid
-flowchart LR
-  Step["Step of a responsibility"]
-  Q{"Expressible as a query or rule?"}
-  Rules["Queries and rules<br/>indices, metrics, lifetimes, references"]
-  AI["AI<br/>deciding, planning, reviewing, summarizing"]
-  Step --> Q
-  Q -->|"yes"| Rules
-  Q -->|"no"| AI
+```plantuml
+left to right direction
+rectangle "Step of a responsibility" as Step
+hexagon "Expressible as a query or rule?" as Q
+rectangle "Queries and rules\nindices, metrics, lifetimes, references" as Rules
+rectangle "AI\ndeciding, planning, reviewing, summarizing" as AI
+Step --> Q
+Q --> Rules : yes
+Q --> AI : no
 ```

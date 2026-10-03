@@ -15,12 +15,19 @@ artifacts:
 
 Self-hosted on one dedicated machine: one back-end deployable (API + orchestrator), a Claude Code process per run, and the workspaces root. No cloud services.
 
-```mermaid
-flowchart LR
-  C[Web / mobile] -->|poll + session| M[Mesh VPN]
-  M -->|tunnel| A[API]
-  O[Orchestrator] --> R[Runs]
-  A & R --> W[Workspaces]
+```plantuml
+left to right direction
+rectangle "Web / mobile" as C
+rectangle "Mesh VPN" as M
+rectangle "API" as A
+rectangle "Orchestrator" as O
+rectangle "Runs" as R
+rectangle "Workspaces" as W
+C --> M : poll + session
+M --> A : tunnel
+O --> R
+A --> W
+R --> W
 ```
 
 - No public port: the API listens only on a WireGuard mesh (e.g. Tailscale)

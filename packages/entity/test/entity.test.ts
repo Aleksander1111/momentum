@@ -53,6 +53,12 @@ describe('validate', () => {
     expect(validateEntity('Nope/Thing/x', unknown, ctx).map((i) => i.code)).toEqual(['unknown_type']);
   });
 
+  it('rejects mermaid diagrams', () => {
+    const e = parseEntity(fixture);
+    const mermaid = { ...e, body: e.body.replace(/```plantuml[\s\S]*```/, '```mermaid\nflowchart LR\n  A --> B\n```') };
+    expect(validateEntity(path, mermaid, ctx).map((i) => i.code)).toEqual(['mermaid_diagram']);
+  });
+
   it('reports parse errors as issues', () => {
     expect(validateText(path, '# no frontmatter', ctx).issues[0]?.code).toBe('parse');
     expect(validateText(path, '---\ntype: Governance/Decision\nproduct_impact: 9\n---\n# T\n', ctx).issues[0]?.code).toBe(

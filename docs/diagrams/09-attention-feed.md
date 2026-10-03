@@ -2,30 +2,34 @@
 
 Source: [SPEC.md → Attention feed](../SPEC.md#attention-feed), [Index and metrics database](../SPEC.md#index-and-metrics-database)
 
-```mermaid
-flowchart TB
-  subgraph Enabled["Enabled projects"]
-    SA["Entities, any type"]
-    SB["Entities, any type"]
-  end
-  subgraph Ranking["Attention ranking — no project priority"]
-    P["Impact on the product"]
-    T["Impact on the timeline"]
-    U["How much it unlocks"]
-  end
-  Index["Index and metrics database<br/>ranking computed as indices update"]
-  API["API<br/>no work per poll"]
-  Feed["One feed across projects"]
-  User{"User"}
-  Main["Approved state<br/>verification: verified"]
-  Back["Change request, split,<br/>or new entities<br/>sync: updating"]
-  AttM["Attention metrics<br/>time per item, reactions"]
-  Patterns["Patterns regular enough"]
-  Auto["Automatic approval or rejection"]
-  SA --> Ranking
-  SB --> Ranking
-  Ranking --> Index -->|"feed order"| API --> Feed --> User
-  User -->|"verifies, approves"| Main
-  User -->|"sends back"| Back
-  User --> AttM --> Patterns --> Auto
+```plantuml
+rectangle "Enabled projects" as Enabled {
+  rectangle "Entities, any type" as SA
+  rectangle "Entities, any type" as SB
+}
+rectangle "Attention ranking — no project priority" as Ranking {
+  rectangle "Impact on the product" as P
+  rectangle "Impact on the timeline" as T
+  rectangle "How much it unlocks" as U
+}
+rectangle "Index and metrics database\nranking computed as indices update" as Index
+rectangle "API\nno work per poll" as API
+rectangle "One feed across projects" as Feed
+hexagon "User" as User
+rectangle "Approved state\nverification: verified" as Main
+rectangle "Change request, split,\nor new entities\nsync: updating" as Back
+rectangle "Attention metrics\ntime per item, reactions" as AttM
+rectangle "Patterns regular enough" as Patterns
+rectangle "Automatic approval or rejection" as Auto
+SA --> Ranking
+SB --> Ranking
+Ranking --> Index
+Index --> API : feed order
+API --> Feed
+Feed --> User
+User --> Main : verifies, approves
+User --> Back : sends back
+User --> AttM
+AttM --> Patterns
+Patterns --> Auto
 ```

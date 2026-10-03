@@ -1,7 +1,13 @@
 import type { ParsedEntity } from './parse.ts';
 import { EntityParseError, parseEntity, typeOfPath } from './parse.ts';
 
-export type ValidationCode = 'parse' | 'unknown_type' | 'type_path_mismatch' | 'card_limit' | 'unresolved_reference';
+export type ValidationCode =
+  | 'parse'
+  | 'unknown_type'
+  | 'type_path_mismatch'
+  | 'card_limit'
+  | 'unresolved_reference'
+  | 'mermaid_diagram';
 
 export interface ValidationIssue {
   path: string;
@@ -19,6 +25,9 @@ export interface ValidationContext {
 export function cardLength(body: string): number {
   return [...body].length;
 }
+
+/** Diagrams are PlantUML: a mermaid code block is not accepted */
+const MERMAID = /^ {0,3}(`{3,}|~{3,})\s*mermaid\b/im;
 
 /** Validator rules, PLAN.md → Entity file format */
 export function validateEntity(path: string, entity: ParsedEntity, ctx: ValidationContext): ValidationIssue[] {
@@ -40,6 +49,13 @@ export function validateEntity(path: string, entity: ParsedEntity, ctx: Validati
       path,
       code: 'card_limit',
       message: `card is ${length} characters, over the limit of ${ctx.characterLimit}; split it into entities that reference each other`,
+    });
+  }
+  if (MERMAID.test(body)) {
+    issues.push({
+      path,
+      code: 'mermaid_diagram',
+      message: 'diagrams are PlantUML, not mermaid; redraw the mermaid block as a ```plantuml code block',
     });
   }
   for (const ref of frontmatter.references) {

@@ -9,24 +9,45 @@ unlocks: 5
 references:
   - to: Governance/DesignDoc/plan
     relation: part_of
+  - to: Governance/DesignDoc/plan/work-package-scope
+    relation: contains
 artifacts:
   - docs/PLAN.md
 ---
 # Plan: work packages
 
-```mermaid
-flowchart LR
-  M[0 Machine] --> R[4 Runs]
-  C[1 Contract] --> E[2 Entity] --> K[3 KB]
-  E & K & R --> G[5 Guard]
-  R & G --> O[6 Orchestrator]
-  C & K & O --> A[7 API]
-  K & R --> Au[8 Automations]
-  C & A --> App[9 App]
-  K & G & A --> Me[10 Metrics]
-  App & Me & Au --> V[11 End-to-end]
+```plantuml
+left to right direction
+[1 Contract] as C
+[2 Entity] as E
+[3 KB] as K
+[4 Runs] as R
+[5 Guard] as G
+[6 Orchestrator] as O
+[7 API] as A
+[8 Automations] as U
+[9 App] as P
+[10 Metrics] as T
+[11 End-to-end] as V
+[0 Machine]-->R
+C-->E
+E-->K
+E-->G
+K-->G
+R-->G
+R-->O
+G-->O
+C-->A
+K-->A
+O-->A
+K-->U
+R-->U
+C-->P
+A-->P
+K-->T
+G-->T
+A-->T
+P-->V
+T-->V
+U-->V
 ```
-
-- 7 API: session, feed reactions (approve, send back, resolve, won't resolve), entities, chats, runs, metrics, settings; MCP over the same handlers
-- 8 Automations: ten definitions; default triggers for eight (not summarization, run by the Stop hook, nor graph build, started on enabling)
-- 11: this repository runs as a live workspace

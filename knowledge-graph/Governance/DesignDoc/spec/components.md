@@ -27,13 +27,28 @@ artifacts:
 
 Harness and products. The user enters through the attention feed. Three layers: attention (shared), knowledge and product (per project); a consistency border splits unverified from verified.
 
-```mermaid
-flowchart BT
-  T[Triggers] --> A[Exploration, preparation, implementation, testing, review]
-  A --> R[Story, plan, change, bug, refactor] --> S[Summarizer] --> C[Entity cards]
-  C <--> G[Consistency gate] <--> K[Knowledge graph]
-  C --> P[Prioritizer] --> F[Attention feed]
-  F --> RT[Retention] --> K --> T
-  U[User] --> F
+```plantuml
+[Triggers] as T
+[Exploration, preparation, implementation, testing, review] as A
+[Story, plan, change, bug, refactor] as R
+[Summarizer] as S
+[Entity cards] as C
+[Consistency gate] as G
+[Knowledge graph] as K
+[Prioritizer] as P
+[Attention feed] as F
+[Retention] as N
+A<--T
+R<--A
+S<--R
+C<--S
+G<-->C
+K<-->G
+P<--C
+F<--P
+N<--F
+K<--N
+T<--K
+F<--[User]
 ```
 Harness: settings, graph explorer, importance rank, chat, metrics, optimization, orchestrator, API, voice tools, RAG.

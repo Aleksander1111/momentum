@@ -12,7 +12,7 @@ The infrastructure is built in one pass. Work packages below are ordered by depe
 | Front-end | Expo (React Native) with Expo Router; web target through react-native-web, served as static files by the back-end | One app, written once, deployed to web and mobile |
 | Gestures | react-native-gesture-handler + react-native-reanimated | Swipe right to approve, swipe left to disapprove with a comment |
 | Polling | TanStack Query with `refetchInterval`; no sockets | Front-end polls for feed items and run results; no persistent push channel |
-| Markdown and diagrams | Cards rendered from markdown AST; mermaid diagrams rendered to SVG on the server by the guard (mermaid-isomorphic through Playwright, in the Edge that ships with Windows; labels as SVG text), shown with react-native-svg on mobile and as an image on web | A card may carry a diagram; no WebView on mobile |
+| Markdown and diagrams | Cards rendered from markdown AST; PlantUML diagrams rendered to SVG on the server by the guard (the PlantUML server in Docker on this machine, `plantuml/plantuml-server:jetty` on port 8080; labels as SVG text), shown with react-native-svg on mobile and as an image on web; mermaid is not accepted | A card may carry a diagram; no WebView on mobile |
 | Back-end | Fastify + zod, one process: API, orchestrator, consistency guard | One back-end deployable, only runs as separate processes |
 | Runs | Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`), one subprocess per run, cwd = the run's checkout | Claude Code as a first-class citizen; one Claude Code process per run and per project |
 | Run isolation | A detached `git worktree` per run under `C:\Projects\.runs\<workspace>\<run-id>` at the tip of the main line, no branch; the process is placed in a Windows job object with CPU and memory limits by procgov as soon as it starts, so everything it starts inherits the job; killed with its process tree | Own checkout, isolated, killable, own resource limits; everything on one branch |
@@ -44,7 +44,7 @@ momentum/
     backend/            Fastify API, orchestrator, guard, MCP surface; service/ holds the scheduled task that serves it
   packages/
     contract/           zod schemas and types shared by app and backend; generated openapi.json
-    entity/             markdown parser, validator, mermaid renderer
+    entity/             markdown parser, validator, PlantUML renderer
     kb/                 Postgres index, full text, pgvector, retrieval
     runs/               Agent SDK wrapper, worktrees, landing on the main line, job objects
   automations/          Artifacts of the definition entities: agents, skills, MCP config, one directory per automation
@@ -88,13 +88,16 @@ No port is exposed to the public internet; clients reach the machine through a W
 |---|---|
 | Tunnel | End-to-end encryption |
 
-```mermaid
-flowchart LR
-  Client --> Mesh --> API
+```plantuml
+rectangle Client
+rectangle Mesh
+rectangle API
+Client -> Mesh
+Mesh -> API
 ```
 ````
 
-Validator rules: the card body is within the configured character limit; `type` is a path from entity-types.tsv and matches the entity's directory; every `references.to` resolves in the run's checkout.
+Validator rules: the card body is within the configured character limit; `type` is a path from entity-types.tsv and matches the entity's directory; every `references.to` resolves in the run's checkout; diagrams are `plantuml` code blocks, and a `mermaid` code block is rejected.
 
 Frontmatter beyond the fields above:
 
@@ -113,7 +116,7 @@ Relations the harness acts on: `implements` (sync), `retires` (retention), `conc
 |---|---|---|---|
 | 0 | Machine | — | Tailscale, Node, Claude Code CLI, procgov, Momentum scheduled task, `C:\Projects` as the workspaces root, this repository as the first workspace |
 | 1 | Contract | — | zod schemas for entity, feed item, run, chat, metrics, settings; generated OpenAPI |
-| 2 | Entity package | 1 | Parser, validator, mermaid renderer, golden fixtures |
+| 2 | Entity package | 1 | Parser, validator, PlantUML renderer, golden fixtures |
 | 3 | KB package | 2 | Schema of the tables from SPEC.md per workspace (see Database below), full text, pgvector, embeddings, retrieval, `momentum-kb` MCP server |
 | 4 | Runs package | 0 | Worktree lifecycle, Agent SDK session per run, job object limits, kill, usage capture from the SDK as a share of the 5-hour and weekly limits |
 | 5 | Consistency guard | 2, 3, 4 | Hooks and watcher per run, transaction grouping, validation, issue entities, sync state, index update, ranking |
