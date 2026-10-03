@@ -15,18 +15,17 @@ artifacts:
 ---
 # API
 
-The backend's interface: Fastify routes typed by `@momentum/contract` zod schemas (OpenAPI at `/openapi.json`), and the same handlers as MCP tools at `/mcp` for voice tools.
+The backend's interface: Fastify routes typed by `@momentum/contract` zod schemas (OpenAPI at `/openapi.json`), voice sockets, and the same handlers as MCP tools at `/mcp`.
 
 | Area | Routes |
 |---|---|
 | Session | POST, DELETE `/session` |
 | Feed | `/feed`; approve, send back, resolve an issue, won't resolve |
-| Workspaces | entities, types, search, chats, metrics (`range`), graph-build, reset |
+| Workspaces | entities, artifact, types, search, chats, metrics, graph-build, reset |
 | Runs | `/runs/:id`, messages, kill |
 | Settings | GET, PUT `/settings` |
+| Voice | `/voice` control, `/voice/audio` per recording |
 
-- New chats and messages take card parts as context
-- Session by cookie or bearer token; all but sign-in need one (401)
-- Page loads get the web build
-- Errors as `{error}`: 400/404/409/500
-- MCP adds `run_automation`
+- Artifact: a repository file as on the main line
+- Session by cookie or bearer; all but sign-in need one (401)
+- Page loads get the web build; errors as `{error}`

@@ -21,9 +21,9 @@ Fastify routes typed by `@momentum/contract` zod schemas; OpenAPI at `/openapi.j
 |---|---|
 | Session | POST, DELETE /session |
 | Feed | GET /feed; POST /feed/{path}/approve, /send-back, /resolve, /wont-resolve |
-| Entities | GET /workspaces/{ws}/entities/*, /types, /search |
+| Entities | GET /workspaces/{ws}/entities/*, /artifact/*, /types, /search |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
 | Projects | GET /workspaces; GET …/metrics?range=; GET, PUT …/graph-build; POST …/reset |
 | Settings | GET, PUT /settings |
 
-New chats and messages carry card parts as context. Feed items and entities carry card diffs. Send back, resolve return a run id. Cookie or bearer, else 401; errors `{error}`. `/mcp`: voice tools.
+`/artifact/*`: a file on the main line. Chats and messages carry card parts. Cookie or bearer, else 401; errors `{error}`. WebSockets `/voice`, `/voice/audio`; `/mcp`: voice tools.

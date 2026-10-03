@@ -9,6 +9,8 @@ unlocks: 1
 references:
   - to: Harness/Automation/chat
     relation: starts
+  - to: Harness/Automation/interview
+    relation: shows
 artifacts:
   - apps/app/src/app/(tabs)/chat/index.tsx
   - apps/app/src/app/(tabs)/chat/[runId].tsx
@@ -24,7 +26,9 @@ artifacts:
 Chats per workspace, each a conversation attached to a run.
 
 - Chats grouped by workspace, polled every 15 s; rows show kind, status, age, state badges
-- The composer under the list starts a chat run in the chosen workspace; "Explore through an agent" lands here, composer focused
-- Card parts added to the context wait as chips above the composer (× removes one), go with the next message and clear; sent bubbles show them
-- A conversation heads with automation, state, 5-hour usage % and branch, then user and markdown agent bubbles, polled every 3 s while active; Stop kills it, the composer steers it
-- Web (700 px+) shows it beside the list; mobile opens a page with Back
+- The composer starts a chat run in the chosen workspace
+- Card parts in the context wait as chips above the composer (× removes one) and go with the next message
+- A mic beside send: the field shows the words as heard; its outcome opens the chat; a failed item returns
+- A conversation: run head (automation, state, 5-hour usage %), bubbles, polled every 3 s while active; Stop kills it
+- An interview shows the document it writes, from the main line, and takes answers without context
+- Web (700 px+) shows it beside the list
