@@ -6,12 +6,15 @@ import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { config } from './config.ts';
 import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
 export const DEFINITION_TYPE = 'Harness/Automation';
 export const TRIGGER_TYPE = 'Harness/Trigger';
 /** Automations that run as a step inside the others, as sub-agents of every run */
 export const STEPS: AutomationName[] = ['summarization'];
+/** Automations that run in the harness workspace alone, over every enabled project: they change the definitions */
+export const HARNESS_ONLY: AutomationName[] = ['optimization'];
 /** The user's rules for the risk of an implementation, an artifact of the implementation definition */
 export const RISK_RULES = 'automations/implementation/risk.md';
 
@@ -135,7 +138,7 @@ export class Automations {
     return agents;
   }
 
-  /** Approved trigger entities of a workspace */
+  /** Approved trigger entities of a workspace; one of an automation of the harness alone counts in the harness only */
   async triggers(ws: Workspace): Promise<Trigger[]> {
     const rows = await ws.index.byType(TRIGGER_TYPE);
     const out: Trigger[] = [];
@@ -143,7 +146,9 @@ export class Automations {
       if (r.verification !== 'verified') continue;
       const automation = AutomationName.safeParse(r.frontmatter.automation ?? r.path.split('/').pop());
       const fields = TriggerFields.safeParse(r.frontmatter);
-      if (automation.success && fields.success) out.push({ ...fields.data, automation: automation.data, path: r.path });
+      if (!automation.success || !fields.success) continue;
+      if (HARNESS_ONLY.includes(automation.data) && ws.name !== config.harnessName) continue;
+      out.push({ ...fields.data, automation: automation.data, path: r.path });
     }
     return out;
   }

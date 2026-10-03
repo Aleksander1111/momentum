@@ -8,8 +8,7 @@
     "web": "expo start --web",
     "export:web": "expo export --platform web --output-dir dist",
     "typecheck": "tsc --noEmit",
-    "android:apk": "expo prebuild --platform android --no-install && cd android && gradlew assembleRelease",
-    "test:e2e": "playwright test"
+    "android:apk": "expo prebuild --platform android --no-install && cd android && gradlew assembleRelease"
   },
   "dependencies": {
     "@expo/log-box": "~57.0.4",
@@ -39,7 +38,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3",
-    "@playwright/test": "^1.55.0"
+    "typescript": "~6.0.3"
   }
 }

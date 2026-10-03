@@ -46,7 +46,8 @@ export const config: Config = {
   harness: REPO,
   harnessName: 'momentum',
   entityTypes: join(REPO, 'docs', 'entity-types.tsv'),
-  appDist: join(REPO, 'apps', 'app', 'dist'),
+  // MOMENTUM_APP_DIST serves another build of the web app: the end-to-end suite keeps its own
+  appDist: process.env.MOMENTUM_APP_DIST ?? join(REPO, 'apps', 'app', 'dist'),
   databaseUrl: process.env.DATABASE_URL ?? '',
   // MOMENTUM_HOST overrides the Tailscale interface for development on this machine only
   host: () => process.env.MOMENTUM_HOST ?? tailnetAddress(),

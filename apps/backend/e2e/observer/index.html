@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Momentum e2e</title>
+<style>
+  /* Dark, like the app it wraps */
+  :root {
+    color-scheme: dark;
+    --bg: #1a1a19; --panel: #232322; --line: #3a3a38; --ink: #ecebe6; --muted: #a3a29c; --faint: #6b6a65;
+    --ok: #97c459; --ok-bg: #27500a; --run: #85b7eb; --run-bg: #0c447c; --bad: #f09595; --bad-bg: #791f1f; --skip: #ef9f27; --skip-bg: #633806;
+    --mono: ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.45 system-ui, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; }
+  .grow { flex: 1; }
+  .meter { display: flex; align-items: center; gap: 8px; min-width: 240px; }
+  .bar { position: relative; flex: 1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .bar > i { position: absolute; inset: 0 auto 0 0; background: var(--run); }
+  .bar > b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--bad); }
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 1fr) auto minmax(300px, 1.1fr); gap: 12px; padding: 12px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; }
+  section > h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+  .scroll { overflow: auto; flex: 1; min-height: 0; }
+  .sc { padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .sc.off { opacity: .45; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 18px; text-align: center; font-weight: 700; flex: none; }
+  .passed .dot, .st.passed .dot { color: var(--ok); } .failed .dot, .st.failed .dot { color: var(--bad); }
+  .running .dot, .st.running .dot { color: var(--run); } .skipped .dot { color: var(--skip); } .pending .dot { color: var(--faint); }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--muted); }
+  .tag.real { background: var(--run-bg); color: var(--run); }
+  .steps { margin: 6px 0 2px 26px; }
+  .st { display: flex; gap: 6px; color: var(--muted); padding: 1px 0; }
+  .st.running { color: var(--ink); }
+  .reason { margin: 4px 0 0 26px; color: var(--skip); font-size: 12px; }
+  .failed .reason { color: var(--bad); }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 0; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-left: auto; }
+  .toggle button { border: 0; background: transparent; color: var(--muted); padding: 2px 10px; font: inherit; cursor: pointer; }
+  .toggle button.on { background: var(--run-bg); color: var(--run); }
+  .device { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  iframe { border: 0; background: var(--bg); display: block; }
+  .mobile iframe { width: 390px; height: min(844px, calc(100vh - 150px)); border-radius: 28px; outline: 10px solid #2c2c2a; }
+  .web iframe { width: min(1180px, calc(100vw - 720px)); height: calc(100vh - 150px); border-radius: 8px; outline: 1px solid var(--line); }
+  .empty { color: var(--faint); padding: 24px; text-align: center; }
+  .runs td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .runs td.t { white-space: normal; color: var(--muted); }
+  .runs tr.running td { background: var(--run-bg); }
+  .log { font: 12px/1.55 var(--mono); padding: 8px 12px; white-space: pre-wrap; word-break: break-word; color: var(--muted); }
+  .log .assistant { color: var(--ink); }
+  .split { border-top: 1px solid var(--line); }
+  .controls { display: flex; align-items: center; gap: 8px; }
+  .controls button, .controls select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .controls button.on { background: var(--run-bg); color: var(--run); border-color: var(--run); }
+  .controls label { display: flex; align-items: center; gap: 4px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .waiting { color: var(--skip); max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status-running { color: var(--run); } .status-finished { color: var(--ok); } .status-failed, .status-killed { color: var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Momentum e2e</h1>
+  <span id="progress">Waiting for the suite</span>
+  <span class="grow"></span>
+  <div class="controls">
+    <button id="pause" title="Hold the scenario before its next action">Pause</button>
+    <button id="next" title="Let one action through while paused">Next</button>
+    <select id="speed" title="Delay before each action in the app">
+      <option value="0">Full speed</option>
+      <option value="500">0.5 s per action</option>
+      <option value="1500">1.5 s per action</option>
+      <option value="3000">3 s per action</option>
+      <option value="6000">6 s per action</option>
+    </select>
+    <label><input type="checkbox" id="step-pause" /> Pause before each step</label>
+  </div>
+  <span id="waiting" class="waiting"></span>
+  <span id="current" class="tag"></span>
+  <div class="meter" title="Share of the 5-hour limit; the red mark is the cap where real runs stop">
+    <span id="usage-label">5-hour usage</span>
+    <div class="bar"><i id="usage-bar"></i><b id="usage-cap"></b></div>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>Scenarios <span id="counts" class="tag"></span></h2>
+    <div id="scenarios" class="scroll"></div>
+  </section>
+  <section class="stage" id="stage">
+    <h2 style="align-self: stretch">App <span id="app-label" class="tag"></span>
+      <span class="toggle"><button data-view="mobile" class="on">Mobile</button><button data-view="web">Web</button></span>
+    </h2>
+    <div class="device mobile" id="device">
+      <iframe id="app" title="Momentum app" allow="microphone"></iframe>
+    </div>
+  </section>
+  <section>
+    <h2>Runs</h2>
+    <div class="scroll" style="flex: 0 1 auto; max-height: 38%"><table class="runs" id="runs" style="width: 100%; border-collapse: collapse"></table></div>
+    <h2 class="split">Live run <span id="focus" class="tag"></span></h2>
+    <div id="messages" class="scroll log"></div>
+    <h2 class="split">Suite log</h2>
+    <div id="notes" class="scroll log" style="flex: 0 1 25%"></div>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const ICON = { pending: '○', running: '▸', passed: '✓', failed: '✗', skipped: '–' };
+  const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
+  const open = new Set();
+
+  /** The scenarios drive the frame; the page loads the app once the scenario's back-end is up */
+  window.loadApp = (url) =>
+    new Promise((resolve) => {
+      const f = $('app');
+      f.onload = () => resolve(true);
+      f.src = url;
+    });
+
+  document.querySelectorAll('.toggle button').forEach((b) =>
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.toggle button').forEach((x) => x.classList.toggle('on', x === b));
+      $('device').className = `device ${b.dataset.view}`;
+    }),
+  );
+
+  function render(s) {
+    const chosen = s.scenarios.filter((x) => x.selected);
+    const done = chosen.filter((x) => ['passed', 'failed', 'skipped'].includes(x.status));
+    const covered = new Set(s.scenarios.filter((x) => x.status === 'passed').flatMap((x) => x.covers));
+    $('progress').textContent = `${done.length} of ${chosen.length} scenarios · ${covered.size} of ${s.features} features verified${s.finished ? ' · finished' : ''}`;
+    const by = (st) => chosen.filter((x) => x.status === st).length;
+    $('counts').textContent = `${by('passed')} passed · ${by('failed')} failed · ${by('skipped')} skipped`;
+
+    $('scenarios').innerHTML = s.scenarios
+      .map((x) => {
+        const expanded = x.status === 'running' || x.status === 'failed' || open.has(x.id);
+        return `<div class="sc ${x.status} ${x.selected ? '' : 'off'}" data-id="${x.id}">
+          <div class="row"><span class="dot">${ICON[x.status]}</span><span class="grow">${esc(x.title)}</span>
+          <span class="tag ${x.real ? 'real' : ''}">${x.real ? 'real runs' : 'no runs'}</span></div>
+          ${expanded ? `<div class="steps">${x.steps.map((st) => `<div class="st ${st.status}"><span class="dot">${ICON[st.status]}</span><span>${esc(st.title)}</span></div>`).join('')}</div>` : ''}
+          ${x.reason ? `<div class="reason">${esc(x.reason)}</div>` : ''}
+        </div>`;
+      })
+      .join('');
+
+    const u = s.usage;
+    $('usage-label').textContent = u.fiveHour === null ? '5-hour usage' : `5-hour ${Math.round(u.fiveHour)}% · cap ${Math.round(u.cap)}%`;
+    $('usage-bar').style.width = `${Math.min(100, u.fiveHour ?? 0)}%`;
+    $('usage-cap').style.left = `${Math.min(99.5, u.cap ?? 100)}%`;
+
+    const cur = s.current;
+    $('current').textContent = cur ? cur.id : '';
+    $('app-label').textContent = cur ? cur.workspaces.join(', ') : '';
+    if (cur && !$('app').src) $('app').src = cur.appUrl;
+
+    $('runs').innerHTML = s.runs.length
+      ? s.runs
+          .map((r) => `<tr class="${r.status}"><td>${time(r.created_at)}</td><td>${esc(r.automation)}</td>
+            <td class="status-${r.status}">${r.status}</td><td>${r.usage ? `${r.usage.toFixed(1)}%` : ''}</td>
+            <td class="t">${esc(r.title || r.workspace)}</td></tr>`)
+          .join('')
+      : '<tr><td class="empty">No runs yet</td></tr>';
+    const focus = s.runs.find((r) => r.id === s.messages[0]?.run);
+    $('focus').textContent = focus ? `${focus.automation} · ${focus.status}` : '';
+    $('messages').innerHTML = s.messages.length
+      ? s.messages.map((m) => `<div class="${m.role}">${time(m.at)} ${m.role === 'user' ? '›' : ''} ${esc(m.text)}</div>`).join('\n')
+      : '<div class="empty">Nothing said yet</div>';
+    $('messages').scrollTop = $('messages').scrollHeight;
+    $('notes').innerHTML = s.notes.map((n) => `<div>${time(n.at)} ${esc(n.text)}</div>`).join('');
+    $('notes').scrollTop = $('notes').scrollHeight;
+  }
+
+  $('scenarios').addEventListener('click', (e) => {
+    const id = e.target.closest('.sc')?.dataset.id;
+    if (!id) return;
+    open.has(id) ? open.delete(id) : open.add(id);
+    if (last) render(last);
+  });
+
+  const control = (change) =>
+    fetch('/control', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(change) });
+  $('pause').addEventListener('click', () => control({ paused: !(last && last.control.paused) }));
+  $('next').addEventListener('click', () => control({ next: true }));
+  $('speed').addEventListener('change', (e) => control({ delayMs: Number(e.target.value) }));
+  $('step-pause').addEventListener('change', (e) => control({ pauseBeforeStep: e.target.checked }));
+
+  function renderControls(c) {
+    $('pause').textContent = c.paused ? 'Resume' : 'Pause';
+    $('pause').classList.toggle('on', c.paused);
+    $('next').disabled = !c.paused;
+    if (![...$('speed').options].some((o) => Number(o.value) === c.delayMs)) $('speed').add(new Option(`${c.delayMs / 1000} s per action`, c.delayMs));
+    $('speed').value = String(c.delayMs);
+    $('step-pause').checked = c.pauseBeforeStep;
+    $('waiting').textContent = c.paused && c.waiting ? `Paused before: ${c.waiting}` : '';
+  }
+
+  let last = null;
+  new EventSource('/events').onmessage = (m) => {
+    last = JSON.parse(m.data);
+    render(last);
+    renderControls(last.control);
+  };
+</script>
+</body>
+</html>

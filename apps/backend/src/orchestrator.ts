@@ -4,7 +4,7 @@ import { CronExpressionParser } from 'cron-parser';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileOf, KNOWLEDGE_GRAPH } from '@momentum/entity';
-import { TRIGGER_TYPE, type Automations, type Trigger } from './automations.ts';
+import { HARNESS_ONLY, TRIGGER_TYPE, type Automations, type Trigger } from './automations.ts';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { Guard } from './guard.ts';
@@ -153,10 +153,16 @@ export class Orchestrator {
     });
   }
 
-  /** The default trigger entities land on the main line unverified and wait in the feed like any other change */
+  /**
+   * The default trigger entities land on the main line unverified and wait in the feed like any other change; an
+   * automation of the harness alone is triggered in the harness workspace only
+   */
   private async proposeTriggers(ws: Workspace): Promise<void> {
     if ((await ws.index.byType(TRIGGER_TYPE)).length > 0) return;
-    const defaults = await this.automations.defaultTriggers();
+    const harness = ws.name === config.harnessName;
+    const defaults = (await this.automations.defaultTriggers()).filter(
+      (t) => harness || !HARNESS_ONLY.some((a) => t.path === `${TRIGGER_TYPE}/${a}`),
+    );
     if (defaults.length === 0) return;
     await commitPathsFrom(ws.path, ws.main, defaults.map((t) => ({ path: fileOf(t.path), content: t.text })), 'Add the default triggers');
     await this.guard.indexMainLine(ws);

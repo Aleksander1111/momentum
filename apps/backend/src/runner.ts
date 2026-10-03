@@ -8,7 +8,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { z } from 'zod';
-import type { Automations } from './automations.ts';
+import { HARNESS_ONLY, type Automations } from './automations.ts';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
@@ -111,6 +111,10 @@ export const userStarted = (trigger: RunTrigger) => trigger === 'on_demand';
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 export class Runner {
   private active = new Map<string, Active>();
+  /** Runs between being started and their process being launched: a message to one waits for its launch */
+  private starting = new Map<string, Promise<void>>();
+  /** The last message write of each run, which the next one waits for */
+  private messageWrites = new Map<string, Promise<void>>();
   /** The latest account-wide reading of the limits, from whichever run reported it */
   private reading: Usage = { fiveHour: null, week: null };
 
@@ -168,10 +172,21 @@ export class Runner {
     await ws.index.sql`update ${this.t(ws, 'run')} set ${ws.index.sql(values as never)} where id = ${id}`;
   }
 
-  private async addMessage(ws: Workspace, id: string, role: RunMessage['role'], text: string, context: ContextItem[] = []) {
-    await ws.index.sql`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context)
-      values (${id}, (select coalesce(max(seq), 0) + 1 from ${this.t(ws, 'run_message')} where run_id = ${id}), ${role}, ${text},
-        ${ws.index.sql.json(context as never)})`;
+  /**
+   * Messages of one run are written one after another: each takes the next sequence number, so two arriving together
+   * (the assistant's text and the user's message) must not both read the same last one
+   */
+  private addMessage(ws: Workspace, id: string, role: RunMessage['role'], text: string, context: ContextItem[] = []): Promise<void> {
+    const write = (this.messageWrites.get(id) ?? Promise.resolve()).catch(() => {}).then(async () => {
+      await ws.index.sql`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context)
+        values (${id}, (select coalesce(max(seq), 0) + 1 from ${this.t(ws, 'run_message')} where run_id = ${id}), ${role}, ${text},
+          ${ws.index.sql.json(context as never)})`;
+    });
+    this.messageWrites.set(id, write);
+    void write.finally(() => {
+      if (this.messageWrites.get(id) === write) this.messageWrites.delete(id);
+    }).catch(() => {});
+    return write;
   }
 
   private ref(ws: Workspace, r: RunRow): RunRef {
@@ -292,6 +307,16 @@ export class Runner {
 
   /** Starts a queued run: its own checkout of the main line as it stands, one Claude Code process */
   async start(id: string): Promise<void> {
+    const started = this.launchRun(id);
+    this.starting.set(id, started);
+    try {
+      await started;
+    } finally {
+      this.starting.delete(id);
+    }
+  }
+
+  private async launchRun(id: string): Promise<void> {
     const ws = await this.workspaceOf(id);
     const r = await this.row(ws, id);
     const ref = this.ref(ws, r);
@@ -385,6 +410,7 @@ export class Runner {
     const instructions = [
       definition.instructions,
       this.context(ws, r, cards.characterLimit, cards.presentationRules, lifetimes),
+      ...(HARNESS_ONLY.includes(r.automation) ? [await this.projectsContext(ws)] : []),
     ].join('\n\n');
     entry.handle = startSession({
       cwd: r.checkout,
@@ -398,8 +424,8 @@ export class Runner {
       model: sdkModel(model),
       limits: config.limits,
       procgov: config.procgov,
-      onSessionId: (sid) => void this.setStatus(ws, r.id, 'running', { session_id: sid }),
-      onAssistantText: (text) => void this.addMessage(ws, r.id, 'assistant', text),
+      onSessionId: (sid) => void this.setStatus(ws, r.id, 'running', { session_id: sid }).catch((e) => console.error(`session of run ${r.id}:`, e)),
+      onAssistantText: (text) => void this.addMessage(ws, r.id, 'assistant', text).catch((e) => console.error(`message of run ${r.id}:`, e)),
       onUsage: (u) => void this.onReading(u).catch((e) => console.error(`usage reading of run ${r.id}:`, e)),
     });
     this.active.set(r.id, entry);
@@ -438,6 +464,13 @@ export class Runner {
     return parseRisk(answer);
   }
 
+  /** An automation of the harness alone works over every enabled project: where their repositories are */
+  private async projectsContext(ws: Workspace): Promise<string> {
+    const projects = (await this.workspaces.enabled()).filter((p) => p.name !== ws.name);
+    const list = projects.map((p) => `- ${p.name}: ${p.path} (main line ${p.main})`).join('\n');
+    return `## Projects\nThe enabled projects, read where they stand; never write in them:\n${list || '- none enabled'}`;
+  }
+
   /** Harness facts every run needs: where it works and the rules of the knowledge base */
   private context(ws: Workspace, r: RunRow, limit: number, rules: string, lifetimes: { type: string; rule: string }[]): string {
     return `# Momentum run
@@ -447,7 +480,7 @@ export class Runner {
 - Work only in this checkout. It is a detached checkout of the main line as it stood when you started; the harness commits your changes and lands them on the main line when the run ends, the consistency guard validates them and the user verifies them through the attention feed. Never commit, never push, never create or switch branches, never touch the workspace directory.
 
 ## Knowledge base
-- Entities live at knowledge-graph/<Domain>/<Type>/[<parent-name>/]<name>.md; the type path comes from docs/entity-types.tsv of the harness (Domain/Entity Type). Read and write them with the momentum-kb tools (search, read, references, write) or directly as files.
+- Entities live at knowledge-graph/<Domain>/<Type>/[<parent-name>/]<name>.md; the type path is Domain/Entity Type from the harness's entity types, ${config.entityTypes} (read it there: it is not in this checkout). Read and write them with the momentum-kb tools (search, read, references, write) or directly as files.
 - Frontmatter: type, origin (user | requested | automation), verification (always unverified when you write), sync, product_impact, timeline_impact, unlocks (integers 0–5: impact on the product, impact on the timeline, how much the work unlocks — they rank the feed), references (to: entity path, relation: snake_case verb such as depends_on, implements, concerns, retires), artifacts (repository paths the entity summarizes).
 - The body starts with "# <title>" and then the card: free-form markdown within ${limit} characters, in whatever form presents the entity best (paragraph, bullets, table, PlantUML diagram in a \`\`\`plantuml code block; mermaid is not accepted). The entity is its card. An entity that does not fit is split into entities that reference each other.
 - Card presentation rules from the user: ${rules.trim() || 'none beyond the character limit'}
@@ -468,10 +501,20 @@ export class Runner {
     const ws = await this.workspaceOf(id);
     await this.addMessage(ws, id, 'user', text, context);
     const prompt = withContext(context, text);
+    await this.starting.get(id);
     const entry = this.active.get(id);
     if (entry?.handle.send(prompt)) return;
     await entry?.finished;
     const r = await this.row(ws, id);
+    // A run still waiting to start takes the message with its first prompt, when the orchestrator starts it
+    if (r.status === 'queued') {
+      if (r.session_id) {
+        await ws.index.sql`update ${this.t(ws, 'run')} set resume_prompt = ${`${r.resume_prompt ?? RESUME}\n\n${prompt}`} where id = ${id}`;
+      } else {
+        await ws.index.sql`update ${this.t(ws, 'run')} set prompt = ${`${r.prompt}\n\n${prompt}`} where id = ${id}`;
+      }
+      return;
+    }
     await ensureCheckout(ws.path, r.checkout, ws.main);
     await this.setStatus(ws, id, 'running', { ended_at: null, error: null, base_commit: await head(r.checkout) });
     this.guard.watch(this.ref(ws, r));

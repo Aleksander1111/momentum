@@ -18,17 +18,27 @@ export class GitError extends Error {
 
 const OPTIONS = { maxBuffer: 64 * 1024 * 1024, windowsHide: true, encoding: 'utf8' } as const;
 
+/** How long a command waits for a lock another git process holds (an editor's status poll, the user's own git) */
+const LOCK_WAIT_MS = 5000;
+
 export async function git(cwd: string, args: string[], input?: string): Promise<string> {
-  try {
-    const child = exec('git', args, { cwd, ...OPTIONS });
-    if (input !== undefined) {
-      child.child.stdin?.end(input);
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const child = exec('git', args, { cwd, ...OPTIONS });
+      if (input !== undefined) {
+        child.child.stdin?.end(input);
+      }
+      const { stdout } = await child;
+      return stdout;
+    } catch (e) {
+      const err = e as { stderr?: string; message: string };
+      if (/\.lock'?: File exists/.test(err.stderr ?? '') && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 50 * attempt));
+        continue;
+      }
+      throw new GitError(`git ${args.join(' ')}: ${err.stderr?.trim() || err.message}`, err.stderr ?? '');
     }
-    const { stdout } = await child;
-    return stdout;
-  } catch (e) {
-    const err = e as { stderr?: string; message: string };
-    throw new GitError(`git ${args.join(' ')}: ${err.stderr?.trim() || err.message}`, err.stderr ?? '');
   }
 }
 
@@ -324,7 +334,8 @@ export async function landCommit(repo: string, main: string, tip: string, messag
  * commit. Returns null when the run changed nothing.
  */
 export async function land(repo: string, main: string, checkout: string, message: string, onConflicts?: OnConflicts): Promise<Landed | null> {
-  const tip = await commitAll(checkout, message);
+  // A run told never to commit may still have: its own commits land like the changes it left
+  const tip = (await commitAll(checkout, message)) ?? (await ownCommits(repo, main, checkout));
   if (!tip) return null;
   for (let attempt = 0; attempt < 5; attempt++) {
     const landed = await landCommit(repo, main, tip, message, onConflicts);
@@ -334,6 +345,12 @@ export async function land(repo: string, main: string, checkout: string, message
     }
   }
   throw new GitError(`could not land ${tip} on ${main}: the main line kept moving`, '');
+}
+
+/** The checkout's head when it has commits the main line does not */
+async function ownCommits(repo: string, main: string, checkout: string): Promise<string | null> {
+  const tip = await head(checkout);
+  return (await mergeBase(repo, `refs/heads/${main}`, tip)) === tip ? null : tip;
 }
 
 /** Changes of the working tree against `base`, committed or not, including untracked files */
