@@ -296,6 +296,7 @@ export const AutomationName = z.enum([
   'summarization',
   'chat',
   'graph-build',
+  'interview',
 ]);
 export type AutomationName = z.infer<typeof AutomationName>;
 
@@ -330,7 +331,7 @@ export type Run = z.infer<typeof Run>;
 
 /**
  * A part of a card the user added to a chat's context: a quote of selected text or a picked diagram element, with the
- * entity and the headings it sits under
+ * entity and the headings it sits under; with neither, the whole card
  */
 export const ContextItem = z
   .object({
@@ -341,7 +342,7 @@ export const ContextItem = z
     quote: z.string().min(1).optional(),
     element: z.string().min(1).optional(),
   })
-  .refine((c) => (c.quote === undefined) !== (c.element === undefined), 'Either a quote or a diagram element');
+  .refine((c) => c.quote === undefined || c.element === undefined, 'A quote or a diagram element, not both');
 export type ContextItem = z.infer<typeof ContextItem>;
 
 export const RunMessage = z.object({
@@ -381,6 +382,54 @@ export const CreateChatRequest = z.object({
   context: z.array(ContextItem).default([]),
 });
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
+
+// Voice: speech from the user's devices, transcribed on the PC by the command stream
+
+/** Where the next spoken item goes: the screen the user is on, declared by the app */
+export const VoiceTarget = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('chat'), workspace: z.string(), runId: z.string().optional(), context: z.array(ContextItem).default([]) }),
+  z.object({ kind: z.literal('search'), workspace: z.string() }),
+  z.object({ kind: z.literal('entity'), workspace: z.string(), path: z.string() }),
+  z.object({ kind: z.literal('interview'), workspace: z.string(), runId: z.string() }),
+]);
+export type VoiceTarget = z.infer<typeof VoiceTarget>;
+
+/** The app to the control socket */
+export const VoiceUp = z.object({ type: z.literal('target'), target: VoiceTarget.nullable() });
+export type VoiceUp = z.infer<typeof VoiceUp>;
+
+/** What became of a spoken item */
+export const VoiceOutcome = z.object({
+  kind: z.enum(['chat', 'search', 'ignored', 'failed']),
+  workspace: z.string().optional(),
+  runId: z.string().optional(),
+  /** A chat started by the item: the app clears the context it carried */
+  created: z.boolean().optional(),
+  /** The search words */
+  text: z.string().optional(),
+  detail: z.string().optional(),
+});
+export type VoiceOutcome = z.infer<typeof VoiceOutcome>;
+
+export const VoiceItem = z.object({ id: z.number(), kind: z.string(), text: z.string() });
+export type VoiceItem = z.infer<typeof VoiceItem>;
+
+/** The control socket to the app */
+export const VoiceDown = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('status'),
+    /** Whether the command stream is reachable */
+    connected: z.boolean(),
+    ready: z.boolean(),
+    source: z.string(),
+    muted: z.boolean(),
+    text: z.string(),
+  }),
+  /** The text as heard so far, correcting itself until it is sent; only to the device streaming */
+  z.object({ type: z.literal('partial'), text: z.string().nullable(), kind: z.string().nullable() }),
+  z.object({ type: z.literal('item'), item: VoiceItem, outcome: VoiceOutcome }),
+]);
+export type VoiceDown = z.infer<typeof VoiceDown>;
 
 // Graph build: the knowledge graph of a workspace built from its repository
 

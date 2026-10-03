@@ -1,6 +1,7 @@
 import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import fastifySwagger from '@fastify/swagger';
+import fastifyWebsocket from '@fastify/websocket';
 import {
   ApproveRequest,
   ChatsResponse,
@@ -23,6 +24,7 @@ import {
   SessionResponse,
   Settings,
   TypesResponse,
+  VoiceUp,
   Workspace,
 } from '@momentum/contract';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
@@ -37,12 +39,13 @@ import { z } from 'zod';
 import type { Auth } from '../auth.ts';
 import { config } from '../config.ts';
 import type { Momentum } from '../momentum.ts';
+import type { Voice } from '../voice/voice.ts';
 import { Conflict, NotFound } from '../workspaces.ts';
 import { mcpHandler } from './mcp.ts';
 
 export const COOKIE = 'momentum_session';
 const PUBLIC = new Set(['POST /session']);
-const API = /^\/(workspaces|feed|runs|settings|session|mcp)(\/|\?|$)/;
+const API = /^\/(workspaces|feed|runs|settings|session|mcp|voice)(\/|\?|$)/;
 
 function tokenOf(req: FastifyRequest): string | undefined {
   const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
@@ -52,11 +55,12 @@ function tokenOf(req: FastifyRequest): string | undefined {
 const ws = z.object({ ws: z.string() });
 const errors = { 401: ErrorResponse, 404: ErrorResponse };
 
-export async function createHttp(momentum: Momentum, auth: Auth) {
+export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   await app.register(fastifyCookie);
+  await app.register(fastifyWebsocket);
   await app.register(fastifySwagger, {
     openapi: { info: { title: 'Momentum API', version: '0.0.0' } },
     transform: jsonSchemaTransform,
@@ -208,6 +212,29 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
   app.put('/settings', { schema: { body: PutSettings, response: { 200: Settings, ...errors } } }, (req) =>
     momentum.putSettings(req.body),
   );
+
+  // Voice: a control socket per app (its target up; status, partial text and outcomes down) and an audio socket per
+  // recording, relayed to the command stream on this machine
+  const client = z.object({ client: z.string().min(1) });
+  app.get('/voice', { websocket: true, schema: { hide: true, querystring: client } }, (socket, req) => {
+    if (!voice) return socket.close(1011, 'voice is off');
+    const id = (req.query as { client: string }).client;
+    const disconnect = voice.connect(id, (m) => socket.send(JSON.stringify(m)));
+    socket.on('message', (data: Buffer) => {
+      let up: VoiceUp;
+      try {
+        up = VoiceUp.parse(JSON.parse(data.toString('utf8')));
+      } catch {
+        return;
+      }
+      voice.setTarget(id, up.target);
+    });
+    socket.on('close', disconnect);
+  });
+  app.get('/voice/audio', { websocket: true, schema: { hide: true, querystring: client } }, (socket, req) => {
+    if (!voice) return socket.close(1011, 'voice is off');
+    voice.audio((req.query as { client: string }).client, socket);
+  });
 
   // Voice tools: the same handlers as an MCP server over streamable HTTP
   app.all('/mcp', { schema: { hide: true } }, (req, reply) => mcpHandler(momentum, req, reply));

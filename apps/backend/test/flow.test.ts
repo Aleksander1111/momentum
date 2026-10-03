@@ -604,6 +604,194 @@ describe('run branches from before everything went to the main line', () => {
   });
 });
 
+describe('voice', () => {
+  it('tracks the stream: delivers in order, skips what was seen, resyncs on a hole', async () => {
+    const { SequenceTracker } = await import('../src/voice/feed.ts');
+    const t = new SequenceTracker();
+    expect(t.accept({ type: 'item', seq: 3 })).toBe('resync'); // nothing held yet
+    expect(t.accept({ type: 'snapshot', seq: 4 })).toBe('deliver');
+    expect(t.accept({ type: 'heard', seq: 5 })).toBe('deliver');
+    expect(t.accept({ type: 'heard', seq: 5 })).toBe('skip');
+    expect(t.accept({ type: 'partial' })).toBe('deliver');
+    expect(t.accept({ type: 'item', seq: 7 })).toBe('resync');
+  });
+
+  it('acts on each item spoken on a device once, in order, where the screen sends it', async () => {
+    const Fastify = (await import('fastify')).default;
+    const websocket = (await import('@fastify/websocket')).default;
+    const { Voice } = await import('../src/voice/voice.ts');
+    const { EventEmitter } = await import('node:events');
+
+    // A command stream: one sitting, events pushed by the test
+    let seq = 0;
+    const items: { id: number; kind: string; text: string; source: string }[] = [{ id: 1, kind: 'command', text: 'said before', source: 'remote' }];
+    const snapshot = () => ({ type: 'snapshot', seq, session: 's1', status: 'listening', ready: true, source: 'remote', muted: false, items, partial: null });
+    const streams = new Set<{ send: (s: string) => void }>();
+    const audio: string[] = [];
+    const stream = Fastify();
+    await stream.register(websocket);
+    stream.get('/api/state', async () => snapshot());
+    stream.get('/ws', { websocket: true }, (socket) => {
+      streams.add(socket);
+      socket.send(JSON.stringify(snapshot()));
+      socket.on('close', () => streams.delete(socket));
+    });
+    stream.get('/ws/audio', { websocket: true }, (socket) => {
+      socket.on('message', (d: Buffer, binary: boolean) => {
+        audio.push(binary ? `${d.length} bytes` : d.toString());
+        const m = binary ? null : JSON.parse(d.toString());
+        if (m?.type === 'start') socket.send(JSON.stringify({ type: 'accepted', session: 's1' }));
+        if (m?.type === 'stop') {
+          socket.send(JSON.stringify({ type: 'ended', reason: 'stopped' }));
+          socket.close();
+        }
+      });
+    });
+    await stream.listen({ host: '127.0.0.1', port: 0 });
+    const base = `http://127.0.0.1:${(stream.server.address() as { port: number }).port}`;
+    const push = (e: Record<string, unknown>, numbered = true) => {
+      if (numbered) seq++;
+      for (const s of streams) s.send(JSON.stringify({ ...e, session: 's1', ...(numbered ? { seq } : {}) }));
+    };
+    const say = (id: number, text: string, kind = 'command', source = 'remote') => {
+      const item = { id, kind, text, source };
+      items.push(item);
+      push({ type: 'item', item });
+    };
+
+    const posted: [string, string, unknown][] = [];
+    const started: [string, string, string | undefined][] = [];
+    const actions = {
+      createChat: m.momentum.createChat.bind(m.momentum),
+      entity: m.momentum.entity.bind(m.momentum),
+      postMessage: async (id: string, text: string, context?: unknown) => void posted.push([id, text, context ?? []]),
+      runAutomation: async (ws: string, automation: string, prompt?: string) => {
+        started.push([ws, automation, prompt]);
+        return { runId: 'iv1' };
+      },
+    };
+    const voice = new Voice(m.sql, actions, base, ['remote']);
+    const down: Record<string, any>[] = [];
+    voice.connect('phone', (msg) => down.push(msg));
+    const outcomes = () => down.filter((d) => d.type === 'item');
+    const lastOutcome = async (n: number) => {
+      await vi.waitFor(() => expect(outcomes()).toHaveLength(n));
+      return outcomes()[n - 1]!.outcome;
+    };
+
+    // The phone streams: header and frames reach the command stream unchanged, its answer comes back
+    const phone = Object.assign(new EventEmitter(), { sent: [] as string[], send(s: string) { this.sent.push(s); }, close() {} });
+    voice.audio('phone', phone as never);
+    phone.emit('message', Buffer.from(JSON.stringify({ type: 'start', rate: 48000, channels: 1, format: 'f32le' })), false);
+    phone.emit('message', Buffer.alloc(640), true);
+    await vi.waitFor(() => expect(phone.sent).toContain(JSON.stringify({ type: 'accepted', session: 's1' })));
+    await vi.waitFor(() => expect(audio).toContain('640 bytes'));
+
+    voice.start();
+    // A sitting never seen is followed from its end: what was said before is not acted on
+    await vi.waitFor(async () => expect(await m.sql`select last_item from harness.voice_cursor where session = 's1'`).toEqual([{ last_item: 1 }]));
+    expect(down.filter((d) => d.type === 'status').at(-1)).toMatchObject({ connected: true, ready: true, source: 'remote' });
+
+    // The partial text goes to the device streaming
+    push({ type: 'partial', partial: { kind: 'command', text: 'find the sess', closing: false } }, false);
+    await vi.waitFor(() => expect(down).toContainEqual({ type: 'partial', text: 'find the sess', kind: 'command' }));
+
+    // Nothing on screen takes voice; the local microphone's items are markdown-voice's
+    say(2, 'hello');
+    expect(await lastOutcome(1)).toEqual({ kind: 'ignored', detail: 'nothing on screen takes voice' });
+    say(3, 'not for momentum', 'command', 'mic');
+
+    voice.setTarget('phone', { kind: 'search', workspace: 'alpha' });
+    say(4, 'session handling');
+    expect(await lastOutcome(2)).toEqual({ kind: 'search', workspace: 'alpha', text: 'session handling' });
+    expect(outcomes()).toHaveLength(2); // item 3 was not acted on
+
+    // Chat: the first item starts it with the context chips, the next goes on in it
+    const chip = { workspace: 'alpha', path: 'Architecture/Api/session', title: 'Session on the API', heading: [], quote: 'Per-user session.' };
+    voice.setTarget('phone', { kind: 'chat', workspace: 'alpha', context: [chip] });
+    say(5, 'Why per user?', 'question');
+    const chat = await lastOutcome(3);
+    expect(chat).toMatchObject({ kind: 'chat', workspace: 'alpha', created: true });
+    expect((await m.momentum.run(chat.runId)).messages[0]).toMatchObject({ role: 'user', text: 'Why per user?', context: [chip] });
+    say(6, 'And how long does it last?');
+    expect(await lastOutcome(4)).toEqual({ kind: 'chat', workspace: 'alpha', runId: chat.runId });
+    expect(posted.at(-1)).toEqual([chat.runId, 'And how long does it last?', []]);
+
+    // An entity: a command changes it like a send back, a question asks about its whole card
+    voice.setTarget('phone', { kind: 'entity', workspace: 'alpha', path: 'Architecture/Api/session' });
+    say(7, 'Sessions expire after a week.');
+    const edit = await lastOutcome(5);
+    expect(await m.momentum.run(edit.runId)).toMatchObject({ automation: 'chat', targetPath: 'Architecture/Api/session' });
+    say(8, 'What depends on this?', 'question');
+    const ask = await lastOutcome(6);
+    expect(await m.momentum.run(ask.runId)).toMatchObject({ targetPath: null });
+    const [row] = await m.sql<{ prompt: string }[]>`select prompt from ws_alpha.run where id = ${ask.runId}`;
+    expect(row!.prompt).toBe('```\nknowledge-graph/Architecture/Api/session.md\n```\n\nWhat depends on this?');
+
+    // Interviews: started by voice from any screen, answered and questioned in their run
+    say(9, 'Stop the interview.');
+    expect(await lastOutcome(7)).toEqual({ kind: 'ignored', detail: 'no interview open' });
+    say(10, 'Interview: onboarding.');
+    expect(await lastOutcome(8)).toEqual({ kind: 'chat', workspace: 'alpha', runId: 'iv1', created: true });
+    expect(started).toEqual([['alpha', 'interview', 'Interview: onboarding']]);
+    voice.setTarget('phone', { kind: 'interview', workspace: 'alpha', runId: 'iv1' });
+    say(11, 'New users sign in with a password.');
+    say(12, 'what should I cover', 'question');
+    say(13, 'stop interview');
+    await lastOutcome(11);
+    expect(posted.slice(-3)).toEqual([
+      ['iv1', 'New users sign in with a password.', []],
+      ['iv1', 'Question: what should I cover', []],
+      ['iv1', 'stop interview', []],
+    ]);
+    say(14, 'scrap that', 'cancelled');
+    expect(await lastOutcome(12)).toEqual({ kind: 'ignored', detail: 'cancelled' });
+
+    // A hole in the stream: the snapshot fills it, nothing is acted on twice
+    items.push({ id: 15, kind: 'command', text: 'missed one', source: 'remote' });
+    seq += 2;
+    push({ type: 'notice', text: 'x' });
+    expect(await lastOutcome(13)).toMatchObject({ kind: 'chat', runId: 'iv1' });
+    expect(posted.at(-1)).toEqual(['iv1', 'missed one', []]);
+
+    // A restart resumes the sitting from its cursor
+    voice.stop();
+    const again = new Voice(m.sql, actions, base, ['remote']);
+    again.start();
+    await vi.waitFor(() => expect(streams.size).toBe(1));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(posted).toHaveLength(5);
+    again.stop();
+
+    // The device stops: the command stream decodes its last words and says so
+    phone.emit('message', Buffer.from(JSON.stringify({ type: 'stop' })), false);
+    await vi.waitFor(() => expect(phone.sent).toContain(JSON.stringify({ type: 'ended', reason: 'stopped' })));
+    // A device that just goes away stops its stream too
+    const tablet = Object.assign(new EventEmitter(), { send() {}, close() {} });
+    voice.audio('tablet', tablet as never);
+    tablet.emit('message', Buffer.from(JSON.stringify({ type: 'start', rate: 16000, format: 's16le' })), false);
+    tablet.emit('close');
+    await vi.waitFor(() => expect(audio.filter((a) => a.includes('stop'))).toHaveLength(2));
+    await stream.close();
+  });
+
+  it('lets only a signed-in app open the voice sockets', async () => {
+    const { createHttp } = await import('../src/api/http.ts');
+    const { Voice } = await import('../src/voice/voice.ts');
+    const http = await createHttp(m.momentum, m.auth, new Voice(m.sql, m.momentum, 'http://127.0.0.1:9', ['remote']));
+    await http.ready();
+    await expect(http.injectWS('/voice?client=a')).rejects.toThrow();
+    const { token } = await m.auth.createSession();
+    let first!: Promise<string>;
+    const socket = await http.injectWS('/voice?client=a', { headers: { authorization: `Bearer ${token}` } }, {
+      onInit: (ws) => void (first = new Promise((r) => ws.once('message', (d: Buffer) => r(d.toString())))),
+    });
+    expect(JSON.parse(await first)).toMatchObject({ type: 'status', connected: false });
+    socket.terminate();
+    await http.close();
+  });
+});
+
 describe('reset', () => {
   it('removes every entity and database entry of a project and builds its knowledge graph afresh', async () => {
     const { Orchestrator } = await import('../src/orchestrator.ts');

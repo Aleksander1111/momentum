@@ -32,6 +32,10 @@ export interface Config {
   limits: { maxMemory: string; cpuCores: number };
   /** How often the orchestrator looks at triggers */
   tickMs: number;
+  /** The command stream of voice-commands on this machine: speech in, commands and questions out */
+  commandStream: string;
+  /** The audio sources whose items Momentum acts on: remote is the app's own devices streaming through it */
+  voiceSources: string[];
 }
 
 const root = process.env.MOMENTUM_ROOT ?? 'C:\\Projects';
@@ -53,4 +57,6 @@ export const config: Config = {
     cpuCores: Number(process.env.MOMENTUM_RUN_CPUS ?? 4),
   },
   tickMs: Number(process.env.MOMENTUM_TICK_MS ?? 30_000),
+  commandStream: process.env.MOMENTUM_COMMAND_STREAM ?? 'http://127.0.0.1:8780',
+  voiceSources: (process.env.MOMENTUM_VOICE_SOURCES ?? 'remote').split(',').map((s) => s.trim()).filter(Boolean),
 };

@@ -11,6 +11,7 @@ import { landRunBranches } from './legacy.ts';
 import { Momentum } from './momentum.ts';
 import { Orchestrator } from './orchestrator.ts';
 import { Runner } from './runner.ts';
+import { Voice } from './voice/voice.ts';
 import { Workspaces } from './workspaces.ts';
 
 /** One back-end: API, orchestrator and consistency guard in one process */
@@ -41,5 +42,7 @@ export async function createMomentum() {
   const orchestrator = new Orchestrator(workspaces, settings, guard, runner, automations, bus);
   const momentum = new Momentum(sql, workspaces, settings, approval, runner, orchestrator, automations, embed);
   const auth = new Auth(sql);
-  return { sql, settings, bus, workspaces, guard, automations, runner, approval, orchestrator, momentum, auth };
+  // Followed only once the server starts it: the CLI never acts on what is said
+  const voice = new Voice(sql, momentum, config.commandStream, config.voiceSources);
+  return { sql, settings, bus, workspaces, guard, automations, runner, approval, orchestrator, momentum, auth, voice };
 }

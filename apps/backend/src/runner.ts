@@ -59,13 +59,15 @@ export interface NewRun {
 
 /**
  * The parts of cards the user added to a message, as references ahead of it, the way the stock-fly-8 knowledge base
- * handed them to its agent: the entity file and the headings, then the quoted text or the picked diagram element
+ * handed them to its agent: the entity file and the headings, then the quoted text or the picked diagram element; a whole
+ * card is the entity file alone
  */
 export function withContext(context: ContextItem[], text: string): string {
   if (context.length === 0) return text;
   const refs = context.map((c) => {
     const path = [fileOf(c.path), ...c.heading].join(' > ');
-    const body = c.element !== undefined ? `${path} > < ${c.element} >` : `${path} >\n\n... ${c.quote} ...`;
+    const body =
+      c.element !== undefined ? `${path} > < ${c.element} >` : c.quote !== undefined ? `${path} >\n\n... ${c.quote} ...` : path;
     return `\`\`\`\n${body}\n\`\`\`\n\n`;
   });
   return `${refs.join('')}${text}`;

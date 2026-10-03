@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { AutomationName, MetricsRange, PutSettings } from '@momentum/contract';
+import { AutomationName, ContextItem, MetricsRange, PutSettings } from '@momentum/contract';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Momentum } from '../momentum.ts';
@@ -42,9 +42,9 @@ function createServer(m: Momentum): McpServer {
   t('chats', 'List the chats of a workspace.', { workspace: z.string() }, (a) => m.chats(a.workspace));
   t(
     'chat',
-    'Ask a question or give an instruction: starts a chat run in the workspace.',
-    { workspace: z.string(), text: z.string(), target_path: z.string().optional() },
-    (a) => m.createChat(a.workspace, a.text, a.target_path),
+    'Ask a question or give an instruction: starts a chat run in the workspace. Context: parts of cards (a quote, a diagram element, or neither for the whole card) handed to the agent as references.',
+    { workspace: z.string(), text: z.string(), target_path: z.string().optional(), context: z.array(ContextItem).optional() },
+    (a) => m.createChat(a.workspace, a.text, a.target_path, a.context),
   );
   t(
     'run_automation',
@@ -53,7 +53,9 @@ function createServer(m: Momentum): McpServer {
     (a) => m.runAutomation(a.workspace, a.automation, a.prompt),
   );
   t('run', 'A run with its conversation and status.', { id: z.string() }, (a) => m.run(a.id));
-  t('message', 'Steer a run or continue a chat.', { id: z.string(), text: z.string() }, (a) => m.postMessage(a.id, a.text));
+  t('message', 'Steer a run or continue a chat, with parts of cards as context.', { id: z.string(), text: z.string(), context: z.array(ContextItem).optional() }, (a) =>
+    m.postMessage(a.id, a.text, a.context),
+  );
   t('kill_run', 'End a run: its process is killed; what it wrote so far still reaches the feed.', { id: z.string() }, (a) => m.killRun(a.id));
   t(
     'graph_build',

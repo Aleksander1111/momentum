@@ -45,6 +45,11 @@ create table if not exists harness.usage_sample (
   week real
 );
 create index if not exists usage_sample_at on harness.usage_sample (at);
+create table if not exists harness.voice_cursor (
+  session text primary key,
+  last_item int not null,
+  at timestamptz not null default now()
+);
 `;
 
 function workspaceDdl(s: string): string {

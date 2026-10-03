@@ -13,12 +13,14 @@ await m.runner.recover();
 // The harness workspace is indexed first: it holds the definitions every workspace uses
 await m.guard.indexMainLine(await m.workspaces.harness());
 for (const ws of await m.workspaces.enabled()) await m.automations.materialize(ws);
-const http = await createHttp(m.momentum, m.auth);
+const http = await createHttp(m.momentum, m.auth, m.voice);
 await http.listen({ host, port: config.port });
 m.orchestrator.start();
+m.voice.start();
 
 const shutdown = async () => {
   m.orchestrator.stop();
+  m.voice.stop();
   await http.close();
   await m.sql.end();
   process.exit(0);
