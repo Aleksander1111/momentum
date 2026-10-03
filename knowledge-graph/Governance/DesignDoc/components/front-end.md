@@ -19,7 +19,8 @@ artifacts:
 ---
 # Front-end
 
-- One app, written once, deployed to web and mobile
+- One app, written once, deployed to web and mobile; tabs: feed, explorer, chat, metrics, settings
 - Three ways into a project: the attention feed, a separate chat tool, and direct exploration of the entity layer
 - The chat tool asks a question or steers a run directly, without waiting for the feed
 - The entity layer is browsable and searchable on its own: card by card, or through an agent
+- The feed shows entity cards: swipe right to approve, swipe left to disapprove with a comment that is sent back

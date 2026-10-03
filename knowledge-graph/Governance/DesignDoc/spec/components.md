@@ -25,15 +25,15 @@ artifacts:
 ---
 # Components
 
-Attention on top, knowledge beneath, product work at the base; attention is shared, the rest exists per project. A consistency border splits unverified from verified.
+Harness and products. The user enters through the attention feed. Three layers: attention (shared), knowledge and product (per project); a consistency border splits unverified from verified.
 
 ```mermaid
 flowchart BT
   T[Triggers] --> A[Exploration, preparation, implementation, testing, review]
-  A --> R[Story, plan, change, bug, refactor]
-  R --> S[Summarizer] --> C[Entity cards]
+  A --> R[Story, plan, change, bug, refactor] --> S[Summarizer] --> C[Entity cards]
   C <--> G[Consistency gate] <--> K[Knowledge graph]
   C --> P[Prioritizer] --> F[Attention feed]
   F --> RT[Retention] --> K --> T
+  U[User] --> F
 ```
-Harness around it: settings, graph explorer, importance rank, chat, metrics, optimization, orchestrator, API, voice tools, RAG.
+Harness: settings, graph explorer, importance rank, chat, metrics, optimization, orchestrator, API, voice tools, RAG.
