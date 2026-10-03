@@ -18,9 +18,9 @@ artifacts:
 One Expo (React Native) app, `apps/app`, for web and mobile.
 
 - Five tabs: Feed, Explorer, Chat, Metrics, Settings; bottom bar when narrow, left rail when wide
-- Light or dark scheme follows the system
-- Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL` over the mesh
-- A failed fetch pauses queries and queues reactions; a 5 s probe restores them
-- Typed `@momentum/contract` client: feed, reactions, entities, main-line artifacts, search, chats, runs, metrics by range, graph build, reset, settings
-- 401 clears the token and returns to sign-in; token in a cookie on web, SecureStore on mobile
-- Android APK built locally, with the `RECORD_AUDIO` permission for voice input
+- Light or dark follows the system
+- Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL` on the mesh
+- A failed fetch pauses queries, queues reactions; a 5 s probe restores them
+- Typed `@momentum/contract` client: feed, reactions, entities, main-line artifacts, search, chats, runs, metrics, graph build, reset, logos, settings
+- 401 clears the token, back to sign-in; token in a cookie on web, SecureStore on mobile
+- Momentum icon and favicon; Android APK (adaptive icon, `RECORD_AUDIO` for voice) built locally

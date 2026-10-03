@@ -21,11 +21,11 @@ The backend's interface: Fastify routes typed by `@momentum/contract` zod schema
 |---|---|
 | Session | POST, DELETE `/session` |
 | Feed | `/feed`; approve, send back, resolve an issue, won't resolve |
-| Workspaces | entities, artifact, types, search, chats, metrics, graph-build, reset |
+| Workspaces | entities, artifact, types, search, chats, metrics, graph-build, reset, logo |
 | Runs | `/runs/:id`, messages, kill |
 | Settings | GET, PUT `/settings` |
 | Voice | `/voice` control, `/voice/audio` per recording |
 
-- Artifact: a repository file as on the main line
+- Artifact: a repository file on the main line
 - Session by cookie or bearer; all but sign-in need one (401)
-- Page loads get the web build; errors as `{error}`
+- Page loads get the web build; errors `{error}`

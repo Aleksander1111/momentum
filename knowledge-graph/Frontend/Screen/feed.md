@@ -19,12 +19,12 @@ kind: page
 ---
 # Feed screen
 
-Ranked cards across enabled projects, one at a time.
+Ranked cards from enabled projects, one at a time.
 
-- Counters: verification and sync pills, a count per state
-- A card changed since last verified shows the diff: −/+ word counts; words, rows, items and code lines marked; whole blocks tinted; a diagram as Before/After/Diff
-- Selected text and diagram shapes go to the chat context; on the web the right button selects, the left swipes
-- Swipe right approves; left opens a Disapprove sheet whose comment is sent back
-- Issue cards add severity, category, concerns, options: right resolves with the pick; left takes your resolution or a won't-resolve reason
-- Time on the card goes with the reaction
-- Polls every 15 s; reactions queue offline
+- Breadcrumb: project logo (to Explorer), type pill, folders
+- Counters: verification, sync pills, count per state
+- A card changed since verified shows the diff: −/+ word counts; changed words, rows, items, code lines marked; a diagram as Before/After/Diff
+- Selected text and diagram shapes go to chat context; on web right button selects, left swipes
+- Swipe right approves; left opens a Disapprove sheet whose comment goes back
+- Issue cards add severity, category, concerns, options: right resolves with the pick; left takes a resolution or won't-resolve reason
+- Time on card goes with a reaction; polls every 15 s; reactions queue offline

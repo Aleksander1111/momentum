@@ -15,7 +15,7 @@ artifacts:
 ---
 # HTTP API
 
-Fastify routes typed by `@momentum/contract` zod schemas; OpenAPI at `/openapi.json`.
+Fastify routes typed by `@momentum/contract` zod; OpenAPI at `/openapi.json`.
 
 | Area | Routes |
 |---|---|
@@ -23,7 +23,7 @@ Fastify routes typed by `@momentum/contract` zod schemas; OpenAPI at `/openapi.j
 | Feed | GET /feed; POST /feed/{path}/approve, /send-back, /resolve, /wont-resolve |
 | Entities | GET /workspaces/{ws}/entities/*, /artifact/*, /types, /search |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
-| Projects | GET /workspaces; GET …/metrics?range=; GET, PUT …/graph-build; POST …/reset |
+| Projects | GET /workspaces; GET …/metrics?range=; GET, PUT …/graph-build; POST …/reset; PUT, DELETE …/logo |
 | Settings | GET, PUT /settings |
 
-`/artifact/*`: a file on the main line. Chats and messages carry card parts. Cookie or bearer, else 401; errors `{error}`. WebSockets `/voice`, `/voice/audio`; `/mcp`: voice tools.
+`/artifact/*`: a main-line file. Chats, messages carry card parts. Cookie or bearer, else 401; errors `{error}`. WebSockets `/voice`, `/voice/audio`; `/mcp`: voice tools.

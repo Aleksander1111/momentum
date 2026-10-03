@@ -35,4 +35,4 @@ One Node process, `apps/backend`: API, orchestrator and consistency guard; only 
 - Fastify + zod, port 7300, listening only on the Tailscale interface
 - Serves the web build of the app on page loads
 - On start: connects to Postgres, indexes the harness workspace, materializes definitions into enabled workspaces, starts the orchestrator
-- CLI `pnpm momentum`: generate-password, set-password, enable, disable, index, openapi
+- CLI `pnpm momentum`: generate-password, set-password, enable, disable, logo (image file or `--remove`), index, openapi
