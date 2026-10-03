@@ -21,15 +21,19 @@ export default async function globalSetup() {
   }
   process.env.MOMENTUM_APP_DIST = web;
 
-  const observer = spawn(process.execPath, [join(REPO, 'node_modules', 'tsx', 'dist', 'cli.mjs'), 'e2e/observer/server.ts'], {
-    cwd: join(REPO, 'apps', 'backend'),
-    env: process.env,
-    stdio: 'ignore',
-    windowsHide: true,
-  });
+  // The test runner's observer, or one already open, is used as it is; otherwise this run starts its own
+  const up = () => fetch(OBSERVER, { signal: AbortSignal.timeout(2000) }).then((r) => r.ok).catch(() => false);
+  const observer = (await up())
+    ? null
+    : spawn(process.execPath, [join(REPO, 'node_modules', 'tsx', 'dist', 'cli.mjs'), 'e2e/observer/server.ts'], {
+        cwd: join(REPO, 'apps', 'backend'),
+        env: process.env,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
   const deadline = Date.now() + 30_000;
-  while (!(await fetch(OBSERVER).then((r) => r.ok).catch(() => false))) {
-    if (Date.now() > deadline || observer.exitCode !== null) throw new Error(`The observer did not start on ${OBSERVER}`);
+  while (!(await up())) {
+    if (Date.now() > deadline || observer?.exitCode != null) throw new Error(`The observer did not start on ${OBSERVER}`);
     await new Promise((r) => setTimeout(r, 300));
   }
 
@@ -40,6 +44,6 @@ export default async function globalSetup() {
   await post({ type: 'note', text: `5-hour usage ${usage.fiveHour}% at the start; real runs stop at ${cap()}% (budget ${BUDGET} points)` });
 
   return () => {
-    if (observer.pid) execFileSync('taskkill', ['/pid', String(observer.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
+    if (observer?.pid) execFileSync('taskkill', ['/pid', String(observer.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
   };
 }

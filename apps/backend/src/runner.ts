@@ -3,9 +3,9 @@ import type { AutomationName, ContextItem, InterviewState, ModelChoice, ModelSet
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
 import { ask, ensureCheckout, head, removeWorktree, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { z } from 'zod';
 import { HARNESS_ONLY, type Automations } from './automations.ts';
@@ -95,6 +95,8 @@ interface Active {
   usage: Rise;
   graphBuild?: { complete: boolean; progress: string; coverage: number; documents?: string[] };
   interview?: InterviewState | null;
+  /** The artifacts, as they stood, that summarization was last asked for */
+  summarized?: string;
   /** Settles once the run's changes have landed on the main line and its status is recorded */
   finished?: Promise<void>;
   stoppedByUser?: boolean;
@@ -677,6 +679,14 @@ export class Runner {
     const document = r.automation === 'interview' ? entry.interview?.document : undefined;
     if (document && !excluded(document) && !artifacts.has(document)) artifacts.set(document, 'interview');
     if (artifacts.size === 0) return null;
+    // Asked once per state of the artifacts: a run that stops again after its sub-agent finished in the background
+    // does not summarize the same artifacts twice
+    const state = await Promise.all(
+      [...artifacts.keys()].map(async (p) => [p, await readFile(join(r.checkout, p)).then((b) => createHash('sha1').update(b).digest('hex'), () => 'gone')]),
+    );
+    const key = JSON.stringify(state);
+    if (entry.summarized === key) return null;
+    entry.summarized = key;
     const list = [...artifacts].map(([path, what]) => `- ${path} (${what})`).join('\n');
     const target = r.target_path ? ` The run's target entity is ${r.target_path}.` : '';
     return `Before you finish, have the momentum-summarization sub-agent summarize these artifacts into entities in this checkout, passing it the character limit and presentation rules from your instructions.${target}\n\n${list}`;

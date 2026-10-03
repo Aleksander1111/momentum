@@ -101,7 +101,7 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
     // One event per run: the chat stopped through MCP is one event, and says who stopped it
     const stopped = events.filter((e) => e.kind === 'run_killed');
     expect(new Set(stopped.map((e) => e.runId)).size).toBe(stopped.length);
-    expect(stopped.some((e) => e.title.startsWith('Chat stopped by you'))).toBe(true);
+    expect(stopped.some((e) => e.automation === 'chat' && e.title.startsWith('Stopped by you'))).toBe(true);
     const mine = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&actor=user`);
     expect(mine.events.length).toBeGreaterThan(0);
     expect(mine.events.every((e) => e.workspace === WS && e.actor === 'user')).toBe(true);

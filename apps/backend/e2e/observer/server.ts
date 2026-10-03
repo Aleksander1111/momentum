@@ -1,7 +1,8 @@
 // The observer: one page wrapping the app and, beside it, the app's timeline, with the scenario list, the progress of
 // each scenario's steps, the runs of the scenario under way and the share of the 5-hour limit the suite has used. The
 // reporter and the scenarios post what happens; the page follows it over server-sent events.
-import { readFileSync } from 'node:fs';
+import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
+import { createWriteStream, readdirSync, readFileSync } from 'node:fs';
 import { createServer, type ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import postgres from 'postgres';
@@ -42,6 +43,8 @@ const state = {
   messages: [] as { run: string; role: string; text: string; at: string }[],
   notes: [] as { at: string; text: string }[],
   finished: false,
+  /** A run started from this page: which scenarios, and whether it is still going */
+  runner: { available: Boolean(process.env.E2E_RUNNER), running: false, ids: [] as string[], exit: null as number | null },
   /** How the scenarios pace their actions in the app: a pause, one action at a time, a delay before each */
   control: {
     paused: false,
@@ -86,7 +89,14 @@ let sql: postgres.Sql | null = null;
 function onEvent(e: Event) {
   switch (e.type) {
     case 'begin':
-      for (const s of state.scenarios) s.selected = e.ids.includes(s.id);
+      state.finished = false;
+      for (const s of state.scenarios) {
+        s.selected = e.ids.includes(s.id);
+        if (!s.selected) continue;
+        s.status = 'pending';
+        s.reason = null;
+        for (const st of s.steps) st.status = 'pending';
+      }
       break;
     case 'test': {
       const s = scenario(e.id);
@@ -194,7 +204,64 @@ function gate(kind: 'action' | 'step', label: string): { go: boolean; delayMs: n
   return { go: true, delayMs: kind === 'action' ? c.delayMs : 0 };
 }
 
+const BACKEND = join(import.meta.dirname, '..', '..');
+const REPO = join(BACKEND, '..', '..');
+const SCENARIO_FILES = join(import.meta.dirname, '..', 'scenarios');
+let run: ChildProcess | null = null;
+
+/** The scenario files of the chosen ids; the coverage check goes along with any run */
+function filesOf(ids: string[]): string[] {
+  return readdirSync(SCENARIO_FILES).filter((f) => f.startsWith('00-') || ids.some((id) => f.replace(/^\d+-/, '') === `${id}.e2e.ts`));
+}
+
+/** Runs the chosen scenarios in this window: the test run connects to the runner's browser and drives this page */
+function startRun(ids: string[]): void {
+  if (run || ids.length === 0) return;
+  // Outside the results folder, which each run empties when it starts
+  const log = createWriteStream(join(REPO, '.e2e-runner.log'));
+  // Playwright matches its arguments against the file paths, which have backslashes here: the file names alone
+  run = spawn(process.execPath, [join(REPO, 'node_modules', 'playwright', 'cli.js'), 'test', ...filesOf(ids)], {
+    cwd: BACKEND,
+    env: { ...process.env, E2E_EXTERNAL_OBSERVER: '1' },
+    windowsHide: true,
+  });
+  run.stdout?.pipe(log);
+  run.stderr?.pipe(log);
+  state.runner = { ...state.runner, running: true, ids, exit: null };
+  note(`Run started: ${ids.length} ${ids.length === 1 ? 'scenario' : 'scenarios'}`);
+  run.on('exit', (code) => {
+    run = null;
+    state.runner = { ...state.runner, running: false, exit: code };
+    note(code ? `Run ended with failures (exit ${code}); log: .e2e-runner.log` : 'Run ended');
+    publish();
+  });
+  publish();
+}
+
+function stopRun(): void {
+  if (!run?.pid) return;
+  try {
+    execFileSync('taskkill', ['/pid', String(run.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
+  } catch {
+    // already gone
+  }
+  note('Run stopped');
+}
+
 const server = createServer(async (req, res) => {
+  if (req.method === 'POST' && req.url === '/run') {
+    if (!state.runner.available) {
+      res.statusCode = 409;
+      return json(res, { error: 'Open the test runner to start runs from here: pnpm.cmd e2e:runner' });
+    }
+    const { ids } = JSON.parse(await body(req)) as { ids: string[] };
+    startRun(ids.filter((id) => state.scenarios.some((s) => s.id === id)));
+    return json(res, state.runner);
+  }
+  if (req.method === 'POST' && req.url === '/stop') {
+    stopRun();
+    return json(res, state.runner);
+  }
   if (req.method === 'POST' && req.url === '/gate') {
     const { kind, label } = JSON.parse(await body(req)) as { kind: 'action' | 'step'; label: string };
     return json(res, gate(kind, label));

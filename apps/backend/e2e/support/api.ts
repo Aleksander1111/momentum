@@ -32,6 +32,8 @@ export interface EntityRow {
 }
 
 const OPEN = ['queued', 'running'];
+/** No request to the back-end waits longer than this */
+const REQUEST_MS = 60_000;
 
 /** The back-end of a scenario, as the app and the MCP clients reach it, plus its database for what no route shows */
 export class Api {
@@ -42,6 +44,7 @@ export class Api {
       method,
       headers: { ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_MS),
     });
     if (!r.ok) throw Object.assign(new Error(`${method} ${path}: ${r.status} ${await r.text()}`), { status: r.status });
     return (r.status === 204 || r.status === 202 ? null : await r.json()) as T;
@@ -64,9 +67,9 @@ export class Api {
     const transport = new StreamableHTTPClientTransport(new URL(`${this.env.url}/mcp`), {
       requestInit: { headers: { authorization: `Bearer ${this.env.token}` } },
     });
-    await client.connect(transport);
+    await client.connect(transport, { timeout: REQUEST_MS });
     try {
-      const r = (await client.callTool({ name, arguments: args })) as { content: { type: string; text: string }[]; isError?: boolean };
+      const r = (await client.callTool({ name, arguments: args }, undefined, { timeout: REQUEST_MS })) as { content: { type: string; text: string }[]; isError?: boolean };
       const text = r.content.map((c) => c.text).join('');
       if (r.isError) throw new Error(`${name}: ${text}`);
       return (text ? JSON.parse(text) : null) as T;

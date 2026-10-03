@@ -38,6 +38,7 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { z } from 'zod';
 import type { Auth } from '../auth.ts';
 import { config } from '../config.ts';
@@ -72,12 +73,17 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
   const spa = existsSync(config.appDist);
   // Files are resolved per request, so a fresh web build is served without a restart
   if (spa) await app.register(fastifyStatic, { root: config.appDist, wildcard: true });
+  // The page of the web app; while a new build replaces the old one there is none for a moment
+  const page = (reply: FastifyReply) =>
+    existsSync(join(config.appDist, 'index.html'))
+      ? reply.sendFile('index.html')
+      : reply.code(503).header('retry-after', '2').type('text/plain').send('The web app is being built; reload in a moment.');
 
   // Page loads of the web app get the app; the app's own requests get the API
   app.addHook('onRequest', async (req, reply) => {
     const route = `${req.method} ${req.routeOptions.url ?? ''}`;
     const wantsPage = req.method === 'GET' && (req.headers.accept ?? '').includes('text/html');
-    if (wantsPage && spa && req.url !== '/openapi.json') return reply.sendFile('index.html');
+    if (wantsPage && spa && req.url !== '/openapi.json') return page(reply);
     if (!API.test(req.url) || PUBLIC.has(route)) return;
     if (!(await auth.check(tokenOf(req)))) return reply.code(401).send({ error: 'Sign in first' });
   });
@@ -266,7 +272,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
   app.all('/mcp', { schema: { hide: true } }, (req, reply) => mcpHandler(momentum, req, reply));
 
   app.setNotFoundHandler((req, reply) => {
-    if (spa && req.method === 'GET') return reply.sendFile('index.html');
+    if (spa && req.method === 'GET') return page(reply);
     return reply.code(404).send({ error: 'Not found' });
   });
 

@@ -8,7 +8,8 @@
     "dev": "tsx watch src/server.ts",
     "cli": "tsx src/cli.ts",
     "typecheck": "tsc -p .",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:runner": "tsx e2e/runner.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.285",

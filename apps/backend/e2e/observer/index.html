@@ -64,6 +64,13 @@
   .controls button.on { background: var(--run-bg); color: var(--run); border-color: var(--run); }
   .controls label { display: flex; align-items: center; gap: 4px; color: var(--muted); cursor: pointer; white-space: nowrap; }
   .waiting { color: var(--skip); max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .runbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); align-items: center; }
+  .runbar button { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .runbar button.go { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+  .runbar button.stop { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+  .runbar button:disabled { opacity: .45; cursor: default; }
+  .runbar .hint { color: var(--muted); font-size: 12px; }
+  .pick { width: 15px; height: 15px; margin: 0; cursor: pointer; flex: none; }
   .status-running { color: var(--run); } .status-finished { color: var(--ok); } .status-failed, .status-killed { color: var(--bad); }
 </style>
 </head>
@@ -94,6 +101,13 @@
 <main>
   <section>
     <h2>Scenarios <span id="counts" class="tag"></span></h2>
+    <div class="runbar" id="runbar">
+      <button id="run-picked" class="go">Run selected</button>
+      <button id="run-all">Run all</button>
+      <button id="run-offline" title="Scenarios that use no Claude usage">Run no-usage</button>
+      <button id="stop-run" class="stop">Stop</button>
+      <span id="run-hint" class="hint"></span>
+    </div>
     <div id="scenarios" class="scroll"></div>
   </section>
   <section class="stage" id="stage">
@@ -162,7 +176,7 @@
       .map((x) => {
         const expanded = x.status === 'running' || x.status === 'failed' || open.has(x.id);
         return `<div class="sc ${x.status} ${x.selected ? '' : 'off'}" data-id="${x.id}">
-          <div class="row"><span class="dot">${ICON[x.status]}</span><span class="grow">${esc(x.title)}</span>
+          <div class="row"><input type="checkbox" class="pick" data-pick="${x.id}" ${picked.has(x.id) ? 'checked' : ''} aria-label="Run ${esc(x.title)}" /><span class="dot">${ICON[x.status]}</span><span class="grow">${esc(x.title)}</span>
           <span class="tag ${x.real ? 'real' : ''}">${x.real ? 'real runs' : 'no runs'}</span></div>
           ${expanded ? `<div class="steps">${x.steps.map((st) => `<div class="st ${st.status}"><span class="dot">${ICON[st.status]}</span><span>${esc(st.title)}</span></div>`).join('')}</div>` : ''}
           ${x.reason ? `<div class="reason">${esc(x.reason)}</div>` : ''}
@@ -201,7 +215,38 @@
     $('notes').scrollTop = $('notes').scrollHeight;
   }
 
+  // The scenarios picked to run, remembered in this browser
+  const picked = new Set(JSON.parse((() => { try { return localStorage.getItem('picked'); } catch { return null; } })() ?? 'null') ?? []);
+  const savePicked = () => { try { localStorage.setItem('picked', JSON.stringify([...picked])); } catch {} };
+  const startRun = (ids) =>
+    fetch('/run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids }) });
+  $('run-picked').addEventListener('click', () => startRun([...picked]));
+  $('run-all').addEventListener('click', () => startRun(last.scenarios.map((x) => x.id)));
+  $('run-offline').addEventListener('click', () => startRun(last.scenarios.filter((x) => !x.real).map((x) => x.id)));
+  $('stop-run').addEventListener('click', () => fetch('/stop', { method: 'POST' }));
+
+  function renderRunner(r) {
+    const off = !r.available;
+    for (const id of ['run-picked', 'run-all', 'run-offline']) $(id).disabled = off || r.running;
+    $('run-picked').disabled ||= picked.size === 0;
+    $('stop-run').disabled = off || !r.running;
+    $('run-hint').textContent = off
+      ? 'Open the runner to start runs here: pnpm.cmd e2e:runner'
+      : r.running
+        ? `Running ${r.ids.length} ${r.ids.length === 1 ? 'scenario' : 'scenarios'}`
+        : `${picked.size} selected`;
+  }
+
+  $('scenarios').addEventListener('change', (e) => {
+    const id = e.target.dataset?.pick;
+    if (!id) return;
+    e.target.checked ? picked.add(id) : picked.delete(id);
+    savePicked();
+    if (last) renderRunner(last.runner);
+  });
+
   $('scenarios').addEventListener('click', (e) => {
+    if (e.target.classList.contains('pick')) return;
     const id = e.target.closest('.sc')?.dataset.id;
     if (!id) return;
     open.has(id) ? open.delete(id) : open.add(id);
@@ -230,6 +275,7 @@
     last = JSON.parse(m.data);
     render(last);
     renderControls(last.control);
+    renderRunner(last.runner);
   };
 </script>
 </body>

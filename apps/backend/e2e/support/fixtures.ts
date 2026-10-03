@@ -5,7 +5,7 @@ import { Api } from './api.ts';
 import { App } from './app.ts';
 import { Env, type EnvOptions } from './env.ts';
 import { pace } from './pace.ts';
-import { breakScenario, cap, capReached, readUsage, resetCap } from './usage.ts';
+import { aborted, breakScenario, cap, capReached, CapReached, readUsage, resetCap } from './usage.ts';
 import { BlackHole } from './offline.ts';
 import { FakeCommandStream } from './voice.ts';
 
@@ -27,18 +27,41 @@ export interface World {
 
 const HOLD = process.env.E2E_HOLD === '1';
 const WATCH_MS = 30_000;
-/** A scenario whose steps, runs and run messages all stand still this long is stuck, and fails */
-const STALL_MS = Number(process.env.E2E_STALL_MINUTES ?? 8) * 60_000;
+/** Limits, in minutes, for scenarios without and with real runs */
+const LIMITS = {
+  /** Steps, runs and run messages all standing still this long: the scenario is stuck and fails */
+  stall: { offline: 1.5, real: 5 },
+  /** One step */
+  step: { offline: 3, real: 25 },
+  /** The whole scenario */
+  scenario: { offline: 10, real: 60 },
+};
+const minutes = (env: string | undefined, fallback: number) => Number(env ?? fallback) * 60_000;
+let STALL_MS = 0;
+let STEP_MS = 0;
 
 /** One observer window for the whole suite: the scenarios load the app into it one after another */
 const test = base.extend<object, { observer: Page }>({
   observer: [
-    async ({ browser }, use) => {
+    async ({ playwright }, use) => {
+      // Started from the test runner: drive the runner's own window, and leave it open
+      if (process.env.E2E_CDP) {
+        const runner = await playwright.chromium.connectOverCDP(process.env.E2E_CDP, { timeout: 30_000 });
+        const page = runner.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith(OBSERVER));
+        if (!page) throw new Error('The test runner window is not open on the observer');
+        await use(page);
+        return;
+      }
+      const browser = await playwright.chromium.launch({
+        channel: 'msedge',
+        headless: false,
+        args: ['--start-maximized', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+      });
       const page = await browser.newPage({ viewport: null, colorScheme: 'dark' });
       await page.goto(OBSERVER);
       await use(page);
       if (HOLD) await page.waitForEvent('close', { timeout: 0 });
-      await page.close().catch(() => {});
+      await browser.close().catch(() => {});
     },
     { scope: 'worker' },
   ],
@@ -59,7 +82,10 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
   const s = SCENARIOS.find((x) => x.id === id);
   if (!s) throw new Error(`No scenario ${id} in scenarios.ts`);
   test(s.title, { annotation: { type: 'scenario', description: id }, tag: s.real ? '@real' : '@offline' }, async ({ observer }, info) => {
-    info.setTimeout((s.real ? 120 : 20) * 60_000);
+    const kind = s.real ? 'real' : 'offline';
+    STALL_MS = minutes(process.env.E2E_STALL_MINUTES, LIMITS.stall[kind]);
+    STEP_MS = minutes(process.env.E2E_STEP_MINUTES, LIMITS.step[kind]);
+    info.setTimeout(minutes(process.env.E2E_SCENARIO_MINUTES, LIMITS.scenario[kind]));
     resetCap();
     if (s.real) {
       const now = await reading();
@@ -107,8 +133,9 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
           moved = Date.now();
         } else if (Date.now() - moved > STALL_MS) {
           breakScenario(`Stuck at step ${current}: no step, run or message changed for ${STALL_MS / 60_000} minutes`);
+          void post({ type: 'note', text: `${s.title}: stuck at step ${current}, stopping it` });
         }
-      }, 30_000);
+      }, 10_000);
       await app.open();
       await app.signedIn();
       const world: World = {
@@ -125,12 +152,28 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
           current = i;
           return test.step(title, async () => {
             await pace('step', title);
-            return fn();
+            // Hard limits: the step ends at its timeout, or the moment the scenario breaks or reaches the cap,
+            // whatever it is waiting on
+            let timer: NodeJS.Timeout | undefined;
+            const timeout = new Promise<never>((_, reject) => {
+              timer = setTimeout(() => reject(new Error(`Step ${i} timed out after ${STEP_MS / 60_000} minutes: ${title}`)), STEP_MS);
+            });
+            try {
+              return await Promise.race([fn(), aborted, timeout]);
+            } catch (e) {
+              if (e instanceof CapReached) test.skip(true, e.message);
+              throw e;
+            } finally {
+              clearTimeout(timer);
+            }
           });
         },
         note: (text) => post({ type: 'note', text }),
       };
-      await body(world);
+      await Promise.race([body(world), aborted]).catch((e) => {
+        if (e instanceof CapReached) test.skip(true, e.message);
+        throw e;
+      });
       expect([...done].sort(), 'every step of the scenario ran').toEqual(s.steps.map((_, i) => i));
       ok = true;
     } finally {

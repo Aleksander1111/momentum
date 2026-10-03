@@ -10,6 +10,8 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   timeout: 20 * 60_000,
+  // The whole suite: nothing runs past this, whatever a scenario waits on
+  globalTimeout: 4 * 60 * 60_000,
   reporter: [['list'], ['./e2e/observer/reporter.ts']],
   outputDir: '../../.e2e-results',
   use: {
@@ -18,6 +20,7 @@ export default defineConfig({
     viewport: null,
     colorScheme: 'dark',
     actionTimeout: 30_000,
+    navigationTimeout: 30_000,
     launchOptions: {
       args: ['--start-maximized', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
     },

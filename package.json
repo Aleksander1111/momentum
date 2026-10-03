@@ -10,7 +10,8 @@
     "backend": "pnpm --filter @momentum/backend start",
     "dev": "node scripts/dev.mjs",
     "momentum": "pnpm --filter @momentum/backend cli",
-    "e2e": "pnpm --filter @momentum/backend e2e"
+    "e2e": "pnpm --filter @momentum/backend e2e",
+    "e2e:runner": "pnpm --filter @momentum/backend e2e:runner"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

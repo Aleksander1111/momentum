@@ -32,19 +32,29 @@ export function cap(): number {
 
 let reached: string | null = null;
 let broken: string | null = null;
+let abort: (e: Error) => void = () => {};
+/** Rejects the moment the scenario is broken or capped: every step races it, so nothing waits past that */
+export let aborted: Promise<never> = Promise.reject(new Error('no scenario'));
+aborted.catch(() => {});
+
+export class CapReached extends Error {}
 
 export function capReached(reason: string): void {
-  reached = reason;
+  reached ??= reason;
+  abort(new CapReached(reason));
 }
 
 /** What the scenario waits for can no longer happen: its back-end died, or nothing moved for too long */
 export function breakScenario(reason: string): void {
   broken ??= reason;
+  abort(Object.assign(new Error(reason), { fatal: true }));
 }
 
 export function resetCap(): void {
   reached = null;
   broken = null;
+  aborted = new Promise<never>((_, reject) => (abort = reject));
+  aborted.catch(() => {});
 }
 
 /** Fails the running scenario once it is broken, skips it once the cap is reached; every wait and action calls it */
