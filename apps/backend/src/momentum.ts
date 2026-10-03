@@ -1,6 +1,7 @@
 import type {
   AutomationName,
   ChatsResponse,
+  ContextItem,
   EntityDetail,
   FeedResponse,
   GraphBuildStatus,
@@ -129,7 +130,7 @@ export class Momentum {
     };
   }
 
-  async createChat(workspace: string, text: string, targetPath?: string): Promise<{ runId: string }> {
+  async createChat(workspace: string, text: string, targetPath?: string, context: ContextItem[] = []): Promise<{ runId: string }> {
     await this.workspaces.get(workspace);
     const runId = await this.runner.create({
       workspace,
@@ -138,6 +139,7 @@ export class Momentum {
       prompt: text,
       title: text.split('\n')[0]!.slice(0, 80),
       targetPath: targetPath ?? null,
+      context,
     });
     void this.orchestrator.tick();
     return { runId };
@@ -162,8 +164,8 @@ export class Momentum {
     return this.runner.detail(id);
   }
 
-  async postMessage(id: string, text: string): Promise<void> {
-    await this.runner.send(id, text);
+  async postMessage(id: string, text: string, context: ContextItem[] = []): Promise<void> {
+    await this.runner.send(id, text, context);
   }
 
   /** Ends a run: its process is killed; what it wrote so far still passes the guard and reaches the feed */

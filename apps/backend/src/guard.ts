@@ -1,10 +1,12 @@
-import type { EntityFrontmatter, Sync } from '@momentum/contract';
+import type { Card, CardDiff, EntityFrontmatter, Sync } from '@momentum/contract';
 import {
   cardLength,
+  diffCards,
   entityPathOf,
   fileOf,
   KNOWLEDGE_GRAPH,
   parseEntity,
+  renderDiagrams,
   serializeEntity,
   toCard,
   validateText,
@@ -13,7 +15,7 @@ import {
   type ValidationIssue,
 } from '@momentum/entity';
 import type { Embed } from '@momentum/kb';
-import { changes, head, land, listFiles, mergeBase, messageFile, show, workingChanges, type Landed } from '@momentum/runs';
+import { changes, fileHistory, head, land, listFiles, mergeBase, messageFile, show, workingChanges, type Landed } from '@momentum/runs';
 import { watch, type FSWatcher } from 'chokidar';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -77,11 +79,38 @@ export class Guard {
     return { characterLimit: cards.characterLimit, types: this.workspaces.types };
   }
 
-  /** Card blocks, embedding and index row for one entity */
-  async index(ws: Workspace, path: string, entity: ParsedEntity): Promise<void> {
+  /** Card blocks, the diff against the last verified version, embedding and index row for one entity at `commit` */
+  async index(ws: Workspace, path: string, entity: ParsedEntity, commit: string): Promise<void> {
     const cardBlocks = await toCard(entity.body, this.render);
+    const cardDiff = entity.frontmatter.verification === 'unverified' ? await this.diffSinceVerified(ws, path, entity, cardBlocks, commit) : null;
     const [embedding] = await this.embed([`${entity.title}\n${entity.body}`]);
-    await ws.index.upsert({ path, title: entity.title, body: entity.body, frontmatter: entity.frontmatter, cardBlocks, embedding: embedding ?? null });
+    await ws.index.upsert({ path, title: entity.title, body: entity.body, frontmatter: entity.frontmatter, cardBlocks, cardDiff, embedding: embedding ?? null });
+  }
+
+  /**
+   * The card against the version the user last verified: the newest version in the entity's history marked verified.
+   * None when it was never verified or its card has not changed since.
+   */
+  private async diffSinceVerified(ws: Workspace, path: string, entity: ParsedEntity, card: Card, commit: string): Promise<CardDiff | null> {
+    const file = fileOf(path);
+    let baseline: ParsedEntity | null = null;
+    for (const sha of await fileHistory(ws.path, commit, file).catch(() => [])) {
+      const text = await show(ws.path, sha, file);
+      if (text === null) continue;
+      try {
+        const version = parseEntity(text);
+        if (version.frontmatter.verification === 'verified') {
+          baseline = version;
+          break;
+        }
+      } catch {
+        // a version that does not parse is no baseline
+      }
+    }
+    if (!baseline || (sameText(baseline.body, entity.body) && baseline.title.trim() === entity.title.trim())) return null;
+    const diff = diffCards(baseline.title, await toCard(baseline.body), entity.title, card);
+    await renderDiagrams(diff.card, this.render);
+    return diff;
   }
 
   // Main line
@@ -116,7 +145,7 @@ export class Guard {
       try {
         const entity = parseEntity(text);
         entity.frontmatter.sync = await this.syncOf(ws, path, entity.frontmatter);
-        await this.index(ws, path, entity);
+        await this.index(ws, path, entity, commit);
         if (entity.frontmatter.verification === 'unverified') await ws.index.enterFeed(path, entity.frontmatter);
         else await ws.index.leaveFeed(path);
       } catch {

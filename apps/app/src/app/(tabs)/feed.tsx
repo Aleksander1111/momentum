@@ -181,7 +181,7 @@ function TopCard({
       <Animated.View
         style={[cardFrame(wide), cardSkin, { boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
       >
-        <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} />
+        <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} swipe />
         {issue ? (
           <>
             <IssueHead issue={issue} />

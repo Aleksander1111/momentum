@@ -158,7 +158,7 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
   app.post(
     '/workspaces/:ws/chats',
     { schema: { params: ws, body: CreateChatRequest, response: { 200: z.object({ runId: z.string() }), ...errors } } },
-    (req) => momentum.createChat(req.params.ws, req.body.text, req.body.targetPath),
+    (req) => momentum.createChat(req.params.ws, req.body.text, req.body.targetPath, req.body.context),
   );
 
   app.get('/runs/:id', { schema: { params: z.object({ id: z.string() }), response: { 200: RunDetail, ...errors } } }, (req) =>
@@ -169,7 +169,7 @@ export async function createHttp(momentum: Momentum, auth: Auth) {
     '/runs/:id/messages',
     { schema: { params: z.object({ id: z.string() }), body: PostRunMessage, response: { 202: z.null(), ...errors } } },
     async (req, reply) => {
-      await momentum.postMessage(req.params.id, req.body.text);
+      await momentum.postMessage(req.params.id, req.body.text, req.body.context);
       return reply.code(202).send(null);
     },
   );

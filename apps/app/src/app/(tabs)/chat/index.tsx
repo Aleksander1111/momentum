@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
 import { useWorkspaces } from '../../../lib/workspace';
+import { chatContext, useChatContext } from '../../../lib/context';
 import { relativeTime, runKind } from '../../../lib/format';
 import { useTheme, useWide } from '../../../ui/theme';
 import { List, Row, RowText, Sect } from '../../../ui/parts';
@@ -36,6 +37,7 @@ export default function Chats() {
   }, [params.ws, params.compose]);
 
   const target = lastGroup ?? (workspaces ?? []).find((w) => w.enabled)?.name ?? names[0] ?? null;
+  const context = useChatContext(target);
 
   const openRun = (runId: string) => {
     if (wide) router.setParams({ run: runId, compose: undefined });
@@ -85,9 +87,11 @@ export default function Chats() {
         <Composer
           ref={composer}
           placeholder={`Ask ${target ?? ''}`.trim()}
+          context={context}
           onSend={async (text) => {
             if (!target) return;
-            const { runId } = await api.createChat(target, { text });
+            const { runId } = await api.createChat(target, { text, context });
+            chatContext.clear(target);
             await qc.invalidateQueries({ queryKey: ['chats', target] });
             openRun(runId);
           }}

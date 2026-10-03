@@ -37,6 +37,13 @@ const LIGHT = {
   dim: 'rgba(30,41,59,.55)',
   /** A second neutral for charts, told apart from `muted`. */
   faint: '#A7B0B5',
+  /** Diff marks: text added or removed since the last verified version, and whole rows and blocks, fainter */
+  ins: 'rgba(63,107,82,.28)',
+  del: 'rgba(160,64,47,.28)',
+  insRow: 'rgba(63,107,82,.14)',
+  delRow: 'rgba(160,64,47,.14)',
+  /** The diagram shape the user picked */
+  pick: 'rgba(184,80,66,.9)',
 };
 
 type Palette = { readonly [K in keyof typeof LIGHT]: string };
@@ -68,6 +75,11 @@ const DARK: Palette = {
   diagramSheet: '#EEF1EC',
   dim: 'rgba(0,0,0,.6)',
   faint: '#5E6B72',
+  ins: 'rgba(125,181,148,.28)',
+  del: 'rgba(232,128,107,.28)',
+  insRow: 'rgba(125,181,148,.14)',
+  delRow: 'rgba(232,128,107,.14)',
+  pick: 'rgba(224,122,102,.95)',
 };
 
 export const PALETTES: Record<Scheme, Palette> = { light: LIGHT, dark: DARK };

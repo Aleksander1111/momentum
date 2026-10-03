@@ -73,6 +73,8 @@ create index if not exists entity_type on ${s}.entity (type);
 alter table ${s}.entity drop column if exists branch;
 alter table ${s}.entity drop column if exists run_id;
 alter table ${s}.entity add column if not exists contradictions int not null default 0;
+-- The card against its last verified version, while the entity is unverified
+alter table ${s}.entity add column if not exists card_diff jsonb;
 create table if not exists ${s}.entity_state (
   path text not null,
   verification text,
@@ -135,6 +137,8 @@ create table if not exists ${s}.run_message (
   at timestamptz not null default now(),
   primary key (run_id, seq)
 );
+-- Parts of cards the user added to the message: quotes and diagram elements
+alter table ${s}.run_message add column if not exists context jsonb not null default '[]';
 create table if not exists ${s}.chat (
   run_id text primary key references ${s}.run (id) on delete cascade,
   entity_path text

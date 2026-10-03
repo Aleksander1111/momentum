@@ -4,6 +4,7 @@ import { Redirect } from 'expo-router';
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getToken } from '../../lib/token';
+import { useChatContext } from '../../lib/context';
 import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
@@ -18,6 +19,8 @@ const TABS = [
 
 function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean }) {
   const insets = useSafeAreaInsets();
+  // Parts of cards waiting to go with the next chat message
+  const waiting = useChatContext().length;
   return (
     <View
       style={
@@ -62,7 +65,27 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
             accessibilityState={{ selected: on }}
             style={{ alignItems: 'center', gap: 4 }}
           >
-            <Icon name={tab.name} size={wide ? 26 : 24} color={color} />
+            <View>
+              <Icon name={tab.name} size={wide ? 26 : 24} color={color} />
+              {tab.name === 'chat' && waiting > 0 ? (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -8,
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    paddingHorizontal: 4,
+                    backgroundColor: C.accent,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <T style={{ color: C.surface, fontSize: 10.5, fontWeight: '700' }}>{waiting}</T>
+                </View>
+              ) : null}
+            </View>
             <T style={{ color, fontSize: wide ? 12 : 11.5, fontWeight: on ? '700' : '400' }}>{tab.label}</T>
           </Pressable>
         );

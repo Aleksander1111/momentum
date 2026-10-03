@@ -169,6 +169,12 @@ export async function show(cwd: string, ref: string, path: string): Promise<stri
   }
 }
 
+/** Commits that changed a file, newest first, up to `ref` */
+export async function fileHistory(cwd: string, ref: string, path: string): Promise<string[]> {
+  const out = await git(cwd, ['log', '--format=%H', ref, '--', path]);
+  return out.split('\n').filter(Boolean);
+}
+
 export async function listFiles(cwd: string, ref: string, dir: string): Promise<string[]> {
   const out = await git(cwd, ['ls-tree', '-r', '--name-only', ref, '--', dir]);
   return out.split('\n').filter(Boolean);

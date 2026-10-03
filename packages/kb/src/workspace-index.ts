@@ -1,6 +1,7 @@
 import type {
   ArtifactView,
   Card,
+  CardDiff,
   EntityDetail,
   EntityFrontmatter,
   EntityListItem,
@@ -24,6 +25,8 @@ export interface IndexedEntity {
   body: string;
   frontmatter: EntityFrontmatter;
   cardBlocks: Card;
+  /** The card against its last verified version; null when verified or never verified */
+  cardDiff: CardDiff | null;
   embedding: number[] | null;
 }
 
@@ -36,6 +39,7 @@ interface EntityRow {
   verification: Verification;
   sync: Sync;
   card_blocks: Card;
+  card_diff: CardDiff | null;
   frontmatter: EntityFrontmatter;
   contradictions: number;
 }
@@ -74,6 +78,7 @@ export class WorkspaceIndex {
       verification: fm.verification,
       sync: fm.sync,
       card_blocks: tx.json(e.cardBlocks as never),
+      card_diff: e.cardDiff ? tx.json(e.cardDiff as never) : null,
       frontmatter: tx.json(fm as never),
       embedding: e.embedding ? toVector(e.embedding) : null,
       updated_at: new Date(),
@@ -121,7 +126,7 @@ export class WorkspaceIndex {
 
   async row(path: string): Promise<EntityRow | null> {
     const [r] = await this.sql<EntityRow[]>`
-      select path, type, title, card, origin, verification, sync, card_blocks, frontmatter, contradictions
+      select path, type, title, card, origin, verification, sync, card_blocks, card_diff, frontmatter, contradictions
       from ${this.t('entity')} where path = ${path}`;
     return r ?? null;
   }
@@ -178,6 +183,7 @@ export class WorkspaceIndex {
       contradictions: r.contradictions,
       origin: r.origin,
       card: r.card_blocks,
+      diff: r.card_diff ?? null,
       markdown: r.card,
       references: refs.map((x) => ({ ...x }) satisfies ReferenceView),
       artifacts: artifacts.map((a) => ({ path: a.artifact_path, kind: artifactKind(a.artifact_path) }) satisfies ArtifactView),
@@ -291,7 +297,7 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
   if (workspaces.length === 0) return [];
   const parts = workspaces.map((w) => {
     const s = schemaOf(w);
-    return `select '${w.replaceAll("'", "''")}' as workspace, e.path, e.type, e.title, e.card_blocks, e.verification, e.sync, e.contradictions,
+    return `select '${w.replaceAll("'", "''")}' as workspace, e.path, e.type, e.title, e.card_blocks, e.card_diff, e.verification, e.sync, e.contradictions,
       e.frontmatter, a.rank, a.entered_at from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
   });
   const rows = await sql.unsafe<(EntityRow & { workspace: string; rank: number })[]>(
@@ -304,6 +310,7 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
     type: r.type,
     title: r.title,
     card: r.card_blocks,
+    diff: r.card_diff ?? null,
     verification: r.verification,
     sync: r.sync,
     contradictions: r.contradictions,

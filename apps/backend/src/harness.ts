@@ -26,6 +26,9 @@ const DEFAULTS = {
 
 type Key = keyof typeof DEFAULTS;
 
+/** What the index holds per entity; raised when that changes, so every project is indexed again. 1: card diffs and pickable diagram shapes */
+const INDEX_VERSION = 1;
+
 /** Harness settings in the harness schema: enabling a project must not create commits in it */
 export class HarnessSettings {
   private cache: Omit<Settings, 'projects'> | null = null;
@@ -34,6 +37,7 @@ export class HarnessSettings {
 
   async migrate(): Promise<void> {
     await this.sql`alter table harness.project add column if not exists indexed_commit text`;
+    await this.sql`alter table harness.project add column if not exists index_version int not null default 0`;
     // The graph build was called mapping: its columns and model setting keep their values under the new name
     for (const suffix of ['', '_progress', '_since', '_coverage']) {
       await this.sql.unsafe(`do $$ begin
@@ -85,13 +89,15 @@ export class HarnessSettings {
     await this.sql`update harness.project set enabled = ${enabled} where name = ${name}`;
   }
 
+  /** The main line commit the index stands at; none when the index was built by an older version and is rebuilt whole */
   async indexedCommit(name: string): Promise<string | null> {
-    const [r] = await this.sql<{ indexed_commit: string | null }[]>`select indexed_commit from harness.project where name = ${name}`;
-    return r?.indexed_commit ?? null;
+    const [r] = await this.sql<{ indexed_commit: string | null; index_version: number }[]>`
+      select indexed_commit, index_version from harness.project where name = ${name}`;
+    return r && r.index_version >= INDEX_VERSION ? r.indexed_commit : null;
   }
 
   async setIndexedCommit(name: string, commit: string): Promise<void> {
-    await this.sql`update harness.project set indexed_commit = ${commit} where name = ${name}`;
+    await this.sql`update harness.project set indexed_commit = ${commit}, index_version = ${INDEX_VERSION} where name = ${name}`;
   }
 
   /** The knowledge graph build of a project: its state, the progress its last run reported, and when it started */

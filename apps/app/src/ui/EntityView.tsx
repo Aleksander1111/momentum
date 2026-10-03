@@ -36,6 +36,7 @@ export function EntityView({
         path={e.path}
         title={e.title}
         card={e.card}
+        diff={e.diff}
         aside={<States verification={e.verification} sync={e.sync} contradictions={e.contradictions} labels />}
       />
       {e.references.length ? (

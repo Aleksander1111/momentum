@@ -1,5 +1,6 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
-import type { AutomationName, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
+import type { AutomationName, ContextItem, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
+import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
 import { ask, ensureCheckout, head, removeWorktree, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
 import { randomBytes } from 'node:crypto';
@@ -52,6 +53,22 @@ export interface NewRun {
   targetPath?: string | null;
   /** What the chat shows as the user's message, when it differs from the prompt */
   message?: string;
+  /** Parts of cards the user added to the chat's first message; the prompt carries them as references */
+  context?: ContextItem[];
+}
+
+/**
+ * The parts of cards the user added to a message, as references ahead of it, the way the stock-fly-8 knowledge base
+ * handed them to its agent: the entity file and the headings, then the quoted text or the picked diagram element
+ */
+export function withContext(context: ContextItem[], text: string): string {
+  if (context.length === 0) return text;
+  const refs = context.map((c) => {
+    const path = [fileOf(c.path), ...c.heading].join(' > ');
+    const body = c.element !== undefined ? `${path} > < ${c.element} >` : `${path} >\n\n... ${c.quote} ...`;
+    return `\`\`\`\n${body}\n\`\`\`\n\n`;
+  });
+  return `${refs.join('')}${text}`;
 }
 
 export interface QueuedRun {
@@ -133,8 +150,8 @@ export class Runner {
   async detail(id: string): Promise<RunDetail> {
     const ws = await this.workspaceOf(id);
     const r = await this.row(ws, id);
-    const messages = await ws.index.sql<{ seq: number; role: RunMessage['role']; text: string; at: Date }[]>`
-      select seq, role, text, at from ${this.t(ws, 'run_message')} where run_id = ${id} order by seq`;
+    const messages = await ws.index.sql<{ seq: number; role: RunMessage['role']; text: string; context: ContextItem[]; at: Date }[]>`
+      select seq, role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${id} order by seq`;
     return { ...this.view(ws, r), messages: messages.map((m) => ({ ...m, at: m.at.toISOString() })) };
   }
 
@@ -143,9 +160,10 @@ export class Runner {
     await ws.index.sql`update ${this.t(ws, 'run')} set ${ws.index.sql(values as never)} where id = ${id}`;
   }
 
-  private async addMessage(ws: Workspace, id: string, role: RunMessage['role'], text: string) {
-    await ws.index.sql`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text)
-      values (${id}, (select coalesce(max(seq), 0) + 1 from ${this.t(ws, 'run_message')} where run_id = ${id}), ${role}, ${text})`;
+  private async addMessage(ws: Workspace, id: string, role: RunMessage['role'], text: string, context: ContextItem[] = []) {
+    await ws.index.sql`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context)
+      values (${id}, (select coalesce(max(seq), 0) + 1 from ${this.t(ws, 'run_message')} where run_id = ${id}), ${role}, ${text},
+        ${ws.index.sql.json(context as never)})`;
   }
 
   private ref(ws: Workspace, r: RunRow): RunRef {
@@ -166,11 +184,11 @@ export class Runner {
       target_path: spec.targetPath ?? null,
       status: 'queued',
       title: spec.title ?? '',
-      prompt: spec.prompt,
+      prompt: withContext(spec.context ?? [], spec.prompt),
     })}`;
     if (spec.automation === 'chat') {
       await ws.index.sql`insert into ${this.t(ws, 'chat')} ${ws.index.sql({ run_id: id, entity_path: null })}`;
-      await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt);
+      await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt, spec.context ?? []);
     }
     if (spec.targetPath) await this.guard.markUpdating(ws, spec.targetPath);
     return id;
@@ -417,17 +435,18 @@ export class Runner {
    * A message from the chat tool: steers the running process, or resumes the session of a run that has ended on a fresh
    * checkout of the main line. A chat is started by the user, so it runs alongside whatever automation is running.
    */
-  async send(id: string, text: string): Promise<void> {
+  async send(id: string, text: string, context: ContextItem[] = []): Promise<void> {
     const ws = await this.workspaceOf(id);
-    await this.addMessage(ws, id, 'user', text);
+    await this.addMessage(ws, id, 'user', text, context);
+    const prompt = withContext(context, text);
     const entry = this.active.get(id);
-    if (entry?.handle.send(text)) return;
+    if (entry?.handle.send(prompt)) return;
     await entry?.finished;
     const r = await this.row(ws, id);
     await ensureCheckout(ws.path, r.checkout, ws.main);
     await this.setStatus(ws, id, 'running', { ended_at: null, error: null, base_commit: await head(r.checkout) });
     this.guard.watch(this.ref(ws, r));
-    await this.launch(ws, r, this.ref(ws, r), text, r.session_id);
+    await this.launch(ws, r, this.ref(ws, r), prompt, r.session_id);
   }
 
   async kill(id: string): Promise<void> {
@@ -515,8 +534,8 @@ export class Runner {
   }
 
   private async writeTranscriptFile(ws: Workspace, r: RunRow): Promise<void> {
-    const messages = await ws.index.sql<{ role: string; text: string; at: Date }[]>`
-      select role, text, at from ${this.t(ws, 'run_message')} where run_id = ${r.id} order by seq`;
+    const messages = await ws.index.sql<{ role: string; text: string; context: ContextItem[]; at: Date }[]>`
+      select role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${r.id} order by seq`;
     const file = join(r.checkout, 'chats', `${r.id}.jsonl`);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf8');

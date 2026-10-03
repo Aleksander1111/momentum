@@ -70,7 +70,9 @@ export type Inline =
   | { t: 'em'; c: Inline[] }
   | { t: 'code'; v: string }
   | { t: 'link'; href: string; c: Inline[] }
-  | { t: 'br' };
+  | { t: 'br' }
+  | { t: 'ins'; c: Inline[] }
+  | { t: 'del'; c: Inline[] };
 
 export const Inline: z.ZodType<Inline> = z.lazy(() =>
   z.discriminatedUnion('t', [
@@ -80,34 +82,87 @@ export const Inline: z.ZodType<Inline> = z.lazy(() =>
     z.object({ t: z.literal('code'), v: z.string() }),
     z.object({ t: z.literal('link'), href: z.string(), c: z.array(Inline) }),
     z.object({ t: z.literal('br') }),
+    z.object({ t: z.literal('ins'), c: z.array(Inline) }),
+    z.object({ t: z.literal('del'), c: z.array(Inline) }),
   ]),
 );
 
+/** A diff mark: text added or removed since the last verified version */
+export const Mark = z.enum(['ins', 'del']);
+export type Mark = z.infer<typeof Mark>;
+
+/** A run of source text in a line diff (code, PlantUML source); `eq` is unchanged */
+export const Span = z.object({ k: z.enum(['eq', 'ins', 'del']), v: z.string() });
+export type Span = z.infer<typeof Span>;
+
+/** A shape of a rendered diagram the user can pick: the SVG group id, how it reads, its box in viewBox units */
+export const DiagramElement = z.object({
+  id: z.string(),
+  name: z.string(),
+  box: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+});
+export type DiagramElement = z.infer<typeof DiagramElement>;
+
+export const RenderedDiagram = z.object({ svg: z.string(), source: z.string(), elements: z.array(DiagramElement).optional() });
+export type RenderedDiagram = z.infer<typeof RenderedDiagram>;
+
+/**
+ * A card block. In a diff card: `ins`/`del` hold whole blocks added or removed, `marks` mark whole list items and
+ * table rows, `diff` is the line diff of code or of a diagram's source, and a changed diagram carries its `before`.
+ */
 export type Block =
   | { t: 'p'; c: Inline[] }
   | { t: 'h'; depth: number; c: Inline[] }
-  | { t: 'list'; ordered: boolean; items: Block[][] }
-  | { t: 'table'; head: Inline[][]; rows: Inline[][][] }
-  | { t: 'code'; lang: string | null; v: string }
+  | { t: 'list'; ordered: boolean; items: Block[][]; marks?: (Mark | null)[] }
+  | { t: 'table'; head: Inline[][]; rows: Inline[][][]; marks?: (Mark | null)[] }
+  | { t: 'code'; lang: string | null; v: string; diff?: Span[] }
   | { t: 'quote'; c: Block[] }
-  | { t: 'diagram'; svg: string; source: string }
-  | { t: 'hr' };
+  | { t: 'diagram'; svg: string; source: string; elements?: DiagramElement[]; before?: RenderedDiagram; diff?: Span[] }
+  | { t: 'hr' }
+  | { t: 'ins'; c: Block[] }
+  | { t: 'del'; c: Block[] };
 
 export const Block: z.ZodType<Block> = z.lazy(() =>
   z.discriminatedUnion('t', [
     z.object({ t: z.literal('p'), c: z.array(Inline) }),
     z.object({ t: z.literal('h'), depth: z.number(), c: z.array(Inline) }),
-    z.object({ t: z.literal('list'), ordered: z.boolean(), items: z.array(z.array(Block)) }),
-    z.object({ t: z.literal('table'), head: z.array(z.array(Inline)), rows: z.array(z.array(z.array(Inline))) }),
-    z.object({ t: z.literal('code'), lang: z.string().nullable(), v: z.string() }),
+    z.object({ t: z.literal('list'), ordered: z.boolean(), items: z.array(z.array(Block)), marks: z.array(Mark.nullable()).optional() }),
+    z.object({
+      t: z.literal('table'),
+      head: z.array(z.array(Inline)),
+      rows: z.array(z.array(z.array(Inline))),
+      marks: z.array(Mark.nullable()).optional(),
+    }),
+    z.object({ t: z.literal('code'), lang: z.string().nullable(), v: z.string(), diff: z.array(Span).optional() }),
     z.object({ t: z.literal('quote'), c: z.array(Block) }),
-    z.object({ t: z.literal('diagram'), svg: z.string(), source: z.string() }),
+    z.object({
+      t: z.literal('diagram'),
+      svg: z.string(),
+      source: z.string(),
+      elements: z.array(DiagramElement).optional(),
+      before: RenderedDiagram.optional(),
+      diff: z.array(Span).optional(),
+    }),
     z.object({ t: z.literal('hr') }),
+    z.object({ t: z.literal('ins'), c: z.array(Block) }),
+    z.object({ t: z.literal('del'), c: z.array(Block) }),
   ]),
 );
 
 export const Card = z.array(Block);
 export type Card = z.infer<typeof Card>;
+
+/**
+ * What changed in a card since its last verified version: the card with its changes marked, the title when it changed
+ * (marked too), and the words removed and added. None for a verified entity or one never verified.
+ */
+export const CardDiff = z.object({
+  title: z.array(Inline).nullable(),
+  card: Card,
+  removed: z.number().int().nonnegative(),
+  added: z.number().int().nonnegative(),
+});
+export type CardDiff = z.infer<typeof CardDiff>;
 
 // Entities
 
@@ -141,6 +196,7 @@ export type ArtifactView = z.infer<typeof ArtifactView>;
 export const EntityDetail = EntityListItem.extend({
   origin: Origin,
   card: Card,
+  diff: CardDiff.nullable().default(null),
   markdown: z.string(),
   references: z.array(ReferenceView),
   artifacts: z.array(ArtifactView),
@@ -176,6 +232,7 @@ export const FeedItem = z.object({
   type: z.string(),
   title: z.string(),
   card: Card,
+  diff: CardDiff.nullable().default(null),
   verification: Verification,
   sync: Sync,
   contradictions: z.number().int().nonnegative(),
@@ -271,10 +328,27 @@ export const Run = z.object({
 });
 export type Run = z.infer<typeof Run>;
 
+/**
+ * A part of a card the user added to a chat's context: a quote of selected text or a picked diagram element, with the
+ * entity and the headings it sits under
+ */
+export const ContextItem = z
+  .object({
+    workspace: z.string(),
+    path: z.string(),
+    title: z.string(),
+    heading: z.array(z.string()).default([]),
+    quote: z.string().min(1).optional(),
+    element: z.string().min(1).optional(),
+  })
+  .refine((c) => (c.quote === undefined) !== (c.element === undefined), 'Either a quote or a diagram element');
+export type ContextItem = z.infer<typeof ContextItem>;
+
 export const RunMessage = z.object({
   seq: z.number(),
   role: z.enum(['user', 'assistant']),
   text: z.string(),
+  context: z.array(ContextItem).default([]),
   at: z.string(),
 });
 export type RunMessage = z.infer<typeof RunMessage>;
@@ -282,7 +356,7 @@ export type RunMessage = z.infer<typeof RunMessage>;
 export const RunDetail = Run.extend({ messages: z.array(RunMessage) });
 export type RunDetail = z.infer<typeof RunDetail>;
 
-export const PostRunMessage = z.object({ text: z.string().min(1) });
+export const PostRunMessage = z.object({ text: z.string().min(1), context: z.array(ContextItem).default([]) });
 export type PostRunMessage = z.infer<typeof PostRunMessage>;
 
 export const ChatListItem = z.object({
@@ -304,6 +378,7 @@ export type ChatsResponse = z.infer<typeof ChatsResponse>;
 export const CreateChatRequest = z.object({
   text: z.string().min(1),
   targetPath: z.string().optional(),
+  context: z.array(ContextItem).default([]),
 });
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 

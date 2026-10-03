@@ -1,8 +1,9 @@
-import type { Block, Card, Inline } from '@momentum/contract';
+import type { Block, Card, DiagramElement, Inline } from '@momentum/contract';
 import type { PhrasingContent, Root, RootContent } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
+import { pickable } from './diagram-elements.ts';
 
 export type DiagramRenderer = (sources: string[]) => Promise<string[]>;
 
@@ -82,13 +83,31 @@ function blocks(nodes: RootContent[], diagrams: Block[]): Block[] {
 /** Card from the markdown AST; plantuml code blocks become diagrams rendered to SVG */
 export async function toCard(body: string, render?: DiagramRenderer): Promise<Card> {
   const tree = processor.parse(body) as Root;
-  const diagrams: Block[] = [];
-  const card = blocks(tree.children, diagrams);
-  if (diagrams.length > 0 && render) {
-    const svgs = await render(diagrams.map((d) => (d as { source: string }).source));
-    diagrams.forEach((d, i) => {
-      (d as { svg: string }).svg = svgs[i] ?? '';
-    });
-  }
+  const card = blocks(tree.children, []);
+  if (render) await renderDiagrams(card, render);
   return card;
+}
+
+type Drawn = { svg: string; source: string; elements?: DiagramElement[] };
+
+/** Renders every diagram of a card, a diff card's before versions included, that has no SVG yet, with its pickable shapes */
+export async function renderDiagrams(card: Card, render: DiagramRenderer): Promise<void> {
+  const pending: Drawn[] = [];
+  const walk = (bs: Block[]) => {
+    for (const b of bs) {
+      if (b.t === 'diagram') {
+        if (!b.svg) pending.push(b);
+        if (b.before && !b.before.svg) pending.push(b.before);
+      } else if (b.t === 'quote' || b.t === 'ins' || b.t === 'del') walk(b.c);
+      else if (b.t === 'list') b.items.forEach(walk);
+    }
+  };
+  walk(card);
+  if (pending.length === 0) return;
+  const svgs = await render(pending.map((d) => d.source));
+  pending.forEach((d, i) => {
+    const { svg, elements } = pickable(svgs[i] ?? '');
+    d.svg = svg;
+    d.elements = elements;
+  });
 }

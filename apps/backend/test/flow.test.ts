@@ -251,6 +251,45 @@ describe('guard, feed and approval', () => {
     expect((await m.momentum.entity('alpha', 'Product/Feature/swipe')).contradictions).toBe(1); // the order issue stays open
     await expect(m.momentum.wontResolve('alpha', 'Product/Feature/swipe', 'x', 0)).rejects.toThrow('not an issue');
   });
+
+  it('shows a changed card as a diff against its last verified version until it is approved again', async () => {
+    expect((await m.momentum.entity('alpha', 'Product/UserStory/rank')).diff).toBeNull(); // never verified
+    await run('r9', {
+      'knowledge-graph/Governance/Decision/private-mesh.md': entity(
+        'Governance/Decision',
+        'Remote access over a private mesh',
+        'Clients reach the machine through a VPN.\n\n```plantuml\nrectangle Client\nrectangle Mesh\nrectangle API\nClient -> Mesh\nMesh -> API\n```',
+        ['Architecture/Api/session'],
+      ),
+    });
+    const d = await m.momentum.entity('alpha', 'Governance/Decision/private-mesh');
+    expect(d.diff?.card[0]).toEqual({
+      t: 'p',
+      c: [{ t: 'text', v: 'Clients reach the machine through a ' }, { t: 'del', c: [{ t: 'text', v: 'mesh' }] }, { t: 'ins', c: [{ t: 'text', v: 'VPN' }] }, { t: 'text', v: '.' }],
+    });
+    expect(d.diff).toMatchObject({ title: null, removed: 1, added: 1 });
+    const diagram = d.diff!.card.find((b) => b.t === 'diagram');
+    expect(diagram?.t === 'diagram' && diagram.elements?.map((e) => e.name)).toEqual(['Client', 'Mesh', 'API', 'Client → Mesh', 'Mesh → API']);
+    expect((await m.momentum.feed()).items.find((i) => i.path === 'Governance/Decision/private-mesh')?.diff).toEqual(d.diff);
+    await m.momentum.approve('alpha', 'Governance/Decision/private-mesh', 100);
+    expect((await m.momentum.entity('alpha', 'Governance/Decision/private-mesh')).diff).toBeNull();
+  });
+
+  it('hands the parts of cards added to a chat to the agent as references', async () => {
+    const context = [
+      { workspace: 'alpha', path: 'Governance/Decision/private-mesh', title: 'Remote access', heading: [], quote: 'through a VPN' },
+      { workspace: 'alpha', path: 'Governance/Decision/private-mesh', title: 'Remote access', heading: ['Flow'], element: 'Mesh' },
+    ];
+    const { runId } = await m.momentum.createChat('alpha', 'Why a VPN?', undefined, context);
+    const r = await m.momentum.run(runId);
+    expect(r.messages[0]).toMatchObject({ role: 'user', text: 'Why a VPN?', context });
+    const [row] = await m.workspaces.sql<{ prompt: string }[]>`select prompt from ws_alpha.run where id = ${runId}`;
+    expect(row!.prompt).toBe(
+      '```\nknowledge-graph/Governance/Decision/private-mesh.md >\n\n... through a VPN ...\n```\n\n' +
+        '```\nknowledge-graph/Governance/Decision/private-mesh.md > Flow > < Mesh >\n```\n\nWhy a VPN?',
+    );
+    await m.momentum.killRun(runId).catch(() => {});
+  });
 });
 
 describe('orchestrator', () => {

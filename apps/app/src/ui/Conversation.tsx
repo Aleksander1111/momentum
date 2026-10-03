@@ -7,7 +7,8 @@ import { automationLabel, duration, usagePct } from '../lib/format';
 import { C, F } from './theme';
 import { T } from './Text';
 import { Markdown } from './Markdown';
-import { Composer } from './Composer';
+import { Composer, ContextChip } from './Composer';
+import { chatContext, useChatContext } from '../lib/context';
 import { Btn } from './parts';
 
 const ACTIVE = new Set(['queued', 'running']);
@@ -58,6 +59,7 @@ export function Conversation({ runId }: { runId: string }) {
     queryFn: () => api.run(runId),
     refetchInterval: (q) => (q.state.data && !ACTIVE.has(q.state.data.status) ? false : 3_000),
   });
+  const context = useChatContext(run?.workspace ?? null);
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -90,6 +92,13 @@ export function Conversation({ runId }: { runId: string }) {
                 paddingHorizontal: 14,
               }}
             >
+              {m.context.length ? (
+                <View style={{ gap: 4, marginBottom: 6, alignItems: 'flex-start' }}>
+                  {m.context.map((c, i) => (
+                    <ContextChip key={i} item={c} inverse />
+                  ))}
+                </View>
+              ) : null}
               <T style={[bubbleText, { color: C.surface }]}>{m.text}</T>
             </View>
           ) : (
@@ -114,8 +123,10 @@ export function Conversation({ runId }: { runId: string }) {
       </ScrollView>
       <Composer
         placeholder="Message"
+        context={context}
         onSend={async (text) => {
-          await api.postMessage(runId, { text });
+          await api.postMessage(runId, { text, context });
+          if (run) chatContext.clear(run.workspace);
           await qc.invalidateQueries({ queryKey: ['run', runId] });
         }}
       />
