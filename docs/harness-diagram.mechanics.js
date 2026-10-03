@@ -393,12 +393,12 @@ function automations() {
   });
 
   // two lanes
-  const X = 1120;
+  const X = 1100;
   g += caption(X, 80, 'One project, two lanes', null, { size: 32 });
   g += caption(X, 150, 'Automation runs', 'queued, one at a time', { size: 24 });
   [['Exploration', 'FaCompass', 175], ['Implementation', 'FaCode', 205], ['Validation', 'FaFlaskVial', 160], ['Summarization', 'FaFileLines', 185]].reduce((x, [s, ic, w]) => {
     g += pod(x, 205, w, 62, s, ic, LAYER.prod, { size: 17 });
-    return x + w + 10;
+    return x + w + 8;
   }, X);
   g += caption(X, 340, 'Your runs', 'at once, alongside', { size: 24, fill: C.red });
   g += pod(X + 40, 385, 330, 62, 'Chat', 'FaComments', LAYER.att);
@@ -489,11 +489,11 @@ function gate() {
   // after the gate
   g += miniCard(1200, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 }) + circle(1312, 266, 15, { fill: C.ok, stroke: C.white, sw: 3 }) + iconAt('FaCheck', 1312, 266, 15, C.white);
   g += miniCard(1340, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 }) + circle(1452, 266, 15, { fill: C.red, stroke: C.white, sw: 3 }) + iconAt('FaFlag', 1452, 266, 15, C.white);
-  g += line(1470, 305, 1640, 305, { stroke: C.ink, sw: 6, head: 'ink' });
+  g += line(1470, 305, 1620, 305, { stroke: C.ink, sw: 6, head: 'ink' });
   // the main line
-  g += line(1700, 90, 1700, 520, { stroke: C.ink, sw: 14 });
-  [140, 220, 305, 400, 470].forEach((y, i) => (g += circle(1700, y, i === 2 ? 28 : 16, { fill: i === 2 ? C.ok : C.white, stroke: i === 2 ? C.white : C.ink, sw: i === 2 ? 6 : 7 })));
-  g += text(1760, 300, 'Main line', { head: true, bold: true, size: 28 }) + text(1760, 330, 'one commit', { size: 20, fill: C.muted, italic: true });
+  g += line(1680, 90, 1680, 520, { stroke: C.ink, sw: 14 });
+  [140, 220, 305, 400, 470].forEach((y, i) => (g += circle(1680, y, i === 2 ? 28 : 16, { fill: i === 2 ? C.ok : C.white, stroke: i === 2 ? C.white : C.ink, sw: i === 2 ? 6 : 7 })));
+  g += text(1735, 300, 'Main line', { head: true, bold: true, size: 28 }) + text(1735, 330, 'one commit', { size: 20, fill: C.muted, italic: true });
 
   // the consistency check loop
   g += rect(60, 560, 1800, 370, { r: 22, fill: C.paper });

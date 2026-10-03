@@ -23,25 +23,28 @@ const HARNESS = [
 // ---------------------------------------------------------------- geometry (inches, 13.333 x 7.5)
 const CX = 8.9;
 const HDR = { y: 0.3, h: 0.5 };
-const HARN = { x: 0.35, w: 4.25, y: 1.0, bottom: 6.95, gap: 0.12 };
+const TITLE_W = 5.4; // every slide's title bar, as in harness-diagram.mechanics.js
+// section headings under the title bar, as on the mechanics slides
+const SEC = { y: 1.0, h: 0.32 };
+const HARN = { x: 0.35, w: 4.25, y: 1.45, bottom: 6.95, gap: 0.1 };
 const PROD = { x: 4.8, w: 8.2 };
 const BANDS = [
-  { key: 'att', y: 1.0, h: 2.0, label: ['Attention', 'Layer'], ly: 2.0 },
-  { key: 'kn', y: 3.0, h: 1.25, label: ['Knowledge', 'Layer'], ly: 3.62 },
-  { key: 'prod', y: 4.25, h: 2.7, label: ['Product', 'Layer'], ly: 5.3 },
+  { key: 'att', y: 1.45, h: 1.8, label: ['Attention', 'Layer'], ly: 2.3 },
+  { key: 'kn', y: 3.25, h: 1.2, label: ['Knowledge', 'Layer'], ly: 3.85 },
+  { key: 'prod', y: 4.45, h: 2.5, label: ['Product', 'Layer'], ly: 5.45 },
 ];
 const TOP = { w: 1.4, h: 0.46 };
-const LOW = { w: 1.3, h: 0.34 };
-const ROWS = [4.72, 5.16, 5.6, 6.04, 6.48];
+const LOW = { w: 1.3, h: 0.32 };
+const ROWS = [4.87, 5.27, 5.67, 6.07, 6.47];
 
 const N = {};
 const node = (id, text, cx, cy, sz, layer) => (N[id] = { id, text, cx, cy, w: sz.w, h: sz.h, layer });
-node('af', 'Attention Feed', CX, 1.55, TOP, 0);
-node('prio', 'Prioritizer', CX - 1.05, 2.45, TOP, 0);
-node('ret', 'Retention', CX + 1.05, 2.45, TOP, 0);
-node('sc', 'Entity Cards', CX - 2.0, 3.62, TOP, 1);
-node('cg', 'Consistency Gate', CX, 3.62, TOP, 1);
-node('kg', 'Knowledge Graph', CX + 2.0, 3.62, TOP, 1);
+node('af', 'Attention Feed', CX, 1.98, TOP, 0);
+node('prio', 'Prioritizer', CX - 1.05, 2.78, TOP, 0);
+node('ret', 'Retention', CX + 1.05, 2.78, TOP, 0);
+node('sc', 'Entity Cards', CX - 2.0, 3.85, TOP, 1);
+node('cg', 'Consistency Gate', CX, 3.85, TOP, 1);
+node('kg', 'Knowledge Graph', CX + 2.0, 3.85, TOP, 1);
 const LEFT = ['Story', 'Plan', 'Change', 'Bug', 'Refactor'];
 const RIGHT = ['Exploration', 'Preparation', 'Implementation', 'Testing', 'Review'];
 LEFT.forEach((t, i) => node('l' + i, t, CX - 0.95, ROWS[i], LOW, 2));
@@ -104,15 +107,15 @@ async function render(pres, T) {
   const fillOf = (f, tr) => (f ? { color: f, transparency: tr } : { type: 'none' });
   const bodyFont = T.font.body, headFont = T.font.head;
 
-  // headers
-  const header = (x, w, H, text) => s.addText(text, {
-    shape: shp(H.radius), rectRadius: H.radius, x, y: HDR.y, w, h: HDR.h,
-    fill: fillOf(H.fill, H.transparency), line: lineOf(H.line), shadow: shadow(H.shadow),
-    color: H.color, fontFace: headFont, fontSize: H.size ?? 18, bold: H.bold ?? false, charSpacing: H.charSpacing,
-    align: H.align ?? 'center', valign: 'middle', margin: [14, 14, 0, 5], isTextBox: true,
+  // title bar, then the two section headings
+  const H = T.hHeader;
+  s.addText(pres.title, {
+    shape: pres.shapes.RECTANGLE, x: HARN.x, y: HDR.y, w: TITLE_W, h: HDR.h, fill: { color: H.fill },
+    color: H.color, fontFace: headFont, fontSize: H.size ?? 20, align: 'left', valign: 'middle', margin: [14, 14, 0, 5], isTextBox: true,
   });
-  header(HARN.x, HARN.w, T.hHeader, T.hHeader.upper ? 'HARNESS' : 'Harness');
-  header(PROD.x, 2.1, T.pHeader, T.pHeader.upper ? 'PRODUCTS' : 'Products');
+  for (const [x, text] of [[HARN.x, 'Harness'], [PROD.x, 'Products']]) {
+    s.addText(text, { x, y: SEC.y, w: 3, h: SEC.h, color: T.section.color, fontFace: headFont, fontSize: T.section.size, bold: true, valign: 'middle', margin: 0, isTextBox: true });
+  }
 
   // harness cards
   const C = T.card;
@@ -169,8 +172,8 @@ async function render(pres, T) {
   if (T.sides) {
     // left of the border is unverified, right is verified — shown at the top of the attention layer
     const side = (S, iconX, textX, align) => Promise.all([
-      iconData(S.icon, S.color).then((data) => s.addImage({ data, x: iconX, y: 1.17, w: 0.2, h: 0.2 })),
-      s.addText(S.text, { x: textX, y: 1.12, w: 1.1, h: 0.3, color: S.color, fontFace: headFont, fontSize: 12, bold: true, align, valign: 'middle', margin: 0, isTextBox: true }),
+      iconData(S.icon, S.color).then((data) => s.addImage({ data, x: iconX, y: 1.6, w: 0.2, h: 0.2 })),
+      s.addText(S.text, { x: textX, y: 1.55, w: 1.1, h: 0.3, color: S.color, fontFace: headFont, fontSize: 12, bold: true, align, valign: 'middle', margin: 0, isTextBox: true }),
     ]);
     await side(T.sides.unverified, CX - 2.35, CX - 2.08, 'left');
     await side(T.sides.verified, CX + 1.24, CX + 1.51, 'left');
@@ -289,7 +292,7 @@ async function renderApp(pres, T) {
   const shade = (o = {}) => ({ type: 'outer', blur: 6, offset: 2, angle: 90, color: '1E293B', opacity: 0.16, ...o });
 
   s.addText('Mobile App', {
-    shape: pres.shapes.RECTANGLE, x: 0.35, y: HDR.y, w: 4.25, h: HDR.h, fill: { color: T.hHeader.fill },
+    shape: pres.shapes.RECTANGLE, x: 0.35, y: HDR.y, w: TITLE_W, h: HDR.h, fill: { color: T.hHeader.fill },
     color: 'FFFFFF', fontFace: head, fontSize: 20, align: 'left', valign: 'middle', margin: [14, 14, 0, 5], isTextBox: true,
   });
 
@@ -342,7 +345,7 @@ async function renderApp(pres, T) {
       c.diagram.boxes.forEach((bx) => {
         const { lx, ly } = box(bx);
         s.addText(bx[0], {
-          shape: pres.shapes.RECTANGLE, ...at(lx, ly, bw, bh), fill: { color: 'FFFFFF' }, line: { color: INK, width: 0.75 },
+          shape: pres.shapes.ROUNDED_RECTANGLE, rectRadius: 0.06, ...at(lx, ly, bw, bh), fill: { color: 'FFFFFF' }, line: { color: INK, width: 1 },
           fontFace: body, fontSize: 8.5, color: INK, align: 'center', valign: 'middle', margin: 0, isTextBox: true,
         });
       });
@@ -440,18 +443,25 @@ const THEME = {
   name: 'Terracotta Editorial',
   bg: 'FFFFFF', font: { head: 'Cambria', body: 'Calibri' },
   hHeader: { fill: '2F3E46', color: 'FFFFFF', size: 20, align: 'left' },
-  pHeader: { fill: 'B85042', color: 'FFFFFF', size: 20, align: 'left' },
-  card: { fill: 'EEF1EC', titleColor: '2F3E46', itemColor: '52606A', titleSize: 10 },
+  section: { color: '2F3E46', size: 15 },
+  // the mechanics slides' look: rounded paper cards, layer-coloured pills on rounded washes, soft shadows
+  card: { fill: 'EEF1EC', radius: 0.15, titleColor: '2F3E46', itemColor: '52606A', titleSize: 10 },
   icons: { fill: 'FFFFFF', color: '2F3E46' },
+  bandRadius: 0.15, bandGap: 0.1,
   bands: [
-    { fill: 'F4DCD6', labelColor: 'A0402F' },
-    { fill: 'EFE8D2', labelColor: '7C6224' },
-    { fill: 'DCE7DF', labelColor: '3F6B52' },
+    { fill: 'F4DCD6', labelColor: 'A0402F', labelFill: 'FFFFFF' },
+    { fill: 'EFE8D2', labelColor: '7C6224', labelFill: 'FFFFFF' },
+    { fill: 'DCE7DF', labelColor: '3F6B52', labelFill: 'FFFFFF' },
   ],
-  label: { font: 'Cambria', italic: true, size: 13 },
-  box: { fill: 'FFFFFF', line: { color: '2F3E46', width: 0.75 }, color: '2F3E46', shadow: soft({ blur: 3, offset: 1.5, opacity: 0.18 }) },
-  edge: { color: '2F3E46', width: 1 },
-  border: { color: 'B85042', width: 1.25, italic: true },
+  label: { pill: true },
+  box: { fill: 'FFFFFF', pill: true, bold: true, color: '2F3E46', shadow: soft() },
+  boxByLayer: [
+    { line: { color: 'A0402F', width: 1.5 } },
+    { line: { color: '7C6224', width: 1.5 } },
+    { line: { color: '3F6B52', width: 1.5 } },
+  ],
+  edge: { color: '52606A', width: 1.75 },
+  border: { color: 'A0402F', width: 1.5, italic: true },
   sides: {
     unverified: { text: 'Unverified', color: '8A6D2B', icon: 'FaCircleQuestion' },
     verified: { text: 'Verified', color: '3F6B52', icon: 'FaCircleCheck' },
