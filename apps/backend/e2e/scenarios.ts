@@ -3,7 +3,7 @@ import type { Feature } from './features.ts';
 /**
  * End-to-end scenarios over the example projects in examples/. Each runs in isolation: its own workspaces root, its
  * own database, a fresh copy of its example project and of the harness definitions. A `real` scenario starts real
- * Claude Code runs and is skipped once the account's 5-hour or weekly usage passes the cap.
+ * Claude Code runs and is skipped once the account's 5-hour or weekly limit is used up, to be continued once it resets.
  */
 export interface Scenario {
   id: string;

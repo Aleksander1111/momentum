@@ -11,3 +11,4 @@ apps/backend/service/*.wrapper.log
 .e2e-results/
 .e2e-web/
 .e2e-runner.log
+.e2e-progress.json

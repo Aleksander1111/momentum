@@ -21,7 +21,6 @@
   .meter { display: flex; align-items: center; gap: 8px; min-width: 240px; }
   .bar { position: relative; flex: 1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
   .bar > i { position: absolute; inset: 0 auto 0 0; background: var(--run); }
-  .bar > b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--bad); }
   main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 1fr) auto minmax(300px, 1.1fr); gap: 12px; padding: 12px; }
   section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; }
   section > h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
@@ -93,9 +92,9 @@
   </div>
   <span id="waiting" class="waiting"></span>
   <span id="current" class="tag"></span>
-  <div class="meter" title="Share of the 5-hour limit; the red mark is the cap where real runs stop">
+  <div class="meter" title="Share of the 5-hour limit used; real scenarios are skipped once it or the weekly limit is used up">
     <span id="usage-label">5-hour usage</span>
-    <div class="bar"><i id="usage-bar"></i><b id="usage-cap"></b></div>
+    <div class="bar"><i id="usage-bar"></i></div>
   </div>
 </header>
 <main>
@@ -105,6 +104,7 @@
       <button id="run-picked" class="go">Run selected</button>
       <button id="run-all">Run all</button>
       <button id="run-offline" title="Scenarios that use no Claude usage">Run no-usage</button>
+      <button id="continue" title="Run what the last run left: scenarios skipped once the limit ran out, or never reached">Continue</button>
       <button id="stop-run" class="stop">Stop</button>
       <span id="run-hint" class="hint"></span>
     </div>
@@ -185,9 +185,12 @@
       .join('');
 
     const u = s.usage;
-    $('usage-label').textContent = u.fiveHour === null ? '5-hour usage' : `5-hour ${Math.round(u.fiveHour)}% · cap ${Math.round(u.cap)}%`;
+    const resets = (iso) => (iso ? new Date(iso).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+    const full = (u.week ?? 0) >= 100 ? `weekly limit until ${resets(u.weekResets)}` : (u.fiveHour ?? 0) >= 100 ? `limit until ${resets(u.fiveHourResets)}` : '';
+    $('usage-label').textContent =
+      u.fiveHour === null ? '5-hour usage' : `5-hour ${Math.round(u.fiveHour)}% · week ${Math.round(u.week ?? 0)}%${full ? ` · ${full}` : ''}`;
+    $('usage-label').style.color = full ? 'var(--skip)' : '';
     $('usage-bar').style.width = `${Math.min(100, u.fiveHour ?? 0)}%`;
-    $('usage-cap').style.left = `${Math.min(99.5, u.cap ?? 100)}%`;
 
     const cur = s.current;
     $('current').textContent = cur ? cur.id : '';
@@ -223,12 +226,18 @@
   $('run-picked').addEventListener('click', () => startRun([...picked]));
   $('run-all').addEventListener('click', () => startRun(last.scenarios.map((x) => x.id)));
   $('run-offline').addEventListener('click', () => startRun(last.scenarios.filter((x) => !x.real).map((x) => x.id)));
+  $('continue').addEventListener('click', () => fetch('/continue', { method: 'POST' }));
   $('stop-run').addEventListener('click', () => fetch('/stop', { method: 'POST' }));
+  /** What the last run left: Continue runs these */
+  const remaining = (s) => s.scenarios.filter((x) => x.selected && x.status !== 'passed' && x.status !== 'failed');
 
   function renderRunner(r) {
     const off = !r.available;
-    for (const id of ['run-picked', 'run-all', 'run-offline']) $(id).disabled = off || r.running;
+    for (const id of ['run-picked', 'run-all', 'run-offline', 'continue']) $(id).disabled = off || r.running;
     $('run-picked').disabled ||= picked.size === 0;
+    const left = remaining(last).length;
+    $('continue').disabled ||= left === 0;
+    $('continue').textContent = left ? `Continue (${left} left)` : 'Continue';
     $('stop-run').disabled = off || !r.running;
     $('run-hint').textContent = off
       ? 'Open the runner to start runs here: pnpm.cmd e2e:runner'

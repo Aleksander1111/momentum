@@ -22,10 +22,11 @@ Real-life situations over the example projects, each in its own world: copies of
 
 | Kind | Runs | Usage |
 |---|---|---|
-| Real | Claude Code on the account | Within 20 points of the 5-hour limit |
+| Real | Claude Code on the account | Up to the 5-hour and weekly limits |
 | Scripted | Claude Code answered by the scripted model | None |
 | No runs | Requests never answered | None |
 
 - features.ts lists every feature; a coverage test fails while one has no scenario
 - Hard limits; a dead back-end or nothing moving fails at once
+- A used-up limit skips the real scenarios; the runner's Continue runs what is left once it resets
 - Scripted: the harness's flows, and the products' lives: releases, bugs, refactors, parallel work, sprints, yearly updates, triage, pull requests, reviews, onboarding, busy days

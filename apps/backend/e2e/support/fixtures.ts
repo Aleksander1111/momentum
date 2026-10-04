@@ -5,7 +5,7 @@ import { Api } from './api.ts';
 import { App } from './app.ts';
 import { Env, type EnvOptions } from './env.ts';
 import { pace } from './pace.ts';
-import { aborted, breakScenario, cap, capReached, CapReached, readUsage, resetCap } from './usage.ts';
+import { aborted, breakScenario, limitOf, limitReached, LimitReached, readUsage, resetScenario } from './usage.ts';
 import { BlackHole } from './offline.ts';
 import { FakeCommandStream } from './voice.ts';
 import { ScriptedModel } from './scripted.ts';
@@ -72,16 +72,17 @@ const test = base.extend<object, { observer: Page }>({
   ],
 });
 
-async function reading(): Promise<number | null> {
+/** The account's limits, shown in the observer; null when they cannot be read */
+async function reading() {
   const u = await readUsage().catch(() => null);
-  if (!u) return null;
-  await post({ type: 'usage', fiveHour: u.fiveHour, week: u.week, cap: cap() });
-  return u.fiveHour;
+  if (u) await post({ type: 'usage', ...u });
+  return u;
 }
 
 /**
- * A scenario from the list, in its own world. A scenario with real runs is skipped when the 5-hour reading is at the
- * cap before it starts, and stopped (its back-end and runs killed) as soon as a reading during it reaches the cap.
+ * A scenario from the list, in its own world. A scenario with real runs is skipped when the account's 5-hour or weekly
+ * limit is used up before it starts, and stopped (its back-end and runs killed) as soon as a reading during it finds
+ * one used up; it fails only while there is room left. The test runner's Continue runs it again once the limit resets.
  */
 export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promise<void>): void {
   const s = SCENARIOS.find((x) => x.id === id);
@@ -91,11 +92,18 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
     STALL_MS = minutes(process.env.E2E_STALL_MINUTES, LIMITS.stall[kind]);
     STEP_MS = minutes(process.env.E2E_STEP_MINUTES, LIMITS.step[kind]);
     info.setTimeout(minutes(process.env.E2E_SCENARIO_MINUTES, LIMITS.scenario[kind]));
-    resetCap();
+    resetScenario();
     if (s.real) {
-      const now = await reading();
-      test.skip(now !== null && now >= cap(), `5-hour usage ${now}% is at the cap of ${cap()}%`);
+      const limit = limitOf(await reading());
+      test.skip(limit !== null, `${limit}: continue the run once it resets`);
     }
+    /** Skips instead of failing when the scenario went wrong because the limit ran out under it */
+    const outOfUsage = async (e: unknown): Promise<never> => {
+      if (e instanceof LimitReached) test.skip(true, e.message);
+      const limit = s.real ? limitOf(await reading()) : null;
+      if (limit) test.skip(true, `${limit}: the scenario's runs were stopped; continue the run once it resets`);
+      throw e;
+    };
 
     const voice = new FakeCommandStream();
     const voicePort = opts.voice ? await voice.listen() : 0;
@@ -118,9 +126,9 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
       await post({ type: 'note', text: `${s.title}: world at ${env.dir}, back-end ${env.url}` });
       if (s.real) {
         watch = setInterval(async () => {
-          const now = await reading();
-          if (now === null || now < cap()) return;
-          capReached(`5-hour usage reached ${now}%, the cap of ${cap()}%; the scenario's runs were stopped`);
+          const limit = limitOf(await reading());
+          if (!limit) return;
+          limitReached(`${limit}: the scenario's runs were stopped; continue the run once it resets`);
           env.stop();
         }, WATCH_MS);
       }
@@ -159,7 +167,7 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
           current = i;
           return test.step(title, async () => {
             await pace('step', title);
-            // Hard limits: the step ends at its timeout, or the moment the scenario breaks or reaches the cap,
+            // Hard limits: the step ends at its timeout, or the moment the scenario breaks or runs out of usage,
             // whatever it is waiting on
             let timer: NodeJS.Timeout | undefined;
             const timeout = new Promise<never>((_, reject) => {
@@ -168,8 +176,7 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
             try {
               return await Promise.race([fn(), aborted, timeout]);
             } catch (e) {
-              if (e instanceof CapReached) test.skip(true, e.message);
-              throw e;
+              return await outOfUsage(e);
             } finally {
               clearTimeout(timer);
             }
@@ -180,10 +187,7 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
       const running = body(world);
       // The scripts are registered as the body starts: the runs waiting on the model go on now
       model.release();
-      await Promise.race([running, aborted]).catch((e) => {
-        if (e instanceof CapReached) test.skip(true, e.message);
-        throw e;
-      });
+      await Promise.race([running, aborted]).catch(outOfUsage);
       expect([...done].sort(), 'every step of the scenario ran').toEqual(s.steps.map((_, i) => i));
       ok = true;
     } finally {

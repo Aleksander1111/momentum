@@ -123,7 +123,7 @@ export class Api {
 }
 
 /**
- * Polls until `probe` returns a value; stops at once when the usage cap is reached, and when the probe throws an error
+ * Polls until `probe` returns a value; stops at once when the usage limit is reached, and when the probe throws an error
  * marked `fatal`: what it waits for can no longer happen
  */
 export async function until<T>(what: string, probe: () => Promise<T | null | undefined | false>, timeoutMs = 120_000, everyMs = 2000): Promise<T> {

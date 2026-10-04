@@ -1,8 +1,9 @@
 // The observer: one page wrapping the app and, beside it, the app's timeline, with the scenario list, the progress of
-// each scenario's steps, the runs of the scenario under way and the share of the 5-hour limit the suite has used. The
-// reporter and the scenarios post what happens; the page follows it over server-sent events.
+// each scenario's steps, the runs of the scenario under way and the account's 5-hour and weekly limits. The reporter and
+// the scenarios post what happens; the page follows it over server-sent events. Where the last run got to is kept in a
+// file, so a run stopped by a used-up limit, or by closing the runner, can be continued later.
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
-import { createWriteStream, readdirSync, readFileSync } from 'node:fs';
+import { createWriteStream, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer, type ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import postgres from 'postgres';
@@ -39,13 +40,13 @@ const state = {
     steps: s.steps.map((title) => ({ title, status: 'pending' as Status })),
   })),
   current: null as null | { id: string; appUrl: string; workspaces: string[]; dir: string },
-  usage: { baseline: null as number | null, fiveHour: null as number | null, week: null as number | null, cap: null as number | null },
+  usage: { fiveHour: null as number | null, week: null as number | null, fiveHourResets: null as string | null, weekResets: null as string | null },
   runs: [] as RunView[],
   messages: [] as { run: string; role: string; text: string; at: string }[],
   notes: [] as { at: string; text: string }[],
   finished: false,
-  /** A run started from this page: which scenarios, and whether it is still going */
-  runner: { available: Boolean(process.env.E2E_RUNNER), running: false, ids: [] as string[], exit: null as number | null },
+  /** A run started from this page: which scenarios, whether it is still going, and whether it continues the last one */
+  runner: { available: Boolean(process.env.E2E_RUNNER), running: false, ids: [] as string[], exit: null as number | null, continuing: false },
   /** How the scenarios pace their actions in the app: a pause, one action at a time, a delay before each */
   control: {
     paused: false,
@@ -81,7 +82,7 @@ type Event =
   | { type: 'step'; id: string; title: string; status: Status }
   | { type: 'env'; id: string; appUrl: string; databaseUrl: string; workspaces: string[]; dir: string }
   | { type: 'env-end' }
-  | { type: 'usage'; baseline?: number | null; fiveHour: number | null; week: number | null; cap: number }
+  | { type: 'usage'; fiveHour: number | null; week: number | null; fiveHourResets: string | null; weekResets: string | null }
   | { type: 'note'; text: string }
   | { type: 'end' };
 
@@ -92,8 +93,9 @@ function onEvent(e: Event) {
     case 'begin':
       state.finished = false;
       for (const s of state.scenarios) {
-        s.selected = e.ids.includes(s.id);
-        if (!s.selected) continue;
+        // Continuing keeps the whole run in view: what finished before stays as it was
+        if (!state.runner.continuing) s.selected = e.ids.includes(s.id);
+        if (!e.ids.includes(s.id)) continue;
         s.status = 'pending';
         s.reason = null;
         for (const st of s.steps) st.status = 'pending';
@@ -125,16 +127,17 @@ function onEvent(e: Event) {
       sql = null;
       break;
     case 'usage':
-      state.usage = { baseline: e.baseline ?? state.usage.baseline, fiveHour: e.fiveHour, week: e.week, cap: e.cap };
+      state.usage = { fiveHour: e.fiveHour, week: e.week, fiveHourResets: e.fiveHourResets, weekResets: e.weekResets };
       break;
     case 'note':
       note(e.text);
       break;
     case 'end':
       state.finished = true;
-      note('Suite finished');
+      note(remaining().length ? `Suite finished; ${remaining().length} left to continue` : 'Suite finished');
       break;
   }
+  if (e.type === 'begin' || e.type === 'test' || e.type === 'step' || e.type === 'end') saveProgress();
   publish();
 }
 
@@ -210,13 +213,54 @@ const REPO = join(BACKEND, '..', '..');
 const SCENARIO_FILES = join(import.meta.dirname, '..', 'scenarios');
 let run: ChildProcess | null = null;
 
+/** Where the last run got to, kept across runner restarts */
+const PROGRESS = join(REPO, '.e2e-progress.json');
+type Saved = Record<string, { selected: boolean; status: Status; reason: string | null; steps: Status[] }>;
+
+function saveProgress(): void {
+  const saved: Saved = Object.fromEntries(
+    state.scenarios.map((s) => [s.id, { selected: s.selected, status: s.status, reason: s.reason, steps: s.steps.map((st) => st.status) }]),
+  );
+  try {
+    writeFileSync(PROGRESS, JSON.stringify(saved, null, 2));
+  } catch {
+    // the next event writes it again
+  }
+}
+
+function loadProgress(): void {
+  if (!existsSync(PROGRESS)) return;
+  try {
+    const saved = JSON.parse(readFileSync(PROGRESS, 'utf8')) as Saved;
+    for (const s of state.scenarios) {
+      const x = saved[s.id];
+      if (!x) continue;
+      // A scenario under way when the last run ended did not finish
+      const status = x.status === 'running' ? 'pending' : x.status;
+      Object.assign(s, { selected: x.selected, status, reason: x.reason });
+      s.steps.forEach((st, i) => (st.status = status === 'pending' || !x.steps[i] || x.steps[i] === 'running' ? 'pending' : x.steps[i]));
+    }
+  } catch {
+    // unreadable: start from nothing
+  }
+}
+loadProgress();
+
+/** The scenarios of the last run that did not pass or fail: skipped once the limit ran out, or never reached */
+function remaining(): string[] {
+  return state.scenarios.filter((s) => s.selected && s.status !== 'passed' && s.status !== 'failed').map((s) => s.id);
+}
+
 /** The scenario files of the chosen ids; the coverage check goes along with any run */
 function filesOf(ids: string[]): string[] {
   return readdirSync(SCENARIO_FILES).filter((f) => f.startsWith('00-') || ids.some((id) => f.replace(/^\d+-/, '') === `${id}.e2e.ts`));
 }
 
-/** Runs the chosen scenarios in this window: the test run connects to the runner's browser and drives this page */
-function startRun(ids: string[]): void {
+/**
+ * Runs the chosen scenarios in this window: the test run connects to the runner's browser and drives this page.
+ * Continuing runs what the last run left, keeping what it finished.
+ */
+function startRun(ids: string[], continuing = false): void {
   if (run || ids.length === 0) return;
   // Outside the results folder, which each run empties when it starts
   const log = createWriteStream(join(REPO, '.e2e-runner.log'));
@@ -228,11 +272,11 @@ function startRun(ids: string[]): void {
   });
   run.stdout?.pipe(log);
   run.stderr?.pipe(log);
-  state.runner = { ...state.runner, running: true, ids, exit: null };
-  note(`Run started: ${ids.length} ${ids.length === 1 ? 'scenario' : 'scenarios'}`);
+  state.runner = { ...state.runner, running: true, ids, exit: null, continuing };
+  note(`${continuing ? 'Run continued' : 'Run started'}: ${ids.length} ${ids.length === 1 ? 'scenario' : 'scenarios'}`);
   run.on('exit', (code) => {
     run = null;
-    state.runner = { ...state.runner, running: false, exit: code };
+    state.runner = { ...state.runner, running: false, exit: code, continuing: false };
     note(code ? `Run ended with failures (exit ${code}); log: .e2e-runner.log` : 'Run ended');
     publish();
   });
@@ -257,6 +301,14 @@ const server = createServer(async (req, res) => {
     }
     const { ids } = JSON.parse(await body(req)) as { ids: string[] };
     startRun(ids.filter((id) => state.scenarios.some((s) => s.id === id)));
+    return json(res, state.runner);
+  }
+  if (req.method === 'POST' && req.url === '/continue') {
+    if (!state.runner.available) {
+      res.statusCode = 409;
+      return json(res, { error: 'Open the test runner to continue runs from here: pnpm.cmd e2e:runner' });
+    }
+    startRun(remaining(), true);
     return json(res, state.runner);
   }
   if (req.method === 'POST' && req.url === '/stop') {
