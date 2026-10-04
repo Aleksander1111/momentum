@@ -21,10 +21,10 @@ kind: page
 
 Ranked cards from enabled projects, one at a time
 
-- Breadcrumb: project logo (to Explorer), tinted type pill with glyph, folders
-- Counters: verification, sync pills, count per state; wrap on a phone, clear of the Settings icon
+- Breadcrumb: project logo, type pill, folders
+- Counters: verification and sync pills with counts
 - A card changed since verified shows the diff: −/+ word counts; changed words, rows, items, code lines marked; a diagram as Before/After/Diff
 - Selected text, diagram shapes go to chat context
 - Swipe right approves; left opens a Disapprove sheet whose comment goes back
 - Issue cards add severity, concerns, options: right resolves with the pick; left takes a resolution or won't-resolve reason
-- Time on card goes with a reaction; polls every 15 s; queues offline
+- A reaction carries the time on card and the card version: one changed meanwhile is refused and shown again; polls every 15 s; queues offline

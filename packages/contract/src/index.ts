@@ -237,6 +237,8 @@ export const FeedItem = z.object({
   sync: Sync,
   contradictions: z.number().int().nonnegative(),
   rank: z.number(),
+  /** The card as shown: a reaction carrying it is refused once the card has changed since */
+  version: z.string().default(''),
   /** An issue with options to resolve it; the entities it concerns, the one at fault first */
   issue: IssueFields.pick({ category: true, severity: true, options: true, recommended: true })
     .extend({ concerns: z.array(z.string()) })
@@ -258,6 +260,8 @@ export type FeedResponse = z.infer<typeof FeedResponse>;
 export const ApproveRequest = z.object({
   workspace: z.string(),
   timeSpentMs: z.number().int().nonnegative(),
+  /** The version of the card the user approved, as the feed showed it */
+  version: z.string().optional(),
 });
 export type ApproveRequest = z.infer<typeof ApproveRequest>;
 
@@ -275,6 +279,8 @@ export const ResolveRequest = z
     option: z.number().int().nonnegative().optional(),
     comment: z.string().min(1).optional(),
     timeSpentMs: z.number().int().nonnegative(),
+    /** The version of the issue the user resolved, as the feed showed it */
+    version: z.string().optional(),
   })
   .refine((r) => (r.option === undefined) !== (r.comment === undefined), 'Either an option or a comment');
 export type ResolveRequest = z.infer<typeof ResolveRequest>;

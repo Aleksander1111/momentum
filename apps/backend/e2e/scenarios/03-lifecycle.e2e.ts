@@ -28,7 +28,7 @@ scenario('lifecycle', { enabled: [WS], graphBuild: 'building' }, async ({ env, a
   await step(0, async () => {
     const first = await buildRun();
     await app.setProject(WS, false);
-    expect((await api.graphBuild(WS)).state).toBe('stopped');
+    await until('the build stopped', async () => (await api.graphBuild(WS)).state === 'stopped', 30_000);
     expect((await api.runEnded(first.id, 60_000)).status).toBe('killed');
     await app.setProject(WS, true);
     await until('the build to resume', async () => (await api.graphBuild(WS)).state === 'building');

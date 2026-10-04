@@ -48,9 +48,9 @@ function createServer(m: Momentum): McpServer {
   );
   t(
     'run_automation',
-    'Start an automation on demand in a workspace, when its trigger entity allows it.',
-    { workspace: z.string(), automation: AutomationName, prompt: z.string().optional() },
-    (a) => m.runAutomation(a.workspace, a.automation, a.prompt),
+    'Start an automation on demand in a workspace, when its trigger entity allows it; with target_path, for that entity, such as implementing it again after a failed run.',
+    { workspace: z.string(), automation: AutomationName, prompt: z.string().optional(), target_path: z.string().optional() },
+    (a) => m.runAutomation(a.workspace, a.automation, a.prompt, a.target_path),
   );
   t('run', 'A run with its conversation and status.', { id: z.string() }, (a) => m.run(a.id));
   t('message', 'Steer a run or continue a chat, with parts of cards as context.', { id: z.string(), text: z.string(), context: z.array(ContextItem).optional() }, (a) =>

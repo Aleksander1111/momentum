@@ -30,6 +30,7 @@ const state = {
     id: s.id,
     title: s.title,
     real: s.real,
+    scripted: s.scripted ?? false,
     projects: s.projects,
     covers: s.covers,
     status: 'pending' as Status,

@@ -177,7 +177,7 @@
         const expanded = x.status === 'running' || x.status === 'failed' || open.has(x.id);
         return `<div class="sc ${x.status} ${x.selected ? '' : 'off'}" data-id="${x.id}">
           <div class="row"><input type="checkbox" class="pick" data-pick="${x.id}" ${picked.has(x.id) ? 'checked' : ''} aria-label="Run ${esc(x.title)}" /><span class="dot">${ICON[x.status]}</span><span class="grow">${esc(x.title)}</span>
-          <span class="tag ${x.real ? 'real' : ''}">${x.real ? 'real runs' : 'no runs'}</span></div>
+          <span class="tag ${x.real ? 'real' : ''}" title="${x.scripted ? 'Real Claude Code runs answered by a scripted model: no usage' : ''}">${x.real ? 'real runs' : x.scripted ? 'scripted runs' : 'no runs'}</span></div>
           ${expanded ? `<div class="steps">${x.steps.map((st) => `<div class="st ${st.status}"><span class="dot">${ICON[st.status]}</span><span>${esc(st.title)}</span></div>`).join('')}</div>` : ''}
           ${x.reason ? `<div class="reason">${esc(x.reason)}</div>` : ''}
         </div>`;

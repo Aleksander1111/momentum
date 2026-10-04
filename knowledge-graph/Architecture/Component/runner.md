@@ -26,11 +26,10 @@ artifacts:
 
 One Claude Code session per run, in a detached checkout of the main line.
 
-- **Start**: checkout at the tip; guard, KB and run MCP, hooks; one automation run per workspace
-- **Model**: from settings, or by risk for an implementation
-- **Messages**: in order; to a queued run join its prompt
-- **Stop hook**: changed artifacts, graph-build documents to summarization, once per state of those artifacts
-- **Finish**: guard lands it; usage split, metrics, coverage
+- **Start**: checkout at the tip; guard, KB and run MCP, hooks
+- **Messages**: in order; to a queued run join its prompt; stopped queued runs never start; bookkeeping turns stay out of chats
+- **Stop hook**: artifacts, build documents to summarization once per state
+- **Finish**: guard lands it; usage, metrics, coverage; failed summarization: targets artifact_ahead; a build run without report fails; 3 in a row stop the build
 - **Restart**: lost runs resume twice at most
-- **Timeline**: queued, started (model, risk), resumed, ended (status, usage, duration, by user); chats, interviews only failed
+- **Timeline**: one event per run; chats, interviews only when failed
 - **Chat**: transcript `chats/<id>.jsonl`

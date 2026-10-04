@@ -30,7 +30,7 @@ export interface EnvOptions {
 }
 
 export const git = (cwd: string, ...args: string[]) =>
-  execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true }).trim();
+  execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
 function put(dir: string, file: string, text: string) {
   mkdirSync(dirname(join(dir, file)), { recursive: true });

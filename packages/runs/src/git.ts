@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -13,6 +13,13 @@ export class GitError extends Error {
     readonly stderr: string,
   ) {
     super(message);
+  }
+}
+
+/** Files a commit was to change changed on the branch meanwhile: writing them now would undo what landed there */
+export class PathsChanged extends Error {
+  constructor(readonly paths: string[]) {
+    super(`${paths.join(', ')} changed meanwhile`);
   }
 }
 
@@ -216,25 +223,42 @@ export async function commitPathsFrom(
   files: { path: string; content: string | null }[],
   message: string,
 ): Promise<string> {
-  const parent = await head(repo, `refs/heads/${targetBranch}`);
-  const { run, done } = withIndex(repo);
-  try {
-    await run(['read-tree', parent]);
-    for (const f of files) {
-      if (f.content === null) {
-        await run(['update-index', '--force-remove', '--', f.path]);
-      } else {
-        const blob = await run(['hash-object', '-w', '--stdin'], f.content);
-        await run(['update-index', '--add', '--cacheinfo', `100644,${blob},${f.path}`]);
+  const first = await head(repo, `refs/heads/${targetBranch}`);
+  let parent = first;
+  // A run may land on the branch while this commit is built: built again on the new tip, unless it touched these files
+  for (let attempt = 0; ; attempt++) {
+    const { run, done } = withIndex(repo);
+    try {
+      await run(['read-tree', parent]);
+      for (const f of files) {
+        if (f.content === null) {
+          await run(['update-index', '--force-remove', '--', f.path]);
+        } else {
+          const blob = await run(['hash-object', '-w', '--stdin'], f.content);
+          await run(['update-index', '--add', '--cacheinfo', `100644,${blob},${f.path}`]);
+        }
       }
+      const tree = await run(['write-tree']);
+      const commit = await run([...IDENTITY, 'commit-tree', tree, '-p', parent, '-m', message]);
+      const moved = await git(repo, ['update-ref', `refs/heads/${targetBranch}`, commit, parent]).then(
+        () => false,
+        (e) => {
+          if (attempt >= 4) throw e;
+          return true;
+        },
+      );
+      if (!moved) {
+        await syncCheckedOut(repo, targetBranch, parent, files.map((f) => f.path));
+        return commit;
+      }
+    } finally {
+      await done();
     }
-    const tree = await run(['write-tree']);
-    const commit = await run([...IDENTITY, 'commit-tree', tree, '-p', parent, '-m', message]);
-    await git(repo, ['update-ref', `refs/heads/${targetBranch}`, commit, parent]);
-    await syncCheckedOut(repo, targetBranch, parent, files.map((f) => f.path));
-    return commit;
-  } finally {
-    await done();
+    const tip = await head(repo, `refs/heads/${targetBranch}`);
+    const ours = new Set(files.map((f) => f.path));
+    const touched = (await changes(repo, first, tip)).map((c) => c.path).filter((p) => ours.has(p));
+    if (touched.length > 0) throw new PathsChanged(touched);
+    parent = tip;
   }
 }
 
@@ -252,13 +276,46 @@ async function syncCheckedOut(repo: string, branch: string, previous: string, pa
   for (const path of paths) {
     const dirty = (await git(tree, ['diff', '--name-only', previous, '--', path])).trim();
     const untracked = (await git(tree, ['ls-files', '--others', '--exclude-standard', '--', path])).trim();
-    if (dirty || untracked) continue;
+    if (dirty || untracked) {
+      await keepWorkInProgress(tree, previous, path);
+      continue;
+    }
     const exists = (await git(tree, ['ls-tree', '--name-only', 'HEAD', '--', path])).trim();
     if (exists) await git(tree, ['checkout', 'HEAD', '--', path]);
     else {
       await git(tree, ['rm', '-q', '--cached', '--ignore-unmatch', '--', path]);
       await rm(`${tree}/${path}`, { force: true });
     }
+  }
+}
+
+/**
+ * A file the user is editing in the checked-out tree when the branch moved under it: the change that landed is merged
+ * into their copy (with conflict markers where both touched the same lines), and the index follows the branch, so what
+ * they commit next is their own change and never undoes the one that landed
+ */
+async function keepWorkInProgress(tree: string, previous: string, path: string): Promise<void> {
+  const landed = await show(tree, 'HEAD', path);
+  if (landed === null) {
+    // Removed on the branch: their copy stays, no longer tracked
+    await git(tree, ['rm', '-q', '--cached', '--ignore-unmatch', '--', path]);
+    return;
+  }
+  const dir = await mkdtemp(join(tmpdir(), 'momentum-merge-'));
+  try {
+    const base = join(dir, 'base');
+    const theirs = join(dir, 'theirs');
+    const file = join(tree, path);
+    // A checkout with CRLF line endings compares line by line only against the same endings
+    const crlf = (await readFile(file, 'utf8').catch(() => '')).includes('\r\n');
+    const eol = (text: string) => (crlf ? text.replace(/\r?\n/g, '\r\n') : text);
+    await writeFile(base, eol((await show(tree, previous, path)) ?? ''));
+    await writeFile(theirs, eol(landed));
+    const merged = await gitStatus(tree, ['merge-file', '-p', '-L', 'yours', '-L', 'before', '-L', 'landed', file, base, theirs]);
+    if (merged.code >= 0 && merged.code < 128) await writeFile(file, merged.stdout);
+    await git(tree, ['reset', '-q', 'HEAD', '--', path]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 }
 

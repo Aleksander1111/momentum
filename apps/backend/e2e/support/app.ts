@@ -112,6 +112,11 @@ export class App {
     await m.up();
   }
 
+  /** Swipes the card on top of the feed as the phone shows it, whether or not the back-end hears of it now */
+  async swipeTop(title: string, approve: boolean): Promise<void> {
+    await this.swipe(title, approve ? 320 : -320);
+  }
+
   /** Approves a feed item: swiped right in the app when it is on top */
   async approve(ws: string, path: string): Promise<void> {
     const title = await this.onTop(ws, path);
@@ -157,6 +162,19 @@ export class App {
       await this.api.call('POST', `/feed/${encodeURIComponent(path)}/wont-resolve`, { workspace: ws, comment: reason, timeSpentMs: 1000 });
     }
     await this.left(ws, path);
+  }
+
+  /** Resolves an issue in the user's own words, swiped left and sent; the chat run that applies it */
+  async ownResolution(ws: string, path: string, text: string): Promise<string> {
+    const title = await this.onTop(ws, path);
+    const since = new Date();
+    if (title) {
+      await this.swipe(title, -320);
+      await this.sheet('Your resolution', text, 'Send');
+    } else {
+      await this.api.call('POST', `/feed/${encodeURIComponent(path)}/resolve`, { workspace: ws, comment: text, timeSpentMs: 1000 });
+    }
+    return (await until('the resolving chat', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
   }
 
   private async sheet(heading: string, text: string, button: string): Promise<void> {

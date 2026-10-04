@@ -19,7 +19,7 @@ export interface Events {
   /** An implementable entity was approved with nothing implementing it */
   entity_ahead: [{ workspace: string; path: string }];
   /** Artifacts changed on the main line under these entities; one summarization run rewrites their cards */
-  artifact_ahead: [{ workspace: string; entities: { path: string; artifacts: string[] }[] }];
+  artifact_ahead: [{ workspace: string; entities: { path: string; artifacts: string[] }[]; added: string[] }];
   /** An implementation run finished and its work landed on the main line; validation runs next */
   implementation_finished: [{ workspace: string; runId: string; targetPath: string | null }];
   /** Trigger entities of a workspace changed on its main line */

@@ -9,11 +9,14 @@ export const FEATURES = {
   'project.disable': 'Disabling stops a graph build in progress; enabling again resumes it',
   'project.reset': 'Reset ends runs, removes checkouts, deletes the knowledge graph in one commit, drops the index and builds afresh',
   'project.harness-protected': 'The harness workspace cannot be reset',
+  'project.main-line': 'A developer working on another branch in the project leaves the main line where it is, across restarts; merging the branch is indexed',
+  'project.churn': 'A repository cloned under the root or removed from it is seen without a restart; a main line other than main is followed',
 
   // Definitions and triggers
   'definition.materialize': 'Approved Harness/Automation artifacts are written to <workspace>/.claude and kept out of git',
   'definition.approve': 'Approving a definition in the harness workspace materializes it into every enabled project',
   'definition.variant': 'A definition variant is recorded on each run of its automation for comparison',
+  'definition.review': 'A definition whose files a run changed lands unverified and is not materialized until approved',
   'trigger.defaults': 'Default triggers land on the main line unverified and wait in the feed',
   'trigger.schedule': 'An approved trigger with a cron schedule queues a run once per due time',
   'trigger.event': 'entity_ahead starts implementation; implementation_finished starts validation',
@@ -35,6 +38,10 @@ export const FEATURES = {
   'run.process-limits': 'Each run process is held to CPU and memory limits',
   'run.usage-share': 'A rise in the account limits is split among the runs active at both readings and recorded per run',
   'run.models': 'The model of a run follows the mode: single, per automation, or by risk estimated from the rules',
+  'run.queue': 'Runs past the total wait in order; a message to a waiting chat joins its first one; a waiting run stopped never starts',
+  'run.retry': 'An implementation that failed is started again on demand for the same entity',
+  'run.developer-work': "A developer's uncommitted work in the project survives a run landing in the same file, merged with it",
+  'run.failure': 'A run the API fails for ends failed with the reason; a chat resumes on the next message; a build failing three times in a row stops',
 
   // Guard
   'guard.live-check': 'A bad entity write is flagged to the run at once',
@@ -49,6 +56,10 @@ export const FEATURES = {
   'state.entity-ahead': 'An approved implementable entity with nothing implementing it is entity_ahead',
   'state.artifact-ahead': 'An artifact changed on the main line puts its entity artifact_ahead and starts one summarization run',
   'state.updating': 'An entity is updating while summarization rewrites it, synced after',
+  'state.new-files': 'Files a developer adds that no entity summarizes are summarized once the knowledge graph is complete',
+  'state.merges': 'Pull requests merged one after another are summarized one run each, in order, the cards ending on the latest',
+  'state.moved-files': 'Renamed, split, moved and deleted files are followed: no entity keeps pointing at a file that is gone',
+  'state.summarized-once': 'Artifacts a run summarized itself start no summarization run; a rewrite that changes nothing leaves the entity synced, a failed one artifact_ahead',
 
   // Feed and approval
   'feed.rank': 'The feed ranks entities across enabled projects by impact, unlocks and contradictions',
@@ -60,6 +71,9 @@ export const FEATURES = {
   'feed.wont-resolve': "Won't resolve closes an issue as verified with the reason",
   'feed.contradictions': 'Open contradiction issues over an entity are counted on it',
   'feed.patterns': 'Ten agreeing reactions on one entity type become an automatic approval or rejection pattern',
+  'feed.stale': 'A card that changed after the device showed it is not approved unseen',
+  'feed.once': 'The same reaction from two devices, a second tap or a replayed offline swipe acts once; a send back never starts a second chat',
+  'feed.retire': 'Approving a retirement removes what nothing else references, and the plan with it',
 
   // Knowledge base
   'kb.index': 'Entities are parsed, validated and indexed with references in both directions',
@@ -98,6 +112,7 @@ export const FEATURES = {
   'api.http': 'Every HTTP route answers to its contract',
   'api.mcp': 'The momentum MCP server drives the feed, chats, automations, graph build and reset',
   'app.pages': 'Every app page loads and acts on the backend: feed, explorer, entity, chat, timeline, metrics, settings',
+  'app.offline': 'Swipes made while the back-end is unreachable wait on the device and land once it is back',
   'app.timeline': "The timeline lists the user's actions and one event per run, kept up to date as it runs and lands, newest first, by project and actor, live beside the app in the observer",
   'settings.persist': 'Settings persist: feed size, card limit and rules, exclusions, lifetimes, total runs, models',
 

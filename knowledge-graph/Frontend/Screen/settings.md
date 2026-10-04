@@ -18,7 +18,7 @@ artifacts:
 ---
 # Settings
 
-Settings tab; changes save when editing ends.
+Changes save when editing ends; projects reload whenever the tab opens.
 
 | Section | Controls |
 |---|---|
@@ -27,7 +27,7 @@ Settings tab; changes save when editing ends.
 | Graph build (enabled project) | State, runs, entities, time, 5 h/week usage; coverage, estimate; Stop/Resume; Reset on a second tap |
 | Feed size | Items before loops pause |
 | Cards | Character limit, presentation rules |
-| Summarization | Never-summarized path patterns |
+| Summarization | Never-summarized paths |
 | Lifetimes | Rule per entity type |
-| Agents | Concurrent runs per project, in total |
-| Models | One for all, per automation, or implementation by risk (harness risk rules) |
+| Agents | Concurrent runs in total |
+| Models | One for all, per automation, or implementation by risk |

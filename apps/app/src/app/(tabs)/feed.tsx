@@ -384,10 +384,10 @@ export default function Feed() {
             wash={wash}
             sheetOpen={!!sheetFor}
             onApprove={() => {
-              approve.mutate({ workspace: top.workspace, path: top.path, timeSpentMs: spent() });
+              approve.mutate({ workspace: top.workspace, path: top.path, timeSpentMs: spent(), version: top.version });
             }}
             onResolve={(option) => {
-              resolve.mutate({ workspace: top.workspace, path: top.path, option, timeSpentMs: spent() });
+              resolve.mutate({ workspace: top.workspace, path: top.path, option, timeSpentMs: spent(), version: top.version });
             }}
             onDisapprove={() => setSheetFor({ item: top })}
           />

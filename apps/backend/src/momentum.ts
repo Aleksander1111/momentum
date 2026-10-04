@@ -66,8 +66,9 @@ export class Momentum {
     return { workspace: ws.name, ...r };
   }
 
+  /** The repositories under the root as they are now: one cloned a moment ago is listed, one removed is not */
   async workspaceList(): Promise<WorkspaceView[]> {
-    return this.settings.projects();
+    return this.settings.discover();
   }
 
   async setProjectLogo(name: string, logo: string | null): Promise<WorkspaceView> {
@@ -89,8 +90,8 @@ export class Momentum {
     return { items, counts };
   }
 
-  async approve(workspace: string, path: string, timeSpentMs: number): Promise<void> {
-    await this.approval.approve(workspace, path, timeSpentMs);
+  async approve(workspace: string, path: string, timeSpentMs: number, version?: string): Promise<void> {
+    await this.approval.approve(workspace, path, timeSpentMs, version);
     const ws = await this.workspaces.get(workspace);
     const row = await ws.index.row(path);
     if (row) await detectPatterns(ws, row.type);
@@ -102,8 +103,14 @@ export class Momentum {
     return { runId };
   }
 
-  async resolve(workspace: string, path: string, choice: { option?: number; comment?: string }, timeSpentMs: number): Promise<{ runId: string }> {
-    const runId = await this.approval.resolve(workspace, path, choice, timeSpentMs);
+  async resolve(
+    workspace: string,
+    path: string,
+    choice: { option?: number; comment?: string },
+    timeSpentMs: number,
+    version?: string,
+  ): Promise<{ runId: string }> {
+    const runId = await this.approval.resolve(workspace, path, choice, timeSpentMs, version);
     void this.orchestrator.tick();
     return { runId };
   }
@@ -207,16 +214,27 @@ export class Momentum {
     return { runId };
   }
 
-  /** Starts an automation whose trigger entity allows starting on demand */
-  async runAutomation(workspace: string, automation: AutomationName, prompt?: string): Promise<{ runId: string }> {
+  /**
+   * Starts an automation whose trigger entity allows starting on demand, for the workspace or for one entity, such as
+   * an implementation started again after it failed
+   */
+  async runAutomation(workspace: string, automation: AutomationName, prompt?: string, targetPath?: string): Promise<{ runId: string }> {
     const ws = await this.workspaces.get(workspace);
     const trigger = (await this.automations.triggers(ws)).find((t) => t.automation === automation);
     if (!trigger?.on_demand) throw new NotFound(`${automation} does not start on demand in ${workspace}`);
+    const target = targetPath ? await ws.index.row(targetPath) : null;
+    if (targetPath && !target) throw new NotFound(`No entity ${targetPath} in ${workspace}`);
     const runId = await this.runner.create({
       workspace,
       automation,
       trigger: 'on_demand',
-      prompt: prompt ?? 'Started on demand by the user: carry out your responsibility for this workspace now.',
+      title: target?.title,
+      targetPath: targetPath ?? null,
+      prompt:
+        prompt ??
+        (targetPath
+          ? `Started on demand by the user for the entity ${targetPath} ("${target!.title}"): carry out your responsibility for it now.`
+          : 'Started on demand by the user: carry out your responsibility for this workspace now.'),
     });
     void this.orchestrator.tick();
     return { runId };
@@ -277,7 +295,8 @@ export class Momentum {
     return workspaceMetrics(await this.workspaces.get(workspace), this.automations, range);
   }
 
-  getSettings(): Promise<Settings> {
+  async getSettings(): Promise<Settings> {
+    await this.settings.discover();
     return this.settings.get();
   }
 

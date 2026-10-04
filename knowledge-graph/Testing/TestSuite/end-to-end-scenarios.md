@@ -1,0 +1,31 @@
+---
+type: Testing/TestSuite
+origin: requested
+verification: unverified
+sync: synced
+product_impact: 2
+timeline_impact: 1
+unlocks: 3
+references:
+  - to: Testing/Mock/scripted-model
+    relation: depends_on
+  - to: Code/Repository/momentum
+    relation: part_of
+artifacts:
+  - apps/backend/e2e/scenarios.ts
+  - apps/backend/e2e/features.ts
+  - apps/backend/e2e/support/fixtures.ts
+---
+# End-to-end scenarios
+
+Real-life situations over the example projects, each in its own world: copies of the projects, a database, a back-end, the app in the observer.
+
+| Kind | Runs | Usage |
+|---|---|---|
+| Real | Claude Code on the account | Within 20 points of the 5-hour limit |
+| Scripted | Claude Code answered by the scripted model | None |
+| No runs | Requests never answered | None |
+
+- features.ts lists every feature; a coverage test fails while one has no scenario
+- Hard limits; a dead back-end or nothing moving fails at once
+- Scripted: the harness's flows, and the products' lives: releases, bugs, refactors, parallel work, sprints, yearly updates, triage, pull requests, reviews, onboarding, busy days

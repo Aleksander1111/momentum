@@ -179,7 +179,7 @@ export default function Explorer() {
       <Field
         icon="search"
         placeholder="Search entities"
-        value={mic.listening || mic.partial !== null ? (mic.partial ?? '') : q}
+        value={mic.partial ?? q}
         onChangeText={setQ}
         autoCorrect={false}
         editable={!mic.listening}

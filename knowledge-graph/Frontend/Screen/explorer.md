@@ -23,7 +23,7 @@ Browse a workspace's entities by domain and type, search them, or hand the explo
 
 - Workspace picker with logos, entity total; a collapsible domain/type tree with counts; entity rows with domain, title and state badges
 - Search, debounced 300 ms, replaces the tree with a flat result list
-- A mic in the search field: spoken words fill the search; an interview started by voice opens its chat
-- "Explore through an agent" opens the Chat tab with the workspace chosen and the composer focused
+- A mic in the search field: spoken words fill the search, shown while it listens; an interview started by voice opens its chat
+- "Explore through an agent" opens the Chat tab with the workspace chosen, composer focused
 - A breadcrumb elsewhere opens a workspace with the tree unfolded to one folder
-- Wide: the entity beside the tree; narrow: pushes the entity screen, header clear of the Settings icon
+- Wide: the entity beside the tree; narrow: the entity screen pushed

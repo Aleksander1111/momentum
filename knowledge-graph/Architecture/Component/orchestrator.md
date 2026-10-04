@@ -20,9 +20,9 @@ artifacts:
 ---
 # Orchestrator
 
-Starts and supervises the automation loops of each enabled project.
+Runs the loops of enabled projects.
 
-- **Tick**: indexes main lines; while the feed has room, queues due cron triggers and a graph build run; starts queued runs: one automation run per project at a time, user runs at once
-- **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → one summarization run over touched entities; set updating
-- **Enable**: materializes, indexes, commits the default triggers (optimization's in the harness alone), builds unless complete
-- **Disable**: stops a build; **reset** (not the harness): ends runs, removes checkouts and old branches, commits "Reset the knowledge graph", drops the index
+- **Tick**: rediscovers repositories (main line: the branch checked out when first opened); indexes main lines; with feed room, queues due triggers and a build run; starts queued runs: one automation run per project, user runs at once
+- **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → one summarization run, with new uncovered files once the graph is complete
+- **Enable**: materializes, indexes, commits the default triggers, builds unless complete
+- **Disable**: stops a build; **reset** (not the harness): ends runs, removes checkouts, deletes the graph in one commit, drops the index

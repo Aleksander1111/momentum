@@ -19,7 +19,7 @@ import { changes, fileHistory, head, land, listFiles, mergeBase, messageFile, sh
 import { watch, type FSWatcher } from 'chokidar';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, posix, relative } from 'node:path';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { HarnessSettings } from './harness.ts';
@@ -31,6 +31,8 @@ export interface RunRef {
   automation: string;
   checkout: string;
   targetPath: string | null;
+  /** Entities the run works on besides its target, such as those a summarization run rewrites */
+  targets?: string[];
 }
 
 /** Types whose approval waits for an implementation: approved with no `implements` reference, they are entity_ahead */
@@ -45,6 +47,7 @@ export const IMPLEMENTABLE = new Set([
 ]);
 
 export const ISSUE_TYPES = ['Harness/Issue', 'Harness/Conflict'];
+const DEFINITION = 'Harness/Automation';
 
 /** Git may check files out with CRLF line endings */
 export const sameText = (a: string, b: string) => a.replace(/\r\n/g, '\n') === b.replace(/\r\n/g, '\n');
@@ -65,6 +68,10 @@ export interface TransactionResult {
  */
 export class Guard {
   private watchers = new Map<string, { watcher: FSWatcher; issues: Map<string, ValidationIssue[]> }>();
+  /** The main line of a workspace is indexed by one caller at a time: each change is seen, and acted on, once */
+  private indexing = new Map<string, Promise<unknown>>();
+  /** Artifacts each run's summarization step was handed: landed with the run, they are summarized already */
+  private summarized = new Map<string, Set<string>>();
 
   constructor(
     private readonly workspaces: Workspaces,
@@ -120,7 +127,24 @@ export class Guard {
    * commit is indexed, an unverified one stands in the feed and a verified one leaves it. The one path into the index
    * for everything a run lands and everything the user commits or approves.
    */
-  async indexMainLine(ws: Workspace): Promise<void> {
+  indexMainLine(ws: Workspace): Promise<void> {
+    return this.exclusive(ws, () => this.indexNow(ws));
+  }
+
+  /** Runs `fn` while nothing else indexes the workspace's main line */
+  private exclusive<T>(ws: Workspace, fn: () => Promise<T>): Promise<T> {
+    const next = (this.indexing.get(ws.name) ?? Promise.resolve()).catch(() => {}).then(fn);
+    this.indexing.set(ws.name, next);
+    void next
+      .finally(() => {
+        if (this.indexing.get(ws.name) === next) this.indexing.delete(ws.name);
+      })
+      .catch(() => {});
+    return next;
+  }
+
+  /** `fromRun`: the change is a run's landing, whose new files its own summarization step covered */
+  private async indexNow(ws: Workspace, handled: Set<string> = new Set(), fromRun = false): Promise<void> {
     const commit = await head(ws.path, `refs/heads/${ws.main}`);
     const previous = await this.settings.indexedCommit(ws.name);
     if (previous === commit) return;
@@ -128,11 +152,13 @@ export class Guard {
     const onMain = new Set(files.map((f) => entityPathOf(f)!));
     let changed: Set<string> | null = null;
     let artifactFiles: string[] = [];
+    let added: string[] = [];
     if (previous) {
       try {
         const diff = await changes(ws.path, previous, commit);
         changed = new Set(diff.map((c) => entityPathOf(c.path)).filter((p): p is string => !!p));
         artifactFiles = diff.filter((c) => !entityPathOf(c.path)).map((c) => c.path);
+        added = fromRun ? [] : diff.filter((c) => c.status === 'A' && !entityPathOf(c.path)).map((c) => c.path);
       } catch {
         changed = null;
       }
@@ -157,7 +183,7 @@ export class Guard {
     }
     await ws.index.refreshContradictions();
     await this.settings.setIndexedCommit(ws.name, commit);
-    await this.artifactsChanged(ws, artifactFiles, changed);
+    await this.artifactsChanged(ws, artifactFiles.filter((f) => !handled.has(f)), changed, added);
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
     }
@@ -173,7 +199,7 @@ export class Guard {
    * them all. An entity that changed in the same commits as its artifact agrees with it already, for example a definition
    * edited together with its agent file.
    */
-  async artifactsChanged(ws: Workspace, artifactPaths: string[], changedEntities: Set<string> | null = null): Promise<void> {
+  async artifactsChanged(ws: Workspace, artifactPaths: string[], changedEntities: Set<string> | null = null, added: string[] = []): Promise<void> {
     const entities = new Map<string, string[]>();
     for (const artifact of artifactPaths) {
       for (const path of await ws.index.byArtifact(artifact)) {
@@ -181,10 +207,30 @@ export class Guard {
         entities.set(path, [...(entities.get(path) ?? []), artifact]);
       }
     }
+    const uncovered = await this.uncovered(ws, added);
     for (const path of entities.keys()) await ws.index.setSync(path, 'artifact_ahead');
-    if (entities.size > 0) {
-      this.bus.emit('artifact_ahead', { workspace: ws.name, entities: [...entities].map(([path, artifacts]) => ({ path, artifacts })) });
+    if (entities.size > 0 || uncovered.length > 0) {
+      this.bus.emit('artifact_ahead', {
+        workspace: ws.name,
+        entities: [...entities].map(([path, artifacts]) => ({ path, artifacts })),
+        added: uncovered,
+      });
     }
+  }
+
+  /**
+   * Files the user added that no entity summarizes, once the knowledge graph is built: until then the build maps them.
+   * The user's exclusions are never summarized.
+   */
+  private async uncovered(ws: Workspace, added: string[]): Promise<string[]> {
+    if (added.length === 0 || (await this.settings.graphBuild(ws.name)).state !== 'complete') return [];
+    const { summarization } = await this.settings.values();
+    const out: string[] = [];
+    for (const file of added) {
+      if (summarization.exclude.some((pattern) => posix.matchesGlob(file, pattern))) continue;
+      if ((await ws.index.byArtifact(file)).length === 0) out.push(file);
+    }
+    return out;
   }
 
   // Run checkout
@@ -226,6 +272,13 @@ export class Guard {
     await w?.watcher.close();
   }
 
+  /** The artifacts a run's summarization step is handed; once they land with the run, no summarization run follows for them */
+  handedToSummarization(runId: string, artifacts: string[]): void {
+    const set = this.summarized.get(runId) ?? new Set<string>();
+    for (const a of artifacts) set.add(a);
+    this.summarized.set(runId, set);
+  }
+
   async markUpdating(ws: Workspace, path: string | null): Promise<void> {
     if (path && (await ws.index.row(path))) await ws.index.setSync(path, 'updating');
   }
@@ -239,6 +292,7 @@ export class Guard {
   async transaction(run: RunRef): Promise<TransactionResult> {
     const ws = await this.workspaces.get(run.workspace);
     const { written, deleted, issues } = await this.check(run);
+    await this.definitionsToReview(ws, run, written);
     // Only the user verifies: an entity a run changed lands unverified, whatever the run left in its frontmatter
     for (const w of written) {
       if (w.entity.frontmatter.verification === 'unverified') continue;
@@ -250,11 +304,19 @@ export class Guard {
     if (!valid) await this.raiseIssue(ws, run, issues);
 
     const message = await this.message(run, written);
-    const landed = await this.land(ws, run, message);
-    await this.indexMainLine(ws);
-    if (run.targetPath && !written.some((w) => w.path === run.targetPath)) {
-      const row = await ws.index.row(run.targetPath);
-      if (row?.sync === 'updating') await ws.index.setSync(run.targetPath, await this.syncOf(ws, run.targetPath, row.frontmatter));
+    const handled = this.summarized.get(run.id) ?? new Set<string>();
+    this.summarized.delete(run.id);
+    // Landed and indexed in one go, so the artifacts the run summarized itself are never taken for the user's changes
+    const landed = await this.exclusive(ws, async () => {
+      const l = await this.land(ws, run, message);
+      await this.indexNow(ws, handled, true);
+      return l;
+    });
+    // Entities the run was to change and left as they were stand where they did: the run found nothing to change
+    for (const target of new Set([run.targetPath, ...(run.targets ?? [])])) {
+      if (!target || written.some((w) => w.path === target)) continue;
+      const row = await ws.index.row(target);
+      if (row?.sync === 'updating') await ws.index.setSync(target, await this.syncOf(ws, target, row.frontmatter));
     }
     await ws.index.sql`insert into ${ws.index.sql(`${ws.index.schema}.transaction`)} ${ws.index.sql({
       run_id: run.id,
@@ -277,6 +339,23 @@ export class Guard {
       conflicts: landed?.conflicts ?? [],
     });
     return { valid, paths, issues, conflicts: landed?.conflicts ?? [], commit: landed?.commit ?? null };
+  }
+
+  /**
+   * A definition whose files a run changed is a proposal like any other: it lands unverified, so it waits for the
+   * user in the feed and is not materialized into any project until approved
+   */
+  private async definitionsToReview(ws: Workspace, run: RunRef, written: { path: string; entity: ParsedEntity }[]): Promise<void> {
+    const base = await mergeBase(ws.path, `refs/heads/${ws.main}`, await head(run.checkout));
+    const files = (await workingChanges(run.checkout, base)).filter((c) => !entityPathOf(c.path)).map((c) => c.path);
+    for (const file of files) {
+      for (const path of await ws.index.byArtifact(file)) {
+        if (written.some((w) => w.path === path) || (await ws.index.row(path))?.type !== DEFINITION) continue;
+        const text = await readFile(join(run.checkout, fileOf(path)), 'utf8').catch(() => null);
+        if (text === null) continue;
+        written.push({ path, entity: parseEntity(text) });
+      }
+    }
   }
 
   /**
@@ -441,9 +520,9 @@ export class Guard {
         count(*) filter (where char_length(e.card) > $1 or exists (
           select 1 from ${s}.entity_reference x where x.from_path = e.path
           and not exists (select 1 from ${s}.entity t where t.path = x.to_path)))::int as inconsistent,
-        count(*) filter (where e.type = any($2::text[]))::int as open_issues,
-        count(*) filter (where e.type = 'Product/Bug')::int as bugs,
-        count(*) filter (where e.type = 'Harness/Issue' and e.frontmatter->>'source' = 'validation')::int as defects
+        count(*) filter (where e.type = any($2::text[]) and e.verification = 'unverified')::int as open_issues,
+        count(*) filter (where e.type = 'Product/Bug' and not (e.verification = 'verified' and e.sync = 'synced'))::int as bugs,
+        count(*) filter (where e.type = 'Harness/Issue' and e.frontmatter->>'source' = 'validation' and e.verification = 'unverified')::int as defects
       from ${s}.entity e`,
       [cards.characterLimit, ISSUE_TYPES],
     );

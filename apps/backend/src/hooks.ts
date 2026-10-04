@@ -9,6 +9,13 @@ const MAX_STOP_BLOCKS = 2;
 
 const list = (issues: ValidationIssue[]) => issues.map((i) => `- ${i.path}: ${i.message}`).join('\n');
 
+/**
+ * What the Stop hook sent the run on for: the harness's bookkeeping (summarizing its artifacts, describing its changes),
+ * whose replies are not for the user, or a fix of what the guard refused, which is
+ */
+export const bookkeeping = (feedback: string) =>
+  feedback.includes('have the momentum-summarization sub-agent summarize') || feedback.includes('write the commit message your changes land');
+
 const messageRequest = (file: string) =>
   `Before you finish, write the commit message your changes land on the main line with to ${file}, replacing what it holds: ` +
   'a subject line of at most 72 characters in the imperative mood saying what was done, then, when the subject alone does ' +

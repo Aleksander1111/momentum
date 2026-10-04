@@ -136,6 +136,8 @@ alter table ${s}.run drop column if exists branch;
 alter table ${s}.run add column if not exists resume_prompt text;
 -- An interview as its last turn left it: the question asked, whether it is done, the document it writes
 alter table ${s}.run add column if not exists interview jsonb;
+-- Entities the run works on besides its target, such as those a summarization run rewrites
+alter table ${s}.run add column if not exists targets text[] not null default '{}';
 create table if not exists ${s}.run_message (
   run_id text not null references ${s}.run (id) on delete cascade,
   seq int not null,

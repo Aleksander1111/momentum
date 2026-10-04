@@ -38,7 +38,7 @@ export class Orchestrator {
     bus.on('entity_ahead', ({ workspace, path }) => void this.onEvent(workspace, 'entity_ahead', { targetPath: path }));
     bus.on('implementation_finished', ({ workspace, targetPath }) => void this.onEvent(workspace, 'implementation_finished', { targetPath }));
     // Summarization runs as a step and has no trigger entity; artifacts changed on the main line start it directly
-    bus.on('artifact_ahead', ({ workspace, entities }) => void this.summarizeMainLine(workspace, entities));
+    bus.on('artifact_ahead', ({ workspace, entities, added }) => void this.summarizeMainLine(workspace, entities, added));
     bus.on('definition_approved', () => void this.automations.materializeAll());
     bus.on('run_ended', () => void this.tick());
     bus.on('feed_changed', () => void this.tick());
@@ -113,18 +113,27 @@ export class Orchestrator {
     }
   }
 
-  /** One summarization run for every entity whose artifacts one main-line change touched */
-  private async summarizeMainLine(workspace: string, entities: { path: string; artifacts: string[] }[]): Promise<void> {
-    const list = entities.map((e) => `- ${e.path}: ${e.artifacts.join(', ')}`).join('\n');
+  /**
+   * One summarization run for every entity whose artifacts one main-line change touched, and for the files it added
+   * that no entity summarizes
+   */
+  private async summarizeMainLine(workspace: string, entities: { path: string; artifacts: string[] }[], added: string[] = []): Promise<void> {
+    const parts = [
+      ...(entities.length
+        ? [`These artifacts changed on the main line. Rewrite the summary and card of each entity from its artifacts:\n\n${entities.map((e) => `- ${e.path}: ${e.artifacts.join(', ')}`).join('\n')}`]
+        : []),
+      ...(added.length
+        ? [`These files were added on the main line and no entity summarizes them yet. Summarize them into entities, new ones or ones that already cover what they do:\n\n${added.map((f) => `- ${f}`).join('\n')}`]
+        : []),
+    ];
     await this.runner.create({
       workspace,
       automation: 'summarization',
       trigger: 'event',
-      title: `Main line changes (${entities.length})`,
-      prompt: `These artifacts changed on the main line. Rewrite the summary and card of each entity from its artifacts:\n\n${list}`,
+      title: `Main line changes (${entities.length + added.length})`,
+      prompt: parts.join('\n\n'),
+      targets: entities.map((e) => e.path),
     });
-    const ws = await this.workspaces.get(workspace);
-    for (const e of entities) await this.guard.markUpdating(ws, e.path);
     await this.tick();
   }
 
@@ -208,6 +217,8 @@ export class Orchestrator {
     }
     this.ticking = true;
     try {
+      // Repositories cloned under the root or removed from it since the last pass
+      await this.settings.discover().catch((e) => console.error('discover projects:', e));
       const enabled = await this.workspaces.enabled();
       const values = await this.settings.values();
       for (const ws of enabled) await this.guard.indexMainLine(ws).catch((e) => console.error(`index ${ws.name}:`, e));

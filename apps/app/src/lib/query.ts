@@ -28,7 +28,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-export type ApproveVars = { workspace: string; path: string; timeSpentMs: number };
+export type ApproveVars = { workspace: string; path: string; timeSpentMs: number; version?: string };
 export type SendBackVars = ApproveVars & { comment: string };
 export type ResolveVars = ApproveVars & { option?: number; comment?: string };
 
@@ -40,7 +40,7 @@ function dropFromFeed(v: { workspace: string; path: string }) {
 
 // Defaults by key so reactions queued offline (and persisted) can resume after a restart.
 queryClient.setMutationDefaults(['approve'], {
-  mutationFn: (v: ApproveVars) => api.approve(v.path, { workspace: v.workspace, timeSpentMs: v.timeSpentMs }),
+  mutationFn: (v: ApproveVars) => api.approve(v.path, { workspace: v.workspace, timeSpentMs: v.timeSpentMs, version: v.version }),
   onSuccess: (_d: unknown, v: ApproveVars) => {
     dropFromFeed(v);
     void queryClient.invalidateQueries({ queryKey: ['feed'] });
@@ -59,7 +59,7 @@ queryClient.setMutationDefaults(['sendBack'], {
 
 queryClient.setMutationDefaults(['resolve'], {
   mutationFn: (v: ResolveVars) =>
-    api.resolve(v.path, { workspace: v.workspace, option: v.option, comment: v.comment, timeSpentMs: v.timeSpentMs }),
+    api.resolve(v.path, { workspace: v.workspace, option: v.option, comment: v.comment, timeSpentMs: v.timeSpentMs, version: v.version }),
   onSuccess: (_d: unknown, v: ResolveVars) => {
     dropFromFeed(v);
     void queryClient.invalidateQueries({ queryKey: ['feed'] });

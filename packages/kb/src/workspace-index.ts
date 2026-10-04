@@ -131,6 +131,12 @@ export class WorkspaceIndex {
     return r ?? null;
   }
 
+  /** The version of an entity as the feed shows it */
+  async version(path: string): Promise<string | null> {
+    const [r] = await this.sql.unsafe<{ version: string }[]>(`select ${VERSION} as version from ${this.schema}.entity e where e.path = $1`, [path]);
+    return r?.version ?? null;
+  }
+
   async paths(): Promise<Set<string>> {
     const rows = await this.sql<{ path: string }[]>`select path from ${this.t('entity')}`;
     return new Set(rows.map((r) => r.path));
@@ -255,6 +261,13 @@ export class WorkspaceIndex {
     return [...hits, ...rows.map((r) => ({ ...this.item(r), score: floor / (r.hops + 1) }))];
   }
 
+  /** Paths of the entities that reference `path` */
+  async referrers(path: string): Promise<string[]> {
+    const rows = await this.sql<{ from_path: string }[]>`
+      select distinct from_path from ${this.t('entity_reference')} where to_path = ${path} order by from_path`;
+    return rows.map((r) => r.from_path);
+  }
+
   async neighbours(path: string): Promise<ReferenceView[]> {
     return (await this.detail(path))?.references ?? [];
   }
@@ -292,15 +305,18 @@ export class WorkspaceIndex {
   }
 }
 
+/** What the user sees of an entity in the feed: its title, card and an issue's options; changes when any of them does */
+const VERSION = `md5(e.title || chr(10) || e.card || chr(10) || coalesce(e.frontmatter->>'options', ''))`;
+
 /** One feed across enabled projects: their attention_ranking tables merged by rank */
 export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: number): Promise<FeedItem[]> {
   if (workspaces.length === 0) return [];
   const parts = workspaces.map((w) => {
     const s = schemaOf(w);
     return `select '${w.replaceAll("'", "''")}' as workspace, e.path, e.type, e.title, e.card_blocks, e.card_diff, e.verification, e.sync, e.contradictions,
-      e.frontmatter, a.rank, a.entered_at from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
+      e.frontmatter, a.rank, a.entered_at, ${VERSION} as version from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
   });
-  const rows = await sql.unsafe<(EntityRow & { workspace: string; rank: number })[]>(
+  const rows = await sql.unsafe<(EntityRow & { workspace: string; rank: number; version: string })[]>(
     `${parts.join(' union all ')} order by rank desc, entered_at asc limit $1`,
     [limit],
   );
@@ -315,6 +331,7 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
     sync: r.sync,
     contradictions: r.contradictions,
     rank: Number(r.rank),
+    version: r.version,
     issue: issueOf(r.type, r.frontmatter),
   }));
 }

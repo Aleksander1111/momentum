@@ -13,7 +13,7 @@ import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
-import { guardHooks } from './hooks.ts';
+import { bookkeeping, guardHooks } from './hooks.ts';
 import { endKind, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
@@ -25,6 +25,7 @@ interface RunRow {
   checkout: string;
   trigger: RunTrigger;
   target_path: string | null;
+  targets: string[];
   status: RunStatus;
   title: string;
   prompt: string;
@@ -54,6 +55,8 @@ export interface NewRun {
   prompt: string;
   title?: string;
   targetPath?: string | null;
+  /** Entities the run works on besides its target: marked updating until it lands */
+  targets?: string[];
   /** What the chat shows as the user's message, when it differs from the prompt */
   message?: string;
   /** Parts of cards the user added to the chat's first message; the prompt carries them as references */
@@ -100,8 +103,12 @@ interface Active {
   /** Settles once the run's changes have landed on the main line and its status is recorded */
   finished?: Promise<void>;
   stoppedByUser?: boolean;
+  /** Sent on by the Stop hook to summarize or describe its changes: its text then is bookkeeping, kept out of the conversation */
+  bookkeeping?: boolean;
 }
 
+/** Graph build runs failing in a row before the build stops instead of queueing the next */
+const MAX_BUILD_FAILURES = 3;
 /** How often a run lost at restart is queued again before it fails */
 const MAX_RESTARTS = 2;
 const RESUME = 'The harness restarted while you were working. Continue where you left off.';
@@ -195,7 +202,7 @@ export class Runner {
   }
 
   private ref(ws: Workspace, r: RunRow): RunRef {
-    return { id: r.id, workspace: ws.name, automation: r.automation, checkout: r.checkout, targetPath: r.target_path };
+    return { id: r.id, workspace: ws.name, automation: r.automation, checkout: r.checkout, targetPath: r.target_path, targets: r.targets ?? [] };
   }
 
   /** A queued run: its own checkout of the main line is created when it starts */
@@ -210,6 +217,7 @@ export class Runner {
       checkout,
       trigger: spec.trigger,
       target_path: spec.targetPath ?? null,
+      targets: spec.targets ?? [],
       status: 'queued',
       title: spec.title ?? '',
       prompt: withContext(spec.context ?? [], spec.prompt),
@@ -219,7 +227,7 @@ export class Runner {
       await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt, spec.context ?? []);
     }
     if (spec.automation === 'interview') await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt);
-    if (spec.targetPath) await this.guard.markUpdating(ws, spec.targetPath);
+    for (const path of new Set([spec.targetPath, ...(spec.targets ?? [])])) if (path) await this.guard.markUpdating(ws, path);
     // A chat's or an interview's turns are the user's messages; their runs are recorded when they land, fail or stop
     if (!conversational(spec.automation)) {
       await this.timeline.run(
@@ -258,6 +266,17 @@ export class Runner {
     const [r] = await ws.index.sql`select 1 from ${this.t(ws, 'run')}
       where automation = ${automation} and status in ('queued', 'running')`;
     return !!r;
+  }
+
+  /** A chat on an entity that is still queued or running, with the last thing the user said in it */
+  async openChatOn(workspace: string, path: string): Promise<{ id: string; lastUserMessage: string | null } | null> {
+    const ws = await this.workspaces.get(workspace);
+    const [r] = await ws.index.sql<{ id: string; last: string | null }[]>`select r.id,
+        (select text from ${this.t(ws, 'run_message')} m where m.run_id = r.id and m.role = 'user' order by seq desc limit 1) as last
+      from ${this.t(ws, 'run')} r
+      where r.automation = 'chat' and r.target_path = ${path} and r.status in ('queued', 'running')
+      order by r.created_at desc limit 1`;
+    return r ? { id: r.id, lastUserMessage: r.last } : null;
   }
 
   /** Ends every open run of an automation in a workspace: running ones are killed, queued ones never start */
@@ -351,6 +370,7 @@ export class Runner {
     } catch (e) {
       await this.setStatus(ws, id, 'failed', { error: (e as Error).message, ended_at: new Date() });
       await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } }));
+      if (r.automation === 'graph-build') await this.afterFailedBuild(ws);
       await this.guard.unwatch(id);
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
     }
@@ -448,7 +468,11 @@ export class Runner {
       limits: config.limits,
       procgov: config.procgov,
       onSessionId: (sid) => void this.setStatus(ws, r.id, 'running', { session_id: sid }).catch((e) => console.error(`session of run ${r.id}:`, e)),
-      onAssistantText: (text) => void this.addMessage(ws, r.id, 'assistant', text).catch((e) => console.error(`message of run ${r.id}:`, e)),
+      onHookFeedback: (feedback) => (entry.bookkeeping = bookkeeping(feedback)),
+      onAssistantText: (text) => {
+        if (entry.bookkeeping) return;
+        void this.addMessage(ws, r.id, 'assistant', text).catch((e) => console.error(`message of run ${r.id}:`, e));
+      },
       onUsage: (u) => void this.onReading(u).catch((e) => console.error(`usage reading of run ${r.id}:`, e)),
     });
     this.active.set(r.id, entry);
@@ -526,7 +550,11 @@ export class Runner {
     const prompt = withContext(context, text);
     await this.starting.get(id);
     const entry = this.active.get(id);
-    if (entry?.handle.send(prompt)) return;
+    if (entry?.handle.send(prompt)) {
+      // What it answers to the user's message is for the user again
+      entry.bookkeeping = false;
+      return;
+    }
     await entry?.finished;
     const r = await this.row(ws, id);
     // A run still waiting to start takes the message with its first prompt, when the orchestrator starts it
@@ -546,10 +574,24 @@ export class Runner {
 
   /** Ends a run; one the user stops says so on its event */
   async kill(id: string, byUser = false): Promise<void> {
+    await this.starting.get(id);
     const entry = this.active.get(id);
-    if (!entry) return;
-    entry.stoppedByUser ||= byUser;
-    entry.handle.kill();
+    if (entry) {
+      entry.stoppedByUser ||= byUser;
+      entry.handle.kill();
+      return;
+    }
+    // Still waiting for a place: it never starts, and whatever it was to change stands where it did
+    const ws = await this.workspaceOf(id);
+    const r = await this.row(ws, id);
+    if (r.status !== 'queued') return;
+    await this.setStatus(ws, id, 'killed', { ended_at: new Date() });
+    for (const path of new Set([r.target_path, ...(r.targets ?? [])])) {
+      const row = path ? await ws.index.row(path) : null;
+      if (row?.sync === 'updating') await ws.index.setSync(path!, r.automation === 'summarization' ? 'artifact_ahead' : await this.guard.syncOf(ws, path!, row.frontmatter));
+    }
+    await this.timeline.run(runEvent(ws.name, r, 'run_killed', { byUser, facts: { status: 'killed' } }));
+    this.bus.emit('run_ended', { workspace: ws.name, runId: id });
   }
 
   /**
@@ -584,14 +626,21 @@ export class Runner {
     const r = await this.row(ws, id);
     try {
       if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
-      await this.guard.transaction(entry.ref);
+      const landed = await this.guard.transaction(entry.ref);
       if (r.automation === 'chat') await this.recordTranscript(ws, r);
-      const status: RunStatus = result.error === 'killed' ? 'killed' : result.ok ? 'finished' : 'failed';
+      let status: RunStatus = result.error === 'killed' ? 'killed' : result.ok ? 'finished' : 'failed';
+      let error = result.ok ? null : result.error;
+      // A build run that never said how far it got would be followed by the same run again and again
+      if (r.automation === 'graph-build' && status === 'finished' && !entry.graphBuild) {
+        status = 'failed';
+        error = 'The run ended without reporting its progress with report_graph_build';
+      }
+      if (status !== 'finished') await this.stillBehind(ws, r, landed.paths);
       const endedAt = new Date();
       const usage = { fiveHour: entry.base.fiveHour + entry.usage.fiveHour, week: entry.base.week + entry.usage.week };
       await this.setStatus(ws, id, status, {
         ended_at: endedAt,
-        error: result.ok ? null : result.error,
+        error,
         usage_five_hour: usage.fiveHour,
         usage_week: usage.week,
       });
@@ -599,7 +648,7 @@ export class Runner {
         await this.timeline.run(
           runEvent(ws.name, r, endKind(status), {
             byUser: entry.stoppedByUser,
-            detail: result.ok ? null : result.error,
+            detail: error,
             facts: {
               status,
               usage,
@@ -632,15 +681,43 @@ export class Runner {
     }
   }
 
+  /** Entities a summarization run failed or was stopped before rewriting are still behind their artifacts */
+  private async stillBehind(ws: Workspace, r: RunRow, written: string[]): Promise<void> {
+    if (r.automation !== 'summarization') return;
+    for (const path of r.targets ?? []) {
+      if (!written.includes(path) && (await ws.index.row(path))) await ws.index.setSync(path, 'artifact_ahead');
+    }
+  }
+
   /** The graph build goes on run after run until a run reports the repository covered, or the user stops it */
   private async afterGraphBuild(ws: Workspace, status: RunStatus, report: Active['graphBuild']): Promise<void> {
     if (report?.progress) await this.settings.setGraphBuildProgress(ws.name, report.progress);
     if (report) await this.settings.setGraphBuildCoverage(ws.name, report.complete ? 1 : report.coverage);
+    if (status === 'failed') return this.afterFailedBuild(ws);
     if (status !== 'finished') return;
     if (report?.complete && (await this.settings.graphBuild(ws.name)).state === 'building') {
       await this.settings.setGraphBuild(ws.name, 'complete');
       await this.timeline.record({ workspace: ws.name, actor: 'harness', kind: 'graph_build_complete', title: 'Knowledge graph build complete' });
     }
+  }
+
+  /**
+   * Each failed build run would be queued again at once; when the last few all failed, something is wrong that another
+   * run will not fix, so the build stops and says why until the user resumes it
+   */
+  private async afterFailedBuild(ws: Workspace): Promise<void> {
+    const last = await ws.index.sql<{ status: RunStatus; error: string | null }[]>`select status, error from ${this.t(ws, 'run')}
+      where automation = 'graph-build' and status in ('finished', 'failed') order by created_at desc limit ${MAX_BUILD_FAILURES}`;
+    if (last.length < MAX_BUILD_FAILURES || last.some((r) => r.status !== 'failed')) return;
+    if ((await this.settings.graphBuild(ws.name)).state !== 'building') return;
+    await this.settings.setGraphBuild(ws.name, 'stopped');
+    await this.timeline.record({
+      workspace: ws.name,
+      actor: 'harness',
+      kind: 'graph_build_stopped',
+      title: `Stopped the knowledge graph build: its last ${MAX_BUILD_FAILURES} runs failed`,
+      detail: last[0]?.error ?? null,
+    });
   }
 
   /** The chat is stored as an artifact of its summary entity, once summarization has written it */
@@ -679,6 +756,7 @@ export class Runner {
     const document = r.automation === 'interview' ? entry.interview?.document : undefined;
     if (document && !excluded(document) && !artifacts.has(document)) artifacts.set(document, 'interview');
     if (artifacts.size === 0) return null;
+    this.guard.handedToSummarization(r.id, [...artifacts.keys()]);
     // Asked once per state of the artifacts: a run that stops again after its sub-agent finished in the background
     // does not summarize the same artifacts twice
     const state = await Promise.all(

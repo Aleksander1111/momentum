@@ -33,6 +33,8 @@ export interface SessionSpec {
   model?: string;
   onSessionId?: (id: string) => void;
   onAssistantText?: (text: string) => void;
+  /** A hook's feedback, as the conversation carries it: what the run answers next answers it */
+  onHookFeedback?: (text: string) => void;
   onUsage?: (usage: Usage) => void;
   onPid?: (pid: number) => void;
 }
@@ -112,6 +114,13 @@ function assistantText(m: SDKMessage): string | null {
   return parts.length ? parts.join('\n\n') : null;
 }
 
+/** A hook's message in the conversation: Claude Code adds it as the user's, after the turn it follows */
+function hookFeedback(m: SDKMessage): string | null {
+  if (m.type !== 'user' || typeof m.message.content === 'string') return null;
+  const text = (m.message.content as { type: string; text?: string }[]).find((c) => c.type === 'text' && c.text?.startsWith('Stop hook feedback'));
+  return text?.text ?? null;
+}
+
 export interface AskSpec {
   cwd: string;
   system: string;
@@ -188,6 +197,8 @@ export function startSession(spec: SessionSpec): SessionHandle {
           sessionId = m.session_id;
           spec.onSessionId?.(m.session_id);
         }
+        const feedback = hookFeedback(m);
+        if (feedback) spec.onHookFeedback?.(feedback);
         const text = assistantText(m);
         if (text) spec.onAssistantText?.(text);
         if (m.type === 'rate_limit_event') {

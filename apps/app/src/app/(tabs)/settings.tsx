@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from 'expo-router';
 import { AutomationName, ProjectLogo as LogoSchema, Risk } from '@momentum/contract';
 import type { GraphBuildState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT, Workspace } from '@momentum/contract';
 import { api } from '../../lib/api';
@@ -399,7 +400,13 @@ export default function Settings() {
   useTheme();
   const wide = useWide();
   const qc = useQueryClient();
-  const { data: s } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  const { data: s, refetch } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  // The tab stays mounted: coming back to it reads the projects as they are now, cloned or removed meanwhile
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
   const save = useMutation({
     mutationFn: (req: PutSettings) => api.putSettings(req),
     onSuccess: (next) => {

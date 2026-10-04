@@ -57,7 +57,7 @@ function tokenOf(req: FastifyRequest): string | undefined {
 }
 
 const ws = z.object({ ws: z.string() });
-const errors = { 401: ErrorResponse, 404: ErrorResponse };
+const errors = { 401: ErrorResponse, 404: ErrorResponse, 409: ErrorResponse };
 
 export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } }).withTypeProvider<ZodTypeProvider>();
@@ -126,7 +126,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     '/feed/:path/approve',
     { schema: { params: z.object({ path: z.string() }), body: ApproveRequest, response: { 204: z.null(), ...errors } } },
     async (req, reply) => {
-      await momentum.approve(req.body.workspace, req.params.path, req.body.timeSpentMs);
+      await momentum.approve(req.body.workspace, req.params.path, req.body.timeSpentMs, req.body.version);
       return reply.code(204).send(null);
     },
   );
@@ -141,7 +141,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     '/feed/:path/resolve',
     { schema: { params: z.object({ path: z.string() }), body: ResolveRequest, response: { 200: z.object({ runId: z.string() }), ...errors } } },
     (req) =>
-      momentum.resolve(req.body.workspace, req.params.path, { option: req.body.option, comment: req.body.comment }, req.body.timeSpentMs),
+      momentum.resolve(req.body.workspace, req.params.path, { option: req.body.option, comment: req.body.comment }, req.body.timeSpentMs, req.body.version),
   );
 
   app.post(
@@ -223,7 +223,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
 
   app.post(
     '/workspaces/:ws/reset',
-    { schema: { params: ws, response: { 200: GraphBuildStatus, 409: ErrorResponse, ...errors } } },
+    { schema: { params: ws, response: { 200: GraphBuildStatus, ...errors } } },
     (req) => momentum.resetProject(req.params.ws),
   );
 

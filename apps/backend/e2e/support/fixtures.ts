@@ -8,6 +8,7 @@ import { pace } from './pace.ts';
 import { aborted, breakScenario, cap, capReached, CapReached, readUsage, resetCap } from './usage.ts';
 import { BlackHole } from './offline.ts';
 import { FakeCommandStream } from './voice.ts';
+import { ScriptedModel } from './scripted.ts';
 
 export { expect };
 
@@ -20,6 +21,8 @@ export interface World {
   voice: FakeCommandStream;
   /** Where the runs of a scenario without real runs send their requests, never answered */
   offline: BlackHole | null;
+  /** The scripted model the runs of a scripted scenario talk to: what they do is up to the scenario */
+  model: ScriptedModel;
   /** Runs step `i` of the scenario's list, under its title */
   step<T>(i: number, body: () => Promise<T>): Promise<T>;
   note(text: string): Promise<void>;
@@ -96,9 +99,10 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
 
     const voice = new FakeCommandStream();
     const voicePort = opts.voice ? await voice.listen() : 0;
-    const offline = s.real ? null : new BlackHole();
-    const apiBase = offline ? await offline.listen() : null;
     const env = new Env(id, s.projects);
+    const model = new ScriptedModel(env.dir);
+    const offline = s.real || s.scripted ? null : new BlackHole();
+    const apiBase = s.scripted ? await model.listen() : offline ? await offline.listen() : null;
     // What the observer and the stall check follow: the scenario's projects and any other workspace it enables
     const followed = [...new Set<string>([...s.projects, ...(opts.enabled ?? [])])];
     const api = new Api(env);
@@ -147,6 +151,7 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
         app,
         voice,
         offline,
+        model,
         step: (i, fn) => {
           const title = s.steps[i];
           if (title === undefined) throw new Error(`${id} has no step ${i}`);
@@ -172,7 +177,10 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
         },
         note: (text) => post({ type: 'note', text }),
       };
-      await Promise.race([body(world), aborted]).catch((e) => {
+      const running = body(world);
+      // The scripts are registered as the body starts: the runs waiting on the model go on now
+      model.release();
+      await Promise.race([running, aborted]).catch((e) => {
         if (e instanceof CapReached) test.skip(true, e.message);
         throw e;
       });
@@ -188,6 +196,7 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
       if (!ok) await post({ type: 'note', text: `${s.title}: kept its world for inspection at ${env.dir} (log: ${env.log})` });
       if (opts.voice) await voice.close();
       await offline?.close();
+      if (s.scripted) await model.close();
       if (s.real) await reading();
     }
   });

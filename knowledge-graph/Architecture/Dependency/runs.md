@@ -24,4 +24,4 @@ Internal library `@momentum/runs`, used by the backend to execute runs.
 |---|---|
 | session | `startSession`: one Claude Code process per run (Agent SDK), steerable, resumable, reports 5-hour/weekly usage %; `ask`: one tool-less turn on a chosen model |
 | process | `spawnLimited`: process in a Windows job object with CPU/memory limits; `killTree` |
-| git | Waits up to 5 s for a foreign lock; detached run checkout at the main line tip, no branches; `land`: the run's changes and own commits as one commit fast-forwarded or replayed onto the main line, conflicts take the run's side; `messageFile`; `workingTree` hash; `fileHistory`: commits of a file, newest first |
+| git | Waits up to 5 s for a foreign lock; detached run checkout at the main line tip; `land`: one commit fast-forwarded or replayed, conflicts take the run's side; a commit of files rebuilt on a moved tip unless they changed; a developer's uncommitted edit merged with what lands; `fileHistory` |
