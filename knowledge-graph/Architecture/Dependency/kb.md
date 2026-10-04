@@ -17,11 +17,12 @@ kind: internal library
 ---
 # kb package
 
-`@momentum/kb`, internal library: the index side of the knowledge base.
+`@momentum/kb`: the index side of the knowledge base.
 
-- Postgres DDL: harness schema with a voice cursor, and one per workspace: entities with card diff and state history, runs with interview state, messages with context, transactions, attention, metrics, usage shares
-- Workspace index: upsert, references both ways, types tree, full text + pgvector search fused by reciprocal rank, expanded along references
-- Contradictions recounted from open contradiction issues
-- Feed across projects by rank, with card diffs, issue options, concerned entities; state counts; reactions
+- Postgres DDL: harness schema (voice cursor); per workspace: entities with card diff and state history, runs with interview state and extra targets, messages, transactions, attention, metrics, usage
+- Workspace index: upsert, references both ways, referrers, types tree, full text + pgvector search fused by reciprocal rank, expanded by references
+- Version: hash of title, card, issue options
+- Contradictions from open issues
+- Feed across projects by rank: versions, card diffs, issue options, concerned entities; state counts; reactions
 - bge-small embeddings
 - `momentum-kb` MCP: search, read, references, write, record_agent_metric

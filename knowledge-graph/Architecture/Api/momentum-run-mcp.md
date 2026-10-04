@@ -18,21 +18,23 @@ artifacts:
 ---
 # momentum-run MCP server
 
-In-process MCP server the runner gives every run next to `momentum-kb`; the harness acts on its reports.
+In-process MCP server the runner gives every run next to `momentum-kb`.
 
 **report_graph_build** (every run)
 
 | Input | Effect |
 |---|---|
-| complete | Marks a building graph build complete once the run finished; coverage 1; on the timeline |
+| complete | Completes the build once the run finished; coverage 1; on the timeline |
 | progress | The next run's prompt carries it |
 | coverage 0–1 | Estimates the full build |
 | documents | Handed by the Stop hook to summarization |
+
+A build run that never reports fails; 3 failures in a row stop the build.
 
 **report_interview** (interview runs, every turn)
 
 | Input | Effect |
 |---|---|
 | question | Next question, or closing remark |
-| done | Unlocks the summary and commit message |
+| done | Unlocks summary and commit message |
 | document | File outside knowledge-graph/; summarized when done |

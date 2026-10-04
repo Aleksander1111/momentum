@@ -15,17 +15,17 @@ artifacts:
 ---
 # API
 
-The backend's interface: Fastify routes typed by `@momentum/contract` zod (OpenAPI at `/openapi.json`), voice sockets, and the same handlers as MCP tools at `/mcp`.
+The backend's interface: Fastify routes typed by contract zod (OpenAPI `/openapi.json`), voice sockets, the handlers as MCP tools at `/mcp`.
 
 | Area | Routes |
 |---|---|
-| Session | POST, DELETE `/session` |
+| Session | `/session` |
 | Feed | `/feed`; approve, send back, resolve, won't resolve |
-| Workspaces | entities, artifact, types, search, chats, metrics, graph-build, reset, logo |
+| Workspaces | entities, artifacts, types, search, chats, metrics, graph build, reset, logo |
 | Runs | `/runs/:id`, messages, kill |
-| Timeline | `/timeline` |
-| Settings | GET, PUT `/settings` |
-| Voice | `/voice`, `/voice/audio` |
+| Other | `/timeline`, `/settings`, `/voice`, `/voice/audio` |
 
-- Sign-ins, refused sign-ins and sign-outs go on the timeline
-- Cookie or bearer, else 401; page loads get the web build, 503 while it is rebuilt; errors `{error}`
+- Sign-ins, refusals, sign-outs go on the timeline
+- Approve, resolve carry the version shown; conflicts: 409
+- MCP `run_automation` takes a target, e.g. to retry an implementation
+- Cookie or bearer, else 401; pages: web app, 503 mid-rebuild
