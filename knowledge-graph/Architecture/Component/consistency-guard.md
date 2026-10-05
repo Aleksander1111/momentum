@@ -21,6 +21,6 @@ artifacts:
 Validates each run's knowledge-base changes; keeps the index true to the main line.
 
 - Hooks: PostToolUse reports issues per write; Stop: summarization once, back to fix issues twice at most, a commit message
-- Run end: one checked transaction; what it wrote lands unverified, with any definition whose files it changed; invalid → Harness/Issue, conflicts → Harness/Conflict, run's version landed; all to the timeline
-- Main line: one pass at a time per workspace; entities over changed artifacts go artifact_ahead unless they changed too or the landing run summarized them
-- Index: an unverified card gets its diff against its last verified; metrics; open issues are unverified ones
+- Run end: one checked transaction, landed unverified with definitions whose files it changed; invalid → Harness/Issue, conflicts → Harness/Conflict, run's version landed
+- Main line: one pass at a time; halts at a merge commit unless enabled with it; entities over changed artifacts go artifact_ahead unless changed too or summarized by the landing run; moves are followed, into exclusions = deleted
+- Index: card diff against last verified; implemented directly or via a plan; metrics
