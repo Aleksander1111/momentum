@@ -5,12 +5,12 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import type { AutomationName, TimelineActor, TimelineEvent } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { embedded } from '../../lib/embed';
-import { automationLabel, durationMs, pathSegments, usagePct } from '../../lib/format';
+import { automationLabel, durationMs, usagePct } from '../../lib/format';
 import { useWorkspaces } from '../../lib/workspace';
 import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon, type PATHS } from '../../ui/icons';
-import { TypePill } from '../../ui/domains';
+import { EntityRefs, useOpenEntity } from '../../ui/EntityRef';
 import { ProjectLogo, ProjectName } from '../../ui/ProjectLogo';
 import { useCornerRoom } from '../../ui/SettingsButton';
 import { Btn, List, Pick, Row, Sect, Segmented } from '../../ui/parts';
@@ -167,23 +167,6 @@ function body(e: TimelineEvent): string | null {
   return rest.join('\n').trim() || null;
 }
 
-/** "Architecture/Component/consistency-guard" → "Consistency guard" of type "Architecture/Component" */
-function entityName(path: string): { name: string; type: string } {
-  const parts = pathSegments(path);
-  const last = (parts.pop() ?? path).replace(/[-_]/g, ' ');
-  return { name: last.charAt(0).toUpperCase() + last.slice(1), type: parts.slice(0, 2).join('/') };
-}
-
-/** Entities grouped by type, in the order their types first appear, each group sorted by name */
-function byType(paths: string[]): [string, { path: string; name: string }[]][] {
-  const groups = new Map<string, { path: string; name: string }[]>();
-  for (const path of paths) {
-    const { name, type } = entityName(path);
-    groups.set(type, [...(groups.get(type) ?? []), { path, name }]);
-  }
-  return [...groups].map(([type, entities]) => [type, entities.sort((x, y) => x.name.localeCompare(y.name))]);
-}
-
 function Label({ children }: { children: string }) {
   return <T style={{ color: C.muted, fontSize: 11.5 }}>{children}</T>;
 }
@@ -202,7 +185,7 @@ function Details({ e }: { e: TimelineEvent }) {
   const paths = e.facts.paths?.length ? e.facts.paths : e.path ? [e.path] : [];
   const text = body(e);
   const ws = e.workspace;
-  const openEntity = ws && !embedded ? (path: string) => router.push({ pathname: '/explorer/entity', params: { ws, path } }) : null;
+  const openEntity = useOpenEntity(ws);
   return (
     <View style={{ marginTop: 8, padding: 12, gap: 12, backgroundColor: C.card, borderRadius: 10 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 8 }}>
@@ -217,29 +200,8 @@ function Details({ e }: { e: TimelineEvent }) {
       {paths.length ? (
         <View style={{ gap: 10 }}>
           <Label>{paths.length === 1 ? 'Entity' : `${paths.length} entities`}</Label>
-          {/* By type, as cards show it: the type's coloured pill, then every entity of it */}
-          {byType(paths).map(([type, entities]) => (
-            <View key={type} style={{ gap: 4, alignItems: 'flex-start' }}>
-              {type ? <TypePill type={type} /> : null}
-              <View style={{ paddingLeft: 10, gap: 2, alignSelf: 'stretch' }}>
-                {entities.map(({ path, name }) =>
-                  openEntity ? (
-                    <Pressable key={path} onPress={() => openEntity(path)} accessibilityRole="link">
-                      {({ hovered }) => (
-                        <T style={{ fontSize: 13.5, textDecorationLine: hovered ? 'underline' : 'none' }} numberOfLines={1}>
-                          {name}
-                        </T>
-                      )}
-                    </Pressable>
-                  ) : (
-                    <T key={path} style={{ fontSize: 13.5 }} numberOfLines={1}>
-                      {name}
-                    </T>
-                  ),
-                )}
-              </View>
-            </View>
-          ))}
+          {/* By type, as every list of entities shows them */}
+          <EntityRefs workspace={ws} items={paths.map((path) => ({ path }))} />
         </View>
       ) : null}
       {!embedded && (e.runId || (e.path && openEntity)) ? (

@@ -3,7 +3,9 @@ import { Pressable, View, type TextInput } from 'react-native';
 import type { ContextItem, VoiceItem, VoiceOutcome, VoiceTarget } from '@momentum/contract';
 import { chatContext } from '../lib/context';
 import { useVoice } from '../lib/voice';
-import { C, F } from './theme';
+import { C, F, useTheme } from './theme';
+import { DomainIcon, domainColour } from './domains';
+import { entityName } from './EntityRef';
 import { Field } from './Field';
 import { Icon } from './icons';
 import { MicButton } from './MicButton';
@@ -17,6 +19,11 @@ export function contextLabel(c: ContextItem): string {
 
 /** One part of a card added to the context; × takes it out */
 export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; onRemove?: () => void; inverse?: boolean }) {
+  // The entity reads as entities do everywhere: its type's glyph and colour; on the inverted bubble, the other scheme's
+  const { scheme } = useTheme();
+  const type = entityName(item.path).type;
+  const colour = domainColour(type, inverse ? (scheme === 'dark' ? 'light' : 'dark') : scheme);
+  const part = item.element !== undefined ? ` › < ${item.element} >` : item.quote !== undefined ? ` › “${item.quote}”` : '';
   return (
     <View
       style={{
@@ -31,8 +38,10 @@ export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; on
         paddingRight: onRemove ? 4 : 8,
       }}
     >
+      <DomainIcon type={type} size={13} color={colour} />
       <T numberOfLines={1} style={{ flexShrink: 1, fontSize: 12.5, color: inverse ? C.surface : C.ink }}>
-        {contextLabel(item)}
+        <T style={{ fontSize: 12.5, color: colour, fontWeight: '600' }}>{item.title}</T>
+        {part}
       </T>
       {onRemove ? (
         <Pressable onPress={onRemove} accessibilityRole="button" accessibilityLabel="Remove from context" hitSlop={8}>

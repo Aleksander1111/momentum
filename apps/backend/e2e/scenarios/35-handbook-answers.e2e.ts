@@ -27,9 +27,11 @@ scenario('handbook-answers', { enabled: [WS], graphBuild: 'complete' }, async ({
 
   await step(0, async () => {
     await app.go(`/explorer?ws=${WS}`);
-    await typeInto(app.frame().getByPlaceholder('Search entities'), 'holiday');
+    await typeInto(app.frame().getByPlaceholder('Search or ask a question'), 'holiday');
     await expect(app.text('Leave policy')).toBeVisible({ timeout: 15_000 });
     await app.text('Leave policy').click();
+    // The artifacts are folded until opened
+    await app.frame().getByRole('button', { name: /Artifacts/ }).click({ timeout: 15_000 });
     await expect(app.text('docs/leave-policy.md', false)).toBeVisible({ timeout: 15_000 });
     // By meaning, not only by the words: "time off" finds the leave policy
     const { results } = await api.call<{ results: { path: string }[] }>('GET', `/workspaces/${WS}/search?q=${encodeURIComponent('time off')}`);

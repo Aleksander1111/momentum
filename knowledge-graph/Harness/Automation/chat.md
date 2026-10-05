@@ -12,11 +12,12 @@ artifacts:
 ---
 # Chat
 
-The direct chat: an automation started by the user instead of by the schedule.
+The direct chat: an automation the user starts instead of the schedule.
 
-- Own process and checkout, like every automation; runs alongside the automation runs, which go one at a time
-- Answers from the knowledge base first, then the repository
+- Own process and checkout; runs alongside the automation runs
+- Answers from the knowledge base first, then the repository, naming entities as links the app opens
 - Can do anything the other automations can
-- A send back's comment decides the target: change, split, replace, add alongside, or retire (Harness/Plan with `retires`; the files stay until approving the plan removes them)
-- A plan the user asks for goes to plans/<name>.md, written as preparation writes one; summarization makes it a Harness/Plan
+- A send back's comment decides the target: change, split, replace, add alongside, or retire with a Harness/Plan
+- A plan asked for goes to plans/<name>.md, which summarization makes a Harness/Plan
+- Never turns one chat into a skill, memory or definition change on its own
 - Results reach the approved state through the feed

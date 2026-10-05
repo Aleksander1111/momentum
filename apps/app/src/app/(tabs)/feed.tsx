@@ -186,7 +186,7 @@ function TopCard({
         <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} swipe />
         {issue ? (
           <>
-            <IssueHead issue={issue} />
+            <IssueHead issue={issue} workspace={item.workspace} />
             <IssueOptions issue={issue} picked={picked} onPick={setPicked} />
           </>
         ) : null}

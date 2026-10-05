@@ -186,6 +186,9 @@ create table if not exists ${s}.attention_pattern (
   outcome text not null,
   detected_at timestamptz not null default now()
 );
+-- A pattern is proposed to the user as a Harness/Pattern entity and counts only once they approve it
+alter table ${s}.attention_pattern add column if not exists entity_path text;
+alter table ${s}.attention_pattern add column if not exists accepted_at timestamptz;
 create table if not exists ${s}.understanding_metric (
   consistency real not null,
   open_issues int not null,

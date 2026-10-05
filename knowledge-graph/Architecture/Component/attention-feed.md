@@ -18,12 +18,13 @@ artifacts:
 ---
 # Attention feed
 
-One feed across enabled projects where everything needing the user's attention shows up as an entity.
+One feed across enabled projects: everything needing the user's attention, as entities.
 
 - Rank = product_impact + timeline_impact + unlocks; the feed size bounds the loops
-- Approve: one commit sets it verified, deletes what it `retires` unless still referenced (chat records aside), syncs what it `implements`
-- Send back: the comment starts a chat run on the entity, or joins the one open on it
-- Resolve an issue: a picked option or the user's text starts a chat run that applies it and retires the issue
+- Approve: one commit sets it verified, deletes what it `retires` unless referenced, syncs what it `implements`
+- Send back: the comment starts a chat run on the entity, or joins the open one
+- Resolve an issue: a picked option or the user's text starts a chat run
 - Won't resolve: verified, with the reason
+- Ten alike reactions to one type propose a Harness/Pattern, counted once approved
 - One reaction at a time per entity; the same one twice acts once
-- Each goes on the timeline with effects, comment, run and time spent
+- Each goes on the timeline

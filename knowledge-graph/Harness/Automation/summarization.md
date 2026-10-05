@@ -12,11 +12,12 @@ artifacts:
 ---
 # Summarization
 
-Summarizes repository artifacts: chats, plans, results implemented by AI, documents listed by the graph build.
+Summarizes repository artifacts: chats, plans, implemented results, documents the graph build lists.
 
-- A sub-agent of every run: a Stop hook hands it the run's artifacts before the run ends; a run of its own when an artifact changes
-- The only writer of summaries: runs never summarize their own artifacts
-- Never commits, pushes or switches branches: the harness commits what it leaves in the checkout
-- Each summary is an entity with its artifacts listed; the entity is its card: paragraph, bullets, table or PlantUML diagram (mermaid is not accepted)
-- Rewrites the entity already over an artifact only when the change makes its card wrong or adds to what it covers, never a second one beside it; an entity left with no artifact gets a retirement plan
-- Skips the path patterns the user excludes
+- A sub-agent of every run, handed its artifacts by a Stop hook; a run of its own when an artifact changes
+- The only writer of summaries; never commits or switches branches
+- One entity per summary, artifacts listed; its card a paragraph, bullets, table or PlantUML diagram
+- Rewrites the entity over a changed artifact only when its card turns wrong or incomplete; a spent entity gets a retirement plan
+- Links entities a card names where it helps, each also among its references
+- A chat becomes its Harness/Chat record only: nothing is learnt from one chat
+- Skips the paths the user excludes

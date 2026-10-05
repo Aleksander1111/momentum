@@ -1,4 +1,5 @@
 import type {
+  AskResponse,
   AutomationName,
   ChatsResponse,
   ContextItem,
@@ -18,11 +19,12 @@ import type {
 } from '@momentum/contract';
 import { crossProjectEntityCounts, crossProjectFeed, type Embed, type Sql } from '@momentum/kb';
 import { show } from '@momentum/runs';
+import { Answers } from './answer.ts';
 import type { Approval } from './approval.ts';
 import type { Automations } from './automations.ts';
 import type { HarnessSettings } from './harness.ts';
 import { graphBuildStatus } from './graph-build.ts';
-import { detectPatterns, workspaceMetrics } from './metrics.ts';
+import { acceptPattern, detectPatterns, PATTERN_TYPE, workspaceMetrics } from './metrics.ts';
 import type { Orchestrator } from './orchestrator.ts';
 import type { Runner } from './runner.ts';
 import { automationLabel, type Timeline } from './timeline.ts';
@@ -50,7 +52,11 @@ export class Momentum {
     private readonly automations: Automations,
     private readonly embed: Embed,
     readonly timeline: Timeline,
-  ) {}
+  ) {
+    this.answers = new Answers(workspaces, embed, async () => (await settings.values()).models);
+  }
+
+  private readonly answers: Answers;
 
   /** What happened in the harness, newest first */
   events(q: TimelineQuery): Promise<TimelineResponse> {
@@ -94,7 +100,15 @@ export class Momentum {
     await this.approval.approve(workspace, path, timeSpentMs, version);
     const ws = await this.workspaces.get(workspace);
     const row = await ws.index.row(path);
-    if (row) await detectPatterns(ws, row.type);
+    if (row?.type === PATTERN_TYPE) await acceptPattern(ws, path);
+    // A pattern found is proposed in the feed: the next tick indexes it. The approval stands whatever becomes of it
+    else if (row) {
+      const proposed = await detectPatterns(ws, row.type).catch((e: Error) => {
+        console.error(`patterns of ${row.type} in ${workspace}:`, e);
+        return false;
+      });
+      if (proposed) void this.orchestrator.tick();
+    }
   }
 
   async sendBack(workspace: string, path: string, comment: string, timeSpentMs: number): Promise<{ runId: string }> {
@@ -142,6 +156,11 @@ export class Momentum {
     if (!q.trim()) return { results: [] };
     const [embedding] = await this.embed([q]);
     return { results: await ws.index.search(q, embedding ?? null) };
+  }
+
+  /** A question asked of the knowledge graph, answered in one pass from what the search finds, every entity it draws from linked */
+  ask(workspace: string, question: string): Promise<AskResponse> {
+    return this.answers.ask(workspace, question);
   }
 
   async chats(workspace: string): Promise<ChatsResponse> {

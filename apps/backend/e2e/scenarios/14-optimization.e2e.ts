@@ -11,7 +11,7 @@ const CORRECTION = 'Never answer with a table; use short bullet points.';
 scenario('optimization', { enabled: [WS, HARNESS] }, async ({ env, api, app, step, note }) => {
   await step(0, async () => {
     expect((await api.entities(WS, 'Harness/Trigger')).map((t) => t.path)).not.toContain('Harness/Trigger/optimization');
-    for (const q of ['Give me an overview of the routes, as a table.', 'Compare the routes by method and path, as a table.']) {
+    const correctedChat = async (q: string) => {
       const chat = await app.chat(WS, q);
       expect((await api.runEnded(chat)).status).toBe('finished');
       await app.reply(chat, CORRECTION);
@@ -19,12 +19,24 @@ scenario('optimization', { enabled: [WS, HARNESS] }, async ({ env, api, app, ste
         const r = await api.run(chat);
         return r.messages.filter((m) => m.role === 'assistant').length >= 2 && r.status === 'finished';
       }, 15 * 60_000);
-    }
-    const since = new Date();
+    };
+    for (const q of ['Give me an overview of the routes, as a table.', 'Compare the routes by method and path, as a table.']) await correctedChat(q);
+    // Twice is not a pattern: nothing is proposed
+    let since = new Date();
     // Approved now: its schedule is due at once
     await app.approve(HARNESS, 'Harness/Trigger/optimization');
+    const first = await api.automationRan(HARNESS, 'optimization', since, 60 * 60_000);
+    expect(first.status).toBe('finished');
+    const early = (await api.feed()).items.filter((i) => i.workspace === HARNESS && ['Harness/Automation', 'Harness/Pattern'].includes(i.type));
+    expect(early.map((i) => i.path), 'nothing proposed from two chats').toEqual([]);
+    // The third time it is
+    await correctedChat('List the routes with what each returns, as a table.');
+    since = new Date();
+    await api.runAutomation(HARNESS, 'optimization');
     const run = await api.automationRan(HARNESS, 'optimization', since, 60 * 60_000);
     expect(run.status).toBe('finished');
+    const patterns = (await api.feed()).items.filter((i) => i.workspace === HARNESS && i.type === 'Harness/Pattern');
+    expect(patterns.length, 'the pattern proposed with its evidence').toBeGreaterThan(0);
     const [m] = await env.sql<{ misalignments: number | null }[]>`
       select misalignments from ${env.sql('ws_momentum.agent_metric')} where run_id = ${run.id} and misalignments is not null`;
     expect(m!.misalignments).toBeGreaterThan(0);

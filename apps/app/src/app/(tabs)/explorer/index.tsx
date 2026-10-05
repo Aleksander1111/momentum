@@ -18,6 +18,8 @@ import { States } from '../../../ui/StateBadge';
 import { EntityView } from '../../../ui/EntityView';
 import { DomainBadge } from '../../../ui/domains';
 import { useCornerRoom } from '../../../ui/SettingsButton';
+import { Answer, isQuestion } from '../../../ui/Answer';
+import { EntityLinks } from '../../../ui/EntityRef';
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -112,10 +114,28 @@ export default function Explorer() {
     setOpen((s) => new Set([...s, ...segs.map((_, i) => segs.slice(0, i + 1).join('/'))]));
   }, [params.ws, params.folder]);
   const dq = useDebounced(q.trim(), 300);
-  // Spoken search words fill the search; an interview started by voice opens
+  // What was asked of the graph: Enter asks whatever is typed; a question asks itself once typing pauses
+  const [asked, setAsked] = useState<string | null>(null);
+  const idle = useDebounced(q.trim(), 1100);
+  useEffect(() => {
+    if (isQuestion(idle)) setAsked(idle);
+  }, [idle]);
+  useEffect(() => {
+    if (!q.trim()) setAsked(null);
+  }, [q]);
+  // Searching for something else puts the answer away; a question answers itself, keywords on Enter
+  useEffect(() => {
+    if (dq && !isQuestion(dq)) setAsked((a) => (a === dq ? a : null));
+  }, [dq]);
+  const askNow = () => {
+    if (q.trim()) setAsked(q.trim());
+  };
+  // Spoken search words fill the search, and a spoken question is asked at once; an interview started by voice opens
   const mic = useVoice(ws ? { kind: 'search', workspace: ws } : null, (o) => {
-    if (o.kind === 'search' && o.text) setQ(o.text);
-    else if (o.runId) openRun(o.runId, wide);
+    if (o.kind === 'search' && o.text) {
+      setQ(o.text);
+      if (isQuestion(o.text)) setAsked(o.text.trim());
+    } else if (o.runId) openRun(o.runId, wide);
   });
   const [lastOpened, setLastOpened] = useState<string | null>(null);
 
@@ -178,9 +198,11 @@ export default function Explorer() {
       </View>
       <Field
         icon="search"
-        placeholder="Search entities"
+        placeholder="Search or ask a question"
         value={mic.partial ?? q}
         onChangeText={setQ}
+        onSubmitEditing={askNow}
+        returnKeyType="search"
         autoCorrect={false}
         editable={!mic.listening}
         trailing={<MicButton bare listening={mic.listening} available={mic.available && !!ws} onPress={mic.listening ? mic.stop : mic.start} />}
@@ -202,7 +224,22 @@ export default function Explorer() {
         <Icon name="agent" size={20} color={C.ink} />
         <T style={{ fontSize: 14.5 }}>Explore through an agent</T>
       </Pressable>
+      {dq && asked !== dq && !isQuestion(dq) ? (
+        <Pressable onPress={askNow} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -4, marginBottom: 12 }}>
+          <Icon name="agent" size={15} color={C.accent} />
+          <T numberOfLines={1} style={{ flexShrink: 1, fontSize: 13.5, color: C.accent }}>{`Ask the graph about “${dq}”`}</T>
+          <T style={{ fontSize: 12, color: C.muted }}>Enter</T>
+        </Pressable>
+      ) : null}
+      {ws && asked ? (
+        <EntityLinks workspace={ws} open={onOpen}>
+          <Answer ws={ws} q={asked} />
+        </EntityLinks>
+      ) : null}
       {rows.length ? <List>{rows}</List> : null}
+      {dq && search.isSuccess && rows.length === 0 && !asked ? (
+        <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 }}>No entity matches; press Enter to ask the graph</T>
+      ) : null}
     </ScrollView>
   );
 

@@ -15,15 +15,20 @@ references:
     relation: depends_on
   - to: Architecture/Dependency/kb
     relation: depends_on
+  - to: Code/ConfigSetting/entity-types
+    relation: configured_by
+  - to: Harness/Automation/search
+    relation: answered_by
 artifacts:
   - docs/entity-types.tsv
 ---
 # Knowledge base
 
-Graph RAG over 152 entity types (`docs/entity-types.tsv`), one knowledge base per workspace.
+Graph RAG over the [entity types](Code/ConfigSetting/entity-types), one knowledge base per workspace.
 
-- Entities are markdown files at `knowledge-graph/<Domain>/<Type>/[<parent>/]<name>.md`; the type is the path
-- Frontmatter: type, origin, verification, sync, the three ranking integers, references, artifacts; the body is the card
-- A summary is an entity with artifacts; chats, plans, issues, triggers and automation definitions are entities too
-- Runs write freely in a detached checkout; the guard lands each as one commit on the main line, conflicts as a Conflict entity; unverified entities enter the feed
-- Retrieval: full text and embeddings fused by reciprocal rank, then expanded along references
+- Entities are markdown at `knowledge-graph/<Domain>/<Type>/[<parent>/]<name>.md`; the type is the path
+- Frontmatter: type, origin, verification, sync, ranking, references, artifacts; the body is the card
+- Summaries, chats, plans, issues, triggers and definitions are all entities
+- The guard lands each run as one commit; unverified entities enter the feed
+- A card may link the entities it names; each link is also a reference
+- Retrieval: full text and embeddings fused by rank, expanded along references; [the search automation](Harness/Automation/search) answers from it

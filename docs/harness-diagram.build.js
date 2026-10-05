@@ -8,12 +8,12 @@ const OUT = process.argv[2] || 'harness-diagram.pptx';
 
 // ---------------------------------------------------------------- content
 const HARNESS = [
-  ['Settings', ['Included projects', 'Feed size', 'Cards', 'Lifetimes', 'Agents'], 'FaGear'],
-  ['Knowledge Graph Explorer', ['Entity browsing', 'Entity search', 'Reference navigation', 'Indices'], 'FaDiagramProject'],
+  ['Settings', ['Included projects', 'Feed size', 'Cards', 'Models', 'Links to graph config'], 'FaGear'],
+  ['Knowledge Graph Explorer', ['Entity browsing', 'Search by meaning', 'Answers to questions', 'Linked entities'], 'FaDiagramProject'],
   ['Importance Rank', ['Dependencies', 'Stability', 'Performance', 'Priority', 'Velocity'], 'FaRankingStar'],
   ['Chat', ['Question answering', 'Run steering', 'Automation launching'], 'FaComments'],
   ['Metrics', ['Alignment issues', 'Agents usage', 'Sessions duration', 'Consistency'], 'FaChartLine'],
-  ['Optimization', ['Skills extraction', 'Tools extraction', 'Agents extraction'], 'FaWandMagicSparkles'],
+  ['Optimization', ['Patterns across all chats', 'Three repeats at least', 'Skills, memories, agents', 'Approved in the feed'], 'FaWandMagicSparkles'],
   ['Orchestrator', ['Automation deployment', 'Agents deployment', 'Metrics collection'], 'FaSitemap'],
   ['API', ['Front-end entry point', 'Feed polling', 'Session results', 'Approvals'], 'FaPlug'],
   ['Voice Tools', ['Full capability access', 'UI-free control', 'API calls'], 'FaMicrophone'],

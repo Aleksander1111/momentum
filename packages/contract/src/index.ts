@@ -224,6 +224,35 @@ export type TypesResponse = z.infer<typeof TypesResponse>;
 export const SearchResult = EntityListItem.extend({ score: z.number() });
 export type SearchResult = z.infer<typeof SearchResult>;
 
+/** A question asked of the knowledge graph, answered in one pass from the entities it finds */
+export const AskRequest = z.object({ q: z.string().trim().min(1).max(500) });
+export type AskRequest = z.infer<typeof AskRequest>;
+
+export const AskResponse = z.object({
+  question: z.string(),
+  /** Markdown; entities are linked by path, [title](Domain/Type/name) */
+  answer: z.string(),
+  /** The entities the answer was drawn from, best first */
+  sources: z.array(SearchResult),
+});
+export type AskResponse = z.infer<typeof AskResponse>;
+
+/** Domain/Type/name…: two capitalised segments, then at least one more */
+const ENTITY_PATH = /^[A-Z][A-Za-z0-9]*\/[A-Z][A-Za-z0-9]*(?:\/[^\s/#?]+)+$/;
+
+/**
+ * The entity path a link target points at, or null when it points anywhere else (a URL, a file, an anchor). Entities
+ * link each other in text by path, [the approval rule](Product/BusinessRule/approval-removes-retired); the path may
+ * also be written as its file, knowledge-graph/<path>.md, or with the entity: scheme.
+ */
+export function entityLinkTarget(href: string): string | null {
+  let p = href.trim();
+  if (p.startsWith('entity:')) p = p.slice('entity:'.length);
+  else if (/^[a-z][a-z0-9+.-]*:/i.test(p)) return null;
+  p = p.replace(/^\.?\//, '').replace(/^knowledge-graph\//, '').replace(/\.md$/, '');
+  return ENTITY_PATH.test(p) ? p : null;
+}
+
 // Feed
 
 export const FeedItem = z.object({
@@ -303,6 +332,7 @@ export const AutomationName = z.enum([
   'chat',
   'graph-build',
   'interview',
+  'search',
 ]);
 export type AutomationName = z.infer<typeof AutomationName>;
 
@@ -612,10 +642,15 @@ export const Settings = z.object({
     concurrentTotal: z.number().int().positive(),
   }),
   models: ModelSettings,
+  /**
+   * Where the rest of the configuration lives: the harness workspace, whose knowledge graph holds the automation
+   * definitions, the entity types and the patterns of the user's behaviour, each changed and approved as an entity
+   */
+  harness: z.object({ workspace: z.string() }),
 });
 export type Settings = z.infer<typeof Settings>;
 
-export const PutSettings = Settings.partial().extend({
+export const PutSettings = Settings.omit({ harness: true }).partial().extend({
   projects: z.array(ProjectSetting.pick({ name: true, enabled: true })).optional(),
 });
 export type PutSettings = z.infer<typeof PutSettings>;

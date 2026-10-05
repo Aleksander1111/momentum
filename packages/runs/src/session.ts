@@ -125,7 +125,8 @@ export interface AskSpec {
   cwd: string;
   system: string;
   prompt: string;
-  model: string;
+  /** Claude Code's default when left out */
+  model?: string;
   limits: ResourceLimits;
   procgov: string;
 }

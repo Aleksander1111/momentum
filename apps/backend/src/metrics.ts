@@ -10,10 +10,14 @@ import {
   type RunHistograms,
   type Series,
 } from '@momentum/contract';
+import { fileOf, serializeEntity } from '@momentum/entity';
+import { commitPathsFrom } from '@momentum/runs';
 import type { Automations } from './automations.ts';
 import type { Workspace } from './workspaces.ts';
 
+/** Reactions in a row that make a pattern: well past the three repeats anything new needs before it is proposed */
 const PATTERN_WINDOW = 10;
+export const PATTERN_TYPE = 'Harness/Pattern';
 
 const RANGES: Record<MetricsRange, { unit: 'hour' | 'day'; points: number }> = {
   '24h': { unit: 'hour', points: 24 },
@@ -239,10 +243,10 @@ export async function workspaceMetrics(ws: Workspace, automations: Automations, 
   const approved = await span.series(attention, '1', 'count', `reaction = 'approved'`);
   const rejected = await span.series(attention, '1', 'count', `reaction = 'rejected'`);
   const sentBack = await span.series(attention, '1', 'count', `reaction = 'sent_back'`);
-  // Patterns only accumulate: the count standing at the end of each bucket
-  const newPatterns = await span.series(`${s}.attention_pattern`, '1', 'count', 'true', 'detected_at');
+  // Patterns only accumulate, once the user accepted them: the count standing at the end of each bucket
+  const newPatterns = await span.series(`${s}.attention_pattern`, '1', 'count', 'accepted_at is not null', 'accepted_at');
   let patterns = (await ws.index.sql.unsafe<{ n: number }[]>(
-    `select count(*)::int as n from ${s}.attention_pattern where detected_at < ${span.start}`,
+    `select count(*)::int as n from ${s}.attention_pattern where accepted_at < ${span.start}`,
   ))[0]!.n;
   const patternsAutomated = newPatterns.map((p) => ({ at: p.at, value: (patterns += p.value ?? 0) }));
   const consistency = await span.series(`${s}.understanding_metric`, 'consistency', 'last');
@@ -306,18 +310,71 @@ export async function workspaceMetrics(ws: Workspace, automations: Automations, 
   };
 }
 
-/** Reactions regular enough to become automatic approval or rejection: the last ten of one entity type all agree */
-export async function detectPatterns(ws: Workspace, type: string): Promise<void> {
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/**
+ * Reactions regular enough to become automatic approval or rejection: the last ten of one entity type all agree. Nothing
+ * of the user's behaviour is automated behind their back: the pattern is proposed as a Harness/Pattern entity, which
+ * lands unverified and waits in the feed, and counts only once they approve it. True when a proposal was written.
+ */
+export async function detectPatterns(ws: Workspace, type: string): Promise<boolean> {
+  // Reactions to the proposals themselves make no pattern of their own
+  if (type === PATTERN_TYPE) return false;
   const s = ws.index.schema;
   const rows = await ws.index.sql.unsafe<{ reaction: string }[]>(
     `select reaction from ${s}.attention_metric where entity_type = $1 order by recorded_at desc limit ${PATTERN_WINDOW}`,
     [type],
   );
-  if (rows.length < PATTERN_WINDOW) return;
+  if (rows.length < PATTERN_WINDOW) return false;
   const reaction = rows[0]!.reaction;
-  if (!['approved', 'rejected'].includes(reaction) || rows.some((r) => r.reaction !== reaction)) return;
+  if (!['approved', 'rejected'].includes(reaction) || rows.some((r) => r.reaction !== reaction)) return false;
+  const pattern = `${type}: the last ${PATTERN_WINDOW} items ${reaction}`;
+  const outcome = reaction === 'approved' ? 'automatic approval' : 'automatic rejection';
+  const [known] = await ws.index.sql.unsafe<{ entity_path: string | null }[]>(
+    `select entity_path from ${s}.attention_pattern where pattern = $1`,
+    [pattern],
+  );
+  if (known?.entity_path) return false;
+  const verb = reaction === 'approved' ? 'Approve' : 'Reject';
+  const path = `${PATTERN_TYPE}/${slug(`${outcome} ${type}`)}`;
+  const text = serializeEntity({
+    frontmatter: {
+      type: PATTERN_TYPE,
+      origin: 'automation',
+      verification: 'unverified',
+      sync: 'synced',
+      product_impact: 2,
+      timeline_impact: 2,
+      unlocks: 2,
+      references: [],
+      artifacts: [],
+      pattern,
+      outcome,
+      entity_type: type,
+      seen: PATTERN_WINDOW,
+    } as never,
+    title: `${verb} ${type} items automatically`,
+    body: [
+      `You ${reaction} the last ${PATTERN_WINDOW} ${type} items in a row, none of them reacted to otherwise.`,
+      '',
+      `- Approve this to accept it as a pattern of yours: ${outcome} of ${type} items`,
+      '- Until you do, nothing about your reactions is automated; send it back to keep reacting to each item yourself',
+      '- Accepted patterns are counted on the metrics page; the harness still shows you every item',
+    ].join('\n'),
+  });
+  await commitPathsFrom(ws.path, ws.main, [{ path: fileOf(path), content: text }], `Propose a pattern: ${pattern}`);
   await ws.index.sql.unsafe(
-    `insert into ${s}.attention_pattern (pattern, outcome) values ($1, $2) on conflict (pattern) do update set outcome = excluded.outcome`,
-    [`${type}: the last ${PATTERN_WINDOW} items ${reaction}`, reaction === 'approved' ? 'automatic approval' : 'automatic rejection'],
+    `insert into ${s}.attention_pattern (pattern, outcome, entity_path) values ($1, $2, $3)
+     on conflict (pattern) do update set outcome = excluded.outcome, entity_path = excluded.entity_path, accepted_at = null`,
+    [pattern, outcome, path],
+  );
+  return true;
+}
+
+/** An approved Harness/Pattern: the pattern it proposed is accepted from now on */
+export async function acceptPattern(ws: Workspace, path: string): Promise<void> {
+  await ws.index.sql.unsafe(
+    `update ${ws.index.schema}.attention_pattern set accepted_at = coalesce(accepted_at, now()) where entity_path = $1`,
+    [path],
   );
 }

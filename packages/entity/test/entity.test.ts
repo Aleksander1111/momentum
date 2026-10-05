@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  entityLinkTarget,
+  entityLinks,
   entityPathOf,
   loadEntityTypes,
   parseEntity,
@@ -59,6 +61,16 @@ describe('validate', () => {
     expect(validateEntity(path, mermaid, ctx).map((i) => i.code)).toEqual(['mermaid_diagram']);
   });
 
+  it('accepts entity links in the card that are among its references, and flags the others', () => {
+    const e = parseEntity(fixture);
+    const linked = { ...e, body: `Reached through [the session API](Architecture/Api/session).\n\n${e.body}` };
+    expect(validateEntity(path, linked, ctx)).toEqual([]);
+    const unlisted = { ...e, body: `See [the feed](knowledge-graph/Architecture/Component/attention-feed.md).\n\n${e.body}` };
+    const issues = validateEntity(path, unlisted, ctx);
+    expect(issues.map((i) => i.code)).toEqual(['unlisted_link']);
+    expect(issues[0]!.message).toContain('Architecture/Component/attention-feed');
+  });
+
   it('reports parse errors as issues', () => {
     expect(validateText(path, '# no frontmatter', ctx).issues[0]?.code).toBe('parse');
     expect(validateText(path, '---\ntype: Governance/Decision\nproduct_impact: 9\n---\n# T\n', ctx).issues[0]?.code).toBe(
@@ -75,5 +87,25 @@ describe('card', () => {
     expect(table?.t === 'table' && table.head.length).toBe(2);
     const diagram = card[3];
     expect(diagram?.t === 'diagram' && diagram.svg).toMatch(/^<svg>/);
+  });
+});
+
+describe('entity links', () => {
+  it('reads entity paths from link targets and leaves everything else', () => {
+    expect(entityLinkTarget('Product/Feature/offline-feed')).toBe('Product/Feature/offline-feed');
+    expect(entityLinkTarget('knowledge-graph/Harness/Plan/a/b.md')).toBe('Harness/Plan/a/b');
+    expect(entityLinkTarget('entity:Governance/Decision/x')).toBe('Governance/Decision/x');
+    expect(entityLinkTarget('https://example.com/A/B/c')).toBeNull();
+    expect(entityLinkTarget('docs/plan.md')).toBeNull();
+    expect(entityLinkTarget('Product/Feature')).toBeNull();
+  });
+
+  it('lists the entities a card links, once each, outside code', () => {
+    const body = [
+      'Depends on [the API](Architecture/Api/session) and [the feed](Architecture/Component/attention-feed).',
+      'Again [the API](Architecture/Api/session), a [site](https://example.com) and `[not](Product/Feature/x)`.',
+      '```\n[nor](Product/Feature/y)\n```',
+    ].join('\n\n');
+    expect(entityLinks(body)).toEqual(['Architecture/Api/session', 'Architecture/Component/attention-feed']);
   });
 });

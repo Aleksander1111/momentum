@@ -1,12 +1,13 @@
 import { Fragment, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import type { Block, Card, CardDiff, ContextItem, Inline, Mark } from '@momentum/contract';
+import { entityLinkTarget, type Block, type Card, type CardDiff, type ContextItem, type Inline, type Mark } from '@momentum/contract';
 import { C, F } from './theme';
 import { H, T } from './Text';
 import { Diagram } from './Diagram';
 import { DiagramDiff, SpanText } from './DiagramDiff';
 import { TypePill } from './domains';
+import { EntityLink, EntityLinks } from './EntityRef';
 import { ProjectLogo } from './ProjectLogo';
 import { SelectionMenu } from './SelectionMenu';
 import { SelectionScope } from './SelectionScope';
@@ -50,7 +51,15 @@ function Inlines({ c }: { c: Inline[] }): ReactNode {
             {i.v}
           </Text>
         );
-      case 'link':
+      case 'link': {
+        // A link to an entity reads as every entity named in the app does
+        const entity = entityLinkTarget(i.href);
+        if (entity)
+          return (
+            <EntityLink key={k} path={entity}>
+              <Inlines c={i.c} />
+            </EntityLink>
+          );
         return (
           <Text
             key={k}
@@ -60,6 +69,7 @@ function Inlines({ c }: { c: Inline[] }): ReactNode {
             <Inlines c={i.c} />
           </Text>
         );
+      }
       case 'br':
         return <Fragment key={k}>{'\n'}</Fragment>;
       case 'ins':
@@ -297,7 +307,7 @@ export function CardView({
   const add = (heading: string[], part: { quote: string } | { element: string }) =>
     chatContext.add({ workspace, path, title, heading, ...part } as ContextItem);
   return (
-    <View>
+    <EntityLinks workspace={workspace}>
       <View
         style={{
           flexDirection: 'row',
@@ -337,6 +347,6 @@ export function CardView({
           </SelectionMenu>
         ))}
       </SelectionScope>
-    </View>
+    </EntityLinks>
   );
 }

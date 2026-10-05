@@ -57,6 +57,13 @@ function harnessRepo(dir: string) {
     const text = readFileSync(join(defs, f), 'utf8').replace(/^verification: unverified$/m, 'verification: verified');
     put(dir, `knowledge-graph/Harness/Automation/${f}`, text);
   }
+  // The entity types, the other configuration the settings lead to; the repository it belongs to is not in this copy
+  cpSync(join(REPO, 'docs', 'entity-types.tsv'), join(dir, 'docs', 'entity-types.tsv'));
+  const types = readFileSync(join(REPO, 'knowledge-graph', 'Code', 'ConfigSetting', 'entity-types.md'), 'utf8')
+    .replace(/\r\n/g, '\n')
+    .replace(/^references:\n(?: {2}.*\n)+/m, 'references: []\n')
+    .replace(/^verification: unverified$/m, 'verification: verified');
+  put(dir, 'knowledge-graph/Code/ConfigSetting/entity-types.md', types);
   initRepo(dir, 'Add the automation definitions');
 }
 

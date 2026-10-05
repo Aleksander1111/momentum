@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native';
 import type { FeedItem, Severity } from '@momentum/contract';
 import { C, F } from './theme';
 import { T } from './Text';
+import { EntityRef } from './EntityRef';
 
 type Issue = NonNullable<FeedItem['issue']>;
 
@@ -22,7 +23,7 @@ function Chip({ label, fill, ink }: { label: string; fill: string; ink: string }
 }
 
 /** Severity, category and the entities an issue concerns, the one at fault first */
-export function IssueHead({ issue }: { issue: Issue }) {
+export function IssueHead({ issue, workspace }: { issue: Issue; workspace: string }) {
   return (
     <View style={{ marginTop: 4, marginBottom: 6, gap: 10 }}>
       {issue.severity || issue.category ? (
@@ -36,12 +37,14 @@ export function IssueHead({ issue }: { issue: Issue }) {
       {issue.concerns.length ? (
         <View>
           <T style={{ color: C.muted, fontSize: 12.5 }}>Concerns</T>
-          {issue.concerns.map((p, i) => (
-            <T key={p} style={{ fontSize: 12.5, lineHeight: 18 }}>
-              {p}
-              {i === 0 ? <T style={{ color: C.no, fontSize: 10.5, fontWeight: '700', letterSpacing: 1.2 }}>{'  AT FAULT'}</T> : null}
-            </T>
-          ))}
+          <View style={{ gap: 3, marginTop: 3, alignItems: 'flex-start' }}>
+            {issue.concerns.map((p, i) => (
+              <View key={p} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
+                <EntityRef workspace={workspace} path={p} size={12.5} />
+                {i === 0 ? <T style={{ color: C.no, fontSize: 10.5, fontWeight: '700', letterSpacing: 1.2 }}>AT FAULT</T> : null}
+              </View>
+            ))}
+          </View>
         </View>
       ) : null}
     </View>

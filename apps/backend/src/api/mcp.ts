@@ -39,6 +39,12 @@ function createServer(m: Momentum): McpServer {
   t('entity', 'Read one entity in full.', { workspace: z.string(), path: z.string() }, (a) => m.entity(a.workspace, a.path));
   t('types', 'Browse a workspace\'s entities by type path.', { workspace: z.string() }, (a) => m.types(a.workspace));
   t('search', 'Search a workspace\'s entities.', { workspace: z.string(), query: z.string() }, (a) => m.search(a.workspace, a.query));
+  t(
+    'ask',
+    'Ask the knowledge graph a question: answered at once from the entities the search finds, each it draws from linked by path, with those entities as sources.',
+    { workspace: z.string(), question: z.string().min(1) },
+    (a) => m.ask(a.workspace, a.question),
+  );
   t('chats', 'List the chats of a workspace.', { workspace: z.string() }, (a) => m.chats(a.workspace));
   t(
     'chat',

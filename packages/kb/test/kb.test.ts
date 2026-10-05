@@ -54,6 +54,14 @@ describe('workspace index', () => {
     expect((await index.search('plane', v!))[0]?.path).toBe('Product/Feature/offline-feed');
   });
 
+  it('finds entities for a question by meaning and by any of its words', async () => {
+    const question = 'How do I reach the API from outside the house?';
+    const [v] = await embed([question]);
+    expect((await index.search(question, v!)).slice(0, 2).map((r) => r.path)).toContain('Governance/Decision/remote-access/private-mesh');
+    // Without meaning, the words alone still find it: any of them, not all
+    expect((await index.search('which session token does the cookie hold', null)).map((r) => r.path)).toContain('Architecture/Api/session');
+  });
+
   it('expands search hits along references', async () => {
     const [q] = await embed(['WireGuard']);
     const paths = (await index.retrieve('WireGuard', q!, 1, 1)).map((r) => r.path);

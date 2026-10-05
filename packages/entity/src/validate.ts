@@ -1,4 +1,5 @@
 import type { ParsedEntity } from './parse.ts';
+import { entityLinks } from './links.ts';
 import { EntityParseError, parseEntity, typeOfPath } from './parse.ts';
 
 export type ValidationCode =
@@ -7,6 +8,7 @@ export type ValidationCode =
   | 'type_path_mismatch'
   | 'card_limit'
   | 'unresolved_reference'
+  | 'unlisted_link'
   | 'mermaid_diagram';
 
 export interface ValidationIssue {
@@ -62,6 +64,16 @@ export function validateEntity(path: string, entity: ParsedEntity, ctx: Validati
     if (!ctx.resolves(ref.to)) {
       issues.push({ path, code: 'unresolved_reference', message: `reference ${ref.relation} → ${ref.to} does not resolve` });
     }
+  }
+  // A link in the card reads a reference in place: the reference itself is in the frontmatter, where the graph has it
+  const listed = new Set(frontmatter.references.map((r) => r.to));
+  for (const to of entityLinks(body)) {
+    if (to === path || listed.has(to)) continue;
+    issues.push({
+      path,
+      code: 'unlisted_link',
+      message: `the card links ${to}, which is not among its references; add it to references with its relation, or drop the link`,
+    });
   }
   return issues;
 }

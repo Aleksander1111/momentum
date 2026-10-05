@@ -187,7 +187,7 @@ export const SCENARIOS: Scenario[] = [
     real: true,
     covers: ['automation.optimization', 'metrics.agent', 'definition.approve', 'definition.variant'],
     steps: [
-      'After chats in a project repeat the same correction, optimization in the harness workspace records the counts and proposes a definition change with evidence',
+      'Two chats repeating a correction propose nothing; after a third, optimization records the counts and proposes the pattern and a definition change with evidence',
       'Approving it materializes it into every enabled project; a definition variant is recorded on the runs it shapes',
     ],
     // The features each step checks, step by step
@@ -277,7 +277,7 @@ export const SCENARIOS: Scenario[] = [
       'feed.approve', 'feed.send-back',
     ],
     steps: [
-      'Ten approvals of one type become an automatic approval pattern',
+      'Ten approvals of one type propose an automatic approval pattern in the feed; it counts once approved',
       'Every metric of the metrics page has a value after the reactions and runs',
     ],
     // The features each step checks, step by step
@@ -739,6 +739,27 @@ export const SCENARIOS: Scenario[] = [
       ['run.context', 'run.messages', 'automation.chat', 'app.pages'],
       ['automation.chat', 'feed.send-back'],
       ['kb.search', 'app.pages'],
+    ],
+  },
+  {
+    id: 'links-and-answers',
+    title: 'Entities linked everywhere, and the graph answering questions',
+    projects: ['handbook'],
+    real: false,
+    scripted: true,
+    covers: ['app.entity-links', 'app.entity-folds', 'kb.ask', 'settings.graph-config', 'app.pages', 'automation.chat'],
+    steps: [
+      "An entity's references and artifacts are folded; opened, the references group by type and open on a press",
+      'A link in a card and a link or path in a chat answer read as entities and open them',
+      'A question typed in the search is answered above the results, linking what it drew from; keywords are answered on Enter',
+      "Settings lead to the automations, the entity types and each project's triggers and patterns in the knowledge graph",
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['app.entity-folds', 'app.entity-links'],
+      ['app.entity-links', 'automation.chat'],
+      ['kb.ask', 'app.entity-links', 'app.pages'],
+      ['settings.graph-config', 'app.pages'],
     ],
   },
   {

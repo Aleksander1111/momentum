@@ -53,7 +53,7 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     await app.go(`/explorer?ws=${WS}`);
     await listen();
     voice.say('books by author');
-    await expect(app.frame().getByPlaceholder('Search entities')).toHaveValue('books by author', { timeout: 15_000 });
+    await expect(app.frame().getByPlaceholder('Search or ask a question')).toHaveValue('books by author', { timeout: 15_000 });
     expect(await chats()).toEqual([]);
 
     await app.entity(WS, API);

@@ -19,7 +19,8 @@ const DEFAULTS = {
   models: {
     mode: 'single',
     single: 'default',
-    perAutomation: Object.fromEntries(AutomationName.options.map((a) => [a, 'default'])) as Record<AutomationName, ModelChoice>,
+    // A search answer is read while the user waits: a quick model unless they choose otherwise
+    perAutomation: Object.fromEntries(AutomationName.options.map((a) => [a, a === 'search' ? 'sonnet' : 'default'])) as Record<AutomationName, ModelChoice>,
     risk: { low: 'haiku', medium: 'sonnet', high: 'opus' },
   } satisfies ModelSettings,
 };
@@ -31,7 +32,7 @@ const INDEX_VERSION = 1;
 
 /** Harness settings in the harness schema: enabling a project must not create commits in it */
 export class HarnessSettings {
-  private cache: Omit<Settings, 'projects'> | null = null;
+  private cache: Omit<Settings, 'projects' | 'harness'> | null = null;
 
   constructor(private readonly sql: Sql) {}
 
@@ -136,11 +137,11 @@ export class HarnessSettings {
     await this.sql`update harness.project set graph_build_coverage = ${Math.min(1, Math.max(0, coverage))} where name = ${name}`;
   }
 
-  async values(): Promise<Omit<Settings, 'projects'>> {
+  async values(): Promise<Omit<Settings, 'projects' | 'harness'>> {
     if (this.cache) return this.cache;
     const rows = await this.sql<{ key: Key; value: never }[]>`select key, value from harness.setting`;
     const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-    const cache: Omit<Settings, 'projects'> = { ...DEFAULTS, ...stored };
+    const cache: Omit<Settings, 'projects' | 'harness'> = { ...DEFAULTS, ...stored };
     // Runs were once bounded per project too; automation runs now go one at a time and only the total is set
     const agents = stored.agents as { concurrentTotal?: number } | undefined;
     if (agents) cache.agents = { concurrentTotal: agents.concurrentTotal ?? DEFAULTS.agents.concurrentTotal };
@@ -157,7 +158,7 @@ export class HarnessSettings {
   }
 
   async get(): Promise<Settings> {
-    return { projects: await this.projects(), ...(await this.values()) };
+    return { projects: await this.projects(), ...(await this.values()), harness: { workspace: config.harnessName } };
   }
 
   async put(change: PutSettings): Promise<Settings> {

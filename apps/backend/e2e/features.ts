@@ -67,7 +67,7 @@ export const FEATURES = {
   'feed.issue-options': 'An issue offers 2-4 options; picking one resolves it in a chat run',
   'feed.wont-resolve': "Won't resolve closes an issue as verified with the reason",
   'feed.contradictions': 'Open contradiction issues over an entity are counted on it',
-  'feed.patterns': 'Ten agreeing reactions on one entity type become an automatic approval or rejection pattern',
+  'feed.patterns': 'Ten agreeing reactions on one entity type are proposed as a Harness/Pattern in the feed; the pattern counts only once approved',
   'feed.stale': 'A card that changed after the device showed it is not approved unseen',
   'feed.once': 'The same reaction from two devices, a second tap or a replayed offline swipe acts once; a send back never starts a second chat',
   'feed.retire': 'Approving a retirement removes what nothing else references, and the plan with it',
@@ -77,7 +77,8 @@ export const FEATURES = {
   'kb.types': 'Entities are grouped by type path',
   'kb.search': 'Search finds entities by full text and meaning and expands along references',
   'kb.mcp': 'Runs read, search, follow references and write entities through the momentum-kb MCP server',
-  'kb.validate': 'Card limit, unresolved references, unknown types, path mismatch and mermaid are rejected',
+  'kb.validate': 'Card limit, unresolved references, unknown types, path mismatch, mermaid and card links missing from the references are rejected',
+  'kb.ask': 'A question in the explorer search is answered in one pass from the entities the search finds, each it draws from linked',
 
   // Automations, each a real Claude Code run
   'automation.graph-build': 'Builds the knowledge graph run after run, reporting progress and coverage, until covered or stopped',
@@ -88,7 +89,7 @@ export const FEATURES = {
   'automation.validation': 'Validates landed work and raises failures as issues',
   'automation.consistency-check': 'Files each inconsistency as a Harness/Issue with category, severity and options; fixes nothing',
   'automation.retention': 'Proposes one retirement plan per group of spent entities; approval removes them',
-  'automation.optimization': 'Counts misalignments and recurring issues and proposes definition or trigger changes',
+  'automation.optimization': 'Reads every chat; proposes a Harness/Pattern and a skill, memory, definition or trigger change only for what was seen at least three times',
   'automation.chat': 'Answers from the knowledge base first; a requested plan becomes a Harness/Plan',
   'automation.interview': 'Asks one question at a time, writes answers to one document, summarized once when done',
 
@@ -109,8 +110,11 @@ export const FEATURES = {
   'api.http': 'Every HTTP route answers to its contract',
   'api.mcp': 'The momentum MCP server drives the feed, chats, automations, graph build and reset',
   'app.pages': 'Every app page loads and acts on the backend: feed, explorer, entity, chat, timeline, metrics, settings',
+  'app.entity-links': "An entity named anywhere (a card's text, a chat, an answer, references, events, issues) shows its type's glyph and colour and opens on a press; references group by type",
+  'app.entity-folds': "An entity's references and artifacts are folded until opened",
   'app.offline': 'Swipes made while the back-end is unreachable wait on the device and land once it is back',
   'app.timeline': "The timeline lists the user's actions and one event per run, kept up to date as it runs and lands, newest first, by project and actor, live beside the app in the observer",
+  'settings.graph-config': 'Settings lead to the configuration kept in the knowledge graph: automations, entity types, risk rules, triggers and patterns',
   'settings.persist': 'Settings persist: feed size, card limit and rules, exclusions, lifetimes, total runs, models',
 } as const;
 

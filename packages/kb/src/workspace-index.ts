@@ -218,9 +218,14 @@ export class WorkspaceIndex {
     return { total: rows.length, types: [...domains.values()] };
   }
 
-  /** Full text and vector search fused by reciprocal rank */
-  async search(q: string, embedding: number[] | null, limit = 20): Promise<SearchResult[]> {
+  /**
+   * Full text and vector search fused by reciprocal rank. A few keywords must all match; a longer query, such as a
+   * question, matches on any of its words, ranked by how many, so its full text half still finds what meaning finds
+   */
+  async search(query: string, embedding: number[] | null, limit = 20): Promise<SearchResult[]> {
     const vec = embedding ? toVector(embedding) : null;
+    const words = query.replace(/["?!.,;:()]/g, ' ').split(/\s+/).filter(Boolean);
+    const q = words.length > 3 ? words.join(' or ') : query;
     const rows = await this.sql<(EntityRow & { score: number })[]>`
       with fts as (
         select path, row_number() over (order by ts_rank(search, websearch_to_tsquery('english', ${q})) desc) as r

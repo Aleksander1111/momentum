@@ -22,10 +22,10 @@ artifacts:
 
 Chats per workspace, each a conversation attached to a run.
 
-- Chats grouped by workspace, led by its logo, polled every 15 s; rows show kind, status, age, state badges
-- The composer starts a chat run in the chosen workspace
-- Card parts in the context wait as chips above the composer (× removes one) and go with the next message
-- A mic beside send: the field shows the words as heard; its outcome opens the chat; a failed item returns
-- A conversation: run head (automation, state, 5-hour usage %), bubbles, polled every 3 s while active; Stop kills it
-- An interview shows the document it writes, from the main line, and takes answers without context
+- Grouped by workspace, led by its logo, polled every 15 s; rows show kind, status, age, states
+- The composer starts a chat run; card parts in the context wait as chips above it
+- A mic beside send: the words show as heard; its outcome opens the chat
+- A conversation: run head (automation, state, 5-hour usage), bubbles polled every 3 s while active; Stop kills it
+- Entities an answer names, by link or path, show their type's glyph and colour and open on a press
+- An interview shows the document it writes and takes answers without context
 - Web (700 px+) shows it beside the list

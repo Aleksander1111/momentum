@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { onlineManager } from '@tanstack/react-query';
 import {
+  AskResponse,
   ChatsResponse,
   EntityDetail,
   FeedResponse,
@@ -143,6 +144,10 @@ export const api = {
   types: (ws: string) => get(`/workspaces/${seg(ws)}/types`, TypesResponse),
   artifact: (ws: string, path: string) => get(`/workspaces/${seg(ws)}/artifact/${segs(path)}`, ArtifactResponse),
   search: (ws: string, q: string) => get(`/workspaces/${seg(ws)}/search?q=${encodeURIComponent(q)}`, SearchResponse),
+  async ask(ws: string, q: string): Promise<AskResponse> {
+    const res = await request('POST', `/workspaces/${seg(ws)}/ask`, { q });
+    return AskResponse.parse(await res.json());
+  },
   chats: (ws: string) => get(`/workspaces/${seg(ws)}/chats`, ChatsResponse),
   async createChat(ws: string, req: CreateChatRequest): Promise<{ runId: string }> {
     const res = await request('POST', `/workspaces/${seg(ws)}/chats`, req);

@@ -12,12 +12,12 @@ artifacts:
 ---
 # Optimization
 
-Aligns the automations with the user, measured on the collected metrics.
+Aligns the automations with the user; nothing changes until the user approves it.
 
-- Runs in the harness workspace alone, over every enabled project, which it reads but never writes
-- Analyzes each project's chats since its last run and the issues raised: misalignments and recurring issues
-- Records their counts across projects with `record_agent_metric`
-- Resolves the most recurring: skill, sub-agent, definition, tool, MCP server or trigger change
-- Proposes through the feed: definition entities and automations/<name>/ files, trigger changes in its trigger.md
-- Every changed definition, and every competing implementation, gets a `variant` so the metrics compare them
-- Each card gives the evidence, by project, and the expected effect
+- Runs in the harness alone, reading every enabled project, never writing in one
+- Reads every chat and issue, never one chat alone: corrections, recurring problems, requests, preferences
+- Records their counts with `record_agent_metric`
+- Proposes nothing seen fewer than three times, nor a pattern already proposed
+- From three repeats: a Harness/Pattern with the evidence, and a skill, memory, sub-agent, definition, tool or trigger change based on it
+- Every changed definition gets a `variant` so the metrics compare it
+- All of it waits in the feed for approval

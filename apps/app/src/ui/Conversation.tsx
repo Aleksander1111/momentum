@@ -11,6 +11,7 @@ import { Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
 import { chatContext, useChatContext } from '../lib/context';
 import { Btn } from './parts';
+import { EntityLinks } from './EntityRef';
 
 const ACTIVE = new Set(['queued', 'running']);
 
@@ -87,6 +88,8 @@ export function Conversation({ runId }: { runId: string }) {
       : { kind: 'chat', workspace: run.workspace, runId, context };
 
   return (
+    // Entities the messages name open from them
+    <EntityLinks workspace={run?.workspace ?? null}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       {run ? (
         <RunHead
@@ -166,5 +169,6 @@ export function Conversation({ runId }: { runId: string }) {
         }}
       />
     </KeyboardAvoidingView>
+    </EntityLinks>
   );
 }

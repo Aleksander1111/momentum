@@ -13,6 +13,8 @@ references:
     relation: configures
   - to: Harness/Automation/implementation
     relation: configures
+  - to: Code/ConfigSetting/entity-types
+    relation: opens
 artifacts:
   - apps/app/src/app/(tabs)/settings.tsx
 ---
@@ -22,12 +24,13 @@ Changes save when editing ends; projects reload whenever the tab opens.
 
 | Section | Controls |
 |---|---|
-| Appearance | System, light or dark; this device |
-| Projects | Logo and switch each; if enabled, upload/replace/remove the logo (PNG, JPEG, WebP, SVG ≤ 256 KB) |
-| Graph build (enabled project) | State, runs, entities, time, 5 h/week usage; coverage, estimate; Stop/Resume; Reset on a second tap |
+| Appearance | System, light or dark |
+| Projects | Switch and logo each |
+| Graph build | State, runs, entities, time, usage, coverage; Stop/Resume; Reset |
 | Feed size | Items before loops pause |
 | Cards | Character limit, presentation rules |
 | Summarization | Never-summarized paths |
 | Lifetimes | Rule per entity type |
 | Agents | Concurrent runs in total |
-| Models | One for all, per automation, or implementation by risk |
+| Models | One, per automation (search too), or by risk |
+| In the knowledge graph | Automations, [entity types](Code/ConfigSetting/entity-types), risk rules; triggers and patterns per project |

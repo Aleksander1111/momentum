@@ -4,6 +4,8 @@ import fastifySwagger from '@fastify/swagger';
 import fastifyWebsocket from '@fastify/websocket';
 import {
   ApproveRequest,
+  AskRequest,
+  AskResponse,
   ChatsResponse,
   CreateChatRequest,
   EntityDetail,
@@ -173,6 +175,12 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     '/workspaces/:ws/search',
     { schema: { params: ws, querystring: z.object({ q: z.string().default('') }), response: { 200: z.object({ results: z.array(SearchResult) }), ...errors } } },
     (req) => momentum.search(req.params.ws, req.query.q),
+  );
+
+  app.post(
+    '/workspaces/:ws/ask',
+    { schema: { params: ws, body: AskRequest, response: { 200: AskResponse, ...errors } } },
+    (req) => momentum.ask(req.params.ws, req.body.q),
   );
 
   app.get('/workspaces/:ws/chats', { schema: { params: ws, response: { 200: ChatsResponse, ...errors } } }, (req) =>

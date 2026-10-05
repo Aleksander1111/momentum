@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { AutomationName, ProjectLogo as LogoSchema, Risk } from '@momentum/contract';
 import type { GraphBuildState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT, Workspace } from '@momentum/contract';
 import { api } from '../../lib/api';
@@ -11,6 +11,8 @@ import { C, F, useTheme, useWide, type Appearance } from '../../ui/theme';
 import { Btn, Chevron, List, Row, RowText, Sect } from '../../ui/parts';
 import { ProjectLogo } from '../../ui/ProjectLogo';
 import { T } from '../../ui/Text';
+import { DomainBadge } from '../../ui/domains';
+import { useOpenEntity } from '../../ui/EntityRef';
 
 const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null;
 
@@ -273,6 +275,60 @@ function Models({ m, onSave }: { m: ModelSettings; onSave: (m: ModelSettings) =>
             />
           ))
         : null}
+    </List>
+  );
+}
+
+/** Opens the explorer on a workspace with the tree open down to a folder, such as its triggers */
+const openFolder = (ws: string, folder: string) => router.navigate({ pathname: '/explorer', params: { ws, folder } });
+
+/** A row that leads into the knowledge graph, where a piece of the configuration is an entity changed and approved as any other */
+function GraphRow({ first, type, title, sub, onPress }: { first?: boolean; type: string; title: string; sub: string; onPress: () => void }) {
+  return (
+    <Row first={first} onPress={onPress}>
+      <DomainBadge type={type} />
+      <RowText title={title} sub={sub} />
+      <Chevron />
+    </Row>
+  );
+}
+
+/**
+ * The configuration that is not set here: the automation definitions, the entity types, the risk rules and, per
+ * project, the triggers and the patterns of the user's behaviour live as entities in the knowledge graph, where a
+ * change is proposed and approved like any other. Each row opens where it lives.
+ */
+function InTheGraph({ harness, projects }: { harness: string; projects: string[] }) {
+  const open = useOpenEntity(harness);
+  return (
+    <List>
+      <GraphRow
+        first
+        type="Harness/Automation"
+        title="Automations"
+        sub={`What each automation does, the search answers included; in ${harness}`}
+        onPress={() => openFolder(harness, 'Harness/Automation')}
+      />
+      <GraphRow
+        type="Code/ConfigSetting"
+        title="Entity types"
+        sub="The types every entity takes, with what each is for"
+        onPress={() => open?.('Code/ConfigSetting/entity-types')}
+      />
+      <GraphRow
+        type="Harness/Automation"
+        title="Risk rules"
+        sub="How an implementation's risk is judged, among the artifacts of the Implementation definition"
+        onPress={() => open?.('Harness/Automation/implementation')}
+      />
+      {projects.map((p) => (
+        <Row key={p}>
+          <ProjectLogo name={p} size={26} />
+          <RowText title={p} sub="Its triggers and patterns" />
+          <Btn small kind="ghost" label="Triggers" onPress={() => openFolder(p, 'Harness/Trigger')} />
+          <Btn small kind="ghost" label="Patterns" onPress={() => openFolder(p, 'Harness/Pattern')} style={{ marginLeft: 6 }} />
+        </Row>
+      ))}
     </List>
   );
 }
@@ -547,9 +603,12 @@ export default function Settings() {
       {s.models.mode === 'risk' ? (
         <T style={{ color: C.muted, fontSize: 12.5, marginTop: 8 }}>
           Risk rules: automations/implementation/risk.md in the harness, listed among the artifacts of the Implementation
-          definition. Without them, implementation keeps its own model.
+          definition, under In the knowledge graph. Without them, implementation keeps its own model.
         </T>
       ) : null}
+
+      <Sect>In the knowledge graph</Sect>
+      <InTheGraph harness={s.harness.workspace} projects={s.projects.filter((p) => p.enabled).map((p) => p.name)} />
     </ScrollView>
   );
 }
