@@ -107,6 +107,7 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
     const env = new Env(id, s.projects);
     // Reaching the real API, the stand-in passes everything on and records it, what it used included
     const model = new ScriptedModel(env.dir, real);
+    model.scenario = id;
     const offline = real || s.scripted ? null : new BlackHole();
     const apiBase = s.scripted || real ? await model.listen() : offline ? await offline.listen() : null;
     // What the observer and the stall check follow: the scenario's projects and any other workspace it enables

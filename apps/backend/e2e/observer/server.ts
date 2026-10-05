@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { FEATURES } from '../features.ts';
-import { readFiveHour, UsageFit, type Fit, type Tokens } from './usage-fit.ts';
+import { splitRun, type Answer, type Tokens } from './usage-fit.ts';
 import { SCENARIOS, type Scenario } from '../scenarios.ts';
 
 // The runner has no console: what would end it goes to its log, with the time, and the run under way goes on
@@ -95,7 +95,7 @@ const state = {
   /** How long each scenario took lately, live and scripted, in ms: the page estimates what is left of a run from them */
   durations: {} as Durations,
   /** What each scenario's runs used on the real API, its last real run, and the 5-hour limit's rise per dollar of it */
-  spent: { scenarios: {}, share: {}, fit: null } as Spent,
+  spent: { scenarios: {}, share: {} } as Spent,
   /** The runs asked for: the one under way first, then those waiting, then the last ones done */
   requests: [] as Omit<RunRequest, 'env'>[],
   /** How the scenarios pace their actions in the app: a pause, one action at a time, a delay before each */
@@ -137,7 +137,7 @@ type Event =
   | { type: 'usage'; fiveHour: number | null; week: number | null; fiveHourResets: string | null; weekResets: string | null }
   | { type: 'note'; text: string }
   | { type: 'spent'; id: string; requests: number; usd: number; tokens: Tokens }
-  | { type: 'answer'; t: number; u: number | null; resets: number | null; tokens: Tokens }
+  | ({ type: 'answer' } & Answer)
   | { type: 'end' };
 
 /** The worlds of the scenarios under way, by scenario */
@@ -218,19 +218,19 @@ function onEvent(e: Event) {
     }
     case 'usage':
       state.usage = { fiveHour: e.fiveHour, week: e.week, fiveHourResets: e.fiveHourResets, weekResets: e.weekResets };
-      reading(Date.now(), e.fiveHour, e.fiveHourResets);
       break;
     case 'spent':
       state.spent.scenarios[e.id] = { usd: e.usd, requests: e.requests, tokens: e.tokens };
-      refit();
+      saveSpent();
       break;
     case 'answer':
-      fit.add({ t: e.t, u: e.u, resets: e.resets, tokens: e.tokens });
+      runAnswers.push(e);
       break;
     case 'note':
       note(e.text);
       break;
     case 'end':
+      settleUsage();
       state.finished = true;
       note(remaining().length ? `Suite finished; ${remaining().length} left to continue` : 'Suite finished');
       break;
@@ -293,17 +293,16 @@ const DURATIONS = join(REPO, '.e2e-durations.json');
 type Spent = {
   /** The tokens of each scenario's last run with real models, by model group and kind */
   scenarios: Record<string, { usd: number; requests: number; tokens: Tokens }>;
-  /** Each scenario's share of the 5-hour limit, percent, by the fit; null before there is one */
-  share: Record<string, number | null>;
-  /** How the fit stands: its error against the readings, how many readings and how large a rise it rests on */
-  fit: Omit<Fit, 'weights'> | null;
+  /** Each scenario's share of the 5-hour limit in its last run with real models, percent, and that run's whole rise */
+  share: Record<string, { pct: number; runRise: number; at: string }>;
 };
 const SPENT = join(REPO, '.e2e-usage.json');
 try {
   if (existsSync(SPENT)) {
     const saved = JSON.parse(readFileSync(SPENT, 'utf8')) as Spent;
-    // Only runs recorded by kind of token count: what was kept as dollars alone is measured again
     for (const [id, x] of Object.entries(saved.scenarios ?? {})) if (x.tokens && typeof x.tokens === 'object') state.spent.scenarios[id] = x;
+    // Only shares measured within their run: what an earlier way of estimating left is measured again
+    for (const [id, x] of Object.entries(saved.share ?? {})) if (x && typeof x === 'object' && 'runRise' in x) state.spent.share[id] = x;
   }
 } catch {
   // unreadable: measured again
@@ -316,35 +315,20 @@ function saveSpent(): void {
   }
 }
 
-/** The 5-hour limit's readings set against the tokens everything on this PC used: what each kind of token takes */
-const fit = new UsageFit(join(REPO, '.e2e-usage-points.jsonl'));
-function refit(): void {
-  try {
-    fit.refit();
-  } catch (e) {
-    note(`Usage fit failed: ${(e as Error).message}`);
-  }
-  state.spent.fit = fit.fit ? { error: fit.fit.error, rows: fit.fit.rows, span: fit.fit.span } : null;
-  state.spent.share = Object.fromEntries(Object.entries(state.spent.scenarios).map(([id, x]) => [id, fit.share(x.tokens)]));
+/** The answers of the run under way, as the stand-ins passed them on */
+let runAnswers: Answer[] = [];
+
+/** The run is over: each of its scenarios gets its share of what the run took, kept until it runs again */
+function settleUsage(): void {
+  const answers = runAnswers;
+  runAnswers = [];
+  if (!answers.length) return;
+  const { rise, share } = splitRun(answers);
+  const at = new Date().toISOString();
+  for (const [id, pct] of Object.entries(share)) state.spent.share[id] = { pct, runRise: rise, at };
   saveSpent();
-  publish();
+  note(`The run took ${rise}% of the 5-hour limit, shared among ${Object.keys(share).length} scenarios by their tokens`);
 }
-refit();
-
-/** A reading of the limits, from a scenario or the runner's own */
-function reading(t: number, fiveHour: number | null, resets: string | null): void {
-  fit.add({ t, u: fiveHour, resets });
-}
-
-// The runner reads the limits itself every minute, run or no run; the fit takes in what came, every minute too
-setInterval(async () => {
-  const r = await readFiveHour().catch(() => null);
-  if (r && r.fiveHour !== null) {
-    state.usage = { fiveHour: r.fiveHour, week: r.week, fiveHourResets: r.resets, weekResets: r.weekResets };
-    reading(Date.now(), r.fiveHour, r.resets);
-  }
-  refit();
-}, 60_000);
 try {
   if (existsSync(DURATIONS)) state.durations = JSON.parse(readFileSync(DURATIONS, 'utf8')) as Durations;
 } catch {
@@ -550,6 +534,8 @@ function spawnRun(r: RunRequest): void {
     stream?.pipe(own, { end: false });
     if (out) stream?.on('data', (c: Buffer) => out.writableEnded || out.write(c));
   }
+  // Only this run's answers count to it
+  runAnswers = [];
   note(`${r.continuing ? 'Run continued' : 'Run started'} for ${r.by.label}: ${describe(r)}`);
   run.on('exit', (code) => {
     run = null;

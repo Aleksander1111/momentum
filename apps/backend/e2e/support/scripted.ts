@@ -265,6 +265,8 @@ export class ScriptedModel {
   /** The commit subject a run writes when the harness asks for one; null leaves the message file empty */
   subject: (t: Turn) => string | null = (t) => `Scripted ${t.automation} work`;
   private n = 0;
+  /** The scenario whose runs this stand-in answers: its answers count to it */
+  scenario = '';
   /** What the answers forwarded to the real API used */
   readonly spent: Spent = { requests: 0, input: 0, output: 0, cacheWrite: 0, cacheRead: 0, usd: 0, tokens: emptyTokens() };
   private dump: string | null;
@@ -480,7 +482,7 @@ export class ScriptedModel {
     // The 5-hour limit as the API reports it right after this answer: one more point for the runner's fit
     const u = answer.headers.get('anthropic-ratelimit-unified-5h-utilization');
     const resets = answer.headers.get('anthropic-ratelimit-unified-5h-reset');
-    if (used.model) void post({ type: 'answer', t: Date.now(), u: u === null ? null : Number(u) * 100, resets: resets === null ? null : Number(resets), tokens }).catch(() => {});
+    if (used.model) void post({ type: 'answer', scenario: this.scenario, t: Date.now(), u: u === null ? null : Math.round(Number(u) * 100), resets: resets === null ? null : Number(resets), tokens }).catch(() => {});
     this.write({ live: req.url, status: answer.status, at: new Date(), body });
     return `${answer.status} ${summary(body)}`;
   }

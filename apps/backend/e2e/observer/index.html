@@ -321,31 +321,31 @@
     const left = remainingMs(s);
     $('progress').textContent = `${chosen.length ? `${done.length} of ${chosen.length} scenarios` : 'No scenarios run yet'} · ${covered.size} of ${s.features} features verified with real models${s.finished && chosen.length ? ' · finished' : ''}${left === null ? '' : ` · about ${left < 60_000 ? 'a minute' : `${Math.round(left / 60_000)} min`} left`}`;
     const by = (st) => chosen.filter((x) => x.status === st).length;
-    // What a scenario's last run with real models took of the 5-hour limit: its tokens, by model and kind, at what the
-    // fit to the limit's own readings says each kind of token takes
-    const spent = s.spent ?? { scenarios: {}, share: {}, fit: null };
+    // What a scenario took of the 5-hour limit in its last run with real models: that run's rise, shared by its tokens.
+    // Set when the run ended and kept until the scenario runs again
+    const spent = s.spent ?? { scenarios: {}, share: {} };
     const share = (id) => {
-      const pct = spent.share?.[id];
-      return pct === null || pct === undefined ? null : { pct, x: spent.scenarios[id] };
+      const v = spent.share?.[id];
+      return v && typeof v === 'object' ? { pct: v.pct, runRise: v.runRise, at: v.at, x: spent.scenarios[id] } : null;
     };
     spentLabel = (id) => {
       const v = share(id);
       if (!v) return '<span class="spent none" title="Not measured yet: shows after its next run with real models">–</span>';
-      const total = Object.values(v.x.tokens).reduce((t, n) => t + n, 0);
-      const how = `${v.x.requests} API requests, ${(total / 1e6).toFixed(1)} M tokens`;
-      const of = spent.fit ? `; fitted on ${spent.fit.rows} readings of the limit, within ±${spent.fit.error.toFixed(1)}% of them` : '';
+      const total = v.x ? Object.values(v.x.tokens).reduce((t, n) => t + n, 0) : 0;
+      const how = `measured in its run of ${new Date(v.at).toLocaleString()}: that run took ${v.runRise}% of the 5-hour limit${v.x ? `; this scenario's ${v.x.requests} API requests, ${(total / 1e6).toFixed(1)} M tokens, are its share of the run's tokens` : ''}`;
+      const of = '';
       // The heavy ones stand out: under half a percent, up to one and a half, more
       const level = v.pct >= 1.5 ? 3 : v.pct >= 0.5 ? 2 : 1;
       const bars = [1, 2, 3].map((n) => `<i class="${n <= level ? 'on' : ''}"></i>`).join('');
-      return `<span class="spent" title="Share of the 5-hour limit in its last run with real models: ${how}${of}">${v.pct.toFixed(1)}%<span class="bars" aria-label="${['low', 'medium', 'high'][level - 1]} usage">${bars}</span></span>`;
+      return `<span class="spent" title="Share of the 5-hour limit, ${how}">${v.pct.toFixed(1)}%<span class="bars" aria-label="${['low', 'medium', 'high'][level - 1]} usage">${bars}</span></span>`;
     };
     const sum = (list) => list.reduce((t, x) => t + (share(x.id)?.pct ?? 0), 0);
     $('counts').textContent = `${by('passed')} passed · ${by('failed')} failed · ${by('skipped')} skipped`;
     // A full run of every scenario, and the selected ones when they are fewer, under the usage column
     const unmeasured = s.scenarios.filter((x) => !share(x.id)).length;
     const fewer = chosen.length < s.scenarios.length;
-    const totalRow = spent.fit
-      ? `<div class="sc-total"><span class="grow">All ${s.scenarios.length}${unmeasured ? ` (${unmeasured} not measured yet)` : ''}${fewer ? ` · ${chosen.length} selected: ${sum(chosen).toFixed(1)}%` : ''}</span><span class="col-usage" title="Fitted on ${spent.fit?.rows} readings of the limit; the fit is within ±${spent.fit?.error.toFixed(1)}% of them">${sum(s.scenarios).toFixed(1)}%</span></div>`
+    const totalRow = Object.keys(spent.share ?? {}).length
+      ? `<div class="sc-total"><span class="grow">All ${s.scenarios.length}${unmeasured ? ` (${unmeasured} not measured yet)` : ''}${fewer ? ` · ${chosen.length} selected: ${sum(chosen).toFixed(1)}%` : ''}</span><span class="col-usage" title="The sum of each scenario's share in its last run with real models">${sum(s.scenarios).toFixed(1)}%</span></div>`
       : '';
 
     // The columns named once, above the list: the usage stays put as the list scrolls
