@@ -9,7 +9,7 @@ export const FEATURES = {
   'project.disable': 'Disabling stops a graph build in progress; enabling again resumes it',
   'project.reset': 'Reset ends runs, removes checkouts, deletes the knowledge graph in one commit, drops the index and builds afresh',
   'project.harness-protected': 'The harness workspace cannot be reset',
-  'project.main-line': 'A developer working on another branch in the project leaves the main line where it is, across restarts; merging the branch is indexed',
+  'project.linear': 'A project is one straight line: another branch, a detached HEAD or a merge commit keeps it from being enabled and switches it off',
   'project.churn': 'A repository cloned under the root or removed from it is seen without a restart; a main line other than main is followed',
 
   // Definitions and triggers
@@ -40,7 +40,6 @@ export const FEATURES = {
   'run.models': 'The model of a run follows the mode: single, per automation, or by risk estimated from the rules',
   'run.queue': 'Runs past the total wait in order; a message to a waiting chat joins its first one; a waiting run stopped never starts',
   'run.retry': 'An implementation that failed is started again on demand for the same entity',
-  'run.developer-work': "A developer's uncommitted work in the project survives a run landing in the same file, merged with it",
   'run.failure': 'A run the API fails for ends failed with the reason; a chat resumes on the next message; a build failing three times in a row stops',
 
   // Guard
@@ -48,7 +47,6 @@ export const FEATURES = {
   'guard.stop-blocked': 'A run cannot stop while its entities are invalid',
   'guard.land': 'A run lands on the main line in one commit, with its own message or one built from what changed',
   'guard.inconsistent-issue': 'Changes that cannot be made consistent land with an issue raised over them',
-  'guard.conflict': 'A run conflicting with the main line lands on the run side and raises the conflict',
   'guard.main-line-index': 'The main line is indexed on every tick; a user commit is picked up',
 
   // Summary states
@@ -56,8 +54,7 @@ export const FEATURES = {
   'state.entity-ahead': 'An approved implementable entity with nothing implementing it is entity_ahead',
   'state.artifact-ahead': 'An artifact changed on the main line puts its entity artifact_ahead and starts one summarization run',
   'state.updating': 'An entity is updating while summarization rewrites it, synced after',
-  'state.new-files': 'Files a developer adds that no entity summarizes are summarized once the knowledge graph is complete',
-  'state.merges': 'Pull requests merged one after another are summarized one run each, in order, the cards ending on the latest',
+  'state.new-files': 'Files the user adds that no entity summarizes are summarized once the knowledge graph is complete',
   'state.moved-files': 'Renamed, split, moved and deleted files are followed: no entity keeps pointing at a file that is gone',
   'state.summarized-once': 'Artifacts a run summarized itself start no summarization run; a rewrite that changes nothing leaves the entity synced, a failed one artifact_ahead',
 
@@ -115,9 +112,6 @@ export const FEATURES = {
   'app.offline': 'Swipes made while the back-end is unreachable wait on the device and land once it is back',
   'app.timeline': "The timeline lists the user's actions and one event per run, kept up to date as it runs and lands, newest first, by project and actor, live beside the app in the observer",
   'settings.persist': 'Settings persist: feed size, card limit and rules, exclusions, lifetimes, total runs, models',
-
-  // Legacy
-  'legacy.run-branches': 'momentum/ branches from before the main line are landed oldest first and removed',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

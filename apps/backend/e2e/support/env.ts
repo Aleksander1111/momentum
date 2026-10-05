@@ -5,9 +5,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import postgres from 'postgres';
 import type { AutomationName, GraphBuildState, Settings } from '@momentum/contract';
+import { post } from '../observer/post.ts';
 import { breakScenario } from './usage.ts';
 
 export const REPO = resolve(import.meta.dirname, '../../../..');
+/** The embedding model, downloaded once for every world rather than once per world */
+export const MODELS = join(REPO, '.e2e-models');
 const BACKEND = join(REPO, 'apps', 'backend');
 const TSX = join(REPO, 'node_modules', 'tsx', 'dist', 'cli.mjs');
 if (!process.env.DATABASE_URL) process.loadEnvFile(join(REPO, '.env'));
@@ -67,6 +70,40 @@ function freePort(): Promise<number> {
     s.on('error', fail);
   });
 }
+
+/** Every process under `pid`, by the parent links Windows keeps */
+function descendants(pid: number): { pid: number; name: string }[] {
+  let rows: { ProcessId: number; ParentProcessId: number; Name: string }[] = [];
+  try {
+    const out = execFileSync('powershell', ['-NoProfile', '-Command', 'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name | ConvertTo-Json -Compress'], { encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+    rows = JSON.parse(out);
+  } catch {
+    return [];
+  }
+  const found: { pid: number; name: string }[] = [];
+  const queue = [pid];
+  while (queue.length) {
+    const parent = queue.shift()!;
+    for (const r of rows) {
+      if (r.ParentProcessId !== parent || r.ProcessId === parent || found.some((f) => f.pid === r.ProcessId)) continue;
+      found.push({ pid: r.ProcessId, name: r.Name });
+      queue.push(r.ProcessId);
+    }
+  }
+  return found;
+}
+
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Worlds whose folder Windows still held when their scenario ended: the next suite deletes them first */
+export const STALE_MARK = '.e2e-delete-me';
 
 function killTree(p: ChildProcess | null) {
   if (!p?.pid || p.exitCode !== null) return;
@@ -134,6 +171,7 @@ export class Env {
       ...process.env,
       DATABASE_URL: this.databaseUrl,
       MOMENTUM_ROOT: this.root,
+      MOMENTUM_MODELS: MODELS,
       MOMENTUM_RUNS: join(this.dir, 'runs'),
       MOMENTUM_HOST: '127.0.0.1',
       MOMENTUM_PORT: String(this.port),
@@ -210,10 +248,32 @@ export class Env {
   }
 
   async tearDown(keep: boolean): Promise<void> {
+    // Whatever the back-end started must end with it: a run process left behind is the harness's leak
+    const tree = this.backend?.pid ? descendants(this.backend.pid) : [];
     this.stop();
     await this.sql?.end().catch(() => {});
+    // Killed processes take a moment to go; the console host Windows gives each console goes with its console
+    const own = tree.filter((p) => p.name.toLowerCase() !== 'conhost.exe');
+    for (let waited = 0; waited < 10_000 && own.some((p) => alive(p.pid)); waited += 500) await new Promise((r) => setTimeout(r, 500));
+    const leaked = own.filter((p) => alive(p.pid));
+    for (const p of leaked) {
+      try {
+        execFileSync('taskkill', ['/pid', String(p.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
+      } catch {
+        // gone meanwhile
+      }
+    }
+    if (leaked.length) throw new Error(`Processes outlived the back-end that started them: ${leaked.map((p) => `${p.name} (${p.pid})`).join(', ')}`);
     if (keep) return;
-    rmSync(this.dir, { recursive: true, force: true, maxRetries: 5 });
+    // The run processes just killed let go of their checkouts a moment later: Windows refuses until then
+    try {
+      rmSync(this.dir, { recursive: true, force: true, maxRetries: 25, retryDelay: 100 });
+    } catch (e) {
+      if (!['EPERM', 'EBUSY', 'ENOTEMPTY'].includes((e as NodeJS.ErrnoException).code ?? '')) throw e;
+      // No process of the world is left (checked above): Windows itself holds the folder for now
+      writeFileSync(join(this.dir, STALE_MARK), '', { flag: 'w' });
+      void post({ type: 'note', text: `${this.id}: Windows still holds ${this.dir}; the next run deletes it` }).catch(() => {});
+    }
     const admin = postgres(new URL('/postgres', this.databaseUrl).toString(), { onnotice: () => {} });
     await admin.unsafe(`drop database if exists ${new URL(this.databaseUrl).pathname.slice(1)} with (force)`).catch(() => {});
     await admin.end();

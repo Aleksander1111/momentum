@@ -1,6 +1,6 @@
 import { IssueFields } from '@momentum/contract';
-import { fileOf, parseEntity, serializeEntity } from '@momentum/entity';
-import { commitPathsFrom, PathsChanged, show } from '@momentum/runs';
+import { entityPathOf, fileOf, parseEntity, serializeEntity } from '@momentum/entity';
+import { commitPathsFrom, git, PathsChanged, show } from '@momentum/runs';
 import { DEFINITION_TYPE, TRIGGER_TYPE } from './automations.ts';
 import type { Bus } from './events.ts';
 import type { Guard } from './guard.ts';
@@ -8,6 +8,9 @@ import type { HarnessSettings } from './harness.ts';
 import type { Runner } from './runner.ts';
 import { reactionEvent, type Timeline } from './timeline.ts';
 import { Conflict, NotFound, type Workspace, type Workspaces } from './workspaces.ts';
+
+/** Where the records of chats live: history, never something another entity depends on */
+const CHAT_RECORD = 'Harness/Chat/';
 
 /** Approve, send back and resolve an issue */
 export class Approval {
@@ -21,7 +24,27 @@ export class Approval {
     private readonly runner: Runner,
     private readonly bus: Bus,
     private readonly timeline: Timeline,
-  ) {}
+  ) {
+    bus.on('run_ended', ({ workspace, runId }) => void this.backInFeed(workspace, runId).catch((e) => console.error(`run ${runId}:`, e)));
+  }
+
+  /**
+   * An entity sent back or resolved leaves the feed while its chat acts on it. Once the chat has ended, an entity it left
+   * unverified on the main line, without rewriting it, comes back: otherwise nothing would ever show it to the user again.
+   */
+  private async backInFeed(workspace: string, runId: string): Promise<void> {
+    const ws = await this.workspaces.get(workspace);
+    const [run] = await ws.index.sql<{ automation: string; target_path: string | null }[]>`
+      select automation, target_path from ${ws.index.sql(`${ws.index.schema}.run`)} where id = ${runId}`;
+    if (run?.automation !== 'chat' || !run.target_path) return;
+    const path = run.target_path;
+    await this.one(workspace, path, async () => {
+      const row = await ws.index.row(path);
+      if (!row || row.verification !== 'unverified' || (await ws.index.inFeed(path))) return;
+      await ws.index.enterFeed(path, row.frontmatter);
+      this.bus.emit('feed_changed');
+    });
+  }
 
   /** Runs one reaction to an entity once the reactions before it have finished */
   private one<T>(workspace: string, path: string, fn: () => Promise<T>): Promise<T> {
@@ -89,24 +112,56 @@ export class Approval {
     const retiring = entity.frontmatter.references.filter((r) => r.relation === 'retires').map((r) => r.to);
     // An entity something else still relies on stays: retiring it would leave that reference pointing nowhere
     const kept: { path: string; by: string[] }[] = [];
+    // A chat's record only tells what the chat was about, and what was written together with the retirement is part of
+    // the same proposal, such as the tasks a task was split into: neither keeps anything alive, and each loses its
+    // reference to what is retired
+    const proposal = await this.writtenWith(ws, ref, path);
+    const loose = (p: string) => p.startsWith(CHAT_RECORD) || proposal.has(p);
+    const records = new Map<string, ReturnType<typeof parseEntity>>();
+    const dropFromRecords = async (gone: string, referrers: string[]) => {
+      for (const p of referrers.filter(loose)) {
+        const record = records.get(p) ?? (await show(ws.path, ref, fileOf(p)).then((t) => (t === null ? null : parseEntity(t))));
+        if (!record) continue;
+        record.frontmatter.references = record.frontmatter.references.filter((r) => r.to !== gone);
+        records.set(p, record);
+      }
+    };
     for (const target of retiring) {
       if ((await show(ws.path, ref, fileOf(target))) === null) continue;
-      const by = (await ws.index.referrers(target)).filter((p) => p !== path && !retiring.includes(p));
-      if (by.length > 0) kept.push({ path: target, by });
-      else files.push({ path: fileOf(target), content: null });
+      const referrers = (await ws.index.referrers(target)).filter((p) => p !== path && !retiring.includes(p));
+      const by = referrers.filter((p) => !loose(p));
+      if (by.length > 0) {
+        kept.push({ path: target, by });
+        continue;
+      }
+      files.push({ path: fileOf(target), content: null });
+      await dropFromRecords(target, referrers);
     }
     const retired = retiring.filter((t) => !kept.some((k) => k.path === t));
-    // Carried out, a retirement leaves no reference behind to what it removed; a plan that only retires is done with it
-    const done = entity.frontmatter.type === 'Harness/Plan' && retiring.length > 0 && entity.frontmatter.references.every((r) => r.relation === 'retires');
+    // Carried out, a retirement leaves no reference behind to what it removed; a plan that retires and plans no other
+    // work is done with it, whatever else it mentions, unless an entity other than a chat's record still points at it
+    const planReferrers = (await ws.index.referrers(path)).filter((p) => !retired.includes(p));
+    const done =
+      entity.frontmatter.type === 'Harness/Plan' &&
+      retiring.length > 0 &&
+      !entity.frontmatter.references.some((r) => r.relation === 'plans') &&
+      !planReferrers.some((p) => !loose(p));
+    if (done) await dropFromRecords(path, planReferrers);
+    for (const [p, record] of records) if (!retired.includes(p)) files.push({ path: fileOf(p), content: serializeEntity(record) });
     entity.frontmatter.references = entity.frontmatter.references.filter((r) => !(r.relation === 'retires' && retired.includes(r.to)));
     entity.frontmatter.sync = done ? 'synced' : await this.guard.syncOf(ws, path, entity.frontmatter);
     files.unshift({ path: fileOf(path), content: done ? null : serializeEntity(entity) });
     // Results implementing an entity bring it back in sync
     const implemented = entity.frontmatter.references.filter((r) => r.relation === 'implements').map((r) => r.to);
-    for (const target of implemented) {
+    for (let i = 0; i < implemented.length; i++) {
+      const target = implemented[i]!;
       const onMain = await show(ws.path, ref, fileOf(target));
       if (onMain === null) continue;
       const t = parseEntity(onMain);
+      // Implementing a plan implements what it plans
+      if (t.frontmatter.type === 'Harness/Plan') {
+        for (const r of t.frontmatter.references) if (r.relation === 'plans' && !implemented.includes(r.to)) implemented.push(r.to);
+      }
       if (t.frontmatter.sync === 'synced') continue;
       t.frontmatter.sync = 'synced';
       files.push({ path: fileOf(target), content: serializeEntity(t) });
@@ -131,6 +186,18 @@ export class Approval {
       this.bus.emit('definition_approved', { path });
     }
     this.bus.emit('feed_changed');
+  }
+
+  /** The other entities the commit that last changed `path` changed: what was proposed together with it */
+  private async writtenWith(ws: Workspace, ref: string, path: string): Promise<Set<string>> {
+    try {
+      const sha = (await git(ws.path, ['log', '-1', '--format=%H', ref, '--', fileOf(path)])).trim();
+      if (!sha) return new Set();
+      const files = (await git(ws.path, ['show', '--name-only', '--format=', sha])).split('\n').map((f) => f.trim()).filter(Boolean);
+      return new Set(files.map((f) => entityPathOf(f)).filter((p): p is string => !!p && p !== path));
+    } catch {
+      return new Set();
+    }
   }
 
   /** The comment starts a chat run with the comment as its prompt and the entity as its target */

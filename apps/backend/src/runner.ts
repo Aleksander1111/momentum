@@ -368,9 +368,10 @@ export class Runner {
       // A run queued again after a restart, or a chat the user wrote to, resumes its session
       await this.launch(ws, r, ref, prompt, r.session_id);
     } catch (e) {
+      // The build stops, if it must, before the run ends: once it has, a tick would queue the next build run
+      if (r.automation === 'graph-build') await this.afterFailedBuild(ws, { id, error: (e as Error).message });
       await this.setStatus(ws, id, 'failed', { error: (e as Error).message, ended_at: new Date() });
       await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } }));
-      if (r.automation === 'graph-build') await this.afterFailedBuild(ws);
       await this.guard.unwatch(id);
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
     }
@@ -402,6 +403,7 @@ export class Runner {
       checkout: r.checkout,
       runId: r.id,
       validation: async () => ({ characterLimit: cards.characterLimit, types: this.workspaces.types }),
+      types: () => [...this.workspaces.types.values()],
       recordAgentMetric: async (m) => {
         await ws.index.sql`insert into ${this.t(ws, 'agent_metric')} ${ws.index.sql({
           run_id: r.id,
@@ -527,7 +529,7 @@ export class Runner {
 - Work only in this checkout. It is a detached checkout of the main line as it stood when you started; the harness commits your changes and lands them on the main line when the run ends, the consistency guard validates them and the user verifies them through the attention feed. Never commit, never push, never create or switch branches, never touch the workspace directory.
 
 ## Knowledge base
-- Entities live at knowledge-graph/<Domain>/<Type>/[<parent-name>/]<name>.md; the type path is Domain/Entity Type from the harness's entity types, ${config.entityTypes} (read it there: it is not in this checkout). Read and write them with the momentum-kb tools (search, read, references, write) or directly as files.
+- Entities live at knowledge-graph/<Domain>/<Type>/[<parent-name>/]<name>.md; the type path is Domain/Entity Type from the harness's entity types, ${config.entityTypes} (read it there or list them with the momentum-kb types tool: it is not in this checkout). Read and write them with the momentum-kb tools (search, read, references, write) or directly as files.
 - Frontmatter: type, origin (user | requested | automation), verification (always unverified when you write), sync, product_impact, timeline_impact, unlocks (integers 0–5: impact on the product, impact on the timeline, how much the work unlocks — they rank the feed), references (to: entity path, relation: snake_case verb such as depends_on, implements, concerns, retires), artifacts (repository paths the entity summarizes).
 - The body starts with "# <title>" and then the card: free-form markdown within ${limit} characters, in whatever form presents the entity best (paragraph, bullets, table, PlantUML diagram in a \`\`\`plantuml code block; mermaid is not accepted). The entity is its card. An entity that does not fit is split into entities that reference each other.
 - Card presentation rules from the user: ${rules.trim() || 'none beyond the character limit'}
@@ -636,6 +638,9 @@ export class Runner {
         error = 'The run ended without reporting its progress with report_graph_build';
       }
       if (status !== 'finished') await this.stillBehind(ws, r, landed.paths);
+      // The build's state moves before the run ends: once it has, a tick would otherwise queue the next build run
+      if (r.automation === 'graph-build') await this.recordGraphBuild(ws, status, entry.graphBuild);
+      if (r.automation === 'graph-build' && status === 'failed') await this.afterFailedBuild(ws, { id, error });
       const endedAt = new Date();
       const usage = { fiveHour: entry.base.fiveHour + entry.usage.fiveHour, week: entry.base.week + entry.usage.week };
       await this.setStatus(ws, id, status, {
@@ -666,7 +671,6 @@ export class Runner {
         usage_five_hour: entry.usage.fiveHour,
         usage_week: entry.usage.week,
       })}`;
-      if (r.automation === 'graph-build') await this.afterGraphBuild(ws, status, entry.graphBuild);
       if (r.automation === 'implementation' && status === 'finished') {
         this.bus.emit('implementation_finished', { workspace: ws.name, runId: id, targetPath: r.target_path });
       }
@@ -690,10 +694,9 @@ export class Runner {
   }
 
   /** The graph build goes on run after run until a run reports the repository covered, or the user stops it */
-  private async afterGraphBuild(ws: Workspace, status: RunStatus, report: Active['graphBuild']): Promise<void> {
+  private async recordGraphBuild(ws: Workspace, status: RunStatus, report: Active['graphBuild']): Promise<void> {
     if (report?.progress) await this.settings.setGraphBuildProgress(ws.name, report.progress);
     if (report) await this.settings.setGraphBuildCoverage(ws.name, report.complete ? 1 : report.coverage);
-    if (status === 'failed') return this.afterFailedBuild(ws);
     if (status !== 'finished') return;
     if (report?.complete && (await this.settings.graphBuild(ws.name)).state === 'building') {
       await this.settings.setGraphBuild(ws.name, 'complete');
@@ -705,9 +708,12 @@ export class Runner {
    * Each failed build run would be queued again at once; when the last few all failed, something is wrong that another
    * run will not fix, so the build stops and says why until the user resumes it
    */
-  private async afterFailedBuild(ws: Workspace): Promise<void> {
-    const last = await ws.index.sql<{ status: RunStatus; error: string | null }[]>`select status, error from ${this.t(ws, 'run')}
-      where automation = 'graph-build' and status in ('finished', 'failed') order by created_at desc limit ${MAX_BUILD_FAILURES}`;
+  private async afterFailedBuild(ws: Workspace, failing: { id: string; error: string | null }): Promise<void> {
+    // The run failing now counts, though its own row does not say so yet
+    const before = await ws.index.sql<{ status: RunStatus; error: string | null }[]>`select status, error from ${this.t(ws, 'run')}
+      where automation = 'graph-build' and status in ('finished', 'failed') and id <> ${failing.id}
+      order by created_at desc limit ${MAX_BUILD_FAILURES - 1}`;
+    const last = [{ status: 'failed' as RunStatus, error: failing.error }, ...before];
     if (last.length < MAX_BUILD_FAILURES || last.some((r) => r.status !== 'failed')) return;
     if ((await this.settings.graphBuild(ws.name)).state !== 'building') return;
     await this.settings.setGraphBuild(ws.name, 'stopped');
@@ -765,9 +771,26 @@ export class Runner {
     const key = JSON.stringify(state);
     if (entry.summarized === key) return null;
     entry.summarized = key;
-    const list = [...artifacts].map(([path, what]) => `- ${path} (${what})`).join('\n');
-    const target = r.target_path ? ` The run's target entity is ${r.target_path}.` : '';
-    return `Before you finish, have the momentum-summarization sub-agent summarize these artifacts into entities in this checkout, passing it the character limit and presentation rules from your instructions.${target}\n\n${list}`;
+    // The work an implementation was asked for, its target and what a target plan plans, is never summarized as its result
+    const asked = new Set<string>();
+    if (r.automation === 'implementation' && r.target_path) {
+      asked.add(r.target_path);
+      const row = await ws.index.row(r.target_path);
+      if (row?.frontmatter.type === 'Harness/Plan') for (const ref of row.frontmatter.references) if (ref.relation === 'plans') asked.add(ref.to);
+    }
+    // The entities over each artifact already, which summarization rewrites rather than adding new ones beside them
+    const lines = await Promise.all(
+      [...artifacts].map(async ([path, what]) => {
+        const over = (await ws.index.byArtifact(path)).filter((p) => !asked.has(p));
+        return `- ${path} (${what}${over.length ? `; summarized by ${over.join(', ')}` : ''})`;
+      }),
+    );
+    const target = !r.target_path
+      ? ''
+      : r.automation === 'implementation'
+        ? ` The run's target entity is ${r.target_path}: what is written for these artifacts is the result of implementing it, so every entity written or rewritten for them references ${r.target_path} with \`implements\`, and ${[...asked].join(', ')} ${asked.size > 1 ? 'are' : 'is'} not rewritten. Pass this message on to the sub-agent as it stands.`
+        : ` The run's target entity is ${r.target_path}.`;
+    return `Before you finish, have the momentum-summarization sub-agent summarize these artifacts into entities in this checkout, passing it the character limit and presentation rules from your instructions. Run it in the foreground and wait for it to finish before you stop.${target}\n\n${lines.join('\n')}`;
   }
 
   /** Whether an artifact is on the main line, for callers that must not assume a checkout */

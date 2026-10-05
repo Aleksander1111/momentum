@@ -1,3 +1,5 @@
+import { post } from '../observer/post.ts';
+import { addTokens, emptyTokens, tokensOf, type Tokens } from '../observer/usage-fit.ts';
 import { appendFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { Socket } from 'node:net';
@@ -11,6 +13,12 @@ import { join } from 'node:path';
  *
  * Each request is answered from the conversation it carries, so nothing is kept per run: the turn is the last thing the
  * user (or a harness hook) said, and the number of assistant replies since then picks the next move of its script.
+ *
+ * Live (E2E_LIVE=1), no answer is scripted: every request goes to the real Claude API as Claude Code sent it, and the
+ * real answer comes back and is recorded in the world's model.log. What still applies is the network's part, never the
+ * model's: a script's gate holds the run's first answer of a turn until the scenario opens it, and a script that answers
+ * with faults alone (an error status or a hang, see `faults`) injects that fault in place of the request reaching the
+ * API, like an outage would.
  */
 
 export type TurnKind = 'prompt' | 'message' | 'resume' | 'summarize' | 'commit-message' | 'guard';
@@ -28,6 +36,8 @@ export interface Turn {
   inputs: string[];
   /** What a PostToolUse hook told the run about its writes so far in this turn */
   hookContext: string[];
+  /** Files the run wrote or edited so far in the conversation, relative to the checkout, with forward slashes */
+  wrote: string[];
   /** A file of the checkout, for moves */
   file(path: string): string;
 }
@@ -101,7 +111,33 @@ export const move = {
 
 interface Message {
   role: string;
-  content: string | { type: string; text?: string; content?: unknown }[];
+  content: string | { type: string; text?: string; content?: unknown; name?: string; input?: { file_path?: string; path?: string } }[];
+}
+
+const isFault = (m: Move) => 'hang' in m || 'error' in m;
+/** Moves that are the network failing, not the model answering: they apply live too, at whatever step they come */
+export const faults = (moves: Move[]) => moves.some(isFault) && moves.every((m) => isFault(m) || 'gate' in m);
+
+/** The files the run's tool calls wrote, relative to the checkout */
+function written(messages: Message[], checkout: string): string[] {
+  const slash = (p: string) => p.replaceAll('\\', '/');
+  const root = `${slash(checkout).replace(/\/$/, '')}/`.toLowerCase();
+  const out: string[] = [];
+  for (const m of messages) {
+    if (m.role !== 'assistant' || typeof m.content === 'string') continue;
+    for (const c of m.content) {
+      if (c.type !== 'tool_use') continue;
+      // The knowledge base's own write tool takes the entity's path
+      if (c.name?.endsWith('__write') && c.input?.path) {
+        out.push(`knowledge-graph/${c.input.path.replace(/\.md$/, '')}.md`);
+        continue;
+      }
+      if (!['Write', 'Edit', 'MultiEdit'].includes(c.name ?? '') || !c.input?.file_path) continue;
+      const f = slash(c.input.file_path);
+      out.push(f.toLowerCase().startsWith(root) ? f.slice(root.length) : f);
+    }
+  }
+  return out;
 }
 
 const textsOf = (m: Message): string[] =>
@@ -141,6 +177,79 @@ interface Logged {
   at: Date;
 }
 
+/** Where live requests go */
+const API = 'https://api.anthropic.com';
+/** Headers that belong to one hop, not to the request or answer passed on */
+const HOP = new Set(['host', 'connection', 'content-length', 'transfer-encoding', 'accept-encoding', 'content-encoding', 'keep-alive']);
+
+/** What a live answer said and did, from its JSON or event stream, for the log */
+/** Tokens a scenario's runs used on the real API, and what they would cost there: the measure of its share of the limits */
+export interface Spent {
+  requests: number;
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+  /** US dollars at the API's list prices, all models: for reference only, the limit does not follow prices */
+  usd: number;
+  /** Tokens by model group and kind: what the 5-hour limit is fitted against */
+  tokens: Tokens;
+}
+
+/** List prices per million input and output tokens; writing the cache costs 1.25 times input, reading it 0.1 times */
+const PRICES: [RegExp, number, number][] = [
+  [/opus/i, 5, 25],
+  [/sonnet/i, 3, 15],
+  [/haiku/i, 1, 5],
+];
+
+/** What one answer used, from its usage fields: streamed in message_start and message_delta, or on the plain message */
+export function spentOf(body: string): Omit<Spent, 'requests' | 'tokens'> & { model: string } {
+  const parts = body.startsWith('{') ? [body] : body.split('\n').filter((l) => l.startsWith('data: ')).map((l) => l.slice(6));
+  let model = '';
+  const u = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
+  for (const p of parts) {
+    try {
+      type Usage = { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
+      const e = JSON.parse(p) as { model?: string; usage?: Usage; message?: { model?: string; usage?: Usage } };
+      const usage = e.message?.usage ?? e.usage;
+      model ||= e.message?.model ?? e.model ?? '';
+      if (!usage) continue;
+      // Each event carries the count so far: the last one of each kind holds
+      if (usage.input_tokens) u.input = usage.input_tokens;
+      if (usage.output_tokens) u.output = usage.output_tokens;
+      if (usage.cache_creation_input_tokens) u.cacheWrite = usage.cache_creation_input_tokens;
+      if (usage.cache_read_input_tokens) u.cacheRead = usage.cache_read_input_tokens;
+    } catch {
+      // not an event
+    }
+  }
+  const [, inPrice, outPrice] = PRICES.find(([re]) => re.test(model)) ?? PRICES[1]!;
+  const usd = (u.input * inPrice + u.cacheWrite * inPrice * 1.25 + u.cacheRead * inPrice * 0.1 + u.output * outPrice) / 1e6;
+  return { ...u, usd, model };
+}
+
+function summary(body: string): string {
+  // A streamed answer is events, one JSON per data line; a plain one is the message itself
+  const parts = body.startsWith('{') ? [body] : body.split('\n').filter((l) => l.startsWith('data: ')).map((l) => l.slice(6));
+  let text = '';
+  const tools: string[] = [];
+  for (const p of parts) {
+    try {
+      const e = JSON.parse(p) as { delta?: { text?: string }; content_block?: { type: string; name?: string }; content?: { type: string; text?: string; name?: string }[] };
+      if (e.delta?.text) text += e.delta.text;
+      if (e.content_block?.type === 'tool_use') tools.push(e.content_block.name ?? '');
+      for (const b of e.content ?? []) {
+        if (b.type === 'text') text += b.text ?? '';
+        if (b.type === 'tool_use') tools.push(b.name ?? '');
+      }
+    } catch {
+      // not an event
+    }
+  }
+  return JSON.stringify({ tools, text: text.slice(0, 400) });
+}
+
 export class ScriptedModel {
   private server: Server;
   private sockets = new Set<Socket>();
@@ -156,11 +265,20 @@ export class ScriptedModel {
   /** The commit subject a run writes when the harness asks for one; null leaves the message file empty */
   subject: (t: Turn) => string | null = (t) => `Scripted ${t.automation} work`;
   private n = 0;
+  /** What the answers forwarded to the real API used */
+  readonly spent: Spent = { requests: 0, input: 0, output: 0, cacheWrite: 0, cacheRead: 0, usd: 0, tokens: emptyTokens() };
   private dump: string | null;
+  private closed = false;
+  /** Aborts the live requests still under way when the scenario ends */
+  private inFlight = new AbortController();
   /** Requests wait until the scenario has said what the runs do: runs due at once start before it begins */
   private held: (() => void)[] | null = [];
 
-  constructor(dir?: string) {
+  constructor(
+    dir?: string,
+    /** Every request to the real API: nothing scripted */
+    readonly live = false,
+  ) {
     this.dump = dir ? join(dir, 'model.log') : null;
     this.server = createServer((req, res) => void this.handle(req, res));
     this.server.on('connection', (s) => {
@@ -175,6 +293,8 @@ export class ScriptedModel {
   }
 
   async close(): Promise<void> {
+    this.closed = true;
+    this.inFlight.abort();
     for (const s of this.sockets) s.destroy();
     await new Promise<void>((ok) => this.server.close(() => ok()));
   }
@@ -222,10 +342,12 @@ export class ScriptedModel {
     let raw = '';
     for await (const c of req) raw += c;
     if (this.held) await new Promise<void>((go) => this.held?.push(go) ?? go());
+    if (this.live && !req.url?.startsWith('/v1/messages')) return void (await this.forward(req, raw, res));
     if (!req.url?.startsWith('/v1/messages')) {
       res.writeHead(404, { 'content-type': 'application/json' });
       return void res.end('{}');
     }
+    if (this.live && req.url.includes('count_tokens')) return void (await this.forward(req, raw, res));
     if (req.url.includes('count_tokens')) {
       res.writeHead(200, { 'content-type': 'application/json' });
       return void res.end(JSON.stringify({ input_tokens: 100 }));
@@ -237,6 +359,7 @@ export class ScriptedModel {
     if (!run || !body.tools?.length) {
       const prompt = body.messages.flatMap(textsOf).filter(own).join('\n');
       this.side.push({ system, prompt });
+      if (this.live) return void (await this.forward(req, raw, res));
       const answer = /estimate the risk of an implementation/.test(system) ? this.risk(prompt) : 'OK';
       return this.reply(res, body, id, [{ text: answer }]);
     }
@@ -262,9 +385,36 @@ export class ScriptedModel {
         .slice(at + 1)
         .flatMap((m) => (m.role === 'system' || m.role === 'user' ? textsOf(m) : []))
         .filter((x) => x.includes('consistency guard will not accept')),
+      wrote: written(body.messages, checkout),
       file: (p) => join(checkout, p),
     };
-    const moves = this.moves(turn);
+    let moves: Move[];
+    try {
+      moves = this.moves(turn);
+    } catch (e) {
+      // A script that throws must not leave the run waiting on an answer that never comes
+      this.write({ run: turn.run, scriptFailed: (e as Error).message, at: new Date() });
+      if (!this.live) return this.reply(res, body, id, [{ error: 500, message: `The script failed: ${(e as Error).message}` }]);
+      moves = [];
+    }
+    // A fault is the network's: it applies at any step, scripted or live
+    if (faults(moves)) {
+      const injected = moves.filter(isFault);
+      const entry = { run: turn.run, automation: turn.automation, kind: turn.kind, input, step, flagged: turn.hookContext.length > 0, move: `injected ${JSON.stringify(injected)}`, at: new Date() };
+      this.log.push(entry);
+      this.write(entry);
+      for (const m of moves) if ('gate' in m) await m.gate;
+      return this.reply(res, body, id, injected);
+    }
+    if (this.live) {
+      const entry = { run: turn.run, automation: turn.automation, kind: turn.kind, input, step, flagged: turn.hookContext.length > 0, move: '', at: new Date() };
+      this.log.push(entry);
+      // Timing is the scenario's: a gate on the turn's first answer still holds it; what is answered is the model's
+      if (step === 0) for (const m of moves) if ('gate' in m) await m.gate;
+      entry.move = await this.forward(req, raw, res);
+      this.write(entry);
+      return;
+    }
     // Text before a tool call goes with it, and so does a gate; text at the end ends the turn
     const replies: Move[][] = [];
     let pending: Move[] = [];
@@ -279,9 +429,65 @@ export class ScriptedModel {
     const replied = replies[step] ?? [{ text: 'Done.' }];
     const entry = { run: turn.run, automation: turn.automation, kind: turn.kind, input, step, flagged: turn.hookContext.length > 0, move: JSON.stringify(replied).slice(0, 300), at: new Date() };
     this.log.push(entry);
-    if (this.dump) appendFileSync(this.dump, `${JSON.stringify(entry)}\n`);
+    this.write(entry);
     for (const m of replied) if ('gate' in m) await m.gate;
     return this.reply(res, body, id, replied.filter((m) => !('gate' in m)));
+  }
+
+  /** Passes the request to the real API and its answer back as it streams; what it answered, for the log */
+  private async forward(req: IncomingMessage, raw: string, res: ServerResponse): Promise<string> {
+    const headers: Record<string, string> = {};
+    for (const [k, v] of Object.entries(req.headers)) if (v !== undefined && !HOP.has(k)) headers[k] = Array.isArray(v) ? v.join(', ') : v;
+    let answer: Response;
+    try {
+      answer = await fetch(`${API}${req.url}`, {
+        method: req.method,
+        headers,
+        body: req.method === 'GET' || req.method === 'HEAD' ? undefined : raw,
+        signal: this.inFlight.signal,
+      });
+    } catch (e) {
+      if (this.closed) return 'ended with the scenario';
+      res.writeHead(502, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: `The Claude API could not be reached: ${(e as Error).message}` } }));
+      return 'unreachable';
+    }
+    const out: Record<string, string> = {};
+    answer.headers.forEach((v, k) => {
+      if (!HOP.has(k)) out[k] = v;
+    });
+    res.writeHead(answer.status, out);
+    let body = '';
+    try {
+      if (answer.body) {
+        const decoder = new TextDecoder();
+        for await (const chunk of answer.body) {
+          res.write(chunk);
+          body += decoder.decode(chunk, { stream: true });
+        }
+      }
+    } catch (e) {
+      // The scenario ended mid-answer, or the API dropped it: the run sees the connection close
+      res.destroy();
+      return this.closed ? 'ended with the scenario' : `dropped: ${(e as Error).message}`;
+    }
+    res.end();
+    const used = spentOf(body);
+    this.spent.requests++;
+    for (const k of ['input', 'output', 'cacheWrite', 'cacheRead', 'usd'] as const) this.spent[k] += used[k];
+    const tokens = tokensOf(used.model, { input_tokens: used.input, output_tokens: used.output, cache_creation_input_tokens: used.cacheWrite, cache_read_input_tokens: used.cacheRead });
+    addTokens(this.spent.tokens, tokens);
+    // The 5-hour limit as the API reports it right after this answer: one more point for the runner's fit
+    const u = answer.headers.get('anthropic-ratelimit-unified-5h-utilization');
+    const resets = answer.headers.get('anthropic-ratelimit-unified-5h-reset');
+    if (used.model) void post({ type: 'answer', t: Date.now(), u: u === null ? null : Number(u) * 100, resets: resets === null ? null : Number(resets), tokens }).catch(() => {});
+    this.write({ live: req.url, status: answer.status, at: new Date(), body });
+    return `${answer.status} ${summary(body)}`;
+  }
+
+  /** A line of model.log; none once the scenario has ended, when its world may be gone */
+  private write(line: object): void {
+    if (this.dump && !this.closed) appendFileSync(this.dump, `${JSON.stringify(line)}\n`);
   }
 
   private reply(res: ServerResponse, body: { model: string; stream?: boolean }, id: number, moves: Move[]): void {

@@ -16,4 +16,4 @@ on_demand: true
 ---
 # Validation trigger
 
-Starts when an implementation finishes on its branch, and runs regression and exploratory testing every night at 02:00.
+Starts when an implementation finishes and lands on the main line, and runs regression and exploratory testing every night at 02:00.

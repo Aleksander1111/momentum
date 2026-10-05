@@ -14,9 +14,10 @@ artifacts:
 ---
 # Scripted model
 
-A local stand-in for the Claude API: real Claude Code runs with the harness's hooks, MCP servers and landing, while each scenario scripts what the model does.
+A local stand-in for the Claude API: real Claude Code and harness, the model's moves scripted per scenario.
 
-- A turn is the run's prompt, a user message, a restart's resume or a hook's request (summarize, fix for the guard, commit message); replies since pick the next move
-- Moves: write a file or entity, run a command, report graph build or interview progress, record a metric, say text, hang, wait for a gate, fail with an API error
-- Unscripted turns say "Done." and write the commit message asked for; the risk estimator answers by rule
-- Requests wait until the scenario's scripts are in; every turn and run's instructions are logged
+- A turn: the prompt, a message, a resume or a hook's request; replies since pick the next move
+- Moves: write, run a command, report progress, say text; faults: hang, gate, API error
+- Unscripted turns say "Done." and write the commit message asked for
+- Live: every answer is the real API's; only faults apply, triggered by what the run did
+- Scenarios check outcomes, not wording: what landed, types, references, tests passing

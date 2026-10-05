@@ -10,7 +10,9 @@ function send(res, status, body) {
 async function readJson(req) {
   let text = '';
   for await (const chunk of req) text += chunk;
-  return JSON.parse(text || '{}');
+  const value = JSON.parse(text || '{}');
+  if (value === null || typeof value !== 'object') throw new Error('body is not a JSON object');
+  return value;
 }
 
 /** GET /books, GET /books/:id, POST /books */

@@ -21,7 +21,10 @@
   .meter { display: flex; align-items: center; gap: 8px; min-width: 240px; }
   .bar { position: relative; flex: 1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
   .bar > i { position: absolute; inset: 0 auto 0 0; background: var(--run); }
-  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 1fr) auto minmax(300px, 1.1fr); gap: 12px; padding: 12px; }
+  /* The app in the middle, twice the side columns whatever it holds; the run's own window keeps room for the phone and
+     its timeline side by side */
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr) minmax(220px, 1fr); gap: 12px; padding: 12px; }
+  body.driven main { grid-template-columns: minmax(260px, 1fr) minmax(880px, 2fr) minmax(260px, 1fr); }
   section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; }
   section > h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
   .scroll { overflow: auto; flex: 1; min-height: 0; }
@@ -33,6 +36,16 @@
   .running .dot, .st.running .dot { color: var(--run); } .skipped .dot { color: var(--skip); } .pending .dot { color: var(--faint); }
   .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--muted); }
   .tag.real { background: var(--run-bg); color: var(--run); }
+  .spent { font: 11px var(--mono); color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 72px; }
+  /* One, two or three rectangles: under half a percent, up to one and a half, more */
+  .sc-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 61px; background: var(--panel); border-bottom: 1px solid var(--line); font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+  .sc-head .col-usage { min-width: 72px; text-align: right; white-space: nowrap; }
+  .sc-total { position: sticky; bottom: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 61px; background: var(--panel); border-top: 1px solid var(--line); font-weight: 600; }
+  .sc-total .col-usage { min-width: 72px; text-align: right; font: 600 12px var(--mono); padding-right: 30px; }
+  .bars { display: inline-flex; gap: 2px; }
+  .bars i { width: 6px; height: 10px; border-radius: 1px; background: var(--line); }
+  .bars i.on { background: var(--ink); }
+  .spent.none { color: var(--faint); font-weight: 400; }
   .steps { margin: 6px 0 2px 26px; }
   .st { display: flex; gap: 6px; color: var(--muted); padding: 1px 0; }
   .st.running { color: var(--ink); }
@@ -43,7 +56,9 @@
   .toggle button { border: 0; background: transparent; color: var(--muted); padding: 2px 10px; font: inherit; cursor: pointer; }
   .toggle button.on { background: var(--run-bg); color: var(--run); }
   .device { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 22px; padding: 12px; }
-  iframe { border: 0; background: var(--bg); display: block; }
+  /* Dark like the page: a frame's scheme is what the app inside reads as prefers-color-scheme, so a light frame shows the app
+     light. The blank page a frame holds between scenarios is dark too, or its scheme differs and it gets a white backdrop */
+  iframe { border: 0; background: var(--bg); display: block; color-scheme: dark; }
   .mobile #app { width: 390px; height: min(844px, calc(100vh - 150px)); border-radius: 28px; outline: 10px solid #2c2c2a; }
   .web #app { width: min(1180px, calc(100vw - 720px)); height: calc(100vh - 150px); border-radius: 8px; outline: 1px solid var(--line); }
   /* The app's timeline beside it: what the scenario's actions and runs leave, as the user would see it */
@@ -51,10 +66,21 @@
   .mobile #timeline { height: min(844px, calc(100vh - 150px)); }
   .web.with-timeline #app { width: max(480px, min(1180px, calc(100vw - 1160px))); }
   .device:not(.with-timeline) #timeline { display: none; }
+  .mirror { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .mirror img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .mirror[hidden], .mirror img[hidden] { display: none; }
   .empty { color: var(--faint); padding: 24px; text-align: center; }
-  .runs td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  .runs td.t { white-space: normal; color: var(--muted); }
-  .runs tr.running td { background: var(--run-bg); }
+  /* Features by area: how many each area has verified, then each feature as its scenarios left it */
+  .area { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .area-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .area-name { font-weight: 600; flex: 1; }
+  .area-count { font: 12px var(--mono); color: var(--muted); }
+  .feature-list { margin-top: 6px; }
+  .feature { display: flex; gap: 6px; padding: 2px 0; font-size: 12px; color: var(--muted); }
+  .feature b { font: 600 11px var(--mono); color: var(--ink); }
+  .feature.passed .dot { color: var(--ok); } .feature.failed .dot { color: var(--bad); }
+  .feature.running .dot { color: var(--run); } .feature.pending .dot { color: var(--faint); }
+  .feature.scripted .dot, .area-head.scripted .dot { color: var(--skip); }
   .log { font: 12px/1.55 var(--mono); padding: 8px 12px; white-space: pre-wrap; word-break: break-word; color: var(--muted); }
   .log .assistant { color: var(--ink); }
   .split { border-top: 1px solid var(--line); }
@@ -69,11 +95,26 @@
   .runbar button.stop { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
   .runbar button:disabled { opacity: .45; cursor: default; }
   .runbar .hint { color: var(--muted); font-size: 12px; }
+  .live { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; cursor: pointer; }
+  .live:has(input:checked) { color: var(--bad); }
   .pick { width: 15px; height: 15px; margin: 0; cursor: pointer; flex: none; }
-  .status-running { color: var(--run); } .status-finished { color: var(--ok); } .status-failed, .status-killed { color: var(--bad); }
+  #gone-banner { display: none; padding: 10px 16px; background: var(--bad-bg); color: var(--bad); font-weight: 600; }
+  .gone #gone-banner { display: block; }
+  .gone main, .gone header { opacity: .35; pointer-events: none; }
+  .requests { border-bottom: 1px solid var(--line); padding: 4px 12px 6px; }
+  .requests:empty { display: none; }
+  .rq { display: flex; align-items: center; gap: 8px; padding: 2px 0; color: var(--muted); font-size: 12px; }
+  .rq.running { color: var(--ink); }
+  .rq .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+  .rq a { color: var(--run); }
+  .rq button { font: inherit; color: var(--muted); background: transparent; border: 0; cursor: pointer; padding: 0 4px; }
+  .rq-more { font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 0; cursor: pointer; padding: 2px 0; }
+  .rq-more:hover { color: var(--ink); }
+  .status-running { color: var(--run); } .status-finished { color: var(--ok); } .status-failed, .status-killed { color: var(--bad); } .status-stopped { color: var(--muted); }
 </style>
 </head>
 <body>
+<div id="gone-banner">The test runner is not running: nothing below is live. Open it with the "Momentum tests" shortcut, <code>pnpm.cmd e2e:runner</code> or <code>pnpm e2e</code>; this page picks up once it is back.</div>
 <header>
   <h1>Momentum e2e</h1>
   <span id="progress">Waiting for the suite</span>
@@ -96,6 +137,7 @@
     <span id="usage-label">5-hour usage</span>
     <div class="bar"><i id="usage-bar"></i></div>
   </div>
+  <div class="controls"><button id="quit" title="End the runner: its run stops and its window closes. pnpm e2e or the shortcut opens it again">Quit runner</button></div>
 </header>
 <main>
   <section>
@@ -106,12 +148,15 @@
       <button id="run-offline" title="Scenarios that use no Claude usage">Run no-usage</button>
       <button id="continue" title="Run what the last run left: scenarios skipped once the limit ran out, or never reached">Continue</button>
       <button id="stop-run" class="stop">Stop</button>
+      <label class="live" title="No stand-in model: scripted and no-run scenarios reach the real Claude API too, use the account's limits, and record every answer in their world's model.log"><input type="checkbox" id="live" /> Real model everywhere</label>
       <span id="run-hint" class="hint"></span>
     </div>
+    <div id="requests" class="requests" title="The runs asked for: from this window or with pnpm e2e"></div>
     <div id="scenarios" class="scroll"></div>
   </section>
   <section class="stage" id="stage">
     <h2 style="align-self: stretch">App <span id="app-label" class="tag"></span>
+      <span id="watching" class="toggle" title="The scenarios running side by side: pick the one whose app shows here"></span>
       <span class="toggle"><button data-view="mobile" class="on">Mobile</button><button data-view="web">Web</button></span>
       <span class="toggle" style="margin-left: 0"><button id="timeline-toggle" class="on" title="Show the app's timeline beside it">Timeline</button></span>
     </h2>
@@ -119,23 +164,31 @@
       <iframe id="app" name="app" title="Momentum app" allow="microphone"></iframe>
       <iframe id="timeline" name="timeline" title="Momentum timeline"></iframe>
     </div>
+    <div class="mirror" id="mirror" hidden>
+      <img id="screen" alt="The scenario's app as its run sees it" hidden />
+      <div id="screen-empty" class="empty">No scenario running</div>
+    </div>
   </section>
   <section>
-    <h2>Runs</h2>
-    <div class="scroll" style="flex: 0 1 auto; max-height: 38%"><table class="runs" id="runs" style="width: 100%; border-collapse: collapse"></table></div>
-    <h2 class="split">Live run <span id="focus" class="tag"></span></h2>
-    <div id="messages" class="scroll log"></div>
-    <h2 class="split">Suite log</h2>
-    <div id="notes" class="scroll log" style="flex: 0 1 25%"></div>
+    <h2>Features <span id="feature-count" class="tag"></span></h2>
+    <div id="features" class="scroll"></div>
   </section>
 </main>
 <script>
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  /** A failure as Playwright prints it, without its terminal colours */
+  const plain = (text) => String(text).replace(/\u001b?\[[0-9;]*m/g, '');
   const ICON = { pending: '○', running: '▸', passed: '✓', failed: '✗', skipped: '–' };
   const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
   const open = new Set();
+  /** Feature areas the user opened; all folded at first */
+  /** A scenario's share of the 5-hour limit, as its row shows it */
+  let spentLabel = () => '';
+  const openAreas = new Set();
 
+  /** What a frame holds between scenarios: blank and dark like the frame, not about:blank's light page */
+  const BLANK = 'data:text/html,<meta name="color-scheme" content="dark"><body style="margin:0;background:%231a1a19">';
   const load = (frame, url) =>
     new Promise((resolve) => {
       frame.onload = () => resolve(true);
@@ -144,12 +197,60 @@
   /** The scenarios drive the frame; the page loads the app once the scenario's back-end is up */
   window.loadApp = (url) => {
     // The timeline of the scenario before goes; the scenario shows its own once it is signed in
-    $('timeline').src = 'about:blank';
+    $('timeline').src = BLANK;
     return load($('app'), url);
   };
   /** The app's timeline page without its tabs, beside the app and signed in with it */
   window.loadTimeline = (url) => load($('timeline'), url);
 
+  /** The runs drive this page only in the window they opened; another browser shows what that window shows */
+  const driven = new URLSearchParams(location.search).has('driven');
+  document.body.classList.toggle('driven', driven);
+  let shown = null;
+  if (!driven) {
+    // The run's window has its own layout: here are its frames, not a copy of the app nor the layout switches
+    $('device').hidden = true;
+    $('device').style.display = 'none';
+    $('mirror').hidden = false;
+    document.querySelectorAll('[data-view], #timeline-toggle').forEach((b) => (b.closest('.toggle').style.display = 'none'));
+    // Once the first frame of the stream shows, the old one is replaced as each new frame comes
+    $('screen').addEventListener('load', () => {
+      if (!shown) return;
+      $('screen').hidden = false;
+      $('screen-empty').hidden = true;
+    });
+    // A runner started before streams were there answers 404: its frames are fetched a couple of times a second instead
+    $('screen').addEventListener('error', () => {
+      if (!shown || !$('screen').src.includes('/stream/') || polling) return;
+      polling = setInterval(() => {
+        if (!shown || loading) return;
+        loading = true;
+        const id = shown;
+        const next = new Image();
+        next.onload = () => {
+          loading = false;
+          if (shown !== id) return;
+          $('screen').src = next.src;
+        };
+        next.onerror = () => (loading = false);
+        next.src = `/frame/${encodeURIComponent(id)}?t=${Date.now()}`;
+      }, 500);
+    });
+  }
+  let polling = null;
+  let loading = false;
+  /** The watched scenario's window, streamed: each frame shows the moment the run sends it */
+  function show(id) {
+    if (id === shown) return;
+    shown = id;
+    clearInterval(polling);
+    polling = null;
+    $('screen').hidden = true;
+    $('screen-empty').hidden = false;
+    $('screen-empty').textContent = id ? 'Waiting for the first frame…' : 'No scenario running';
+    if (id) $('screen').src = `/stream/${encodeURIComponent(id)}?t=${Date.now()}`;
+    else $('screen').removeAttribute('src');
+  }
   let view = 'mobile';
   const layout = () => ($('device').className = `device ${view}${$('timeline-toggle').classList.contains('on') ? ' with-timeline' : ''}`);
   document.querySelectorAll('[data-view]').forEach((b) =>
@@ -164,25 +265,101 @@
     layout();
   });
 
+  /** Typical times when a scenario has never been timed: real runs, a live run, the scripted model */
+  const GUESS = { real: 3 * 60_000, live: 6 * 60_000, scripted: 2 * 60_000 };
+
+  /**
+   * What is left of the run under way: the scenarios running finish when their usual time is up (or soon, once past
+   * it), and the ones waiting take the first worker free, in the order they run; null when nothing runs
+   */
+  function remainingMs(s) {
+    if (!s.runner.running) return null;
+    const now = Date.now();
+    const took = (x) => {
+      const mode = x.real || s.runner.live ? 'live' : 'scripted';
+      return s.durations?.[x.id]?.[mode] ?? (x.real ? GUESS.real : s.runner.live ? GUESS.live : GUESS.scripted);
+    };
+    const workers = Math.max(1, s.runner.workers || 4);
+    const free = s.scenarios
+      .filter((x) => x.status === 'running')
+      .map((x) => Math.max(30_000, took(x) - (now - (x.startedAt ?? now))));
+    while (free.length < workers) free.push(0);
+    for (const x of s.scenarios.filter((x) => x.selected && x.status === 'pending')) {
+      free.sort((a, b) => a - b);
+      free[0] += took(x);
+    }
+    return Math.max(...free);
+  }
+
   function render(s) {
+    // A run under way says whether it is live; otherwise the next run will be as the checkbox says
+    const live = s.runner.running ? s.runner.live : $('live').checked;
     const chosen = s.scenarios.filter((x) => x.selected);
     const done = chosen.filter((x) => ['passed', 'failed', 'skipped'].includes(x.status));
-    const covered = new Set(s.scenarios.filter((x) => x.status === 'passed').flatMap((x) => x.covers));
-    $('progress').textContent = `${done.length} of ${chosen.length} scenarios · ${covered.size} of ${s.features} features verified${s.finished ? ' · finished' : ''}`;
+    // Verified only by a pass with the real model; a pass with the scripted one shows apart
+    // A feature is judged by the steps that check it, each as its scenario's last finished run left it, or as the run under
+    // way has it: failed when any of them failed, verified only when every one passed with the real model
+    const stepsOf = (id) => s.scenarios.flatMap((x) => x.steps.map((st, i) => ({ x, i, st })).filter((v) => v.st.checks?.includes(id)));
+    const stepStatus = ({ x, i, st }) => {
+      if (x.status === 'running' && (st.status === 'failed' || st.status === 'passed')) return st.status === 'failed' ? 'failed' : 'passed';
+      if (x.status === 'running') return 'running';
+      const l = x.last;
+      if (!l) return 'pending';
+      const was = l.steps?.[i] ?? (l.status === 'passed' ? 'passed' : 'pending');
+      if (was === 'passed') return l.model === 'scripted' ? 'scripted' : 'passed';
+      return was === 'failed' ? 'failed' : 'pending';
+    };
+    const featureOf = (id) => {
+      const all = stepsOf(id).map(stepStatus);
+      if (all.includes('failed')) return 'failed';
+      if (all.length && all.every((v) => v === 'passed')) return 'passed';
+      if (all.includes('running')) return 'running';
+      if (all.length && all.every((v) => v === 'passed' || v === 'scripted')) return 'scripted';
+      return 'pending';
+    };
+    const covered = new Set(Object.keys(s.featureGroups ? Object.fromEntries(s.featureGroups.flatMap((g) => g.features.map((f) => [f.id, 1]))) : {}).filter((id) => featureOf(id) === 'passed'));
+    const left = remainingMs(s);
+    $('progress').textContent = `${chosen.length ? `${done.length} of ${chosen.length} scenarios` : 'No scenarios run yet'} · ${covered.size} of ${s.features} features verified with real models${s.finished && chosen.length ? ' · finished' : ''}${left === null ? '' : ` · about ${left < 60_000 ? 'a minute' : `${Math.round(left / 60_000)} min`} left`}`;
     const by = (st) => chosen.filter((x) => x.status === st).length;
+    // What a scenario's last run with real models took of the 5-hour limit: its tokens, by model and kind, at what the
+    // fit to the limit's own readings says each kind of token takes
+    const spent = s.spent ?? { scenarios: {}, share: {}, fit: null };
+    const share = (id) => {
+      const pct = spent.share?.[id];
+      return pct === null || pct === undefined ? null : { pct, x: spent.scenarios[id] };
+    };
+    spentLabel = (id) => {
+      const v = share(id);
+      if (!v) return '<span class="spent none" title="Not measured yet: shows after its next run with real models">–</span>';
+      const total = Object.values(v.x.tokens).reduce((t, n) => t + n, 0);
+      const how = `${v.x.requests} API requests, ${(total / 1e6).toFixed(1)} M tokens`;
+      const of = spent.fit ? `; fitted on ${spent.fit.rows} readings of the limit, within ±${spent.fit.error.toFixed(1)}% of them` : '';
+      // The heavy ones stand out: under half a percent, up to one and a half, more
+      const level = v.pct >= 1.5 ? 3 : v.pct >= 0.5 ? 2 : 1;
+      const bars = [1, 2, 3].map((n) => `<i class="${n <= level ? 'on' : ''}"></i>`).join('');
+      return `<span class="spent" title="Share of the 5-hour limit in its last run with real models: ${how}${of}">${v.pct.toFixed(1)}%<span class="bars" aria-label="${['low', 'medium', 'high'][level - 1]} usage">${bars}</span></span>`;
+    };
+    const sum = (list) => list.reduce((t, x) => t + (share(x.id)?.pct ?? 0), 0);
     $('counts').textContent = `${by('passed')} passed · ${by('failed')} failed · ${by('skipped')} skipped`;
+    // A full run of every scenario, and the selected ones when they are fewer, under the usage column
+    const unmeasured = s.scenarios.filter((x) => !share(x.id)).length;
+    const fewer = chosen.length < s.scenarios.length;
+    const totalRow = spent.fit
+      ? `<div class="sc-total"><span class="grow">All ${s.scenarios.length}${unmeasured ? ` (${unmeasured} not measured yet)` : ''}${fewer ? ` · ${chosen.length} selected: ${sum(chosen).toFixed(1)}%` : ''}</span><span class="col-usage" title="Fitted on ${spent.fit?.rows} readings of the limit; the fit is within ±${spent.fit?.error.toFixed(1)}% of them">${sum(s.scenarios).toFixed(1)}%</span></div>`
+      : '';
 
-    $('scenarios').innerHTML = s.scenarios
+    // The columns named once, above the list: the usage stays put as the list scrolls
+    $('scenarios').innerHTML = `<div class="sc-head"><span class="grow">SCENARIO</span><span class="col-usage" title="Share of the 5-hour limit in its last run with real models">USAGE of 5h</span></div>` + s.scenarios
       .map((x) => {
-        const expanded = x.status === 'running' || x.status === 'failed' || open.has(x.id);
-        return `<div class="sc ${x.status} ${x.selected ? '' : 'off'}" data-id="${x.id}">
-          <div class="row"><input type="checkbox" class="pick" data-pick="${x.id}" ${picked.has(x.id) ? 'checked' : ''} aria-label="Run ${esc(x.title)}" /><span class="dot">${ICON[x.status]}</span><span class="grow">${esc(x.title)}</span>
-          <span class="tag ${x.real ? 'real' : ''}" title="${x.scripted ? 'Real Claude Code runs answered by a scripted model: no usage' : ''}">${x.real ? 'real runs' : x.scripted ? 'scripted runs' : 'no runs'}</span></div>
+        // Collapsed until the user opens it, whatever its state: steps and the failure show only when opened
+        const expanded = open.has(x.id);
+        return `<div class="sc ${x.status === 'running' ? 'running' : x.last?.status ?? x.status} ${x.selected ? '' : 'off'}" data-id="${x.id}">
+          <div class="row"><input type="checkbox" class="pick" data-pick="${x.id}" ${picked.has(x.id) ? 'checked' : ''} aria-label="Run ${esc(x.title)}" /><span class="dot" title="${x.status === 'running' ? 'running' : x.last ? `${x.last.status} with the ${x.last.model} model, ${new Date(x.last.at).toLocaleString()}` : 'not run yet'}">${x.status === 'running' ? ICON.running : x.last ? (x.last.status === 'passed' && x.last.model === 'scripted' ? '◐' : ICON[x.last.status]) : ICON[x.status]}</span><span class="grow">${esc(x.title)}</span>${spentLabel(x.id)}</div>
           ${expanded ? `<div class="steps">${x.steps.map((st) => `<div class="st ${st.status}"><span class="dot">${ICON[st.status]}</span><span>${esc(st.title)}</span></div>`).join('')}</div>` : ''}
-          ${x.reason ? `<div class="reason">${esc(x.reason)}</div>` : ''}
+          ${expanded && x.reason ? `<div class="reason">${esc(plain(x.reason))}</div>` : ''}
         </div>`;
       })
-      .join('');
+      .join('') + totalRow;
 
     const u = s.usage;
     const resets = (iso) => (iso ? new Date(iso).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '');
@@ -193,47 +370,109 @@
     $('usage-bar').style.width = `${Math.min(100, u.fiveHour ?? 0)}%`;
 
     const cur = s.current;
-    $('current').textContent = cur ? cur.id : '';
+    const running = (s.active ?? []).length;
+    $('current').textContent = cur ? `${cur.id}${running > 1 ? ` · ${running} running side by side` : ''}` : '';
+    // One button per scenario under way; the one shown is on
+    const title = (id) => s.scenarios.find((x) => x.id === id)?.title ?? id;
+    $('watching').innerHTML = (s.active ?? []).map((id) => `<button data-watch="${esc(id)}" class="${cur?.id === id ? 'on' : ''}" title="${esc(title(id))}">${esc(id)}</button>`).join('');
     $('app-label').textContent = cur ? cur.workspaces.join(', ') : '';
-    if (cur && !$('app').src) {
-      // The observer opened while a scenario runs: the browser holds its session already
-      $('app').src = cur.appUrl;
-      $('timeline').src = `${cur.appUrl}timeline?embed=1`;
-    }
+    // Watched from a browser the runs do not drive: it shows the frames of the watched scenario's own window
+    if (!driven) show(cur?.id ?? null);
 
-    $('runs').innerHTML = s.runs.length
-      ? s.runs
-          .map((r) => `<tr class="${r.status}"><td>${time(r.created_at)}</td><td>${esc(r.automation)}</td>
-            <td class="status-${r.status}">${r.status}</td><td>${r.usage ? `${r.usage.toFixed(1)}%` : ''}</td>
-            <td class="t">${esc(r.title || r.workspace)}</td></tr>`)
-          .join('')
-      : '<tr><td class="empty">No runs yet</td></tr>';
-    const focus = s.runs.find((r) => r.id === s.messages[0]?.run);
-    $('focus').textContent = focus ? `${focus.automation} · ${focus.status}` : '';
-    $('messages').innerHTML = s.messages.length
-      ? s.messages.map((m) => `<div class="${m.role}">${time(m.at)} ${m.role === 'user' ? '›' : ''} ${esc(m.text)}</div>`).join('\n')
-      : '<div class="empty">Nothing said yet</div>';
-    $('messages').scrollTop = $('messages').scrollHeight;
-    $('notes').innerHTML = s.notes.map((n) => `<div>${time(n.at)} ${esc(n.text)}</div>`).join('');
-    $('notes').scrollTop = $('notes').scrollHeight;
+    // Each feature as its scenarios left it: verified once one covering it passed
+    const featureStatus = featureOf;
+    const mark = { passed: '✓', running: '▸', failed: '✗', pending: '○', scripted: '◐' };
+    // An area as the scenarios panel shows a scenario: verified once all its features are
+    const areaStatus = (statuses) =>
+      statuses.every((x) => x === 'passed') ? 'passed' : statuses.includes('failed') ? 'failed' : statuses.includes('running') ? 'running' : statuses.includes('scripted') ? 'scripted' : 'pending';
+    const groups = s.featureGroups ?? [];
+    $('feature-count').textContent = `${covered.size} of ${s.features} verified with real models`;
+    $('features').innerHTML = groups
+      .map((g) => {
+        const statuses = g.features.map((f) => featureStatus(f.id));
+        const ok = statuses.filter((x) => x === 'passed').length;
+        const shut = !openAreas.has(g.area);
+        return `<div class="area${shut ? ' shut' : ''}" data-area="${esc(g.area)}">
+          <div class="area-head ${areaStatus(statuses)}"><span class="dot">${mark[areaStatus(statuses)]}</span><span class="area-name">${esc(g.area)}</span><span class="area-count">${ok}/${g.features.length}</span></div>
+          ${shut ? '' : `<div class="feature-list">${g.features
+            .map((f, i) => `<div class="feature ${statuses[i]}" title="${esc(stepsOf(f.id).map((v) => `${v.x.title}, step ${v.i + 1}: ${({ passed: 'passed', failed: 'failed', running: 'running', pending: 'not run', scripted: 'passed with the scripted model' })[stepStatus(v)]}`).join('\n') || 'No step checks it')}">
+              <span class="dot">${mark[statuses[i]]}</span><span><b>${esc(f.id)}</b> ${esc(f.text)}</span></div>`)
+            .join('')}</div>`}
+        </div>`;
+      })
+      .join('') || '<div class="empty">The features show once the runner restarts</div>';
   }
 
   // The scenarios picked to run, remembered in this browser
   const picked = new Set(JSON.parse((() => { try { return localStorage.getItem('picked'); } catch { return null; } })() ?? 'null') ?? []);
   const savePicked = () => { try { localStorage.setItem('picked', JSON.stringify([...picked])); } catch {} };
+  // Every run reaches the real Claude API, remembered in this browser
+  try { $('live').checked = localStorage.getItem('live') === '1'; } catch {}
+  $('live').addEventListener('change', () => {
+    try { localStorage.setItem('live', $('live').checked ? '1' : '0'); } catch {}
+    if (last) render(last);
+  });
   const startRun = (ids) =>
-    fetch('/run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids }) });
+    fetch('/run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids, live: $('live').checked }) });
   $('run-picked').addEventListener('click', () => startRun([...picked]));
   $('run-all').addEventListener('click', () => startRun(last.scenarios.map((x) => x.id)));
   $('run-offline').addEventListener('click', () => startRun(last.scenarios.filter((x) => !x.real).map((x) => x.id)));
-  $('continue').addEventListener('click', () => fetch('/continue', { method: 'POST' }));
+  $('continue').addEventListener('click', () =>
+    fetch('/continue', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ live: $('live').checked }) }),
+  );
   $('stop-run').addEventListener('click', () => fetch('/stop', { method: 'POST' }));
   /** What the last run left: Continue runs these */
   const remaining = (s) => s.scenarios.filter((x) => x.selected && x.status !== 'passed' && x.status !== 'failed');
 
+  /** Who asked for a run: the Claude Code chat links to it */
+  const who = (by) =>
+    by.session?.startsWith('local_')
+      ? `<a href="claude://claude.ai/epitaxy/${esc(by.session)}" title="Open the chat that asked">${esc(by.label)}</a>`
+      : esc(by.session ? `${by.label} ${by.session}` : by.label);
+  const RQ = { queued: 'waiting', running: 'running', passed: 'passed', failed: 'failed', stopped: 'stopped', cancelled: 'cancelled' };
+
+  // The history of runs asked for stays collapsed to the last one unless opened, remembered in this browser
+  let historyOpen = (() => { try { return localStorage.getItem('history') === 'open'; } catch { return false; } })();
+  let lastRequests = [];
+
+  function renderRequests(list) {
+    lastRequests = list;
+    const active = list.filter((r) => r.status === 'queued' || r.status === 'running');
+    const done = list.filter((r) => r.status !== 'queued' && r.status !== 'running');
+    // Collapsed: what is under way, or the last one done when nothing is
+    const earlier = historyOpen ? done.slice(0, 10) : active.length ? [] : done.slice(0, 1);
+    const hidden = done.length - earlier.length;
+    $('requests').innerHTML = active.concat(earlier)
+      .map((r) => `<div class="rq ${r.status}"><span class="status-${r.status === 'passed' ? 'finished' : r.status}">${RQ[r.status]}</span>
+        <span>${time(r.at)}</span><span>${who(r.by)}</span>
+        <span class="what" title="${esc(r.args.join(' '))}">${esc(r.ids ? `${r.ids.length} scenarios${r.continuing ? ' (continue)' : ''}` : r.args.join(' ') || 'every scenario')}</span>
+        ${r.status === 'queued' ? `<button data-cancel="${r.id}" title="Do not run this">✕</button>` : ''}</div>`)
+      .join('') +
+      (historyOpen ? '<button class="rq-more" data-history="close">▾ Hide earlier runs</button>'
+        : hidden > 0 ? `<button class="rq-more" data-history="open">▸ ${hidden} earlier</button>` : '');
+  }
+  $('features').addEventListener('click', (e) => {
+    const area = e.target.closest('.area-head')?.parentElement?.dataset.area;
+    if (area === undefined) return;
+    if (openAreas.has(area)) openAreas.delete(area);
+    else openAreas.add(area);
+    if (last) render(last);
+  });
+  $('requests').addEventListener('click', (e) => {
+    const id = e.target.dataset?.cancel;
+    if (id) fetch('/cancel', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) });
+    const h = e.target.dataset?.history;
+    if (h) {
+      historyOpen = h === 'open';
+      try { localStorage.setItem('history', h); } catch {}
+      renderRequests(lastRequests);
+    }
+  });
+
   function renderRunner(r) {
     const off = !r.available;
-    for (const id of ['run-picked', 'run-all', 'run-offline', 'continue']) $(id).disabled = off || r.running;
+    // A run under way: more asked for here wait their turn
+    for (const id of ['run-picked', 'run-all', 'run-offline', 'continue']) $(id).disabled = off;
     $('run-picked').disabled ||= picked.size === 0;
     const left = remaining(last).length;
     $('continue').disabled ||= left === 0;
@@ -242,7 +481,7 @@
     $('run-hint').textContent = off
       ? 'Open the runner to start runs here: pnpm.cmd e2e:runner'
       : r.running
-        ? `Running ${r.ids.length} ${r.ids.length === 1 ? 'scenario' : 'scenarios'}`
+        ? `Running for ${last.requests[0]?.by.label ?? 'another request'}; runs asked for now wait their turn`
         : `${picked.size} selected`;
   }
 
@@ -254,6 +493,10 @@
     if (last) renderRunner(last.runner);
   });
 
+  $('watching').addEventListener('click', (e) => {
+    const id = e.target.closest('[data-watch]')?.dataset.watch;
+    if (id) fetch('/watch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) });
+  });
   $('scenarios').addEventListener('click', (e) => {
     if (e.target.classList.contains('pick')) return;
     const id = e.target.closest('.sc')?.dataset.id;
@@ -279,12 +522,21 @@
     $('waiting').textContent = c.paused && c.waiting ? `Paused before: ${c.waiting}` : '';
   }
 
+  $('quit').addEventListener('click', () => {
+    if (confirm(last?.runner.running ? 'Quit the runner? The run under way stops.' : 'Quit the runner?')) fetch('/quit', { method: 'POST' });
+  });
+
   let last = null;
-  new EventSource('/events').onmessage = (m) => {
+  const events = new EventSource('/events');
+  // The runner gone: say so instead of showing what it last said; the page picks up again once it is back
+  events.onerror = () => document.body.classList.add('gone');
+  events.onmessage = (m) => {
+    document.body.classList.remove('gone');
     last = JSON.parse(m.data);
     render(last);
     renderControls(last.control);
     renderRunner(last.runner);
+    renderRequests(last.requests);
   };
 </script>
 </body>

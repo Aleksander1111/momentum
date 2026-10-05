@@ -25,7 +25,10 @@ scenario('feed-and-patterns', { enabled: [WS] }, async ({ env, api, app, step })
     await until('the tasks in the feed', async () => (await api.feed()).items.filter((i) => i.type === 'Product/DevTask').length === 11);
     // Ten approved in the app, the eleventh sent back
     for (let i = 1; i <= 10; i++) await app.approve(WS, `Product/DevTask/proofread-${i}`);
-    const [pattern] = await env.sql<{ pattern: string; outcome: string }[]>`select pattern, outcome from ${env.sql('ws_handbook.attention_pattern')}`;
+    // Recorded once the tenth approval is through: the swipe comes back before the harness has written it
+    const pattern = await until('the pattern recorded', async () =>
+      (await env.sql<{ pattern: string; outcome: string }[]>`select pattern, outcome from ${env.sql('ws_handbook.attention_pattern')}`)[0],
+    30_000, 500);
     expect(pattern).toEqual({ pattern: 'Product/DevTask: the last 10 items approved', outcome: 'automatic approval' });
     const chat = await app.sendBack(WS, 'Product/DevTask/proofread-11', 'Merge this into one task for the whole handbook.');
     expect((await api.run(chat)).targetPath).toBe('Product/DevTask/proofread-11');

@@ -67,6 +67,14 @@ export class Automations {
 
   /** Writes the approved definitions' artifacts into <workspace>\.claude\, kept out of git by .git/info/exclude */
   async materialize(ws: Workspace): Promise<void> {
+    // Kept out of git before they are written: no git command ever sees them as untracked files
+    const exclude = join(ws.path, '.git', 'info', 'exclude');
+    const current = existsSync(exclude) ? await readFile(exclude, 'utf8') : '';
+    const missing = EXCLUDES.filter((e) => !current.split(/\r?\n/).includes(e));
+    if (missing.length) {
+      await mkdir(dirname(exclude), { recursive: true });
+      await appendFile(exclude, `${current.endsWith('\n') || !current ? '' : '\n'}${missing.join('\n')}\n`);
+    }
     const harness = await this.workspaces.harness();
     for (const def of await this.approved()) {
       for (const artifact of def.artifacts) {
@@ -78,13 +86,6 @@ export class Automations {
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, content, 'utf8');
       }
-    }
-    const exclude = join(ws.path, '.git', 'info', 'exclude');
-    const current = existsSync(exclude) ? await readFile(exclude, 'utf8') : '';
-    const missing = EXCLUDES.filter((e) => !current.split(/\r?\n/).includes(e));
-    if (missing.length) {
-      await mkdir(dirname(exclude), { recursive: true });
-      await appendFile(exclude, `${current.endsWith('\n') || !current ? '' : '\n'}${missing.join('\n')}\n`);
     }
     await this.recordAutomations(ws);
   }

@@ -14,6 +14,6 @@ artifacts:
 
 Validates the product, not only the change.
 
-- Validates each implementation once it has landed on the main line; a failure is an issue entity
+- Validates each implementation once it has landed on the main line; a failure is an issue entity with options to resolve it
 - Regression and exploratory testing in the background
 - Review, test suite run, exploratory pass or consistency check

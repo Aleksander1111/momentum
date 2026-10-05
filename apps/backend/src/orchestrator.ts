@@ -1,16 +1,17 @@
 import { crossProjectFeed } from '@momentum/kb';
-import { branchesUnder, commitPathsFrom, deleteBranch, listFiles, removeWorktree, worktreeDirs } from '@momentum/runs';
+import { commitPathsFrom, listFiles, nonLinear, removeWorktree, worktreeDirs } from '@momentum/runs';
 import { CronExpressionParser } from 'cron-parser';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileOf, KNOWLEDGE_GRAPH } from '@momentum/entity';
 import { HARNESS_ONLY, TRIGGER_TYPE, type Automations, type Trigger } from './automations.ts';
 import { config } from './config.ts';
-import type { Bus } from './events.ts';
+import type { Bus, Moved } from './events.ts';
 import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { graphBuildPrompt } from './graph-build.ts';
 import { userStarted, type Runner } from './runner.ts';
+import type { Timeline } from './timeline.ts';
 import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
 
 const PROMPTS: Record<string, string> = {
@@ -34,11 +35,12 @@ export class Orchestrator {
     private readonly runner: Runner,
     private readonly automations: Automations,
     private readonly bus: Bus,
+    private readonly timeline: Timeline,
   ) {
     bus.on('entity_ahead', ({ workspace, path }) => void this.onEvent(workspace, 'entity_ahead', { targetPath: path }));
     bus.on('implementation_finished', ({ workspace, targetPath }) => void this.onEvent(workspace, 'implementation_finished', { targetPath }));
     // Summarization runs as a step and has no trigger entity; artifacts changed on the main line start it directly
-    bus.on('artifact_ahead', ({ workspace, entities, added }) => void this.summarizeMainLine(workspace, entities, added));
+    bus.on('artifact_ahead', ({ workspace, entities, added, deleted, moved }) => void this.summarizeMainLine(workspace, entities, added, deleted, moved));
     bus.on('definition_approved', () => void this.automations.materializeAll());
     bus.on('run_ended', () => void this.tick());
     bus.on('feed_changed', () => void this.tick());
@@ -58,11 +60,21 @@ export class Orchestrator {
    * knowledge graph starts building unless it is already complete
    */
   async enable(ws: Workspace): Promise<void> {
+    await this.assertLinear(ws.name, ws.path);
     await this.automations.materialize(ws);
-    await this.guard.indexMainLine(ws);
+    await this.guard.indexMainLine(ws, true);
     await this.proposeTriggers(ws);
-    if ((await this.settings.graphBuild(ws.name)).state !== 'complete') await this.settings.setGraphBuild(ws.name, 'building');
+    const { state } = await this.settings.graphBuild(ws.name);
+    if (state !== 'complete' && !(state === 'stopped' && (await this.stoppedByUser(ws.name)))) await this.settings.setGraphBuild(ws.name, 'building');
     void this.tick();
+  }
+
+  /** The user stopped the build themselves: it stays stopped until they start it, whatever switches the project off and on */
+  private async stoppedByUser(workspace: string): Promise<boolean> {
+    const [last] = await this.workspaces.sql<{ kind: string; actor: string }[]>`select kind, actor from harness.timeline_event
+      where workspace = ${workspace} and kind in ('graph_build_started', 'graph_build_stopped', 'project_reset')
+      order by at desc, id desc limit 1`;
+    return last?.kind === 'graph_build_stopped' && last.actor === 'user';
   }
 
   /** Disabling a project: a build in progress stops; enabling the project again resumes it */
@@ -99,7 +111,7 @@ export class Orchestrator {
     if (enabled) await this.enable(await this.workspaces.get(ws.name));
   }
 
-  /** Every run checkout of a workspace, and any momentum/ branch left from before everything went to the main line */
+  /** Every run checkout of a workspace */
   private async removeCheckouts(ws: Workspace): Promise<void> {
     const runs = resolve(config.runs, ws.name);
     const inRuns = (dir: string) => resolve(dir).toLowerCase().startsWith(runs.toLowerCase());
@@ -107,20 +119,63 @@ export class Orchestrator {
       await removeWorktree(ws.path, dir).catch((e) => console.error(`reset ${ws.name}: worktree ${dir}:`, e));
     }
     await rm(runs, { recursive: true, force: true }).catch((e) => console.error(`reset ${ws.name}: ${runs}:`, e));
-    for (const branch of await branchesUnder(ws.path, 'momentum/')) {
-      if (branch === ws.main) continue;
-      await deleteBranch(ws.path, branch).catch((e) => console.error(`reset ${ws.name}: branch ${branch}:`, e));
-    }
+  }
+
+  /**
+   * Before a project is enabled: refused unless it is one straight line, and its main line taken as it stands, merge
+   * commits already in its history included
+   */
+  async acceptLine(ws: Workspace): Promise<void> {
+    await this.assertLinear(ws.name, ws.path);
+    await this.guard.indexMainLine(ws, true);
+  }
+
+  /** Refuses a project that is not one straight line: momentum works on one line, one change after another */
+  async assertLinear(name: string, path: string): Promise<void> {
+    const reasons = await nonLinear(path);
+    if (reasons.length > 0) throw new Conflict(`${name} is not one straight line: ${reasons.join('; ')}. Momentum works on one line only.`);
+  }
+
+  /**
+   * An enabled project that stopped being one straight line, by a branch, a detached HEAD or a merge, is switched
+   * off at once and says why; nothing of it runs until the user makes it one line again and enables it
+   */
+  private async keptLinear(ws: Workspace): Promise<boolean> {
+    const reasons = await nonLinear(ws.path, await this.settings.indexedCommit(ws.name)).catch((e: Error) => [e.message]);
+    if (reasons.length === 0) return true;
+    await this.settings.setEnabled(ws.name, false);
+    await this.disable(ws);
+    await this.timeline.record({
+      workspace: ws.name,
+      actor: 'harness',
+      kind: 'project_disabled',
+      title: `Disabled ${ws.name}: it is not one straight line`,
+      detail: `${reasons.join('; ')}. Momentum works on one line only: remove what is not, then enable it again.`,
+    });
+    return false;
   }
 
   /**
    * One summarization run for every entity whose artifacts one main-line change touched, and for the files it added
    * that no entity summarizes
    */
-  private async summarizeMainLine(workspace: string, entities: { path: string; artifacts: string[] }[], added: string[] = []): Promise<void> {
+  private async summarizeMainLine(
+    workspace: string,
+    entities: { path: string; artifacts: string[] }[],
+    added: string[] = [],
+    deleted: string[] = [],
+    moved: Moved[] = [],
+  ): Promise<void> {
+    const marked = (a: string) => {
+      const m = moved.find((x) => x.from === a);
+      if (m) return `${a} (moved to ${m.to}${m.unchanged ? ', content unchanged' : ''})`;
+      return deleted.includes(a) ? `${a} (deleted)` : a;
+    };
     const parts = [
       ...(entities.length
-        ? [`These artifacts changed on the main line. Rewrite the summary and card of each entity from its artifacts:\n\n${entities.map((e) => `- ${e.path}: ${e.artifacts.join(', ')}`).join('\n')}`]
+        ? [
+            `These artifacts changed on the main line. Rewrite the summary and card of each entity from its artifacts; an artifact marked deleted is gone from what the knowledge graph summarizes, deleted from the repository or moved where nothing is summarized (an archive, for one): treat it as deleted even when git shows it moved, and never list it under a new path; one marked moved is listed under its new path from now on:\n\n${entities.map((e) => `- ${e.path}: ${e.artifacts.map(marked).join(', ')}`).join('\n')}`,
+          ]
         : []),
       ...(added.length
         ? [`These files were added on the main line and no entity summarizes them yet. Summarize them into entities, new ones or ones that already cover what they do:\n\n${added.map((f) => `- ${f}`).join('\n')}`]
@@ -149,10 +204,14 @@ export class Orchestrator {
   }
 
   /** One graph build run at a time per workspace, told how much room the feed has */
-  private async queueGraphBuild(ws: Workspace, room: number): Promise<void> {
+  private async queueGraphBuild(ws: Workspace, projects: string[]): Promise<void> {
     const { state, progress } = await this.settings.graphBuild(ws.name);
     if (state !== 'building') return;
     if (await this.runner.hasOpenRun(ws.name, 'graph-build')) return;
+    // The room as it is now: the feed's size or what fills it may have changed while the tick indexed
+    const { feedSize } = await this.settings.values();
+    const room = feedSize - (await crossProjectFeed(this.workspaces.sql, projects, feedSize)).length;
+    if (room <= 0) return;
     await this.runner.create({
       workspace: ws.name,
       automation: 'graph-build',
@@ -219,9 +278,10 @@ export class Orchestrator {
     try {
       // Repositories cloned under the root or removed from it since the last pass
       await this.settings.discover().catch((e) => console.error('discover projects:', e));
-      const enabled = await this.workspaces.enabled();
-      const values = await this.settings.values();
+      const enabled = [];
+      for (const ws of await this.workspaces.enabled()) if (await this.keptLinear(ws)) enabled.push(ws);
       for (const ws of enabled) await this.guard.indexMainLine(ws).catch((e) => console.error(`index ${ws.name}:`, e));
+      const values = await this.settings.values();
       const feed = await crossProjectFeed(this.workspaces.sql, enabled.map((w) => w.name), values.feedSize);
       const room = values.feedSize - feed.length;
       if (room > 0) {
@@ -231,7 +291,7 @@ export class Orchestrator {
             if (!this.due(t, await this.runner.lastStart(ws.name, t.automation))) continue;
             await this.runner.create({ workspace: ws.name, automation: t.automation, trigger: 'schedule', prompt: PROMPTS.schedule! });
           }
-          await this.queueGraphBuild(ws, room);
+          await this.queueGraphBuild(ws, enabled.map((w) => w.name));
         }
       }
       const names = new Set(enabled.map((w) => w.name));

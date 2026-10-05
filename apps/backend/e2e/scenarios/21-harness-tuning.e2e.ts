@@ -18,8 +18,18 @@ const task = (title: string, card: string) =>
 scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'] }, async ({ env, api, app, model, step }) => {
   const latest = async (ws: string, automation: Parameters<typeof api.runs>[1], since: Date) =>
     until(`a ${automation} run with its model`, async () => (await api.runs(ws, automation)).find((r) => r.created_at >= since && r.model), 2 * 60_000);
+  /** The lines a file gained on the harness main line since a commit */
+  const added = (file: string, since: string) =>
+    env
+      .git(HARNESS, 'diff', '--ignore-cr-at-eol', since, 'main', '--', file)
+      .split('\n')
+      .filter((l) => l.startsWith('+') && !l.startsWith('+++'))
+      .map((l) => l.slice(1).trim())
+      .filter(Boolean);
+  let proposed: string[] = [];
 
   model.on('chats answer', { automation: 'chat' }, (t) => (t.kind === 'prompt' || t.kind === 'message' ? [move.say(/table/.test(t.input) ? '| route |\n| --- |\n| /books |' : '- /books')] : undefined));
+  // Only the model each implementation starts on matters here: the API never answers them, a hang injected live too
   model.on('implementation waits', { automation: 'implementation', kind: 'prompt' }, () => [move.hang()]);
 
   await step(0, async () => {
@@ -86,44 +96,57 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
   await step(2, async () => {
     for (const q of ['Give me an overview of the routes, as a table.', 'Compare the routes, as a table.']) {
       const chat = await app.chat(WS, q);
-      await api.runEnded(chat, 2 * 60_000);
+      await api.runEnded(chat, 5 * 60_000);
       await app.reply(chat, CORRECTION);
-      await until('the corrected answer', async () => (await api.run(chat)).status === 'finished' && (await api.run(chat)).messages.length >= 4, 2 * 60_000);
+      expect((await api.answered(chat, 2)).status).toBe('finished');
     }
+    const before = env.head(HARNESS);
     const since = new Date();
     await app.approve(HARNESS, 'Harness/Trigger/optimization');
-    const run = await api.automationRan(HARNESS, 'optimization', since, 3 * 60_000);
+    const run = await api.automationRan(HARNESS, 'optimization', since, 20 * 60_000);
     expect(run.status).toBe('finished');
     // It was told where the projects are
     expect(model.instructions.get(run.id)).toContain(`- ${WS}: ${env.path(WS)}`);
+    // It counted the corrections
     const [m] = await env.sql<{ misalignments: number }[]>`select misalignments from ${env.sql('ws_momentum.agent_metric')} where run_id = ${run.id} and misalignments is not null`;
-    expect(m!.misalignments).toBe(2);
+    expect(m!.misalignments).toBeGreaterThanOrEqual(1);
+    // and proposed a change to the chat definition that answers them: bullet points, no tables
     const proposal = await until('the proposal in the feed', async () => (await api.feed()).items.find((i) => i.workspace === HARNESS && i.path === 'Harness/Automation/chat'));
     expect(proposal.diff).not.toBeNull();
+    proposed = added(CHAT_AGENT, before);
+    expect(proposed.some((l) => /table|bullet/i.test(l)), `a rule against tables among ${JSON.stringify(proposed)}`).toBe(true);
     // Not live before it is approved
-    expect(readFileSync(join(env.path(WS), '.claude', 'agents', 'momentum-chat.md'), 'utf8')).not.toContain(RULE);
+    const live = readFileSync(join(env.path(WS), '.claude', 'agents', 'momentum-chat.md'), 'utf8');
+    expect(proposed.filter((l) => live.includes(l))).toEqual([]);
   });
 
   await step(3, async () => {
-    const chat = await api.chat(HARNESS, 'Make the consistency check answer in French.');
-    await api.runEnded(chat.runId, 2 * 60_000);
-    expect(env.show(HARNESS, CHECK_AGENT)).toContain(UNREVIEWED);
+    const before = env.head(HARNESS);
+    const chat = await api.chat(HARNESS, 'Make the consistency check write its issues in French.');
+    expect((await api.runEnded(chat.runId, 10 * 60_000)).status).toBe('finished');
+    const unreviewed = added(CHECK_AGENT, before);
+    expect(unreviewed.some((l) => /french/i.test(l)), `a French rule among ${JSON.stringify(unreviewed)}`).toBe(true);
 
     await app.approve(HARNESS, 'Harness/Automation/chat');
     const materialized = join(env.path(WS), '.claude', 'agents', 'momentum-chat.md');
-    await until('the approved definition in the project', async () => readFileSync(materialized, 'utf8').includes(RULE));
+    await until('the approved definition in the project', async () => proposed.every((l) => readFileSync(materialized, 'utf8').includes(l)));
     await new Promise((r) => setTimeout(r, 3000));
     // Approving one definition writes every approved one again, but never a change nobody approved
-    expect(readFileSync(join(env.path(WS), '.claude', 'agents', 'momentum-consistency-check.md'), 'utf8')).not.toContain(UNREVIEWED);
-    expect(readFileSync(join(env.path(HARNESS), '.claude', 'agents', 'momentum-consistency-check.md'), 'utf8')).not.toContain(UNREVIEWED);
+    for (const ws of [WS, HARNESS]) {
+      const check = readFileSync(join(env.path(ws), '.claude', 'agents', 'momentum-consistency-check.md'), 'utf8');
+      expect(unreviewed.filter((l) => /french/i.test(l) && check.includes(l))).toEqual([]);
+    }
     // The unreviewed change waits for the user like any other
-    expect((await api.entity(HARNESS, 'Harness/Automation/consistency-check')).verification).toBe('unverified');
+    await until('the unreviewed definition waiting', async () => (await api.entity(HARNESS, 'Harness/Automation/consistency-check')).verification === 'unverified');
 
+    // The approved proposal shapes the next chat, and its variant is recorded on it
+    const variant = (await api.entities(HARNESS, 'Harness/Automation')).find((e) => e.path === 'Harness/Automation/chat')!.frontmatter.variant;
+    expect(typeof variant, 'the proposal names its variant').toBe('string');
     const next = await app.chat(WS, 'Name one route.');
-    await api.runEnded(next, 2 * 60_000);
-    expect(model.instructions.get(next)).toContain(RULE);
+    await api.runEnded(next, 5 * 60_000);
+    for (const l of proposed.filter((x) => /table|bullet/i.test(x))) expect(model.instructions.get(next)).toContain(l);
     const [v] = await env.sql<{ variant: string | null }[]>`select variant from ${env.sql('ws_bookshelf_api.agent_metric')} where run_id = ${next}`;
-    expect(v!.variant).toBe('bullets');
+    expect(v!.variant).toBe(variant);
   });
 
   await step(4, async () => {

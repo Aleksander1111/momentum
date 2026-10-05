@@ -4,6 +4,7 @@ import type { Workspace } from '@momentum/contract';
 import { until } from '../support/api.ts';
 import { git } from '../support/env.ts';
 import { expect, scenario } from '../support/fixtures.ts';
+import { commitsOf, entitiesOf } from '../support/landed.ts';
 import { entityText, move } from '../support/scripted.ts';
 
 const WS = 'handbook';
@@ -18,7 +19,7 @@ scenario('project-churn', { enabled: [WS] }, async ({ env, api, app, model, step
     move.write(t, `knowledge-graph/${DISH}.md`, entityText({ type: 'Product/Feature', origin: 'requested', title: 'Weekly menu', card: 'Plan seven dinners from the saved recipes.' })),
     move.say('Added.'),
   ]);
-  // Automation runs of the handbook wait on the model until the scenario ends
+  // Automation runs of the handbook never get an answer until the scenario ends: a hang injected at the network, live too
   model.on('handbook automations wait', (t) => t.automation === 'consistency-check' || t.automation === 'retention', () => [move.hang()]);
 
   await step(0, async () => {
@@ -39,12 +40,17 @@ scenario('project-churn', { enabled: [WS] }, async ({ env, api, app, model, step
     // The graph build is not under test here
     await until('the build to start', async () => (await api.graphBuild(NEW)).state === 'building');
     await api.call('PUT', `/workspaces/${NEW}/graph-build`, { building: false });
-    const chat = await app.chat(NEW, 'Add a feature for a weekly menu.');
-    expect((await api.runEnded(chat, 3 * 60_000)).status).toBe('finished');
-    expect(git(dir, 'show', `master:knowledge-graph/${DISH}.md`)).toContain('Weekly menu');
+    const chat = await app.chat(NEW, 'Write a Product/Feature entity for a weekly menu: plan seven dinners from the saved recipes.');
+    expect((await api.runEnded(chat, 10 * 60_000)).status).toBe('finished');
+    // Its work landed on master: the feature, which waits in the feed
+    const [landed] = await commitsOf(env, NEW, chat);
+    expect(git(dir, 'merge-base', '--is-ancestor', landed!, 'master')).toBe('');
+    const features = (await entitiesOf(env, NEW, chat)).filter((p) => p.startsWith('Product/Feature/'));
+    expect(features.some((p) => /menu/i.test(git(dir, 'show', `master:knowledge-graph/${p}.md`))), `a menu feature among ${features.join(', ')}`).toBe(true);
     expect(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('master');
     expect(git(dir, 'branch', '--list').split('\n').map((b) => b.replace('*', '').trim())).toEqual(['master']);
-    expect((await api.feed()).items.some((i) => i.workspace === NEW && i.path === DISH)).toBe(true);
+    const feed = (await api.feed()).items.filter((i) => i.workspace === NEW).map((i) => i.path);
+    expect(feed).toEqual(expect.arrayContaining(features));
   });
 
   await step(2, async () => {
@@ -71,7 +77,16 @@ scenario('project-churn', { enabled: [WS] }, async ({ env, api, app, model, step
     const log = () => readFileSync(env.log, 'utf8').split('\n').filter((l) => l.includes(NEW)).length;
     // Windows keeps a folder a running process works in: nothing of the project runs now
     await until('no run of the project open', async () => !(await api.runs(NEW)).some((r) => r.status === 'queued' || r.status === 'running'));
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
+    // nor does a git command the harness runs in it now and then; one under way at that moment refuses it, so try again
+    await until('the folder deleted', async () => {
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
+        return true;
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'EPERM' && (e as NodeJS.ErrnoException).code !== 'EBUSY') throw e;
+        return false;
+      }
+    }, 60_000, 500);
     await until('the folder gone from the list', async () => !(await listed()).includes(NEW), 60_000);
     expect((await api.feed()).items.some((i) => i.workspace === NEW)).toBe(false);
     // A pass already under way when the folder went may miss it once; none after that

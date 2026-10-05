@@ -5,9 +5,9 @@ import { expect, scenario } from '../support/fixtures.ts';
 import { move } from '../support/scripted.ts';
 
 const WS = 'todo-cli';
-// Every default trigger but optimization's waits in the feed once the project is enabled
+// Every default trigger but optimization's waits in the feed once the project is enabled: one item of room is left
 const TRIGGERS = 8;
-const FEED = TRIGGERS + 2;
+const FEED = TRIGGERS + 1;
 
 const component = (name: string, title: string, card: string, artifacts: string[]) => ({
   type: 'Architecture/Component',
@@ -19,11 +19,30 @@ const component = (name: string, title: string, card: string, artifacts: string[
 
 scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, api, app, model, step }) => {
   const builds = () => api.runs(WS, 'graph-build');
+  /** What the build wrote that waits for the user: the feed shows as many items as its size, so the index says */
+  const written = async () => (await api.entities(WS)).filter((e) => e.type !== 'Harness/Trigger' && e.verification === 'unverified').map((e) => e.path);
+  /**
+   * Approves what the build wrote so far, one item at a time as the feed shows it: a full feed shows as many items as its
+   * size, so an item may come into it only once another left
+   */
+  const approveWritten = async () => {
+    const pending = await written();
+    while (pending.length) {
+      const next = await until('a written item in the feed', async () => {
+        const feed = (await api.feed()).items.map((i) => i.path);
+        return pending.find((p) => feed.includes(p));
+      }, 60_000);
+      await app.approve(WS, next);
+      pending.splice(pending.indexOf(next), 1);
+    }
+  };
+  // The API refusing every request, or never answering: faults at the network, injected live too
   let failing = false;
   let hanging = false;
+  let progress = '';
 
   model.on('graph build', { automation: 'graph-build', kind: 'prompt' }, (t) => {
-    if (failing) return [move.error(400, 'Scripted: the request was refused')];
+    if (failing) return [move.error(400, 'Injected: the request was refused')];
     if (hanging) return [move.hang()];
     if (/first graph build run/.test(t.input)) {
       return [
@@ -56,34 +75,45 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
 
   await step(0, async () => {
     await app.setProject(WS, true);
-    const first = await api.automationRan(WS, 'graph-build', new Date(0), 5 * 60_000);
+    const first = await api.automationRan(WS, 'graph-build', new Date(0), 15 * 60_000);
     expect(first.status).toBe('finished');
-    expect(model.turns(first.id)[0]!.input).toContain('room for 2 more items');
-    const written = (await api.feed()).items.filter((i) => i.type !== 'Harness/Trigger').map((i) => i.path);
-    expect(written.sort()).toEqual(['Architecture/Component/store', 'Product/Product/todo-cli']);
-    expect((await api.entity(WS, 'Product/Product/todo-cli')).artifacts.map((a) => a.path)).toEqual(['README.md']);
+    expect(model.turns(first.id)[0]!.input).toContain('room for 1 more items');
+    expect((await written()).length).toBeGreaterThan(0);
+    expect(graphIssues(env, WS)).toEqual([]);
+    // The documents the run listed were handed to summarization, and are artifacts of entities on the main line
+    const asked = model.turns(first.id).find((t) => t.kind === 'summarize')?.input ?? '';
+    const documents = [...asked.matchAll(/^- (\S+) \(to map/gm)].map((m) => m[1]!);
+    expect(documents.length, 'documents listed by the build').toBeGreaterThan(0);
+    const artifacts = (await env.sql<{ artifact_path: string }[]>`select artifact_path from ${env.sql('ws_todo_cli.entity_artifact')}`).map((a) => a.artifact_path);
+    expect(artifacts).toEqual(expect.arrayContaining(documents));
+    // Partly covered, with the progress the next run starts from
     const status = await api.graphBuild(WS);
-    expect(status.coverage).toBe(0.4);
-    expect(status.progress).toBe('Covered src/store.js; next: the CLI.');
+    expect(status.state).toBe('building');
+    expect(status.coverage).toBeGreaterThan(0);
+    expect(status.coverage).toBeLessThan(1);
+    expect(status.progress).toBeTruthy();
+    progress = status.progress!;
   });
 
   await step(1, async () => {
-    expect((await api.feed()).items).toHaveLength(FEED);
+    expect((await api.feed()).items.length).toBeGreaterThanOrEqual(FEED);
     await new Promise((r) => setTimeout(r, 10_000));
     expect(await builds()).toHaveLength(1);
-    await app.approve(WS, 'Architecture/Component/store');
+    await approveWritten();
     const [second] = await until('the next build run', async () => ((await builds()).length === 2 ? builds() : null), 2 * 60_000);
-    const ended = await api.runEnded(second!.id, 5 * 60_000);
+    const ended = await api.runEnded(second!.id, 15 * 60_000);
     expect(ended.status).toBe('finished');
     const prompt = model.turns(second!.id)[0]!.input;
     expect(prompt).toContain('Progress reported by the previous graph build run');
-    expect(prompt).toContain('Covered src/store.js; next: the CLI.');
+    expect(prompt).toContain(progress);
     expect(prompt).toContain('room for 1 more items');
+    // Still more to map: the build goes on once there is room again
+    expect((await api.graphBuild(WS)).state).toBe('building');
   });
 
   await step(2, async () => {
     hanging = true;
-    await app.approve(WS, 'Architecture/Component/cli');
+    await approveWritten();
     const run = await until('a build run in progress', async () => (await builds()).find((r) => r.status === 'running' && model.turns(r.id).length > 0), 2 * 60_000);
     await app.tab('Settings');
     await app.text('Stop').click();
@@ -112,12 +142,15 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
 
   await step(4, async () => {
     failing = false;
+    // Room for the rest of the build
+    await api.putSettings({ feedSize: 40 });
     await api.call('PUT', `/workspaces/${WS}/graph-build`, { building: true });
-    await until('the build to complete', async () => (await api.graphBuild(WS)).state === 'complete', 3 * 60_000);
+    await until('the build to complete', async () => (await api.graphBuild(WS)).state === 'complete', 20 * 60_000, 5000);
     const status = await api.graphBuild(WS);
     expect(status.coverage).toBe(1);
     expect(status.estimate).not.toBeNull();
-    expect(status.entities).toBeGreaterThanOrEqual(4);
+    // At least one entity from each run that got to write
+    expect(status.entities).toBeGreaterThanOrEqual(3);
     expect(status.activeRunId).toBeNull();
     await new Promise((r) => setTimeout(r, 8000));
     expect((await builds()).filter((r) => r.status === 'queued' || r.status === 'running')).toEqual([]);

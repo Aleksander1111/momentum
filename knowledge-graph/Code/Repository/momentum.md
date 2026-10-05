@@ -26,4 +26,4 @@ pnpm monorepo of the Momentum harness: TypeScript everywhere, Node 24.
 | docs/ | Presentation, slides, entity-types.tsv |
 | examples/ | todo-cli, bookshelf-api, handbook: projects the end-to-end scenarios run over |
 
-Scripts: `pnpm dev` (watch mode), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI), `pnpm e2e` (Playwright scenarios, apps/backend/e2e), `pnpm e2e:runner` (test runner window).
+Scripts: `pnpm dev` (watch mode), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI), `pnpm e2e [playwright arguments]` (asks the test runner to run Playwright scenarios, apps/backend/e2e, opening it when it is closed; the only way tests run), `pnpm e2e:runner` (starts the test runner in the background, if it is not running, and opens its page at http://127.0.0.1:7400).

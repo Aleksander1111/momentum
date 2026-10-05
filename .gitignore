@@ -10,5 +10,12 @@ apps/backend/service/*.log
 apps/backend/service/*.wrapper.log
 .e2e-results/
 .e2e-web/
+.e2e-models/
 .e2e-runner.log
+.e2e-runs/
 .e2e-progress.json
+.e2e-durations.json
+.e2e-usage.json
+.e2e-usage-points.jsonl
+.e2e-usage-readings.jsonl
+test-results/

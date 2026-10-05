@@ -6,10 +6,13 @@ import { entityText, move } from '../support/scripted.ts';
 const WS = 'bookshelf-api';
 const API = 'Architecture/Api/books-api';
 const ANSWER = 'GET /books lists every book, GET /books/:id reads one, POST /books creates one.';
+/** The routes of src/server.js, however an answer words them */
+const ROUTES = [/GET\W+\/books\b/, /\/books\/:id/, /POST\W+\/books\b/];
+const UNKNOWN = 'Say on the card that any other route answers 404 with the error "not found".';
+const MISSING = 'Also say that a missing book answers 404 with the error "book not found".';
 
-// Real Claude Code runs and harness; the model's side is scripted
+// Real Claude Code runs and harness; the model's side is scripted, or the real model's live
 scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step }) => {
-  const said = async (runId: string) => (await api.run(runId)).messages.filter((m) => m.role === 'assistant').map((m) => m.text);
 
   model.on('answers questions', { automation: 'chat', kind: 'prompt' }, (t) => (/routes/i.test(t.input) ? [move.say(ANSWER)] : undefined));
   model.on('answers follow-ups', { automation: 'chat', kind: 'message' }, (t) => (/creates/i.test(t.input) ? [move.say('POST /books.')] : undefined));
@@ -37,7 +40,10 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     });
     await app.go(`/chat/${runId}`);
     expect((await api.runEnded(runId, 5 * 60_000)).status).toBe('finished');
-    await expect(app.text(ANSWER, false)).toBeVisible({ timeout: 30_000 });
+    // Answered from the code: every route, and the answer shows in the conversation
+    const answer = await api.answer(runId);
+    for (const route of ROUTES) expect(answer).toMatch(route);
+    await expect(app.text(/\/books\/:id/, false).first()).toBeVisible({ timeout: 30_000 });
     // The agent got the card part ahead of the question
     const first = model.turns(runId).find((t) => t.kind === 'prompt')!;
     expect(first.input).toContain(`knowledge-graph/${API}.md >`);
@@ -52,7 +58,8 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
 
   await step(1, async () => {
     await app.reply(runId, 'Which of them creates a book?');
-    await until('the chat to answer again', async () => (await said(runId)).includes('POST /books.') && (await api.run(runId)).status === 'finished', 5 * 60_000);
+    expect((await api.answered(runId, 2)).status).toBe('finished');
+    expect(await api.answer(runId)).toMatch(/POST\W+\/books\b/);
     // One run, two turns: no second chat was started
     expect((await api.run(runId)).messages.filter((m) => m.role === 'user')).toHaveLength(2);
     const summary = `Harness/Chat/${runId}`;
@@ -70,31 +77,45 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
   });
 
   await step(2, async () => {
-    const changed = entityText({
-      type: 'Architecture/Api',
-      origin: 'user',
-      title: 'Books API',
-      card: env.show(WS, `knowledge-graph/${API}.md`)!.split('# Books API')[1]!.replace('An empty title still passes the check.', 'An empty title is refused with 400.').trim(),
-      impact: [3, 1, 2],
-      references: [
-        { to: 'Architecture/Component/book-store', relation: 'depends_on' },
-        { to: 'Product/Product/bookshelf', relation: 'part_of' },
-        { to: 'Governance/DesignDoc/design', relation: 'implements' },
-      ],
-      artifacts: ['src/server.js'],
-    });
-    model.on('changes the card', (t) => t.automation === 'chat' && t.kind === 'prompt' && t.target === API, (t) => [
-      move.write(t, `knowledge-graph/${API}.md`, changed),
-      move.say('The card now says an empty title is refused.'),
+    // Two facts src/server.js bears out, which the card does not say yet
+    const card = (extra: string[]) =>
+      entityText({
+        type: 'Architecture/Api',
+        origin: 'user',
+        title: 'Books API',
+        card: [env.show(WS, `knowledge-graph/${API}.md`)!.split('# Books API')[1]!.trim(), ...extra].join('\n\n'),
+        impact: [3, 1, 2],
+        references: [
+          { to: 'Architecture/Component/book-store', relation: 'depends_on' },
+          { to: 'Product/Product/bookshelf', relation: 'part_of' },
+          { to: 'Governance/DesignDoc/design', relation: 'implements' },
+        ],
+        artifacts: ['src/server.js'],
+      });
+    model.on('changes the card', (t) => t.automation === 'chat' && t.kind === 'prompt' && /other route/.test(t.input), (t) => [
+      move.write(t, `knowledge-graph/${API}.md`, card(['Any other route answers 404 with the error "not found".'])),
+      move.say('The card now says what other routes answer.'),
     ]);
-    const chat = await app.chat(WS, 'The API refuses empty titles now; say so on the card.');
-    await api.call('GET', `/runs/${chat}`);
+    model.on('changes the card from its page', (t) => t.automation === 'chat' && t.kind === 'prompt' && t.target === API, (t) => [
+      move.write(t, `knowledge-graph/${API}.md`, card(['A missing book answers 404 with the error "book not found".'])),
+      move.say('The card now says what a missing book answers.'),
+    ]);
+    const chat = await app.chat(WS, UNKNOWN);
+    expect((await api.runEnded(chat, 5 * 60_000)).status).toBe('finished');
+    expect(env.show(WS, `knowledge-graph/${API}.md`)).toMatch(/not found/);
     // Started from the entity, as the entity page's composer does
-    const { runId: onEntity } = await api.chat(WS, 'The API refuses empty titles now; say so on the card.', API);
-    for (const id of [chat, onEntity]) expect((await api.runEnded(id, 5 * 60_000)).status).toBe('finished');
-    expect(env.show(WS, `knowledge-graph/${API}.md`)).toContain('An empty title is refused with 400.');
+    const { runId: onEntity } = await api.chat(WS, MISSING, API);
+    const second = await api.runEnded(onEntity, 5 * 60_000);
+    expect(second.status).toBe('finished');
+    expect(second.targetPath).toBe(API);
+    const markdown = env.show(WS, `knowledge-graph/${API}.md`)!;
+    expect(markdown).toContain('book not found');
+    // Still the same entity, over the same artifact and references
+    expect(markdown).toContain('src/server.js');
+    expect(markdown).toContain('Architecture/Component/book-store');
     const item = await until('the changed card in the feed with its diff', async () => (await api.feed()).items.find((i) => i.path === API && i.diff));
     expect(item.verification).toBe('unverified');
+    expect((await api.feed()).items.filter((i) => i.type === 'Harness/Conflict')).toEqual([]);
     await app.approve(WS, API);
     const after = await api.entity(WS, API);
     expect(after.verification).toBe('verified');
@@ -103,23 +124,26 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
   });
 
   await step(3, async () => {
-    model.on('fails', { automation: 'chat', kind: 'prompt' }, (t) => (/broken/i.test(t.input) && !/again/i.test(t.input) ? [move.error(400, 'Scripted: the request was refused')] : undefined));
-    model.on('recovers', { automation: 'chat' }, (t) => (/again/i.test(t.input) ? [move.say('Back again.')] : undefined));
-    const chat = await app.chat(WS, 'This question meets a broken API.');
+    // The API refuses the question's first request: an outage, injected at the network, live too
+    model.on('fails', { automation: 'chat', kind: 'prompt' }, (t) => (/missing book/i.test(t.input) ? [move.error(400, 'Injected: the request was refused')] : undefined));
+    model.on('recovers', { automation: 'chat' }, (t) => (/again/i.test(t.input) ? [move.say('A missing book answers 404.')] : undefined));
+    const chat = await app.chat(WS, 'What does GET /books/:id answer for a missing book?');
     const failed = await api.runEnded(chat, 5 * 60_000);
     expect(failed.status).toBe('failed');
     expect(failed.error).toBeTruthy();
     const { events } = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&limit=100`);
     expect(events.find((e) => e.runId === chat && e.kind === 'run_failed')?.detail).toBeTruthy();
     await app.reply(chat, 'Try again please.');
-    await until('the chat to answer after the failure', async () => (await said(chat)).includes('Back again.') && (await api.run(chat)).status === 'finished', 5 * 60_000);
+    expect((await api.answered(chat, 2)).status).toBe('finished');
+    // The session resumed: the answer is to the first question
+    expect(await api.answer(chat)).toMatch(/404/);
   });
 
   await step(4, async () => {
     const triggers = (await api.feed()).items.filter((i) => i.type === 'Harness/Trigger');
     const [a, b] = triggers;
     const commits = Number(env.git(WS, 'rev-list', '--count', 'main'));
-    // The phone and the laptop both swipe the same card
+    // The user swipes the same card on the phone and on the laptop
     const approve = () => api.call('POST', `/feed/${encodeURIComponent(a!.path)}/approve`, { workspace: WS, timeSpentMs: 1000 });
     const results = await Promise.allSettled([approve(), approve()]);
     expect(results.filter((r) => r.status === 'fulfilled').length).toBeGreaterThanOrEqual(1);

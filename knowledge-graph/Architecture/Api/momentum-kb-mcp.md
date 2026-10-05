@@ -25,5 +25,5 @@ In-process MCP server the SDK gives every run: the knowledge base of the run's w
 | search | Full text + semantic, expanded along references |
 | read | An entity from the run's checkout, else from the index |
 | references | Both directions, with relation and titles |
-| write | Writes `knowledge-graph/<path>.md` on the branch and returns validation issues |
+| write | Writes `knowledge-graph/<path>.md` in the run checkout and returns validation issues |
 | record_agent_metric | Misalignments and recurring issues found by the run |

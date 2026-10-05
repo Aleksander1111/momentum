@@ -22,7 +22,7 @@ artifacts:
 
 Runs the loops of enabled projects.
 
-- **Tick**: rediscovers repositories (main line: the branch checked out when first opened); indexes main lines; with feed room, queues due triggers and a build run; starts queued runs: one automation run per project, user runs at once
+- **Tick**: rediscovers repositories; switches off a project no longer one line; indexes main lines; with feed room, queues due triggers and a build run; starts queued runs: one automation run per project, user runs at once
 - **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → one summarization run, with new uncovered files once the graph is complete
-- **Enable**: materializes, indexes, commits the default triggers, builds unless complete
+- **Enable**: refused unless one line; materializes, indexes, commits default triggers, builds
 - **Disable**: stops a build; **reset** (not the harness): ends runs, removes checkouts, deletes the graph in one commit, drops the index

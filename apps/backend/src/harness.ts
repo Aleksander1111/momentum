@@ -61,7 +61,6 @@ export class HarnessSettings {
     await this.sql`alter table harness.project add column if not exists graph_build_since timestamptz`;
     await this.sql`alter table harness.project add column if not exists graph_build_coverage real`;
     await this.sql`alter table harness.project add column if not exists logo text`;
-    await this.sql`alter table harness.project add column if not exists main_line text`;
   }
 
   /** A git repository under the root is a workspace; deleting the directory retires it */
@@ -123,18 +122,6 @@ export class HarnessSettings {
   }
 
   /** Forgets what the harness knows of a project's knowledge graph: the indexed commit and the build */
-  /**
-   * The main line of a project: the branch it had checked out when the harness first opened it. A developer checking
-   * out another branch later, a feature branch, does not move it.
-   */
-  async mainLine(name: string, checkedOut: () => Promise<string>): Promise<string> {
-    const [r] = await this.sql<{ main_line: string | null }[]>`select main_line from harness.project where name = ${name}`;
-    if (r?.main_line) return r.main_line;
-    const branch = await checkedOut();
-    await this.sql`update harness.project set main_line = ${branch} where name = ${name}`;
-    return branch;
-  }
-
   async resetProject(name: string): Promise<void> {
     await this.sql`update harness.project set indexed_commit = null, graph_build = null, graph_build_progress = null, graph_build_since = null, graph_build_coverage = null
       where name = ${name}`;

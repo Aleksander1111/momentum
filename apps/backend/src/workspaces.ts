@@ -7,7 +7,7 @@ import type { HarnessSettings } from './harness.ts';
 export interface Workspace {
   name: string;
   path: string;
-  /** The main line: the branch the workspace had checked out when first opened, and the only line runs land on */
+  /** The main line: the branch the workspace has checked out, and the only line runs land on */
   main: string;
   index: WorkspaceIndex;
 }
@@ -46,7 +46,7 @@ export class Workspaces {
     const ws: Workspace = {
       name,
       path: project.path,
-      main: await this.settings.mainLine(name, () => currentBranch(project.path)),
+      main: await currentBranch(project.path),
       index: new WorkspaceIndex(this.sql, name),
     };
     this.cache.set(name, ws);

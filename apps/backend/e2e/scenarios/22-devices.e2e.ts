@@ -60,7 +60,7 @@ scenario('devices', { enabled: [WS] }, async ({ env, api, app, step }) => {
     // The approved card left the phone's stack at once; the next is on top
     await expect(app.text(second!.title)).toBeVisible({ timeout: 10_000 });
     await env.start();
-    // The laptop approves the same card before the phone is back
+    // The user approves the same card on the laptop before the phone is back
     await api.approve(WS, first!.path);
     await until('the queued swipe to land', async () => !(await api.feed()).items.some((i) => i.path === first!.path), 60_000);
     await new Promise((r) => setTimeout(r, 12_000));

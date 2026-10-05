@@ -1,16 +1,18 @@
 import { until, type RunRow } from '../support/api.ts';
 import type { Project } from '../support/env.ts';
 import { expect, scenario } from '../support/fixtures.ts';
+import { move } from '../support/scripted.ts';
 
 const PROJECTS: Project[] = ['todo-cli', 'bookshelf-api', 'handbook'];
 const TOTAL = 4;
 
-// The runs never reach Claude Code: each stays running until the scenario ends, so the order the orchestrator keeps
-// stands still long enough to be read
+// The runs never get an answer: each stays running until the scenario ends, so the order the orchestrator keeps stands
+// still long enough to be read. Offline their requests go nowhere; live the stand-in holds every one of them
 scenario(
   'scheduling',
   { enabled: PROJECTS, triggers: ['consistency-check', 'retention'], settings: { feedSize: 5, agents: { concurrentTotal: TOTAL } } },
-  async ({ api, app, step }) => {
+  async ({ api, app, model, step }) => {
+    model.on('every run waits', () => true, () => [move.hang()]);
     const all = async () => (await Promise.all(PROJECTS.map((p) => api.runs(p)))).flat();
     const open = (rows: RunRow[]) => rows.filter((r) => r.status === 'running' || r.status === 'queued');
 

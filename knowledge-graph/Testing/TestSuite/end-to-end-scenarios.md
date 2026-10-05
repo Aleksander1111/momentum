@@ -18,7 +18,7 @@ artifacts:
 ---
 # End-to-end scenarios
 
-Real-life situations over the example projects, each in its own world: copies of the projects, a database, a back-end, the app in the observer.
+Real-life situations over the example projects, each in its own world. One user, one straight line.
 
 | Kind | Runs | Usage |
 |---|---|---|
@@ -28,5 +28,5 @@ Real-life situations over the example projects, each in its own world: copies of
 
 - features.ts lists every feature; a coverage test fails while one has no scenario
 - Hard limits; a dead back-end or nothing moving fails at once
-- A used-up limit skips the real scenarios; the runner's Continue runs what is left once it resets
-- Scripted: the harness's flows, and the products' lives: releases, bugs, refactors, parallel work, sprints, yearly updates, triage, pull requests, reviews, onboarding, busy days
+- A used-up limit skips real scenarios; Continue runs the rest later
+- Scripted: harness flows and product lives: releases, bugs, refactors, sprints, triage, reviews

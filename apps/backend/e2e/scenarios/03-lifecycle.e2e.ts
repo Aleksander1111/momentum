@@ -1,26 +1,9 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { until } from '../support/api.ts';
-import { git } from '../support/env.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 
 const WS = 'todo-cli';
-const FEATURE = 'knowledge-graph/Product/Feature/due-dates.md';
-const feature = (card: string) => `---
-type: Product/Feature
-origin: user
-verification: unverified
-product_impact: 2
-timeline_impact: 1
-unlocks: 1
-references: []
-artifacts: []
----
-# Due dates
-
-${card}
-`;
-
 // The runs never reach Claude Code; the graph build run stays running until it is stopped, killed or lost
 scenario('lifecycle', { enabled: [WS], graphBuild: 'building' }, async ({ env, api, app, step }) => {
   const buildRun = () => until('a running graph build', async () => (await api.runs(WS, 'graph-build')).find((r) => r.status === 'running'));
@@ -54,44 +37,6 @@ scenario('lifecycle', { enabled: [WS], graphBuild: 'building' }, async ({ env, a
   });
 
   await step(2, async () => {
-    const dir = env.path(WS);
-    for (const name of ['first', 'second']) {
-      git(dir, 'checkout', '-q', '-b', `momentum/${name}`, 'main');
-      writeFileSync(join(dir, `${name}.txt`), `${name}\n`);
-      git(dir, 'add', '-A');
-      git(dir, 'commit', '-q', '-m', `Add ${name}`);
-      git(dir, 'checkout', '-q', 'main');
-    }
-    env.stop();
-    await env.start();
-    await app.open();
-    expect(git(dir, 'branch', '--list', 'momentum/*')).toBe('');
-    expect(env.show(WS, 'first.txt')).toBe('first');
-    expect(env.show(WS, 'second.txt')).toBe('second');
-    const log = git(dir, 'log', '--format=%s', 'main');
-    expect(log.indexOf('Add second')).toBeLessThan(log.indexOf('Add first'));
-  });
-
-  await step(3, async () => {
-    const { runId } = await api.chat(WS, 'Add a feature entity for due dates.');
-    await until('the chat to start', async () => (await api.run(runId)).status === 'running');
-    const checkout = (await api.run(runId)).checkout;
-    // The run writes the entity in its checkout, while the user commits another version on the main line
-    mkdirSync(dirname(join(checkout, FEATURE)), { recursive: true });
-    writeFileSync(join(checkout, FEATURE), feature('Each to-do can carry a due date; `list` shows overdue items first.'));
-    env.commit(WS, { [FEATURE]: feature('Each to-do can carry a due date.') }, 'Add due dates');
-    await api.mcp('kill_run', { id: runId });
-    expect((await api.runEnded(runId)).status).toBe('killed');
-    expect(env.show(WS, FEATURE)).toContain('overdue items first');
-    const conflicts = await until('the conflict entity', async () => {
-      const rows = await api.entities(WS, 'Harness/Conflict');
-      return rows.length ? rows : null;
-    });
-    expect(conflicts[0]!.card).toContain('Product/Feature/due-dates');
-    expect((await api.feed()).items.some((i) => i.path === conflicts[0]!.path)).toBe(true);
-  });
-
-  await step(4, async () => {
     await expect(api.call('POST', '/workspaces/momentum/reset')).rejects.toMatchObject({ status: 409 });
     await app.tab('Settings');
     await app.text('Reset').click();

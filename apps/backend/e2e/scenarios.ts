@@ -14,6 +14,8 @@ export interface Scenario {
   scripted?: boolean;
   covers: Feature[];
   steps: string[];
+  /** The features each step checks, one list per step: a failing step fails only these */
+  checks: Feature[][];
 }
 
 export const SCENARIOS: Scenario[] = [
@@ -34,6 +36,14 @@ export const SCENARIOS: Scenario[] = [
       'Build reports coverage each run and ends complete; every written entity is valid and typed',
       'Each run records its usage share and leaves no checkout behind',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['project.discover', 'project.enable', 'definition.materialize', 'trigger.defaults', 'state.verification'],
+      ['trigger.unverified-ignored'],
+      ['automation.graph-build', 'orchestrator.feed-room', 'feed.size', 'feed.approve'],
+      ['automation.graph-build', 'kb.index', 'kb.types', 'kb.validate', 'automation.summarization'],
+      ['run.checkout', 'run.usage-share', 'run.process-limits'],
+    ],
   },
   {
     id: 'goal-to-landed-work',
@@ -52,6 +62,14 @@ export const SCENARIOS: Scenario[] = [
       'implementation_finished starts validation; the seeded failing test ends fixed on the main line or raised as an issue',
       'Automation runs never overlap within the project',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['trigger.schedule', 'automation.exploration', 'kb.mcp', 'kb.search'],
+      ['state.entity-ahead', 'automation.preparation', 'automation.summarization'],
+      ['automation.implementation', 'guard.land', 'trigger.event'],
+      ['automation.validation', 'trigger.event'],
+      ['orchestrator.serial-automations'],
+    ],
   },
   {
     id: 'exploration-idle',
@@ -60,6 +78,10 @@ export const SCENARIOS: Scenario[] = [
     real: true,
     covers: ['automation.exploration'],
     steps: ['With every goal marked met, a scheduled exploration run writes nothing'],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.exploration'],
+    ],
   },
   {
     id: 'consistency',
@@ -76,6 +98,13 @@ export const SCENARIOS: Scenario[] = [
       'Picking an option starts a chat run that fixes the entity; the card shows a diff until approved',
       "Won't resolve closes the other issue with the reason",
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.consistency-check', 'feed.issue-options'],
+      ['feed.contradictions'],
+      ['automation.chat', 'feed.issue-options', 'feed.diff'],
+      ['feed.wont-resolve'],
+    ],
   },
   {
     id: 'retention',
@@ -86,6 +115,11 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       'Retention proposes one plan retiring the old unreferenced DevTask and research; keeps the referenced decision and goals',
       'Approving the plan removes them from the main line',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.retention'],
+      ['automation.retention', 'feed.approve'],
     ],
   },
   {
@@ -101,6 +135,14 @@ export const SCENARIOS: Scenario[] = [
       'A chat asked for a plan writes plans/<name>.md, summarized into a Harness/Plan',
       'A killed chat ends killed; what it wrote so far reaches the feed',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.chat', 'run.context', 'run.messages'],
+      ['run.messages', 'automation.summarization'],
+      ['feed.send-back'],
+      ['automation.chat', 'automation.summarization'],
+      ['run.kill'],
+    ],
   },
   {
     id: 'artifact-change',
@@ -112,6 +154,12 @@ export const SCENARIOS: Scenario[] = [
       'A user commit on the main line changes a summarized document and one in an excluded path',
       'Its entity goes artifact_ahead, then updating, and one summarization run rewrites the card; synced after',
       'The excluded document is never summarized',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['settings.persist', 'guard.main-line-index'],
+      ['guard.main-line-index', 'state.artifact-ahead', 'state.updating', 'automation.summarization'],
+      ['automation.summarization', 'settings.persist'],
     ],
   },
   {
@@ -125,6 +173,12 @@ export const SCENARIOS: Scenario[] = [
       'Answers, a skip and a question back each land in one document under interviews/',
       '"Stop interview" ends it; the document is summarized into entities once',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.interview', 'voice.routing'],
+      ['automation.interview', 'voice.stream', 'voice.routing'],
+      ['automation.interview'],
+    ],
   },
   {
     id: 'optimization',
@@ -135,6 +189,11 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       'After chats in a project repeat the same correction, optimization in the harness workspace records the counts and proposes a definition change with evidence',
       'Approving it materializes it into every enabled project; a definition variant is recorded on the runs it shapes',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.optimization', 'metrics.agent'],
+      ['definition.approve', 'definition.variant'],
     ],
   },
   {
@@ -148,6 +207,12 @@ export const SCENARIOS: Scenario[] = [
       'The run cannot stop until it fixes the entity, then lands with its own message',
       'A run killed while its entity is invalid lands it with an issue raised over it',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['guard.live-check'],
+      ['guard.stop-blocked', 'guard.land'],
+      ['guard.inconsistent-issue'],
+    ],
   },
   {
     id: 'models-by-risk',
@@ -156,6 +221,10 @@ export const SCENARIOS: Scenario[] = [
     real: true,
     covers: ['run.models', 'settings.persist'],
     steps: ['In risk mode, a low-risk and a high-risk implementation start on the models the settings map them to'],
+    // The features each step checks, step by step
+    checks: [
+      ['run.models', 'settings.persist'],
+    ],
   },
   {
     id: 'scheduling',
@@ -171,6 +240,12 @@ export const SCENARIOS: Scenario[] = [
       'One automation run per project at a time; user runs start at once; the total is never passed',
       'The feed ranks across projects and holds at most the feed size',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['orchestrator.feed-room', 'trigger.schedule'],
+      ['orchestrator.serial-automations', 'orchestrator.parallel-user-runs', 'orchestrator.concurrent-total', 'trigger.on-demand'],
+      ['feed.rank', 'feed.size'],
+    ],
   },
   {
     id: 'lifecycle',
@@ -178,15 +253,18 @@ export const SCENARIOS: Scenario[] = [
     projects: ['todo-cli'],
     real: false,
     covers: [
-      'project.disable', 'project.reset', 'project.harness-protected', 'orchestrator.restart-recovery', 'legacy.run-branches',
-      'guard.conflict',
+      'project.disable', 'project.reset', 'project.harness-protected', 'orchestrator.restart-recovery',
     ],
     steps: [
       'Disabling stops the build; enabling resumes it',
       'A run lost at restart is queued again, and failed past the limit',
-      'Leftover momentum/ branches land oldest first and go',
-      'A run whose entity changed on the main line meanwhile lands on the run side and raises the conflict',
       'Reset leaves no entity, checkout or index row and builds afresh; the harness workspace refuses',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['project.disable'],
+      ['orchestrator.restart-recovery'],
+      ['project.reset', 'project.harness-protected'],
     ],
   },
   {
@@ -202,6 +280,11 @@ export const SCENARIOS: Scenario[] = [
       'Ten approvals of one type become an automatic approval pattern',
       'Every metric of the metrics page has a value after the reactions and runs',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['feed.patterns', 'feed.approve', 'feed.send-back'],
+      ['metrics.attention', 'metrics.understanding', 'metrics.implementation', 'metrics.per-automation'],
+    ],
   },
   {
     id: 'access',
@@ -215,6 +298,14 @@ export const SCENARIOS: Scenario[] = [
       'Voice sockets refuse an app that is not signed in',
       'Every app page loads and approves, sends back and chats against the backend',
       'The timeline lists the sign-ins, settings, reactions, chats and one event per run newest first, and shows the next one live beside the app',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['api.auth', 'api.http', 'kb.search', 'kb.types', 'settings.persist'],
+      ['api.mcp', 'kb.search', 'kb.types', 'settings.persist'],
+      ['voice.auth'],
+      ['app.pages'],
+      ['app.timeline'],
     ],
   },
   {
@@ -233,6 +324,14 @@ export const SCENARIOS: Scenario[] = [
       'A chat asked to change an entity lands it unverified; the card shows a diff against the verified version until approved',
       'A chat the API fails for ends failed with the reason; the next message resumes it and gets an answer',
       'Approving or sending back one item from two devices at once acts once',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.chat', 'run.context', 'run.messages', 'app.pages'],
+      ['run.messages', 'automation.summarization', 'state.summarized-once', 'app.pages'],
+      ['automation.chat', 'feed.diff', 'feed.approve'],
+      ['run.failure', 'run.messages'],
+      ['feed.once', 'feed.approve'],
     ],
   },
   {
@@ -253,6 +352,14 @@ export const SCENARIOS: Scenario[] = [
       'The finished implementation starts validation, which raises a defect; the user resolves it in their own words and the fix lands',
       'Automation runs of the project never overlapped and left no checkout behind',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.exploration', 'trigger.schedule'],
+      ['state.entity-ahead', 'trigger.unverified-ignored', 'automation.preparation', 'automation.summarization', 'trigger.schedule', 'orchestrator.serial-automations'],
+      ['trigger.event', 'automation.implementation', 'automation.summarization', 'guard.land', 'state.entity-ahead'],
+      ['automation.validation', 'trigger.event', 'feed.issue-options', 'automation.chat', 'metrics.implementation'],
+      ['orchestrator.serial-automations', 'run.checkout', 'trigger.schedule'],
+    ],
   },
   {
     id: 'maintenance',
@@ -262,14 +369,22 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'automation.consistency-check', 'automation.retention', 'feed.issue-options', 'feed.wont-resolve', 'feed.contradictions',
-      'metrics.agent', 'metrics.understanding', 'guard.main-line-index', 'settings.persist', 'kb.validate', 'feed.retire',
+      'metrics.understanding', 'metrics.implementation', 'guard.main-line-index', 'settings.persist', 'kb.validate', 'feed.retire',
     ],
     steps: [
-      'The nightly consistency check files a contradiction and a naming clash as issues with options and records its counts; nothing else changes',
+      'The nightly consistency check files a contradiction and a naming clash as issues with options, counted as open; nothing else changes',
       'Picking the recommended option fixes the guide and its document in a chat; the issue retires and the contradiction count drops',
       "Won't resolve keeps the clash verified with the reason; it is no longer counted as open",
       'With the lifetimes the user set, retention proposes retiring spent entities; approving retires them but keeps one a new decision still relies on',
       'A user deleting an entity by hand on the main line is indexed at once: it leaves the index and the broken reference lowers consistency',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.consistency-check', 'feed.issue-options', 'feed.contradictions', 'metrics.understanding', 'metrics.implementation'],
+      ['feed.issue-options', 'feed.contradictions', 'metrics.implementation'],
+      ['feed.wont-resolve', 'metrics.implementation', 'metrics.understanding'],
+      ['automation.retention', 'settings.persist', 'feed.retire'],
+      ['guard.main-line-index', 'metrics.understanding', 'kb.validate'],
     ],
   },
   {
@@ -289,6 +404,14 @@ export const SCENARIOS: Scenario[] = [
       'A build whose runs keep failing stops after three failures in a row and says why, instead of retrying forever',
       'Resumed, the build completes: coverage 1, an estimate from the runs, and nothing more queued',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['project.enable', 'automation.graph-build', 'automation.summarization', 'orchestrator.feed-room', 'feed.size'],
+      ['orchestrator.feed-room', 'feed.size', 'feed.approve', 'automation.graph-build'],
+      ['project.disable', 'app.timeline', 'automation.graph-build'],
+      ['run.failure', 'app.timeline'],
+      ['automation.graph-build', 'metrics.per-automation', 'app.timeline', 'feed.size'],
+    ],
   },
   {
     id: 'interruptions',
@@ -306,6 +429,14 @@ export const SCENARIOS: Scenario[] = [
       'A run writing an invalid entity is told at once, cannot stop until it fixes it, then lands valid under its own message',
       'A run that never fixes its entity lands it after two tries with an issue raised over it',
       'Stopping a chat from its conversation lands what it wrote so far, and the timeline says the user stopped it',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['orchestrator.restart-recovery', 'automation.consistency-check', 'guard.land'],
+      ['orchestrator.restart-recovery', 'run.messages', 'guard.land'],
+      ['guard.live-check', 'guard.stop-blocked', 'guard.land', 'kb.validate'],
+      ['guard.inconsistent-issue', 'guard.stop-blocked', 'kb.validate'],
+      ['run.kill', 'guard.land'],
     ],
   },
   {
@@ -325,6 +456,14 @@ export const SCENARIOS: Scenario[] = [
       'Approving the proposal materializes it into the project and its variant is recorded on the runs it shapes; an agent file changed without approval is never materialized',
       'Triggers the user edits by hand take effect: without on_demand it refuses starts, and a new schedule is followed',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['run.models', 'settings.persist'],
+      ['run.models', 'settings.persist'],
+      ['automation.optimization', 'metrics.agent', 'definition.review'],
+      ['definition.approve', 'definition.materialize', 'definition.variant', 'definition.review'],
+      ['trigger.on-demand', 'trigger.schedule'],
+    ],
   },
   {
     id: 'devices',
@@ -336,9 +475,17 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       'Two devices sign in side by side; a wrong password is refused and recorded on the timeline',
       'Signing out on one device ends only its session: its API, MCP and voice requests are refused',
-      'Swipes made while the back-end is unreachable wait on the phone and land once it is back; one the laptop also made counts once',
+      'Swipes made while the back-end is unreachable wait on the phone and land once it is back; one also made on the laptop counts once',
       'A project logo is served with the project and recorded; removing it falls back to the drawn one; a file that is not an image is refused',
       'The timeline filters by project and actor and pages back without gaps or repeats',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['api.auth', 'app.timeline'],
+      ['api.auth', 'voice.auth', 'api.mcp', 'app.pages'],
+      ['app.offline', 'feed.once', 'feed.approve', 'feed.send-back', 'app.pages'],
+      ['settings.persist', 'app.pages', 'app.timeline'],
+      ['app.timeline', 'app.pages'],
     ],
   },
   {
@@ -353,6 +500,13 @@ export const SCENARIOS: Scenario[] = [
       'Enabled, a project whose main line is master gets its triggers there and its runs land on master',
       'Disabling a project keeps its queued runs from starting and its items out of the feed; enabling it again starts them',
       'A project folder removed from the root leaves the list and the feed, and the harness goes on',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['project.discover', 'project.churn'],
+      ['project.enable', 'project.churn', 'trigger.defaults', 'run.checkout'],
+      ['project.disable', 'project.enable', 'orchestrator.serial-automations', 'feed.rank'],
+      ['project.churn', 'feed.rank'],
     ],
   },
   {
@@ -372,6 +526,14 @@ export const SCENARIOS: Scenario[] = [
       'Two quick edits of one document: the second is summarized after the first, and the card ends on the latest',
       'A run editing an excluded document and a summarized one hands only the summarized one to summarization',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['guard.main-line-index', 'state.artifact-ahead', 'state.updating', 'automation.summarization'],
+      ['state.summarized-once', 'automation.summarization'],
+      ['run.failure', 'state.summarized-once', 'state.artifact-ahead', 'automation.summarization'],
+      ['orchestrator.serial-automations', 'automation.summarization'],
+      ['settings.persist', 'automation.summarization'],
+    ],
   },
   {
     id: 'voice',
@@ -383,9 +545,17 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       'Said on the explorer, a phrase becomes the search; on an entity, a question asks about it and a command changes it',
       'Said on a new chat, a question starts a chat and what is said next goes on in it; "stop interview" there is ignored',
-      'An interview started by voice asks one question at a time and writes every answer, skip and question back into one document',
+      'An interview started by voice asks one question at a time and writes the answers into one document; a skip writes nothing and a question back is answered',
       '"Stop interview" ends it and its document is summarized into an entity once',
       'After a restart nothing said before is acted on again',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['voice.routing', 'automation.chat', 'run.context'],
+      ['voice.routing', 'automation.chat'],
+      ['automation.interview', 'voice.routing'],
+      ['automation.interview', 'automation.summarization'],
+      ['voice.stream'],
     ],
   },
   {
@@ -399,11 +569,19 @@ export const SCENARIOS: Scenario[] = [
       'feed.send-back', 'feed.diff', 'state.entity-ahead', 'guard.main-line-index',
     ],
     steps: [
-      'A module the developer commits by hand is summarized into a new card, since no entity covered it',
+      'A module the user commits by hand is summarized into a new card, since no entity covered it',
       'A feature request from the chat becomes a user story; implemented, its result is sent back for a test and approved with it',
       'A version bump is summarized into the repository card; a README tweak that changes nothing the card says leaves the feed as it was',
       'The release: a chat writes the changelog and a release note that references what shipped',
-      'A small fix by the developer re-summarizes the one card over that file',
+      'A small fix the user commits re-summarizes the one card over that file',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['state.new-files', 'state.artifact-ahead', 'automation.summarization', 'guard.main-line-index'],
+      ['automation.chat', 'state.entity-ahead', 'automation.implementation', 'feed.send-back', 'state.summarized-once'],
+      ['state.artifact-ahead', 'automation.summarization', 'feed.diff', 'state.summarized-once'],
+      ['automation.chat', 'state.summarized-once'],
+      ['state.artifact-ahead', 'automation.summarization', 'guard.main-line-index'],
     ],
   },
   {
@@ -417,11 +595,19 @@ export const SCENARIOS: Scenario[] = [
       'feed.retire', 'feed.issue-options', 'orchestrator.parallel-user-runs', 'trigger.on-demand',
     ],
     steps: [
-      'A bug a reader reports through the chat is filed and counted open',
+      'A bug the user files through the chat is counted open',
       'Approved, the bug is fixed and validated; it counts as fixed once the fix is approved',
       'A duplicate report is sent back and retired',
-      "The nightly validation catches a developer's regression; picking the fix option repairs it",
+      'The nightly validation catches a regression the user committed; picking the fix option repairs it',
       'A hotfix started on demand runs at once beside the automation run in progress',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['automation.chat', 'metrics.implementation'],
+      ['automation.implementation', 'automation.validation', 'trigger.event', 'metrics.implementation'],
+      ['feed.retire', 'automation.chat', 'metrics.implementation'],
+      ['trigger.schedule', 'automation.validation', 'feed.issue-options', 'metrics.implementation'],
+      ['orchestrator.parallel-user-runs', 'trigger.on-demand'],
     ],
   },
   {
@@ -433,23 +619,16 @@ export const SCENARIOS: Scenario[] = [
     covers: ['state.moved-files', 'state.new-files', 'state.artifact-ahead', 'automation.summarization', 'feed.retire', 'metrics.understanding'],
     steps: [
       'A renamed module: the card over it follows the new path',
-      'Routes split out of the server into a new file: one summarization run puts both on the API card',
+      'Routes split out of the server into a new file: one summarization run covers both files under the API',
       'A deleted design document: its entity is retired once nothing references it',
       'The rename reverted: the card follows the file back and the graph stays consistent',
     ],
-  },
-  {
-    id: 'parallel-work',
-    title: 'Developers and runs working on bookshelf at the same time',
-    projects: ['bookshelf-api'],
-    real: false,
-    scripted: true,
-    covers: ['run.developer-work', 'guard.conflict', 'guard.land', 'project.main-line', 'feed.send-back', 'orchestrator.restart-recovery'],
-    steps: [
-      "A run lands in a file the developer is editing: their uncommitted change survives and their commit keeps the run's",
-      'A developer and a chat change different parts of one file: both changes stand, no conflict',
-      'Both change the same line: the conflict is raised over the file and resolved by a send back',
-      'On a feature branch, runs land on the main line, also after a restart; merging the branch is indexed',
+    // The features each step checks, step by step
+    checks: [
+      ['state.moved-files', 'state.artifact-ahead', 'automation.summarization'],
+      ['state.new-files', 'state.artifact-ahead', 'automation.summarization'],
+      ['feed.retire', 'state.moved-files', 'state.artifact-ahead', 'automation.summarization'],
+      ['state.moved-files', 'state.artifact-ahead', 'automation.summarization', 'metrics.understanding'],
     ],
   },
   {
@@ -469,6 +648,14 @@ export const SCENARIOS: Scenario[] = [
       'A failed implementation leaves its task to do; started again on demand, it lands',
       'The sprint review: metrics and the timeline show the sprint',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['feed.rank'],
+      ['feed.send-back', 'feed.retire'],
+      ['orchestrator.serial-automations', 'orchestrator.parallel-user-runs'],
+      ['run.retry', 'run.failure'],
+      ['metrics.attention', 'metrics.per-automation', 'app.timeline', 'run.failure'],
+    ],
   },
   {
     id: 'handbook-yearly-update',
@@ -482,6 +669,13 @@ export const SCENARIOS: Scenario[] = [
       'One commit across three documents is summarized in one run',
       'Policies moved into a folder: the cards follow their documents, their words unchanged',
       'A policy archived: its entity is proposed for retirement and kept while others reference it',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['state.new-files', 'automation.summarization', 'feed.approve'],
+      ['automation.summarization'],
+      ['state.moved-files'],
+      ['state.moved-files', 'settings.persist', 'feed.retire'],
     ],
   },
   {
@@ -497,19 +691,12 @@ export const SCENARIOS: Scenario[] = [
       'A card that changed after the phone showed it is not approved unseen; its new version is',
       'With room made, the paused build goes on until complete',
     ],
-  },
-  {
-    id: 'pull-requests',
-    title: 'Pull requests merged into bookshelf day by day',
-    projects: ['bookshelf-api'],
-    real: false,
-    scripted: true,
-    covers: ['state.merges', 'state.new-files', 'state.artifact-ahead', 'automation.summarization', 'settings.persist', 'guard.main-line-index', 'feed.approve'],
-    steps: [
-      'A merged pull request with code, tests and a new module: one summarization run rewrites the cards it touches and maps the new files',
-      'Two pull requests merged one after the other: summarized one at a time, the card ending on the latest',
-      'A pull request with an excluded lockfile and a test: only the test is summarized',
-      'A pull request reverted: the card follows the revert, the later change stays',
+    // The features each step checks, step by step
+    checks: [
+      ['feed.size', 'feed.rank', 'orchestrator.feed-room'],
+      ['feed.issue-options', 'feed.wont-resolve', 'metrics.attention'],
+      ['feed.stale'],
+      ['automation.graph-build', 'orchestrator.feed-room', 'feed.size'],
     ],
   },
   {
@@ -525,10 +712,17 @@ export const SCENARIOS: Scenario[] = [
       'Approved: the diff goes, three send backs and one approval are counted, each comment is on the timeline',
       'The next change diffs against the card approved last',
     ],
+    // The features each step checks, step by step
+    checks: [
+      ['feed.diff'],
+      ['feed.diff', 'feed.send-back'],
+      ['feed.approve', 'metrics.attention', 'app.timeline', 'feed.send-back'],
+      ['feed.diff'],
+    ],
   },
   {
-    id: 'new-teammate',
-    title: 'A new teammate finds their way around the handbook',
+    id: 'handbook-answers',
+    title: 'Finding answers in the handbook',
     projects: ['handbook'],
     real: false,
     scripted: true,
@@ -536,8 +730,15 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       'Searching the explorer finds the policy by its words and by its meaning; its card and document open',
       'A question with the policy as context is answered, and the follow-up keeps it',
-      'A question the handbook does not answer becomes a FAQ that People Ops answers through a send back',
-      'The next week the answer is found by search',
+      'A question the handbook does not answer becomes a FAQ, which the user answers through a send back',
+      'Later the answer is found by search',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['kb.search', 'app.pages', 'api.http'],
+      ['run.context', 'run.messages', 'automation.chat', 'app.pages'],
+      ['automation.chat', 'feed.send-back'],
+      ['kb.search', 'app.pages'],
     ],
   },
   {
@@ -552,6 +753,34 @@ export const SCENARIOS: Scenario[] = [
       'A follow-up to a waiting chat joins its first question and is answered with it',
       'A send back of the entity a chat is working on joins that chat',
       'A waiting chat stopped by the user never starts',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['run.queue', 'orchestrator.concurrent-total', 'orchestrator.parallel-user-runs'],
+      ['run.queue', 'run.messages'],
+      ['feed.once', 'run.messages'],
+      ['run.kill', 'run.queue', 'orchestrator.concurrent-total'],
+    ],
+  },
+  {
+    id: 'linear-work',
+    title: 'One straight line, enforced',
+    projects: ['todo-cli'],
+    real: false,
+    scripted: true,
+    covers: ['project.linear', 'project.enable', 'project.disable', 'guard.land', 'feed.approve', 'app.timeline'],
+    steps: [
+      'A project with a second branch cannot be enabled; the refusal says why, and without the branch it enables',
+      'A branch or a detached HEAD appearing in an enabled project switches it off at once, says why, and nothing of it runs',
+      'A merge commit landing on the line switches it off the same way',
+      'Runs and approvals keep one straight line: one branch, no merge commits',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['project.enable', 'project.linear'],
+      ['project.linear', 'project.disable', 'app.timeline'],
+      ['project.linear', 'app.timeline'],
+      ['guard.land', 'feed.approve', 'project.linear'],
     ],
   },
 ];

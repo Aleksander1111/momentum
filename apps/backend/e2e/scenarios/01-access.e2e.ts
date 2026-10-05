@@ -111,10 +111,11 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
 
     // In the app, and beside it in the observer, where the next action shows up without a reload
     const approved = events.find((e) => e.kind === 'approved')!;
+    // The row's check already says it was approved: the line names only what was
+    const what = approved.title.replace(/^Approved\s+“?(.*?)”?$/, '$1');
     await app.tab('Timeline');
-    // One line each: the title, then who did it and where
-    await expect(app.text(approved.title, false)).toBeVisible();
-    await expect(app.timeline().getByText(approved.title).first()).toBeVisible({ timeout: 15_000 });
+    await expect(app.text(what, false)).toBeVisible();
+    await expect(app.timeline().getByText(what).first()).toBeVisible({ timeout: 15_000 });
     await api.putSettings({ feedSize: 30 });
     await until('the settings change in the timeline', async () => (await api.call<TimelineResponse>('GET', '/timeline?limit=1')).events[0]?.kind === 'settings_changed');
     await expect(app.timeline().getByText('Changed the feed size').first()).toBeVisible({ timeout: 15_000 });

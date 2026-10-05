@@ -88,6 +88,30 @@ export class Api {
     return automation ? rows.filter((r) => r.automation === automation) : rows;
   }
 
+  /** What the run answered to the user's last message: its assistant messages since, joined */
+  async answer(id: string): Promise<string> {
+    const { messages } = await this.run(id);
+    const last = messages.findLastIndex((m) => m.role === 'user');
+    return messages
+      .slice(last + 1)
+      .filter((m) => m.role === 'assistant')
+      .map((m) => m.text)
+      .join('\n');
+  }
+
+  /**
+   * Waits for the run to answer the user's nth message and end: the status alone still reads as the last turn ended for a
+   * moment after a message, so an assistant message after it is what says the turn ran
+   */
+  async answered(id: string, n: number, timeoutMs = 5 * 60_000): Promise<RunDetail> {
+    return until(`run ${id} to answer message ${n}`, async () => {
+      const r = await this.run(id);
+      const users = r.messages.flatMap((m, i) => (m.role === 'user' ? [i] : []));
+      if (users.length < n || OPEN.includes(r.status)) return null;
+      return r.messages.slice(users[n - 1]! + 1).some((m) => m.role === 'assistant') ? r : null;
+    }, timeoutMs);
+  }
+
   /** Waits for a run to end, and returns how it ended */
   async runEnded(id: string, timeoutMs = 30 * 60_000): Promise<RunDetail> {
     return until(`run ${id} to end`, async () => {

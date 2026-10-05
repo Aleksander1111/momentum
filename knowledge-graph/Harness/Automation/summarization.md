@@ -18,4 +18,5 @@ Summarizes repository artifacts: chats, plans, results implemented by AI, docume
 - The only writer of summaries: runs never summarize their own artifacts
 - Never commits, pushes or switches branches: the harness commits what it leaves in the checkout
 - Each summary is an entity with its artifacts listed; the entity is its card: paragraph, bullets, table or PlantUML diagram (mermaid is not accepted)
+- Rewrites the entity already over an artifact only when the change makes its card wrong or adds to what it covers, never a second one beside it; an entity left with no artifact gets a retirement plan
 - Skips the path patterns the user excludes

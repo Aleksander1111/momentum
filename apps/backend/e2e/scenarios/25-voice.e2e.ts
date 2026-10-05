@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { until } from '../support/api.ts';
+import { graphIssues } from '../support/check.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 import { move, type Turn } from '../support/scripted.ts';
 
@@ -29,7 +30,8 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
       ];
     }
     if (t.kind !== 'prompt' && t.kind !== 'message') return undefined;
-    const answers = t.inputs.slice(1);
+    // Skips and questions back write nothing
+    const answers = t.inputs.slice(1).filter((a) => !/^(skip|Question:)/i.test(a));
     const done = /stop interview/i.test(t.input);
     const before = (() => {
       try {
@@ -38,11 +40,12 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
         return '# Reading habits\n';
       }
     })();
-    const text = answers.length ? `${before.trimEnd()}\n\n- ${QUESTIONS[answers.length - 1] ?? 'More'}: ${t.input}\n` : before;
+    const answered = answers.length && t.input === answers.at(-1);
+    const text = answered ? `${before.trimEnd()}\n\n- ${QUESTIONS[answers.length - 1] ?? 'More'}: ${t.input}\n` : before;
     return [
       move.write(t, DOC, text),
-      move.interview({ question: done ? 'Thank you, that is all.' : QUESTIONS[answers.length] ?? 'Anything else?', done, document: DOC }),
-      move.say(done ? 'Thank you.' : QUESTIONS[answers.length] ?? 'Anything else?'),
+      move.interview({ question: done ? 'Thank you, that is all.' : QUESTIONS[t.inputs.length - 1] ?? 'Anything else?', done, document: DOC }),
+      move.say(done ? 'Thank you.' : QUESTIONS[t.inputs.length - 1] ?? 'Anything else?'),
     ];
   });
 
@@ -61,7 +64,7 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     expect((await api.run(asked.id)).messages[0]!.context.map((c) => c.path)).toEqual([API]);
     expect(asked.target_path).toBeNull();
     since = new Date();
-    voice.say('say that empty titles are refused', 'command');
+    voice.say('say that unknown routes answer 404', 'command');
     const told = await newest(since);
     expect(told.target_path).toBe(API);
     for (const r of [asked, told]) await api.runEnded(r.id, 2 * 60_000);
@@ -88,43 +91,62 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     const since = new Date();
     voice.say('interview reading habits');
     const run = await until('the interview', async () => (await api.runs(WS, 'interview')).find((r) => r.created_at >= since), 60_000);
-    // A turn is over once the interviewer has said its next question and the run has ended again
-    const turn = (n: number) =>
-      until(`turn ${n}`, async () => {
-        const said = model.turns(run.id).filter((t) => (t.kind === 'prompt' || t.kind === 'message') && t.step === 2).length;
-        const r = await api.run(run.id);
-        return said >= n && r.status !== 'running' && r.status !== 'queued' ? r : null;
-      }, 2 * 60_000);
-    expect((await turn(1)).interview!.question).toBe(QUESTIONS[0]);
+    // A turn is over once the interviewer has answered the person's nth message with its next question
+    const turn = async (n: number) => {
+      const r = await api.answered(run.id, n, 10 * 60_000);
+      expect(r.status).toBe('finished');
+      expect(r.interview!.done).toBe(false);
+      expect(r.interview!.question.trim()).toMatch(/\?$/);
+      return r.interview!;
+    };
+    const first = await turn(1);
+    const doc = first.document;
+    expect(doc).toMatch(/^interviews\/.+\.md$/);
+    const text = () => env.show(WS, doc) ?? '';
     await app.go(`/chat/${run.id}`);
     await listen();
+
+    // An answer is written into the document, and the next question moves on
     voice.say('about two a month');
-    expect((await turn(2)).interview!.question).toBe(QUESTIONS[1]);
+    const second = await turn(2);
+    expect(text()).toMatch(/\b(two|2)\b/i);
+    expect(text()).toMatch(/month/i);
+    expect(second.question).not.toBe(first.question);
+
+    // A skip writes nothing and asks something else
+    const kept = text();
     voice.say('skip');
-    await turn(3);
+    const third = await turn(3);
+    expect(text()).toBe(kept);
+    expect(third.question).not.toBe(second.question);
+
+    // A question back is answered, the document left as it was, and the interview asks again
     voice.say('why do you ask', 'question');
-    const r = await turn(4);
+    await turn(4);
+    const r = await api.run(run.id);
     expect(r.messages.some((m) => m.role === 'user' && m.text === 'Question: why do you ask')).toBe(true);
-    expect(r.interview!.document).toBe(DOC);
-    expect(r.interview!.done).toBe(false);
-    const doc = env.show(WS, DOC)!;
-    expect(doc).toContain('about two a month');
-    expect(doc).toContain('Question: why do you ask');
+    expect(text()).toBe(kept);
+    // One document all along
+    expect(r.interview!.document).toBe(doc);
     // Not summarized while it goes on
-    expect((await api.entities(WS)).some((e) => e.path === SUMMARY)).toBe(false);
-    return run.id;
+    expect((await env.sql<{ n: number }[]>`select count(*)::int as n from ${env.sql('ws_bookshelf_api.entity_artifact')} where artifact_path = ${doc}`)[0]!.n).toBe(0);
+    return { id: run.id, doc };
   });
 
   await step(3, async () => {
     voice.say('stop interview');
     const r = await until('the interview done', async () => {
-      const x = await api.run(interview);
+      const x = await api.run(interview.id);
       return x.interview?.done && x.status !== 'running' && x.status !== 'queued' ? x : null;
-    }, 2 * 60_000);
+    }, 10 * 60_000);
     expect(r.status).toBe('finished');
-    const note = await until('the summary', async () => (await api.entities(WS)).find((e) => e.path === SUMMARY), 60_000);
-    expect(note.verification).toBe('unverified');
-    expect((await api.entity(WS, SUMMARY)).artifacts.map((a) => a.path)).toEqual([DOC]);
+    // Its document is summarized by the interview itself into entities waiting in the feed
+    const over = await until('the summary', async () => {
+      const rows = await env.sql<{ entity_path: string }[]>`select entity_path from ${env.sql('ws_bookshelf_api.entity_artifact')} where artifact_path = ${interview.doc}`;
+      return rows.length ? rows.map((x) => x.entity_path) : null;
+    }, 60_000);
+    for (const path of over) expect((await api.entity(WS, path)).verification).toBe('unverified');
+    expect(graphIssues(env, WS)).toEqual([]);
     await new Promise((r) => setTimeout(r, 6000));
     expect(await api.runs(WS, 'summarization')).toEqual([]);
   });

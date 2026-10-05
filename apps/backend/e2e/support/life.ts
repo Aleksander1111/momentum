@@ -2,8 +2,8 @@ import type { Env } from './env.ts';
 import { entityText, type Entity } from './scripted.ts';
 
 /**
- * The life of the example products: what their knowledge graphs look like once built, and the everyday changes a team
- * makes to them, as developers write them. Scenarios replay these the way they happen on a working day.
+ * The life of the example products: what their knowledge graphs look like once built, and the everyday changes the user
+ * makes to them, as the user writes them. Scenarios replay these the way they happen on a working day.
  */
 
 const kg = (path: string) => `knowledge-graph/${path}.md`;
@@ -51,7 +51,7 @@ export const TODO_GRAPH: Record<string, string> = {
   }),
 };
 
-/** A priority on each to-do: the module a developer writes by hand */
+/** A priority on each to-do: the module the user writes by hand */
 export const PRIORITY_JS = `const LEVELS = ['low', 'normal', 'high'];
 
 /** The priority of a to-do, normal unless set */
@@ -96,7 +96,7 @@ test('a to-do past its date is overdue', () => {
 });
 `;
 
-/** Bookshelf's server as a developer splits the routes out of it */
+/** Bookshelf's server as the user splits the routes out of it */
 export const BOOK_ROUTES_JS = `/** The /books routes: list, read one, add */
 export async function books(req, res, store, { send, readJson }) {
   const { pathname } = new URL(req.url, 'http://localhost');
@@ -115,7 +115,7 @@ export async function books(req, res, store, { send, readJson }) {
 }
 `;
 
-/** An expenses policy HR adds to the handbook */
+/** An expenses policy the user adds to the handbook */
 export const EXPENSES_MD = `# Expenses
 
 - Book travel through the studio account; anything over 200 EUR needs your lead's approval first.

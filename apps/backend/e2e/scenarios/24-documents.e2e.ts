@@ -13,8 +13,10 @@ const ARCHIVE = 'archive/2019-remote-policy.md';
 function summarized(t: Turn, entity: string, doc: string): string {
   const file = readFileSync(t.file(`knowledge-graph/${entity}.md`), 'utf8');
   const [, front, title] = /^(---[\s\S]*?---)\r?\n# (.+)/.exec(file)!;
-  const bullets = readFileSync(t.file(doc), 'utf8').split(/\r?\n/).filter((l) => l.startsWith('- ')).slice(0, 6).join('\n');
-  return `${front!.replace('verification: verified', 'verification: unverified')}\n# ${title}\n\n${bullets.slice(0, 600)}\n`;
+  const lines = readFileSync(t.file(doc), 'utf8').split(/\r?\n/);
+  const opening = lines.filter((l) => l.trim() && !l.startsWith('#') && !l.startsWith('- ')).slice(0, 2);
+  const bullets = lines.filter((l) => l.startsWith('- ')).slice(0, 6);
+  return `${front!.replace('verification: verified', 'verification: unverified')}\n# ${title}\n\n${[...opening, ...bullets].join('\n').slice(0, 600)}\n`;
 }
 
 scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['archive/**'] } } }, async ({ env, api, model, step }) => {
@@ -25,7 +27,8 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
   const sync = async (path: string) => (await api.entity(WS, path)).sync;
 
   model.on('summarization of the main line', { automation: 'summarization', kind: 'prompt' }, (t) => {
-    if (mode === 'fail') return [move.error(400, 'Scripted: the request was refused')];
+    // The API refusing the run: an outage, injected at the network, live too
+    if (mode === 'fail') return [move.error(400, 'Injected: the request was refused')];
     const wait = gate ? [move.gate(gate)] : [];
     if (mode === 'unchanged') return [...wait, move.say('The cards still hold.')];
     return [...wait, ...listed(t).map((e) => move.write(t, `knowledge-graph/${e.entity}.md`, summarized(t, e.entity, e.docs[0]!))), move.say('Rewritten.')];
@@ -41,13 +44,18 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
       },
       'Update the leave and remote work documents',
     );
-    const run = await api.automationRan(WS, 'summarization', since, 3 * 60_000);
+    const run = await api.automationRan(WS, 'summarization', since, 10 * 60_000);
     expect(run.status).toBe('finished');
     expect(run.trigger).toBe('event');
     expect((await summaries()).filter((r) => r.created_at >= since)).toHaveLength(1);
     await until('both synced', async () => (await sync(LEAVE)) === 'synced' && (await sync(REMOTE)) === 'synced');
-    expect((await api.entity(WS, LEAVE)).markdown).toContain('28 days of paid holiday');
-    expect((await api.entity(WS, REMOTE)).markdown).toContain('team calendar');
+    // Both cards say what their documents say now, each under its title once
+    const leave = (await api.entity(WS, LEAVE)).markdown;
+    expect(leave).toMatch(/\b28 days\b/);
+    expect(leave).not.toMatch(/\b26 days\b/);
+    const remote = (await api.entity(WS, REMOTE)).markdown;
+    expect(remote).toMatch(/calendar/i);
+    for (const p of [LEAVE, REMOTE]) expect(env.show(WS, `knowledge-graph/${p}.md`)!.match(/^# /gm)).toHaveLength(1);
     const states = await env.sql<{ sync: string }[]>`select sync from ${env.sql('ws_handbook.entity_state')} where path = ${LEAVE} and at >= ${since} order by at`;
     expect(states.map((s) => s.sync)).toEqual(expect.arrayContaining(['artifact_ahead', 'updating', 'synced']));
   });
@@ -56,7 +64,7 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
     mode = 'unchanged';
     const since = new Date();
     env.commit(WS, { 'docs/meetings.md': `${env.show(WS, 'docs/meetings.md')!}\n\n` }, 'Tidy the meetings document');
-    const run = await api.automationRan(WS, 'summarization', since, 3 * 60_000);
+    const run = await api.automationRan(WS, 'summarization', since, 10 * 60_000);
     expect(run.status).toBe('finished');
     await until('the guide synced', async () => (await sync(MEETING)) === 'synced', 30_000);
   });
@@ -65,15 +73,18 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
     mode = 'fail';
     const since = new Date();
     env.commit(WS, { 'docs/meetings.md': env.show(WS, 'docs/meetings.md')!.replace(/Tuesday/g, 'Wednesday') }, 'Move the meeting to Wednesday');
-    const failed = await api.automationRan(WS, 'summarization', since, 3 * 60_000);
+    const failed = await api.automationRan(WS, 'summarization', since, 5 * 60_000);
     expect(failed.status).toBe('failed');
     await until('the guide behind its document', async () => (await sync(MEETING)) === 'artifact_ahead', 30_000);
     mode = 'rewrite';
     const again = new Date();
     env.commit(WS, { 'docs/meetings.md': `${env.show(WS, 'docs/meetings.md')!}\n- Notes go in the shared folder.\n` }, 'Say where the notes go');
-    expect((await api.automationRan(WS, 'summarization', again, 3 * 60_000)).status).toBe('finished');
+    expect((await api.automationRan(WS, 'summarization', again, 10 * 60_000)).status).toBe('finished');
     await until('the guide synced', async () => (await sync(MEETING)) === 'synced', 30_000);
-    expect((await api.entity(WS, MEETING)).markdown).toContain('Notes go in the shared folder');
+    // Both edits reached the card: the day it failed over, and the one after
+    const guide = (await api.entity(WS, MEETING)).markdown;
+    expect(guide).toMatch(/shared folder/i);
+    expect(guide).toMatch(/Wednesday/);
   });
 
   await step(3, async () => {
@@ -87,11 +98,12 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
     await until('the second edit noticed', async () => (await summaries()).filter((r) => r.created_at >= since).length === 2, 60_000);
     gate = null;
     open();
-    await until('both rewrites done', async () => (await summaries()).filter((r) => r.created_at >= since).every((r) => r.status === 'finished'), 3 * 60_000);
+    await until('both rewrites done', async () => (await summaries()).filter((r) => r.created_at >= since).every((r) => r.status === 'finished'), 15 * 60_000);
     const [second] = (await summaries()).filter((r) => r.created_at >= since && r.id !== first.id);
     // One at a time: the second started once the first had landed
     expect(+second!.started_at!).toBeGreaterThanOrEqual(+(await summaries()).find((r) => r.id === first.id)!.ended_at!);
-    await until('the card on the latest', async () => (await api.entity(WS, LEAVE)).markdown.includes('30 days of paid holiday') && (await sync(LEAVE)) === 'synced', 60_000);
+    await until('the card on the latest', async () => /\b30 days\b/.test((await api.entity(WS, LEAVE)).markdown) && (await sync(LEAVE)) === 'synced', 60_000);
+    expect((await api.entity(WS, LEAVE)).markdown).not.toMatch(/\b29 days\b/);
   });
 
   await step(4, async () => {
@@ -100,11 +112,15 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
       move.write(t, 'docs/onboarding.md', `${readFileSync(t.file('docs/onboarding.md'), 'utf8')}\n- Bring an ID on day one.\n`),
       move.say('Edited.'),
     ]);
-    const { runId } = await api.chat(WS, 'Mark the archive as superseded and tell new joiners to bring an ID.');
-    expect((await api.runEnded(runId, 3 * 60_000)).status).toBe('finished');
+    const { runId } = await api.chat(
+      WS,
+      `Edit these two files and nothing else: append the line "Note: superseded in 2021." to ${ARCHIVE}, and append the bullet "- Bring an ID on day one." to docs/onboarding.md.`,
+    );
+    expect((await api.runEnded(runId, 10 * 60_000)).status).toBe('finished');
     const asked = model.turns(runId).find((t) => t.kind === 'summarize')!.input;
-    expect(asked).toContain('- docs/onboarding.md (changed)');
+    expect(asked).toMatch(/^- docs\/onboarding\.md \(changed/m);
     expect(asked).not.toContain(ARCHIVE);
-    expect(env.show(WS, ARCHIVE)).toContain('superseded in 2021');
+    expect(env.show(WS, ARCHIVE)).toMatch(/superseded/i);
+    expect(env.show(WS, 'docs/onboarding.md')).toMatch(/bring an ID/i);
   });
 });

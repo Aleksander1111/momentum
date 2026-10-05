@@ -47,7 +47,9 @@ scenario('optimization', { enabled: [WS, HARNESS] }, async ({ env, api, app, ste
 
     // A variant on the chat definition is recorded on the next chat's metrics
     const file = 'knowledge-graph/Harness/Automation/chat.md';
-    env.commit(HARNESS, { [file]: env.show(HARNESS, file)!.replace(/^artifacts:/m, 'variant: concise\nartifacts:') }, 'Try a concise chat');
+    // The user names a variant of their own, in place of any the approved proposal set
+    const definition = env.show(HARNESS, file)!.replace(/^variant: .*\r?\n/m, '');
+    env.commit(HARNESS, { [file]: definition.replace(/^artifacts:/m, 'variant: concise\nartifacts:') }, 'Try a concise chat');
     const chat = await app.chat(WS, 'Name one route. One word.');
     expect((await api.runEnded(chat)).status).toBe('finished');
     const [v] = await env.sql<{ variant: string | null }[]>`select variant from ${env.sql('ws_bookshelf_api.agent_metric')} where run_id = ${chat}`;

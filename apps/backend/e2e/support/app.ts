@@ -5,6 +5,19 @@ import { PASSWORD, type Env } from './env.ts';
 import { post } from '../observer/post.ts';
 import { pace } from './pace.ts';
 
+/**
+ * Enters the text into a field, replacing what it holds. Firefox under Playwright sets a filled value without the input
+ * events the app's fields listen to, so fill() would leave the app thinking the field empty; key by key, a line break
+ * would send. The field's own value setter and an input event are what typing amounts to for the app.
+ */
+export async function typeInto(field: Locator, text: string): Promise<void> {
+  await field.click();
+  await field.evaluate((el: HTMLInputElement | HTMLTextAreaElement, value) => {
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')!.set!.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, text);
+}
+
 declare global {
   interface Window {
     loadApp(url: string): Promise<boolean>;
@@ -57,7 +70,7 @@ export class App {
   async signIn(password = PASSWORD): Promise<void> {
     await pace('action', 'Sign in');
     const f = this.frame();
-    await f.getByPlaceholder('Password').fill(password);
+    await typeInto(f.getByPlaceholder('Password'), password);
     await f.getByText('Sign in', { exact: true }).click();
   }
 
@@ -122,7 +135,7 @@ export class App {
     const title = await this.onTop(ws, path);
     if (title) await this.swipe(title, 320);
     else await this.api.approve(ws, path);
-    await this.left(ws, path);
+    await this.left(ws, path, title ? `after swiping "${title}" right` : 'after approving it through the API');
   }
 
   /** Sends a feed item back with a comment; the chat run it starts */
@@ -181,19 +194,26 @@ export class App {
     const f = this.frame();
     await f.getByText(heading, { exact: true }).waitFor();
     await pace('action', `Write "${text}"`);
-    await f.locator('textarea').last().fill(text);
+    await typeInto(f.locator('textarea').last(), text);
     await pace('action', `Tap ${button}`);
     await f.getByText(button, { exact: true }).click();
   }
 
-  private async left(ws: string, path: string): Promise<void> {
-    await until(`${path} to leave the feed`, async () => !(await this.api.feed()).items.some((i) => i.path === path && i.workspace === ws), 60_000);
+  private async left(ws: string, path: string, after = ''): Promise<void> {
+    try {
+      await until(`${path} to leave the feed`, async () => !(await this.api.feed()).items.some((i) => i.path === path && i.workspace === ws), 30_000);
+    } catch (e) {
+      // Say what the app showed instead, so a swipe that did not land is told from a back-end that did not act
+      const shown = await this.frame().locator('body').innerText().catch(() => '');
+      const [top] = (await this.api.feed()).items;
+      throw new Error(`${(e as Error).message} ${after}; the feed's top is ${top?.path ?? 'nothing'}; the app shows: ${shown.slice(0, 400).replace(/\s+/g, ' ')}`);
+    }
   }
 
   /**
    * The feed shows one card at a time, highest rank first. When the item is on top, the app shows it and its title comes
    * back for the swipe; when other items rank above it, nothing else is touched and the action goes through the API, as
-   * a second device would.
+   * the user's other device would.
    */
   private async onTop(ws: string, path: string): Promise<string | null> {
     const item = await until(`${path} in the feed`, async () => (await this.api.feed()).items.find((i) => i.path === path && i.workspace === ws), 10 * 60_000);
@@ -215,7 +235,7 @@ export class App {
     const since = new Date();
     const input = this.frame().getByPlaceholder(/^Ask/).first();
     await pace('action', `Ask "${text}"`);
-    await input.fill(text);
+    await typeInto(input, text);
     await input.press('Enter');
     return (await until('the chat run', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
   }
@@ -225,7 +245,7 @@ export class App {
     await this.go(`/chat/${runId}`);
     const input = this.frame().getByRole('textbox').last();
     await pace('action', `Reply "${text}"`);
-    await input.fill(text);
+    await typeInto(input, text);
     await input.press('Enter');
   }
 

@@ -15,6 +15,8 @@ export interface KbServerContext {
   checkout: string;
   runId: string;
   validation: () => Promise<Omit<ValidationContext, 'resolves'>>;
+  /** The entity types a path may start with, Domain/Type, with what each is for */
+  types?: () => { path: string; description: string }[];
   recordAgentMetric?: (m: { misalignments: number; recurringIssues: number }) => Promise<void>;
 }
 
@@ -56,8 +58,19 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
         async ({ path }) => text(await ctx.index.neighbours(path)),
       ),
       tool(
+        'types',
+        'List the entity types (Domain/Type, from entity-types.tsv) with what each is for; a query narrows the list to types whose path or description mentions it. Every entity\'s type is one of these, and its path starts with it.',
+        { query: z.string().optional() },
+        async ({ query }) => {
+          const all = ctx.types?.() ?? [];
+          const q = query?.trim().toLowerCase();
+          const found = q ? all.filter((t) => t.path.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)) : [];
+          return text((found.length ? found : all).map((t) => `${t.path}\t${t.description}`).join('\n'));
+        },
+      ),
+      tool(
         'write',
-        'Write an entity to knowledge-graph/<path>.md in this run\'s checkout; it lands on the main line when the run ends. The path starts with the type path (Domain/Type from entity-types.tsv). The body is the card: free-form markdown within the configured character limit, in the form that presents the entity best. Returns validation issues, which the consistency guard will also raise.',
+        'Write an entity to knowledge-graph/<path>.md in this run\'s checkout; it lands on the main line when the run ends. The path starts with the type path (Domain/Type from entity-types.tsv; the types tool lists them). The body is the card without its title, which is written as its heading: free-form markdown within the configured character limit, in the form that presents the entity best. Returns validation issues, which the consistency guard will also raise.',
         {
           path: z.string().min(1),
           title: z.string().min(1),
@@ -67,7 +80,10 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
         async ({ path, title, body, frontmatter }) => {
           const fm = EntityFrontmatter.safeParse(frontmatter);
           if (!fm.success) return text(`Frontmatter rejected: ${fm.error.message}`);
-          const markdown = serializeEntity({ frontmatter: fm.data, title, body });
+          // The title is the card's heading already: a body starting with it again would show it twice
+          const heading = /^\s*#[ \t]+(.+?)[ \t]*(?:\r?\n|$)/.exec(body);
+          const card = heading && heading[1]!.toLowerCase() === title.trim().toLowerCase() ? body.slice(heading[0].length).replace(/^\s+/, '') : body;
+          const markdown = serializeEntity({ frontmatter: fm.data, title, body: card });
           const file = join(ctx.checkout, fileOf(path));
           await mkdir(dirname(file), { recursive: true });
           await writeFile(file, markdown, 'utf8');

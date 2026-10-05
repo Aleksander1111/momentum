@@ -303,6 +303,11 @@ export class Momentum {
   async putSettings(change: PutSettings): Promise<Settings> {
     const previous = await this.settings.get();
     const before = new Set((await this.settings.enabled()).map((p) => p.name));
+    // Only a project that is one straight line can be enabled
+    for (const p of change.projects ?? []) {
+      if (!p.enabled || before.has(p.name)) continue;
+      if (previous.projects.some((x) => x.name === p.name)) await this.orchestrator.acceptLine(await this.workspaces.get(p.name));
+    }
     const after = await this.settings.put(change);
     for (const p of after.projects) {
       const kind = p.enabled && !before.has(p.name) ? 'project_enabled' : !p.enabled && before.has(p.name) ? 'project_disabled' : null;

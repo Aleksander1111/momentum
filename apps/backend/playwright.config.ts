@@ -1,12 +1,13 @@
 import { defineConfig } from '@playwright/test';
 
-// End-to-end scenarios over the example projects, watched in the observer window. Run on this PC only: Edge, headed,
-// one scenario at a time, each in its own world.
+// End-to-end scenarios over the example projects, watched on the runner's page. Run on this PC only: the installed
+// Firefox, headless, several scenarios side by side, each in its own world.
 export default defineConfig({
   testDir: 'e2e/scenarios',
   testMatch: '*.e2e.ts',
   globalSetup: './e2e/global-setup.ts',
-  workers: 1,
+  // Each scenario in a world of its own: they run side by side, as many as E2E_WORKERS says
+  workers: Number(process.env.E2E_WORKERS ?? 6),
   fullyParallel: false,
   retries: 0,
   timeout: 20 * 60_000,
@@ -15,14 +16,15 @@ export default defineConfig({
   reporter: [['list'], ['./e2e/observer/reporter.ts']],
   outputDir: '../../.e2e-results',
   use: {
-    channel: 'msedge',
-    headless: false,
-    viewport: null,
+    browserName: 'firefox',
+    channel: 'moz-firefox',
+    headless: true,
+    viewport: { width: 1920, height: 1080 },
     colorScheme: 'dark',
     actionTimeout: 30_000,
     navigationTimeout: 30_000,
     launchOptions: {
-      args: ['--start-maximized', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+      firefoxUserPrefs: { 'media.navigator.streams.fake': true, 'media.navigator.permission.disabled': true },
     },
   },
 });

@@ -24,6 +24,6 @@ artifacts: []
 - Triggers: exploration every 2 h, preparation at half past; validation 02:00 and on `implementation_finished`; consistency check 03:00, retention 04:00, optimization 05:00; implementation on `entity_ahead`; all on demand; a trigger counts once approved
 - Artifact change: a summarization run, no trigger
 - Chat: a message after the run ended resumes it on a fresh checkout; transcript `chats/<run-id>.jsonl`
-- Checkouts: made at the main-line tip, removed once landed; legacy `momentum/*` branches landed at startup
+- Checkouts: detached at the main-line tip, removed once landed; one line only: no branch or merge
 - Usage: per run from its first reading; per workspace the sum, over the rolling 5 h and week
 - Attention patterns: ten reactions to one type all alike; recorded, not applied

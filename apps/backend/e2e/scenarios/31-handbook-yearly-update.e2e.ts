@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { graphIssues } from '../support/check.ts';
 import { expect, scenario } from '../support/fixtures.ts';
+import { entitiesOf, refs } from '../support/landed.ts';
 import { EXPENSES_MD, missingArtifacts } from '../support/life.ts';
 import { move, type Turn } from '../support/scripted.ts';
 
@@ -23,15 +24,24 @@ function rewrite(t: Turn, entity: string, docs: string[]): string {
     .replace(/(\n# [^\n]+\n)[\s\S]*$/, `$1\n${bullets.slice(0, 600)}\n`);
 }
 
-// The handbook's knowledge graph is complete; HR and the team leads keep its documents up to date
+// The handbook's knowledge graph is complete; the user keeps its documents up to date
 scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', settings: { summarization: { exclude: ['archive/**'] } } }, async ({ env, api, app, model, step }) => {
-  const summarization = (since: Date) => api.automationRan(WS, 'summarization', since, 3 * 60_000);
+  const summarization = (since: Date) => api.automationRan(WS, 'summarization', since, 10 * 60_000);
   const exists = (path: string) => env.show(WS, path) !== null;
+  /** The new policy, as summarization named it */
+  let expenses = '';
+  const over = async (file: string) =>
+    (await env.sql<{ entity_path: string }[]>`select entity_path from ${env.sql('ws_handbook.entity_artifact')} where artifact_path = ${file}`).map((r) => r.entity_path);
 
   model.on('summarization', { automation: 'summarization', kind: 'prompt' }, (t) => {
     const moves = [];
     for (const [, entity, docs] of t.input.matchAll(/^- ([A-Z]\S+): (.+)$/gm)) {
-      const paths = docs!.split(', ').map((d) => (exists(d) ? d : d.replace('docs/', 'docs/policies/'))).filter(exists);
+      // Each artifact where it is now: moved ones under their new path, deleted ones gone
+      const paths = docs!
+        .split(/, (?=\S+(?: \(|$))/)
+        .map((d) => /^(\S+)(?: \((?:moved to (\S+?)(?:,[^)]*)?|deleted)\))?$/.exec(d.trim()))
+        .map((m) => (m ? (m[2] ?? m[1]!) : ''))
+        .filter((p) => p && exists(p));
       // A policy whose document went to the archive is retired
       if (paths.length === 0) {
         moves.push(move.entity(t, RETIRE, { type: 'Harness/Plan', title: 'Retire the remote work policy', card: 'Its document moved to the archive.', impact: [1, 0, 0], references: [{ to: entity!, relation: 'retires' }] }));
@@ -58,9 +68,13 @@ scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', sett
     const since = new Date();
     env.commit(WS, { 'docs/expenses.md': EXPENSES_MD }, 'Add the expenses policy');
     expect((await summarization(since)).status).toBe('finished');
-    const item = await until('the new policy in the feed', async () => (await api.feed()).items.find((i) => i.path === EXPENSES));
+    // A new policy over the document, waiting in the feed
+    const policies = (await over('docs/expenses.md')).filter((p) => p.startsWith('Governance/Policy/'));
+    expect(policies, 'a new policy over docs/expenses.md').toHaveLength(1);
+    expenses = policies[0]!;
+    const item = await until('the new policy in the feed', async () => (await api.feed()).items.find((i) => i.path === expenses));
     expect(item.verification).toBe('unverified');
-    await app.approve(WS, EXPENSES);
+    await app.approve(WS, expenses);
   });
 
   await step(1, async () => {
@@ -77,13 +91,15 @@ scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', sett
     const run = await summarization(since);
     expect(run.status).toBe('finished');
     expect((await api.runs(WS, 'summarization')).filter((r) => r.created_at >= since)).toHaveLength(1);
-    await until('three cards rewritten', async () => {
-      const cards = await Promise.all([LEAVE, ONBOARDING, EXPENSES].map((p) => api.entity(WS, p)));
-      return cards.every((c) => c.sync === 'synced' && c.verification === 'unverified');
-    });
-    expect((await api.entity(WS, LEAVE)).markdown).toContain('27 days of paid holiday');
-    expect((await api.entity(WS, EXPENSES)).markdown).toContain('45 EUR a day');
-    for (const p of [LEAVE, ONBOARDING, EXPENSES]) await app.approve(WS, p);
+    // The one run was asked about all three, and every card is in step with its document again
+    for (const p of [LEAVE, ONBOARDING, expenses]) expect(model.turns(run.id)[0]!.input).toContain(`- ${p}: `);
+    await until('the three cards in step', async () => (await Promise.all([LEAVE, ONBOARDING, expenses].map((p) => api.entity(WS, p)))).every((c) => c.sync === 'synced'));
+    const leave = (await api.entity(WS, LEAVE)).markdown;
+    expect(leave).toMatch(/\b27 days\b/);
+    expect(leave).not.toMatch(/\b26 days\b/);
+    expect((await api.entity(WS, expenses)).markdown).toMatch(/45\s*EUR/);
+    const waiting = (await api.feed()).items.map((i) => i.path);
+    for (const p of [LEAVE, ONBOARDING, expenses]) if (waiting.includes(p)) await app.approve(WS, p);
   });
 
   await step(2, async () => {
@@ -91,9 +107,13 @@ scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', sett
     mkdirSync(join(env.path(WS), 'docs', 'policies'), { recursive: true });
     for (const f of ['leave-policy.md', 'expenses.md']) env.git(WS, 'mv', `docs/${f}`, `docs/policies/${f}`);
     env.commit(WS, {}, 'Move the policies into their own folder');
-    expect((await summarization(since)).status).toBe('finished');
+    const run = await summarization(since);
+    expect(run.status).toBe('finished');
+    // Told they moved as they were, not that two went and two came
+    expect(model.turns(run.id)[0]!.input).toMatch(/docs\/leave-policy\.md \(moved to docs\/policies\/leave-policy\.md, content unchanged\)/);
     await until('the cards follow their documents', async () => (await missingArtifacts(env, WS, env.sql)).length === 0);
     expect((await api.entity(WS, LEAVE)).artifacts.map((a) => a.path)).toEqual(['docs/policies/leave-policy.md']);
+    expect((await api.entity(WS, expenses)).artifacts.map((a) => a.path)).toEqual(['docs/policies/expenses.md']);
     // Nothing a person wrote changed: the cards carry the same words
     expect((await api.entity(WS, LEAVE)).diff).toBeNull();
   });
@@ -102,10 +122,16 @@ scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', sett
     const since = new Date();
     env.git(WS, 'mv', 'docs/remote-work.md', 'archive/2025-remote-work.md');
     env.commit(WS, {}, 'Archive the remote work policy');
-    expect((await summarization(since)).status).toBe('finished');
-    // The archived document is never summarized: the policy over it is retired instead
-    await until('the retirement in the feed', async () => (await api.feed()).items.some((i) => i.path === RETIRE));
-    await app.approve(WS, RETIRE);
+    const run = await summarization(since);
+    expect(run.status).toBe('finished');
+    // The archived document is never summarized: gone from what is, the policy over it is proposed for retirement
+    expect(model.turns(run.id)[0]!.input).toMatch(/docs\/remote-work\.md \(deleted\)/);
+    expect(model.turns(run.id)[0]!.input).not.toContain('archive/');
+    const plans = (await Promise.all((await entitiesOf(env, WS, run.id)).map((p) => api.entity(WS, p)))).filter(
+      (e) => e.type === 'Harness/Plan' && refs(e, 'retires').includes(REMOTE),
+    );
+    expect(plans, 'a plan retiring the remote work policy').toHaveLength(1);
+    await app.approve(WS, plans[0]!.path);
     // The onboarding guide and the product still point at the policy: it stays until they no longer do
     expect(exists(kg(REMOTE))).toBe(true);
     expect(env.git(WS, 'log', '-1', '--format=%B', 'main')).toContain(`Keep ${REMOTE}`);

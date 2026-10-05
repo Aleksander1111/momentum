@@ -8,7 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "cli": "tsx src/cli.ts",
     "typecheck": "tsc -p .",
-    "e2e": "playwright test",
+    "e2e": "tsx e2e/request.ts",
     "e2e:runner": "tsx e2e/runner.ts"
   },
   "dependencies": {

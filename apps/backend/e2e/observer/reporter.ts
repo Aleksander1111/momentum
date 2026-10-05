@@ -1,5 +1,13 @@
 import type { FullConfig, Reporter, Suite, TestCase, TestResult, TestStep } from '@playwright/test/reporter';
-import { post } from './post.ts';
+import { post as send } from './post.ts';
+
+/** Every event still on its way: Playwright exiting with one open crashes Node on Windows */
+const sending = new Set<Promise<void>>();
+function post(event: Record<string, unknown>): Promise<void> {
+  const p = send(event).finally(() => sending.delete(p));
+  sending.add(p);
+  return p;
+}
 
 const idOf = (test: TestCase) => test.annotations.find((a) => a.type === 'scenario')?.description;
 
@@ -37,5 +45,6 @@ export default class ObserverReporter implements Reporter {
 
   async onEnd(): Promise<void> {
     await post({ type: 'end' });
+    await Promise.all(sending);
   }
 }

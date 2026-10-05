@@ -13,7 +13,7 @@ import { Icon, type PATHS } from '../../ui/icons';
 import { TypePill } from '../../ui/domains';
 import { ProjectLogo, ProjectName } from '../../ui/ProjectLogo';
 import { useCornerRoom } from '../../ui/SettingsButton';
-import { Btn, Chevron, List, Pick, Row, Sect, Segmented } from '../../ui/parts';
+import { Btn, List, Pick, Row, Sect, Segmented } from '../../ui/parts';
 
 const ALL = 'All projects';
 const PAGE = 60;
@@ -252,11 +252,16 @@ function Details({ e }: { e: TimelineEvent }) {
   );
 }
 
+/** The title as the row shows it: an approval's check already says it was approved, so only what was approved */
+const headline = (e: TimelineEvent) => (e.kind === 'approved' ? e.title.replace(/^Approved\s+“?(.*?)”?$/, '$1') : e.title);
+
 function Event({ e, first, showProject }: { e: TimelineEvent; first: boolean; showProject: boolean }) {
   const [open, setOpen] = useState(false);
   const at = new Date(e.at);
   const project = showProject ? e.workspace : null;
-  const after = facts(e).join(' · ');
+  // The user's own events go without a name: everything not marked otherwise is theirs
+  const by = e.actor === 'user' ? null : who(e);
+  const after = [by, facts(e).join(' · ')].filter(Boolean).join(' · ');
   const fresh = Date.now() - at.getTime() < FRESH_MS;
   return (
     <Row
@@ -270,27 +275,17 @@ function Event({ e, first, showProject }: { e: TimelineEvent; first: boolean; sh
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         {open ? (
-          <T style={{ fontSize: 14, fontWeight: '700' }}>{e.title}</T>
+          <T style={{ fontSize: 14, fontWeight: '700' }}>{headline(e)}</T>
         ) : (
           <T numberOfLines={1} style={{ fontSize: 14 }}>
-            {e.title}
-            <T style={{ color: C.muted, fontSize: 12.5 }}>
-              {`  ${who(e)}`}
-              {/* The project, led by its logo inline */}
-              {project ? (
-                <>
-                  {' · '}
-                  <ProjectLogo name={project} size={13} style={{ transform: [{ translateY: 2 }] }} />
-                  {` ${project}`}
-                </>
-              ) : null}
-              {after ? ` · ${after}` : ''}
-            </T>
+            {headline(e)}
+            {after ? <T style={{ color: C.muted, fontSize: 12.5 }}>{`  ${after}`}</T> : null}
           </T>
         )}
         {open ? <Details e={e} /> : null}
       </View>
-      <Chevron open={open} style={{ marginTop: 5 }} />
+      {/* The project's logo alone, on the right edge; its name is in the details */}
+      {project ? <ProjectLogo name={project} size={16} style={{ marginTop: 1 }} /> : null}
     </Row>
   );
 }

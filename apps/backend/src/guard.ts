@@ -15,7 +15,8 @@ import {
   type ValidationIssue,
 } from '@momentum/entity';
 import type { Embed } from '@momentum/kb';
-import { changes, fileHistory, head, land, listFiles, mergeBase, messageFile, show, workingChanges, type Landed } from '@momentum/runs';
+import { changes, fileHistory, head, land, listFiles, mergeBase, mergesBetween, messageFile, moves, show, workingChanges, type Landed } from '@momentum/runs';
+import type { Moved } from './events.ts';
 import { watch, type FSWatcher } from 'chokidar';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -127,8 +128,9 @@ export class Guard {
    * commit is indexed, an unverified one stands in the feed and a verified one leaves it. The one path into the index
    * for everything a run lands and everything the user commits or approves.
    */
-  indexMainLine(ws: Workspace): Promise<void> {
-    return this.exclusive(ws, () => this.indexNow(ws));
+  /** `acceptMerges`: the user enabled the project as it stands, merge commits it holds included */
+  indexMainLine(ws: Workspace, acceptMerges = false): Promise<void> {
+    return this.exclusive(ws, () => this.indexNow(ws, new Set(), false, acceptMerges));
   }
 
   /** Runs `fn` while nothing else indexes the workspace's main line */
@@ -144,21 +146,33 @@ export class Guard {
   }
 
   /** `fromRun`: the change is a run's landing, whose new files its own summarization step covered */
-  private async indexNow(ws: Workspace, handled: Set<string> = new Set(), fromRun = false): Promise<void> {
+  private async indexNow(ws: Workspace, handled: Set<string> = new Set(), fromRun = false, acceptMerges = false): Promise<void> {
     const commit = await head(ws.path, `refs/heads/${ws.main}`);
     const previous = await this.settings.indexedCommit(ws.name);
     if (previous === commit) return;
+    // A merge commit breaks the one straight line: the index stays before it and the orchestrator switches the project off
+    if (previous && !acceptMerges && (await mergesBetween(ws.path, previous, commit).catch(() => [])).length > 0) return;
     const files = (await listFiles(ws.path, commit, KNOWLEDGE_GRAPH)).filter((f) => entityPathOf(f));
     const onMain = new Set(files.map((f) => entityPathOf(f)!));
     let changed: Set<string> | null = null;
     let artifactFiles: string[] = [];
     let added: string[] = [];
+    let deleted: string[] = [];
+    let moved: Moved[] = [];
     if (previous) {
       try {
         const diff = await changes(ws.path, previous, commit);
         changed = new Set(diff.map((c) => entityPathOf(c.path)).filter((p): p is string => !!p));
         artifactFiles = diff.filter((c) => !entityPathOf(c.path)).map((c) => c.path);
-        added = fromRun ? [] : diff.filter((c) => c.status === 'A' && !entityPathOf(c.path)).map((c) => c.path);
+        // A file moved is neither gone nor new: the entities over it follow it to its new path. Moved where nothing is
+        // summarized, an archive for one, it is gone as far as the knowledge base goes
+        const { summarization } = await this.settings.values();
+        const excluded = (path: string) => summarization.exclude.some((pattern) => posix.matchesGlob(path, pattern));
+        moved = (await moves(ws.path, previous, commit))
+          .filter((m) => !entityPathOf(m.from) && !entityPathOf(m.to) && !excluded(m.to))
+          .map((m) => ({ from: m.from, to: m.to, unchanged: m.similarity === 100 }));
+        added = fromRun ? [] : diff.filter((c) => c.status === 'A' && !entityPathOf(c.path) && !moved.some((m) => m.to === c.path)).map((c) => c.path);
+        deleted = diff.filter((c) => c.status === 'D' && !entityPathOf(c.path) && !moved.some((m) => m.from === c.path)).map((c) => c.path);
       } catch {
         changed = null;
       }
@@ -168,22 +182,25 @@ export class Guard {
       if (changed && !changed.has(path) && existing.has(path)) continue;
       const text = await show(ws.path, commit, fileOf(path));
       if (text === null) continue;
+      let entity: ReturnType<typeof parseEntity>;
       try {
-        const entity = parseEntity(text);
-        entity.frontmatter.sync = await this.syncOf(ws, path, entity.frontmatter);
-        await this.index(ws, path, entity, commit);
-        if (entity.frontmatter.verification === 'unverified') await ws.index.enterFeed(path, entity.frontmatter);
-        else await ws.index.leaveFeed(path);
+        entity = parseEntity(text);
       } catch {
         // an entity that does not parse on the main line is reported by the consistency check
+        continue;
       }
+      // Anything else failing (the database, the embeddings) leaves the commit unindexed, to be indexed again
+      entity.frontmatter.sync = await this.syncOf(ws, path, entity.frontmatter);
+      await this.index(ws, path, entity, commit);
+      if (entity.frontmatter.verification === 'unverified') await ws.index.enterFeed(path, entity.frontmatter);
+      else await ws.index.leaveFeed(path);
     }
     for (const path of existing) {
       if (!onMain.has(path)) await ws.index.remove(path);
     }
     await ws.index.refreshContradictions();
     await this.settings.setIndexedCommit(ws.name, commit);
-    await this.artifactsChanged(ws, artifactFiles.filter((f) => !handled.has(f)), changed, added);
+    await this.artifactsChanged(ws, artifactFiles.filter((f) => !handled.has(f)), changed, added, deleted, moved);
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
     }
@@ -199,7 +216,14 @@ export class Guard {
    * them all. An entity that changed in the same commits as its artifact agrees with it already, for example a definition
    * edited together with its agent file.
    */
-  async artifactsChanged(ws: Workspace, artifactPaths: string[], changedEntities: Set<string> | null = null, added: string[] = []): Promise<void> {
+  async artifactsChanged(
+    ws: Workspace,
+    artifactPaths: string[],
+    changedEntities: Set<string> | null = null,
+    added: string[] = [],
+    deleted: string[] = [],
+    moved: Moved[] = [],
+  ): Promise<void> {
     const entities = new Map<string, string[]>();
     for (const artifact of artifactPaths) {
       for (const path of await ws.index.byArtifact(artifact)) {
@@ -214,6 +238,8 @@ export class Guard {
         workspace: ws.name,
         entities: [...entities].map(([path, artifacts]) => ({ path, artifacts })),
         added: uncovered,
+        deleted: artifactPaths.filter((f) => deleted.includes(f)),
+        moved: moved.filter((m) => artifactPaths.includes(m.from)),
       });
     }
   }
@@ -428,10 +454,13 @@ export class Guard {
     const implementsRefs = fm.references.filter((r) => r.relation === 'implements');
     if (implementsRefs.length > 0) return 'synced';
     if (!IMPLEMENTABLE.has(fm.type)) return 'synced';
+    // Implemented directly, or through a plan of it that a verified result implements
+    const refs = ws.index.sql(`${ws.index.schema}.entity_reference`);
     const [implemented] = await ws.index.sql`
-      select 1 from ${ws.index.sql(`${ws.index.schema}.entity_reference`)} x
+      select 1 from ${refs} x
       join ${ws.index.sql(`${ws.index.schema}.entity`)} e on e.path = x.from_path
-      where x.to_path = ${path} and x.relation_type = 'implements' and e.verification = 'verified'`;
+      where x.relation_type = 'implements' and e.verification = 'verified'
+        and (x.to_path = ${path} or x.to_path in (select from_path from ${refs} where to_path = ${path} and relation_type = 'plans'))`;
     if (implemented) return 'synced';
     return fm.verification === 'verified' ? 'entity_ahead' : 'synced';
   }
