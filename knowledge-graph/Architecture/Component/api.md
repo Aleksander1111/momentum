@@ -15,17 +15,17 @@ artifacts:
 ---
 # API
 
-The backend's interface: Fastify routes typed by contract zod (OpenAPI `/openapi.json`), voice sockets, the handlers as MCP tools at `/mcp`.
+The backend's interface: Fastify routes typed by contract zod (OpenAPI `/openapi.json`), voice sockets, handlers as MCP tools at `/mcp`.
 
 | Area | Routes |
 |---|---|
 | Session | `/session` |
-| Feed | `/feed`; approve, send back, resolve, won't resolve |
-| Workspaces | entities, artifacts, types, search, chats, metrics, graph build, reset, logo |
+| Feed | `/feed`; approve, send back, (won't) resolve |
+| Workspaces | entities, artifacts, types, search, ask, chats, metrics, graph build, reset, logo |
 | Runs | `/runs/:id`, messages, kill |
 | Other | `/timeline`, `/settings`, `/voice`, `/voice/audio` |
 
-- Sign-ins, refusals, sign-outs go on the timeline
+- Sign-ins, refusals, sign-outs: on the timeline
 - Approve, resolve carry the version shown; conflicts: 409
-- MCP `run_automation` takes a target, e.g. to retry an implementation
+- `ask` answers from the entities found; MCP `run_automation` takes a target
 - Cookie or bearer, else 401; pages: web app, 503 mid-rebuild

@@ -20,7 +20,8 @@ artifacts:
 
 Validates each run's knowledge-base changes; keeps the index true to the main line.
 
-- Hooks: PostToolUse reports issues per write; Stop: summarization once, back to fix issues twice at most, a commit message
-- Run end: one checked transaction, landed unverified with definitions whose files it changed; invalid → Harness/Issue, conflicts → Harness/Conflict, run's version landed
-- Main line: one pass at a time; halts at a merge commit unless enabled with it; entities over changed artifacts go artifact_ahead unless changed too or summarized by the landing run; moves are followed, into exclusions = deleted
+- Hooks: PostToolUse reports issues per write; Stop: summarization once, fixes twice at most, a commit message
+- Run end: one checked transaction, landed unverified; invalid → Harness/Issue, conflicts → Harness/Conflict
+- Main line: one pass at a time; halts at a merge commit unless enabled; entities over changed artifacts go artifact_ahead unless changed or summarized by the landing run; moves followed, into exclusions = deleted
 - Index: card diff against last verified; implemented directly or via a plan; metrics
+- Ten agreeing reactions on a type commit a Harness/Pattern proposal; it counts once approved

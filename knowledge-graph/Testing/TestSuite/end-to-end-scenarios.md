@@ -18,15 +18,16 @@ artifacts:
 ---
 # End-to-end scenarios
 
-Real-life situations over the example projects, each in its own world. One user, one straight line.
+Real-life situations over the example projects, each in its own world.
 
 | Kind | Runs | Usage |
 |---|---|---|
-| Real | Claude Code on the account | Up to the 5-hour and weekly limits |
-| Scripted | Claude Code answered by the scripted model | None |
-| No runs | Requests never answered | None |
+| Real | Claude Code on the account | Up to 5-hour, weekly limits |
+| Scripted | Answered by the scripted model | None |
+| No runs | Never answered | None |
 
 - features.ts lists every feature; a coverage test fails while one has no scenario
-- Hard limits; a dead back-end or nothing moving fails at once
+- Hard limits; a dead back-end or a stall fails at once
 - A used-up limit skips real scenarios; Continue runs the rest later
-- Scripted: harness flows and product lives: releases, bugs, refactors, sprints, triage, reviews
+- Scripted: harness flows; product lives (releases, bugs, sprints, triage); entity links and folds, graph answers
+- Patterns are proposed in the feed, counted once approved; optimization acts on three repeats
