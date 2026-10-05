@@ -22,7 +22,7 @@ Real-life situations over the example projects, each in its own world.
 
 | Kind | Runs | Usage |
 |---|---|---|
-| Real | Claude Code on the account | Up to 5-hour, weekly limits |
+| Real | Claude Code on the account | Its token share of its run's 5-hour rise |
 | Scripted | Answered by the scripted model | None |
 | No runs | Never answered | None |
 
