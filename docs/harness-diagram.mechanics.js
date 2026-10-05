@@ -825,8 +825,12 @@ function settings() {
       ['Implementation, medium risk', 'Sonnet', (r, y) => chev(r, y + 14)],
       ['Implementation, high risk', 'Opus', (r, y) => chev(r, y + 14)],
     ]],
+    ['In the knowledge graph', 'FaDiagramProject', [
+      ['Automations, entity types, risk rules', 'opened where they live, changed through the feed', (r, y) => chev(r, y + 14)],
+      ['momentum', 'triggers · patterns', (r, y) => chev(r, y + 14)],
+    ]],
   ];
-  const cols = [[0, 1, 2, 3], [4, 5, 6, 7]], w = 880, rh = 64;
+  const cols = [[0, 1, 2, 3, 8], [4, 5, 6, 7]], w = 880, rh = 64;
   cols.forEach((ids, c) => {
     let y = 40;
     const x = 60 + c * (w + 40);
