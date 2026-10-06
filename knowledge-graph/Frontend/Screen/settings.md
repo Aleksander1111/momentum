@@ -20,18 +20,18 @@ artifacts:
 ---
 # Settings
 
-Changes save when editing ends; projects reload whenever the tab opens.
+Changes save when editing ends; projects reload on open.
 
 | Section | Controls |
 |---|---|
-| Appearance | System, light or dark |
+| Appearance | System, light, dark |
 | Projects | Switch and logo each |
-| Graph build | State, runs, entities, time, usage, coverage; Stop/Resume; Reset |
+| Graph build | State, runs, entities, time, usage; completeness, what's missing, estimate; Stop/Resume; Reset |
 | Feed size | Items before loops pause |
-| Cards | Character limit, presentation rules |
-| Summarization | Never-summarized paths |
+| Cards | Limit, presentation rules |
+| Summarization | Excluded paths |
 | Lifetimes | Rule per entity type |
 | Agents | Concurrent runs in total |
 | Models | One, per automation, or by risk |
-| In the knowledge graph | Automations, [entity types](Code/ConfigSetting/entity-types), risk rules; triggers and patterns per project |
+| In the knowledge graph | Automations, [entity types](Code/ConfigSetting/entity-types), risk rules; triggers, patterns per project |
 | This device | Sign out; clears its cache |

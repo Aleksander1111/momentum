@@ -24,12 +24,11 @@ In-process MCP server every run gets beside `momentum-kb`.
 
 | Input | Effect |
 |---|---|
-| complete | Completes the build once the run finished; coverage 1; on the timeline |
+| complete | Ends the build, on the timeline; only once nothing the harness measures missing can be filled (each run is told what) |
 | progress | The next run's prompt carries it |
-| coverage 0–1 | Estimates the full build |
 | documents | Handed by the Stop hook to summarization |
 
-A build run that never reports fails; 3 failures in a row stop the build.
+A run that never reports fails; 3 in a row stop the build.
 
 **report_interview** (interview runs, every turn)
 
