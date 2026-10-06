@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.34.6",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
@@ -11,7 +13,8 @@
     "dev": "node scripts/dev.mjs",
     "momentum": "pnpm --filter @momentum/backend cli",
     "e2e": "pnpm --filter @momentum/backend e2e",
-    "e2e:runner": "pnpm --filter @momentum/backend e2e:runner"
+    "e2e:runner": "pnpm --filter @momentum/backend e2e:runner",
+    "deck": "pnpm --filter @momentum/docs deck"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

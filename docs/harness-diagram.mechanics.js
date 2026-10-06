@@ -222,8 +222,11 @@ function loop() {
   g += onArc(320, 'queued', 'prod', 60);
   g += onArc(435, 'transaction', 'prod', 56);
   g += onArc(477, 'one commit', 'kn', 60);
-  // the shortcut: a card you write yourself goes straight to the gate, verified, with no run behind it
-  g += line(cx, cy - Ry + r + 12, cx, cy + Ry - r - 18, { stroke: LAYER.att.strong, sw: 5, dash: '14 10', head: 'att' });
+  // the shortcut: a card you commit yourself lands on the main line as you committed it, with no run and no gate
+  const main = at(504), far = Math.hypot(main[0] - card[0], main[1] - card[1]);
+  const stop = [main[0] - ((main[0] - card[0]) * (r + 18)) / far, main[1] - ((main[1] - card[1]) * (r + 18)) / far];
+  g += line(cx, cy - Ry + r + 12, card[0], card[1] - 44, { stroke: LAYER.att.strong, sw: 5, dash: '14 10' });
+  g += line(card[0] - 56, card[1] + 42, stop[0], stop[1], { stroke: LAYER.att.strong, sw: 5, dash: '14 10', head: 'att' });
   g += miniCard(card[0] - 75, card[1] - 40, 150, 80, { crumb: 'YOUR CARD', glyphs: ['verified'], bars: [0.9, 0.7], pad: 14, stroke: LAYER.att.strong, sw: 2.5 });
   S.forEach(([name, ic, layer, sub, deg]) => {
     const [x, y] = at(deg);
@@ -239,8 +242,8 @@ function loop() {
     g += circle(96, y, 13, { fill: LAYER[k].wash, stroke: LAYER[k].strong, sw: 3 }) + text(122, y + 7, s, { size: 21, fill: LAYER[k].strong, bold: true });
   });
   // what you do yourself: runs bypass the queue, cards need no run
-  g += pod(1530, 740, 330, 64, 'Your cards: no run', 'FaPenToSquare', LAYER.att);
-  g += pod(1530, 820, 330, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
+  g += pod(1470, 740, 390, 64, 'Your commits: no run, no gate', 'FaPenToSquare', LAYER.att);
+  g += pod(1470, 820, 390, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
   return svg(g);
 }
 
@@ -261,7 +264,7 @@ function entities() {
     g += icon(ic, x, y, 32, hi ? C.accent : lvl === 0 ? C.ink : C.ochre);
     g += text(x + 44, y + 25, name, { size: 22, bold: !!hi, fill: hi ? C.accent : C.ink });
   });
-  g += caption(70, 640, 'Type = path', 'one directory per type · 150 types', { size: 32 });
+  g += caption(70, 640, 'Type = path', `one directory per type · ${typeCount()} types`, { size: 32 });
   g += path('M380 300 C450 300 450 260 520 260', { stroke: C.accent, sw: 4, head: 'accent' });
 
   // the card
@@ -371,7 +374,7 @@ function automations() {
     ['Exploration', 'FaCompass', 'schedule'], ['Preparation', 'FaListCheck', 'schedule'], ['Implementation', 'FaCode', 'event'],
     ['Validation', 'FaFlaskVial', 'event'], ['Consistency check', 'FaScaleBalanced', 'schedule'], ['Retention', 'FaBroom', 'schedule'],
     ['Optimization', 'FaWandMagicSparkles', 'schedule'], ['Summarization', 'FaFileLines', 'hook'], ['Graph build', 'FaDiagramProject', 'enabled'],
-    ['Chat', 'FaComments', 'you'],
+    ['Chat', 'FaComments', 'you'], ['Interview', 'FaMicrophone', 'you'], ['Search', 'FaMagnifyingGlass', 'you'],
   ];
   const KIND = {
     schedule: ['FaClock', C.ochre, 'schedule'], event: ['FaBolt', C.red, 'event'], you: ['FaHandPointer', C.ok, 'you'],
@@ -379,7 +382,7 @@ function automations() {
   };
   const rx = 420, ry = 335, r = 52;
   const pos = A.map((_, i) => {
-    const a = ((-90 + 36 * i) * Math.PI) / 180;
+    const a = ((-90 + (360 / A.length) * i) * Math.PI) / 180;
     return [hc[0] + rx * Math.cos(a), hc[1] + ry * Math.sin(a)];
   });
   pos.forEach(([x, y]) => (g += line(hc[0], hc[1], x, y, { stroke: C.line, sw: 3, dash: '8 8' })));
@@ -630,10 +633,12 @@ function resolution() {
 }
 
 // ---------------------------------------------------------------- entity types
+const typeRows = () =>
+  readFileSync(join(__dirname, 'entity-types.tsv'), 'utf8').split(/\r?\n/).slice(1).map((l) => l.split('\t')).filter(([d, t]) => d && t);
+const typeCount = () => typeRows().length;
 // Read from docs/entity-types.tsv, so the slide follows the list
 function entityTypes() {
-  const rows = readFileSync(join(__dirname, 'entity-types.tsv'), 'utf8').split(/\r?\n/).slice(1)
-    .map((l) => l.split('\t')).filter(([d, t]) => d && t);
+  const rows = typeRows();
   const by = new Map();
   for (const [d, t] of rows) by.set(d, [...(by.get(d) ?? []), t]);
   // The app's domain glyphs and light colours (apps/app/src/ui/domains.tsx), with example types
@@ -733,7 +738,7 @@ function triggers() {
   g += pod(nx, ey + 160, 370, 60, 'Graph build', 'FaDiagramProject', LAYER.ink, { size: 18 }) + text(nx + 20, ey + 248, 'project enabled, until covered', { size: 17, italic: true, fill: C.muted });
   // the feed limit
   g += rect(nx, ey + 290, 370, 70, { r: 16, fill: C.paper });
-  g += iconAt('FaPause', nx + 36, ey + 325, 26, C.red) + text(nx + 66, ey + 320, 'Feed at its limit', { size: 19, bold: true }) + text(nx + 66, ey + 344, 'triggered loops pause', { size: 16, fill: C.muted });
+  g += iconAt('FaPause', nx + 36, ey + 325, 26, C.red) + text(nx + 66, ey + 320, 'Feed at its limit', { size: 19, bold: true }) + text(nx + 66, ey + 344, 'scheduled loops pause', { size: 16, fill: C.muted });
   return svg(g);
 }
 
@@ -761,7 +766,8 @@ function management() {
   g += pod(720, 200, 300, 66, 'Your edit', 'FaPenToSquare', LAYER.att);
   g += pod(720, 460, 300, 66, 'Optimization', 'FaWandMagicSparkles', LAYER.prod);
   g += text(870, 560, 'proposes what repeats', { size: 18, italic: true, fill: C.muted, anchor: 'middle' }) + text(870, 584, 'three times across chats', { size: 18, italic: true, fill: C.muted, anchor: 'middle' });
-  g += path(`M1020 233 C1080 233 1080 ${y} 1130 ${y}`, { stroke: C.red, sw: 4, head: 'att' });
+  g += path(`M1020 233 C1250 233 1370 233 1370 ${y - 62}`, { stroke: C.red, sw: 4, head: 'att' });
+  g += text(1195, 222, 'as you commit it', { size: 18, italic: true, fill: C.muted, anchor: 'middle' });
   g += path(`M1020 493 C1080 493 1080 ${y} 1130 ${y}`, { stroke: C.ok, sw: 4, head: 'ok' });
   const steps = [['FaShieldHalved', 'Consistency gate', LAYER.kn], ['FaCodeCommit', 'Main line', LAYER.kn], ['FaLayerGroup', 'Feed', LAYER.att], ['FaCircleCheck', 'Verified', LAYER.prod]];
   steps.forEach(([ic, s, L], i) => {
@@ -770,7 +776,7 @@ function management() {
     g += text(x, y + 88, s, { head: true, bold: true, size: 20, anchor: 'middle' });
     if (i < steps.length - 1) g += line(x + 60, y, x + 112, y, { stroke: C.muted, sw: 4, head: 'muted' });
   });
-  g += text(1460, y - 100, 'like any other entity', { head: true, italic: true, size: 26, anchor: 'middle', fill: C.muted });
+  g += text(1460, y + 150, 'like any other entity', { head: true, italic: true, size: 26, anchor: 'middle', fill: C.muted });
 
   // controls
   g += line(680, 680, 1860, 680, { stroke: C.line, sw: 2 });
@@ -899,7 +905,7 @@ function git() {
     g += path(`M120 825 C200 825 220 ${y} 330 ${y} H${470 - (i % 4) * 30}`, { stroke: C.accent, sw: 2.5, opacity: 0.55 });
   }
   g += line(100, 825, 120, 825, { stroke: C.accent, sw: 4 });
-  g += text(300, 912, '213 run branches', { size: 22, anchor: 'middle', bold: true, fill: C.accent });
+  g += text(300, 912, 'run branches, before', { size: 22, anchor: 'middle', bold: true, fill: C.accent });
   g += line(530, 825, 640, 825, { stroke: C.muted, sw: 5, head: 'muted' });
   g += line(690, 825, 970, 825, { stroke: C.ink, sw: 14 });
   [740, 830, 920].forEach((x) => (g += circle(x, 825, 14, { fill: C.white, stroke: C.ink, sw: 6 })));
@@ -998,15 +1004,15 @@ function tools() {
 
   // 1. Claude Code's own tools
   panel(X[0], Y[0], LAYER.ink, 'FaTerminal', 'CLAUDE CODE', 'Built-in tools', 'files, shell and web in the run\'s checkout');
-  chips(X[0], Y[0], ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash', 'WebSearch', 'WebFetch', 'Task', 'Skill', 'TodoWrite']);
+  chips(X[0], Y[0], ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash', 'WebSearch', 'WebFetch', 'Agent', 'Skill', 'TodoWrite']);
   foot(X[0], Y[0], 'project settings, permissions bypassed, limits per process');
 
   // 2. the knowledge base
   panel(X[1], Y[0], LAYER.kn, 'FaDiagramProject', 'MCP · IN-PROCESS', 'momentum-kb', 'the knowledge base of the workspace');
   rows(X[1], Y[0], [
     ['search', 'text, semantic, Graph RAG'],
-    ['read', 'one entity, checkout first'],
-    ['references', 'links in both directions'],
+    ['read · references', 'an entity, its links both ways'],
+    ['types', 'entity types, what each is for'],
     ['write', 'an entity, validated on write'],
     ['record_agent_metric', 'misalignments, recurring'],
   ], LAYER.kn);
@@ -1024,10 +1030,9 @@ function tools() {
   foot(X[2], Y[0], 'report_interview in interview runs only');
 
   // 4. sub-agents
-  panel(X[0], Y[1], LAYER.prod, 'FaRobot', 'TASK TOOL', 'Sub-agents', 'work handed off inside the run');
+  panel(X[0], Y[1], LAYER.prod, 'FaRobot', 'AGENT TOOL', 'Sub-agents', 'work handed off inside the run');
   pairs(X[0], Y[1], [
     ['momentum-summarization', 'artifacts into entities, at Stop'],
-    ['momentum-card', 'one card, within the limit'],
   ], LAYER.prod, 'FaRobot');
   foot(X[0], Y[1], 'from .claude/agents of the project');
 
@@ -1035,14 +1040,14 @@ function tools() {
   panel(X[1], Y[1], LAYER.kn, 'FaShieldHalved', 'CLAUDE CODE HOOKS', 'Hooks on the tools', 'the consistency guard inside the run');
   pairs(X[1], Y[1], [
     ['PostToolUse', 'every write: the guard\'s issues at once'],
-    ['Stop', 'summarize, fix issues, commit message'],
+    ['Stop · SubagentStop', 'summarize, fix issues, commit message'],
   ], LAYER.kn, 'FaBolt');
   foot(X[1], Y[1], 'Write · Edit · MultiEdit · NotebookEdit · kb write');
 
   // 6. the user's voice tools: the API as MCP
   panel(X[2], Y[1], LAYER.att, 'FaMicrophone', 'MCP · HTTP /mcp', 'momentum', 'the user\'s voice tools: the API, no UI');
   chips(X[2], Y[1], [
-    'feed', 'approve', 'send_back', 'resolve_issue', 'wont_resolve_issue', 'entity', 'types', 'search', 'chats', 'chat', 'run_automation',
+    'feed', 'approve', 'send_back', 'ask', 'resolve_issue', 'wont_resolve_issue', 'entity', 'types', 'search', 'chats', 'chat', 'run_automation',
     'run', 'message', 'kill_run', 'graph_build', 'set_graph_build', 'reset_project', 'metrics', 'timeline', 'settings', 'update_settings', 'workspaces',
   ], { size: 14, gap: 7, bold: false, color: LAYER.att.strong });
   return svg(g);
@@ -1050,14 +1055,14 @@ function tools() {
 
 // ---------------------------------------------------------------- slides
 const SLIDES = [
-  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user writes needs no run: it goes straight through the consistency gate and lands verified. Runs the user starts go at once, alongside the queued automation runs.'],
+  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user commits needs no run and no gate: it lands as committed, and the consistency check reads it like any other. Runs the user starts go at once, alongside the queued automation runs.'],
   ['Entities', entities, 'The unit of the knowledge base. The type is the path on disk. The entity is its card, within the character limit. References link entities and are walked by Graph RAG. A summary is an entity with artifacts beneath it.'],
   ['Entity types', entityTypes, 'Every entity has one of the types in docs/entity-types.tsv, grouped in domains, each with the colour and glyph the app shows; four examples per domain. The type is the path of the entity in the knowledge graph. The Harness domain holds the entities of Momentum itself: automations, triggers, issues, conflicts, chats, plans, research and patterns. Wherever the app names an entity, in a card, a chat, an answer or a list, it shows this glyph and colour and opens it on a press.'],
   ['Entity states', states, "Verification is the user's judgement: approval verifies, any rewrite by a run makes the entity unverified again. Sync is the entity against its artifacts and implementation. Contradictions count the open contradiction issues over the entity."],
-  ['Automations', automations, 'Ten automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Automation runs go one at a time per project; runs the user starts go at once.'],
-  ['Triggers', triggers, 'Each automation has a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand. Exploration every two hours, preparation every two hours at half past, validation at 02:00, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Summarization runs in the Stop hook of every run and graph build while the project is enabled, so neither has a trigger entity. Triggered loops pause while the feed is at its limit.'],
-  ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. The user edits them, or optimization proposes changes; either way the change passes the consistency gate, lands on the main line and is verified through the feed. Optimization reads every chat and proposes a skill, memory, sub-agent or definition change only for a pattern seen at least three times, as a Harness/Pattern with its evidence; nothing is learnt from one chat, and nothing takes effect before the user approves it. Runs start on demand from the chat and stop from the chat; models and concurrency are settings, and the Settings tab leads to the rest in the knowledge graph.'],
-  ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the run's own checkout with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and coverage, and an interview's next question. Sub-agents take work handed off by the Task tool: summarization at Stop, and the card step. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools every API handler without the UI. A question typed in the explorer search is not a run: the search finds the entities, and the search automation answers from them in one turn without tools, linking each it drew from."],
+  ['Automations', automations, 'Twelve automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Interview and search start only when the user asks; search answers in one turn and is not a run. Automation runs go one at a time per project; runs the user starts go at once.'],
+  ['Triggers', triggers, 'Each automation has a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand. Exploration every two hours, preparation every two hours at half past, validation at 02:00, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Summarization runs in the Stop hook of every run and graph build while the project is enabled, so neither has a trigger entity. Scheduled loops and the graph build pause while the feed is at its limit; events still start their runs.'],
+  ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. An edit the user commits lands on the main line as committed. A change optimization proposes passes the consistency gate, lands unverified and takes effect once the user approves it in the feed. Optimization reads every chat and proposes a skill, memory, sub-agent or definition change only for a pattern seen at least three times, as a Harness/Pattern with its evidence; nothing is learnt from one chat, and nothing takes effect before the user approves it. Runs start on demand from the chat and stop from the chat; models and concurrency are settings, and the Settings tab leads to the rest in the knowledge graph.'],
+  ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the run's own checkout with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, types, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and coverage, and an interview's next question. The summarization sub-agent takes the run's artifacts over through the Agent tool at Stop, and the harness checks it ran before trusting it. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools every API handler, ask included, without the UI. A question typed in the explorer search is not a run: the search finds the entities, and the search automation answers from them in one turn without tools, linking each it drew from."],
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
   ['Consistency gate', gate, 'Every write is checked while the run works. When it ends, the transaction passes the gate: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
   ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, cards over the character limit, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
@@ -1068,8 +1073,10 @@ const SLIDES = [
 ];
 
 async function renderPngs(svgs) {
-  const { chromium } = require('playwright-core');
-  const browser = await chromium.launch({ channel: process.env.MOMENTUM_BROWSER_CHANNEL ?? 'msedge' });
+  // Drawn in Firefox, as everything of the project is looked at; MOMENTUM_BROWSER_CHANNEL=msedge draws it in Edge
+  const pw = require('playwright-core');
+  const channel = process.env.MOMENTUM_BROWSER_CHANNEL ?? 'moz-firefox';
+  const browser = await (channel === 'moz-firefox' ? pw.firefox : pw.chromium).launch({ channel });
   try {
     const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
     const out = [];

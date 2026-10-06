@@ -277,7 +277,7 @@ const CARDS = [
 ];
 const TABS = [
   ['Feed', 'FaLayerGroup'], ['Explorer', 'FaDiagramProject'], ['Chat', 'FaComments'],
-  ['Metrics', 'FaChartLine'], ['Settings', 'FaGear'],
+  ['Timeline', 'FaClockRotateLeft'], ['Metrics', 'FaChartLine'], ['Settings', 'FaGear'],
 ];
 const PHONE = { w: 2.72, h: 5.9, y: 1.05, bez: 0.1, r: 0.36 };
 const STAMP_Y = 2.87; // stamp centre, from the card top
