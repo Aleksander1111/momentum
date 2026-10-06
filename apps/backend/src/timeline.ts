@@ -156,14 +156,16 @@ interface Landed {
   commit: string | null;
   message: string | null;
   paths: string[];
+  removed?: { path: string; title: string }[];
   issues: number;
   conflicts: string[];
   at?: Date;
 }
 
 /** What one or more landings of a run add to its event */
-const landedFacts = (l: Pick<Landed, 'paths' | 'issues' | 'conflicts' | 'commit' | 'message'>): TimelineFacts => ({
+const landedFacts = (l: Pick<Landed, 'paths' | 'removed' | 'issues' | 'conflicts' | 'commit' | 'message'>): TimelineFacts => ({
   paths: l.paths,
+  ...(l.removed?.length ? { removed: l.removed } : {}),
   issues: l.issues,
   conflicts: l.conflicts,
   ...(l.commit ? { commit: l.commit } : {}),

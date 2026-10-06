@@ -111,15 +111,13 @@ export const SCENARIOS: Scenario[] = [
     title: 'Spent entities retired',
     projects: ['handbook'],
     real: true,
-    covers: ['automation.retention', 'feed.approve'],
+    covers: ['automation.retention', 'feed.removal-report'],
     steps: [
-      'Retention proposes one plan retiring the old unreferenced DevTask and research; keeps the referenced decision and goals',
-      'Approving the plan removes them from the main line',
+      'Retention removes the old unreferenced DevTask and research and keeps the referenced decision and goals; a report card in the feed names what went',
     ],
     // The features each step checks, step by step
     checks: [
-      ['automation.retention'],
-      ['automation.retention', 'feed.approve'],
+      ['automation.retention', 'feed.removal-report'],
     ],
   },
   {
@@ -369,13 +367,13 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'automation.consistency-check', 'automation.retention', 'feed.issue-options', 'feed.wont-resolve', 'feed.contradictions',
-      'metrics.understanding', 'metrics.implementation', 'guard.main-line-index', 'settings.persist', 'kb.validate', 'feed.retire',
+      'metrics.understanding', 'metrics.implementation', 'guard.main-line-index', 'settings.persist', 'kb.validate', 'feed.removal-report',
     ],
     steps: [
       'The nightly consistency check files a contradiction and a naming clash as issues with options, counted as open; nothing else changes',
       'Picking the recommended option fixes the guide and its document in a chat; the issue retires and the contradiction count drops',
       "Won't resolve keeps the clash verified with the reason; it is no longer counted as open",
-      'With the lifetimes the user set, retention proposes retiring spent entities; approving retires them but keeps one a new decision still relies on',
+      'With the lifetimes the user set, retention removes the spent task and keeps the survey a decision relies on; the feed and the timeline report what went',
       'A user deleting an entity by hand on the main line is indexed at once: it leaves the index and the broken reference lowers consistency',
     ],
     // The features each step checks, step by step
@@ -383,7 +381,7 @@ export const SCENARIOS: Scenario[] = [
       ['automation.consistency-check', 'feed.issue-options', 'feed.contradictions', 'metrics.understanding', 'metrics.implementation'],
       ['feed.issue-options', 'feed.contradictions', 'metrics.implementation'],
       ['feed.wont-resolve', 'metrics.implementation', 'metrics.understanding'],
-      ['automation.retention', 'settings.persist', 'feed.retire'],
+      ['automation.retention', 'settings.persist', 'feed.removal-report'],
       ['guard.main-line-index', 'metrics.understanding', 'kb.validate'],
     ],
   },

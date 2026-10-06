@@ -6563,6 +6563,25 @@
                                   "type": "string"
                                 }
                               },
+                              "removed": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "path": {
+                                      "type": "string"
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "path",
+                                    "title"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "issues": {
                                 "type": "integer",
                                 "minimum": -9007199254740991,

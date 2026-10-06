@@ -1,7 +1,7 @@
 import { until } from '../support/api.ts';
 import { graphIssues } from '../support/check.ts';
 import { expect, scenario } from '../support/fixtures.ts';
-import { entitiesOf, refs } from '../support/landed.ts';
+import { entitiesOf } from '../support/landed.ts';
 import { entityText, move } from '../support/scripted.ts';
 
 const WS = 'handbook';
@@ -14,7 +14,6 @@ const CLASH = 'Harness/Issue/two-weekly-meetings';
 const TASK = 'Product/DevTask/migrate-handbook-to-markdown';
 const SURVEY = 'Harness/Research/survey-on-remote-work-preferences';
 const DECISION = 'Governance/Decision/hybrid-days';
-const RETIRE = 'Harness/Plan/retire-spent-entities';
 const LIFETIME = { type: 'Harness/Research', rule: '30 days after delivered, unless referenced' };
 
 const issue = (title: string, card: string, category: string, concerns: string[], options: { label: string; change: string }[]) => ({
@@ -69,19 +68,8 @@ scenario('maintenance', { enabled: [WS], triggers: ['consistency-check'] }, asyn
     move.remove(t, file(contradiction)),
     move.say('The guide follows the policy now.'),
   ]);
-  model.on('retention', { automation: 'retention', kind: 'prompt' }, (t) => [
-    move.entity(t, RETIRE, {
-      type: 'Harness/Plan',
-      title: 'Retire the migration task and the survey',
-      card: 'The migration task was resolved on 2025-01-15 and the survey delivered on 2025-02-01; both are past their lifetime.',
-      impact: [1, 0, 0],
-      references: [
-        { to: TASK, relation: 'retires' },
-        { to: SURVEY, relation: 'retires' },
-      ],
-    }),
-    move.say('Proposed one retirement.'),
-  ]);
+  // Retention removes the spent task; the survey, delivered long ago too, is kept because a decision relies on it
+  model.on('retention', { automation: 'retention', kind: 'prompt' }, (t) => [move.remove(t, file(TASK)), move.say('Removed the migration task; the survey is still relied on.')]);
 
   await step(0, async () => {
     const start = env.head(WS);
@@ -147,17 +135,7 @@ scenario('maintenance', { enabled: [WS], triggers: ['consistency-check'] }, asyn
     const settings = await api.settings();
     await api.putSettings({ lifetimes: [...settings.lifetimes.filter((l) => l.type !== LIFETIME.type), LIFETIME] });
     expect((await api.settings()).lifetimes).toContainEqual(LIFETIME);
-    const since = new Date();
-    await app.approve(WS, 'Harness/Trigger/retention');
-    const run = await api.automationRan(WS, 'retention', since, 15 * 60_000);
-    expect(run.status).toBe('finished');
-    expect(model.instructions.get(run.id)).toContain(`${LIFETIME.type}: ${LIFETIME.rule}`);
-    // Its retirement plans, waiting in the feed: the resolved task and the delivered survey are spent
-    const plans = (await Promise.all((await entitiesOf(env, WS, run.id)).map((p) => api.entity(WS, p)))).filter(
-      (e) => e.type === 'Harness/Plan' && refs(e, 'retires').length > 0,
-    );
-    expect(plans.flatMap((p) => refs(p, 'retires'))).toEqual(expect.arrayContaining([TASK, SURVEY]));
-    // Meanwhile a new decision, made by hand, comes to rely on the survey
+    // A decision, made by hand, relies on the survey: retention must keep it
     env.commit(
       WS,
       {
@@ -173,16 +151,28 @@ scenario('maintenance', { enabled: [WS], triggers: ['consistency-check'] }, asyn
       'Decide on three remote days',
     );
     await until('the decision indexed', async () => (await api.referencing(WS, SURVEY)).includes(DECISION));
-    for (const plan of plans) {
-      await app.approve(WS, plan.path);
-      // Carried out, a plan that only retires went with them: nothing is left to implement
-      if (plan.references.filter((r) => r.direction === 'out').every((r) => r.relation === 'retires')) expect(env.show(WS, file(plan.path))).toBeNull();
-      // Retiring the survey would break the decision's reference: it stays, and the commit says why
-      if (refs(plan, 'retires').includes(SURVEY)) expect(env.git(WS, 'log', '-1', '--format=%B', 'main')).toContain(`Keep ${SURVEY}`);
-    }
+    const taskTitle = (await api.entity(WS, TASK)).title;
+    const since = new Date();
+    await app.approve(WS, 'Harness/Trigger/retention');
+    const run = await api.automationRan(WS, 'retention', since, 15 * 60_000);
+    expect(run.status).toBe('finished');
+    expect(model.instructions.get(run.id)).toContain(`${LIFETIME.type}: ${LIFETIME.rule}`);
+    // The work is done: the task is gone from the main line, the survey stays, nothing dangles
     expect(env.show(WS, file(TASK))).toBeNull();
     expect(env.show(WS, file(SURVEY))).not.toBeNull();
     expect(graphIssues(env, WS)).toEqual([]);
+    // What went is reported, not proposed: a card in the feed with the title the task had, and the run's event
+    const report = await until('the removal report in the feed', async () => (await api.feed()).items.find((i) => i.workspace === WS && i.type === 'Harness/Report'));
+    expect(report.title).toBe('Removed by the retention run');
+    const reported = await api.entity(WS, report.path);
+    expect(reported.markdown).toContain(taskTitle);
+    expect(reported.markdown).toContain(TASK);
+    expect(reported.markdown).not.toContain(SURVEY);
+    const event = await until('the run on the timeline', async () => (await api.timeline({ workspace: WS })).events.find((e) => e.runId === run.id));
+    expect(event.facts.removed).toEqual([{ path: TASK, title: taskTitle }]);
+    await app.tab('Timeline');
+    await app.frame().getByText(event.title, { exact: false }).first().click();
+    await expect(app.frame().getByText(taskTitle, { exact: false }).first()).toBeVisible();
   });
 
   await step(4, async () => {

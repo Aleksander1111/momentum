@@ -63,6 +63,15 @@ export const IMPLEMENTABLE = new Set([
 
 export const ISSUE_TYPES = ['Harness/Issue', 'Harness/Conflict'];
 const DEFINITION = 'Harness/Automation';
+const REPORT_TYPE = 'Harness/Report';
+/** Runs the user talks to tell them in the conversation what they removed; the other runs report it on a card */
+const REPORTS_IN_CONVERSATION = new Set(['chat', 'interview']);
+
+/** An entity a run removed, with the title it had */
+export interface Removed {
+  path: string;
+  title: string;
+}
 
 /** Git may check files out with CRLF line endings */
 export const sameText = (a: string, b: string) => a.replace(/\r\n/g, '\n') === b.replace(/\r\n/g, '\n');
@@ -374,6 +383,8 @@ export class Guard {
     const { written, deleted, issues: found } = await this.check(run);
     const issues = [...refused, ...found];
     await this.definitionsToReview(ws, run, written);
+    const removed = await this.removed(ws, deleted);
+    if (removed.length > 0 && !REPORTS_IN_CONVERSATION.has(run.automation)) await this.reportRemoval(ws, run, removed);
     // Only the user verifies: an entity a run changed lands unverified, whatever the run left in its frontmatter
     for (const w of written) {
       if (w.entity.frontmatter.verification === 'unverified') continue;
@@ -414,6 +425,7 @@ export class Guard {
       commit: landed?.commit ?? null,
       message,
       paths,
+      removed,
       valid,
       issues: issues.length,
       conflicts: landed?.conflicts ?? [],
@@ -539,6 +551,52 @@ export class Guard {
   }
 
   /** Changes that cannot be made consistent become an issue entity in the checkout, landed with them, in the feed */
+  /** The entities a run deleted, with the titles they had: read from the index before the landing takes them out of it */
+  private async removed(ws: Workspace, deleted: string[]): Promise<Removed[]> {
+    const out: Removed[] = [];
+    for (const path of deleted) {
+      const row = await ws.index.row(path);
+      out.push({ path, title: row?.title ?? path.split('/').pop()! });
+    }
+    return out;
+  }
+
+  /**
+   * What a run removed is done, not proposed: the run did its work. The user sees it as a report card in the feed, with
+   * the title each entity had, and on the run's timeline event; approving the card only takes it off the feed
+   */
+  private async reportRemoval(ws: Workspace, run: RunRef, removed: Removed[]): Promise<void> {
+    const { cards } = await this.settings.values();
+    const path = `${REPORT_TYPE}/removed-${run.id}`;
+    const lines: string[] = [];
+    const what = removed.length === 1 ? 'this entity' : `these ${removed.length} entities`;
+    let body = `The ${run.automation} run removed ${what} from the knowledge base. Nothing to approve: this card only says what was done.\n`;
+    for (const r of removed) {
+      const line = `\n- ${r.title} (\`${r.path}\`)`;
+      if (cardLength(body + lines.join('') + line) > cards.characterLimit - 20) {
+        lines.push(`\n- and ${removed.length - lines.length} more`);
+        break;
+      }
+      lines.push(line);
+    }
+    body += lines.join('');
+    await this.writeEntity(run.checkout, path, {
+      title: `Removed by the ${run.automation} run`,
+      body,
+      frontmatter: {
+        type: REPORT_TYPE,
+        origin: 'automation',
+        verification: 'unverified',
+        sync: 'synced',
+        product_impact: 2,
+        timeline_impact: 1,
+        unlocks: 1,
+        references: [],
+        artifacts: [],
+      },
+    });
+  }
+
   private async raiseIssue(ws: Workspace, run: RunRef, issues: ValidationIssue[]): Promise<void> {
     const { cards } = await this.settings.values();
     const path = `Harness/Issue/guard-${run.id}`;

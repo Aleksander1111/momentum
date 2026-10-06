@@ -94,7 +94,7 @@ describe('timeline', () => {
     await timeline.record({ actor: 'user', kind: 'signed_in', title: 'Signed in' });
     await timeline.run(runEvent('shop', run, 'run_started', { facts: { model: 'sonnet' } }));
     expect((await timeline.list({ limit: 1 })).events[0]!.title).toBe('Running: Knowledge graph');
-    const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, conflicts: [] };
+    const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, conflicts: [], removed: [] };
     // Landing and ending one right after the other, as a run does: neither is lost
     bus.emit('transaction', { ...base, runId: 'g1', commit: 'def', paths: ['Architecture/Api/a', 'Architecture/Api/b'], issues: 1 });
     await timeline.run(runEvent('shop', run, 'run_finished', { facts: { status: 'finished', durationMs: 5000 } }));
@@ -113,7 +113,7 @@ describe('timeline', () => {
   it('gives a chat an event only for what it lands, and skips a run that changed nothing', async () => {
     const bus = createBus();
     timeline.listen(bus);
-    const base = { workspace: 'shop', automation: 'chat', message: 'Rename the goal', valid: true, issues: 0, conflicts: [] };
+    const base = { workspace: 'shop', automation: 'chat', message: 'Rename the goal', valid: true, issues: 0, conflicts: [], removed: [] };
     bus.emit('transaction', { ...base, runId: 'c0', commit: null, paths: [] });
     bus.emit('transaction', { ...base, runId: 'c3', commit: 'fed', paths: ['Product/Goal/a'] });
     await new Promise((r) => setTimeout(r, 200));

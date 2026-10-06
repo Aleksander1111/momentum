@@ -150,5 +150,4 @@ Harness	Chat	A chat stored and indexed as a summary, with the chat as its artifa
 Harness	Plan	A plan prepared for the user to accept; a summary, short and quick to read and approve.
 Harness	Research	Information researched and collected to decide the next best action for the project.
 Harness	Pattern	A pattern that repeats across chats or in the user's reactions, with the times it was seen; a skill, memory, definition change or automatic reaction is proposed from it only once it was seen at least three times, and takes effect only once the user approves it.
-		
-Diagram todo
+Harness	Report	What a run removed from the knowledge base, with the title each entity had: for the user to see what was done, nothing to approve.

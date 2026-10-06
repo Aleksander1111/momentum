@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { AutomationName, EntityDetail, FeedResponse, GraphBuildStatus, MetricsResponse, RunDetail, Settings } from '@momentum/contract';
+import type { AutomationName, EntityDetail, FeedResponse, GraphBuildStatus, MetricsResponse, RunDetail, Settings, TimelineResponse } from '@momentum/contract';
 import { schemaOf } from '@momentum/kb';
 import type { Env } from './env.ts';
 import { guarded } from './usage.ts';
@@ -51,6 +51,9 @@ export class Api {
   }
 
   feed = () => this.call<FeedResponse>('GET', '/feed');
+  /** The timeline, newest first; `workspace` narrows it to one project */
+  timeline = (q: { workspace?: string; limit?: number } = {}) =>
+    this.call<TimelineResponse>('GET', `/timeline?limit=${q.limit ?? 100}${q.workspace ? `&workspace=${encodeURIComponent(q.workspace)}` : ''}`);
   entity = (ws: string, path: string) => this.call<EntityDetail>('GET', `/workspaces/${ws}/entities/${path}`);
   settings = () => this.call<Settings>('GET', '/settings');
   putSettings = (s: Partial<Settings>) => this.call<Settings>('PUT', '/settings', s);

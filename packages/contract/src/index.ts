@@ -714,6 +714,8 @@ export const TimelineFacts = z
     commit: z.string(),
     /** Entities the event wrote or concerns */
     paths: z.array(z.string()),
+    /** Entities a run removed, with the titles they had */
+    removed: z.array(z.object({ path: z.string(), title: z.string() })),
     issues: z.number().int(),
     conflicts: z.array(z.string()),
     /** Time the user spent on a feed item before reacting */

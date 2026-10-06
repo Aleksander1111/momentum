@@ -13,11 +13,10 @@ artifacts:
 ---
 # Retention
 
-Proposes retiring entities from the main line once their lifetime is spent.
+Retires entities from the main line once their lifetime is spent.
 
-- Lifetime follows rules per entity type, given in the run context
+- Lifetime follows rules per entity type, given in the run context: the user's decision, applied without asking
 - An entity something still references is not spent
-- Each group of spent entities gets one Harness/Plan titled as a retirement: why each is spent, a `retires` reference to each; their files stay in place
-- Approving the plan removes them from the main line together with the plan; one something still references stays
+- Deletes each spent entity's file and drops the references to it; the harness reports what went on a Harness/Report card in the feed and on the run's timeline event
 - Never retires goals, automations or triggers
-- Retirement plans carry low product and timeline impact
+- Found nothing spent: writes nothing

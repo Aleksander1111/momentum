@@ -124,6 +124,7 @@ function facts(e: TimelineEvent): string[] {
   // The title says what a run did and the issues it raised; here, how many entities it touched
   return [
     f.paths?.length ? `${f.paths.length} ${f.paths.length === 1 ? 'entity' : 'entities'}` : null,
+    f.removed?.length ? `${f.removed.length} removed` : null,
     f.durationMs !== undefined ? took(f.durationMs) : null,
     f.usage?.fiveHour ? `${usagePct(f.usage.fiveHour)} of 5 h` : null,
     f.model ?? null,
@@ -182,7 +183,9 @@ function Link({ label, onPress }: { label: string; onPress: () => void }) {
 /** An opened event: its facts, what the title leaves out, the entities it touched and where to go from it */
 function Details({ e }: { e: TimelineEvent }) {
   // What a run wrote, or the one entity a reaction concerns
-  const paths = e.facts.paths?.length ? e.facts.paths : e.path ? [e.path] : [];
+  const removed = e.facts.removed ?? [];
+  const gone = new Set(removed.map((r) => r.path));
+  const paths = (e.facts.paths?.length ? e.facts.paths : e.path ? [e.path] : []).filter((p) => !gone.has(p));
   const text = body(e);
   const ws = e.workspace;
   const openEntity = useOpenEntity(ws);
@@ -197,6 +200,16 @@ function Details({ e }: { e: TimelineEvent }) {
         ))}
       </View>
       {text ? <T style={{ fontSize: 13.5, lineHeight: 19 }}>{text}</T> : null}
+      {removed.length ? (
+        <View style={{ gap: 4 }}>
+          <Label>{removed.length === 1 ? 'Removed' : `${removed.length} removed`}</Label>
+          {removed.map((r) => (
+            <T key={r.path} style={{ fontSize: 13.5 }}>
+              {r.title} <T style={{ color: C.muted, fontSize: 12 }}>{r.path}</T>
+            </T>
+          ))}
+        </View>
+      ) : null}
       {paths.length ? (
         <View style={{ gap: 10 }}>
           <Label>{paths.length === 1 ? 'Entity' : `${paths.length} entities`}</Label>

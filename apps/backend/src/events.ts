@@ -18,6 +18,8 @@ export interface Events {
       /** The commit message */
       message: string;
       paths: string[];
+      /** Entities the run removed, with the titles they had */
+      removed: { path: string; title: string }[];
       valid: boolean;
       issues: number;
       conflicts: string[];
