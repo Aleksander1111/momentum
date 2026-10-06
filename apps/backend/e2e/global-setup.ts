@@ -41,6 +41,12 @@ export default async function globalSetup(config: FullConfig) {
   }
   // The embedding model every world's back-end loads, fetched now: a download cut short in a world leaves it unindexed
   await createEmbedder(MODELS)(['warm up']);
+  // The dependencies of the example projects that have some, installed once here and copied into every world
+  for (const p of readdirSync(join(REPO, 'examples'))) {
+    const dir = join(REPO, 'examples', p);
+    if (!existsSync(join(dir, 'package-lock.json')) || existsSync(join(dir, 'node_modules'))) continue;
+    execFileSync('npm', ['ci', '--no-audit', '--no-fund', '--prefer-offline'], { cwd: dir, stdio: 'inherit', shell: true, windowsHide: true });
+  }
 
   const usage = await readUsage().catch(() => null);
   if (usage) await post({ type: 'usage', ...usage });

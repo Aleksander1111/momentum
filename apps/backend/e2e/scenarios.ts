@@ -8,7 +8,7 @@ import type { Feature } from './features.ts';
 export interface Scenario {
   id: string;
   title: string;
-  projects: ('todo-cli' | 'bookshelf-api' | 'handbook')[];
+  projects: ('todo-cli' | 'bookshelf-api' | 'handbook' | 'notes-api')[];
   real: boolean;
   /** Runs talk to a scripted model: real Claude Code and harness, with the model's moves set by the scenario */
   scripted?: boolean;
@@ -781,6 +781,102 @@ export const SCENARIOS: Scenario[] = [
       ['run.queue', 'run.messages'],
       ['feed.once', 'run.messages'],
       ['run.kill', 'run.queue', 'orchestrator.concurrent-total'],
+    ],
+  },
+  {
+    id: 'working-alongside',
+    title: 'The user and the harness in one repository at once',
+    projects: ['todo-cli'],
+    real: false,
+    scripted: true,
+    covers: ['guard.conflict', 'guard.user-checkout', 'guard.land', 'run.checkout', 'automation.chat'],
+    steps: [
+      "A run and the user change the same line of a file: the run's version lands on top of the user's commit, with a Harness/Conflict in the same commit over the entity concerned, waiting in the feed",
+      "The user's uncommitted edit and untracked file stay as a run lands changes to other files; the checkout follows the main line",
+      "The user's uncommitted edit to the very file a run lands is kept in their checkout, while the main line takes the run's version",
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['guard.conflict', 'guard.land', 'run.checkout', 'automation.chat'],
+      ['guard.user-checkout', 'guard.land'],
+      ['guard.user-checkout', 'guard.land'],
+    ],
+  },
+  {
+    id: 'kb-tools',
+    title: 'A run working through the knowledge-base tools',
+    projects: ['bookshelf-api'],
+    real: false,
+    scripted: true,
+    covers: ['kb.mcp', 'kb.search', 'kb.types', 'kb.validate', 'guard.live-check', 'guard.land'],
+    steps: [
+      'A chat lists the entity types, searches by meaning and reaches the neighbours along references, reads a card and lists its references both ways, all through the momentum-kb tools',
+      'Written through the tool, an over-limit card with a broken reference comes back with the issues the guard raises; written right, the entity lands and waits in the feed',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['kb.mcp', 'kb.search', 'kb.types'],
+      ['kb.mcp', 'kb.validate', 'guard.live-check', 'guard.land'],
+    ],
+  },
+  {
+    id: 'card-rules',
+    title: 'Card rules, risk rules and settings that stay',
+    projects: ['bookshelf-api'],
+    real: false,
+    scripted: true,
+    covers: ['settings.persist', 'settings.graph-config', 'run.models', 'guard.live-check', 'kb.validate', 'kb.mcp'],
+    steps: [
+      "The card limit and presentation rules set in Settings reach the next run's instructions; a card over the new limit is refused by the write tool and flagged by the guard",
+      'Risk rules the user edits in the harness knowledge graph are what the estimator is asked with: the next implementation starts on the model its answer leads to',
+      'After a restart every setting stands: feed size, card limit and rules, exclusions, lifetimes, total runs and models',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['settings.persist', 'guard.live-check', 'kb.validate', 'kb.mcp'],
+      ['settings.graph-config', 'run.models'],
+      ['settings.persist'],
+    ],
+  },
+  {
+    id: 'voice-stream',
+    title: 'Following the command stream through holes, replays and drops',
+    projects: ['bookshelf-api'],
+    real: false,
+    scripted: true,
+    covers: ['voice.stream', 'voice.routing', 'automation.chat', 'run.messages'],
+    steps: [
+      'Three things said on a new chat become its question and two messages, in that order',
+      'An item lost on the way leaves a hole in the sequence: the harness fetches the state afresh and acts on the item once',
+      'An item delivered twice, a dropped connection and a restart act on nothing again',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['voice.routing', 'automation.chat', 'run.messages'],
+      ['voice.stream', 'run.messages'],
+      ['voice.stream', 'run.messages'],
+    ],
+  },
+  {
+    id: 'typescript-service',
+    title: 'A TypeScript service with dependencies and a history',
+    projects: ['notes-api'],
+    real: false,
+    scripted: true,
+    covers: [
+      'project.dependencies', 'project.history', 'project.enable', 'automation.graph-build', 'automation.summarization', 'automation.implementation',
+      'automation.validation', 'guard.land', 'run.checkout', 'trigger.event', 'trigger.schedule',
+    ],
+    steps: [
+      'Enabled, the build maps the repository over several runs until every source file is an artifact of an entity; the history stays as it was, each run one commit on top',
+      "An approved user story is implemented: the run installs the dependencies in its checkout, type-checks and tests there; code, test and card land in one commit, and the user's checkout passes",
+      'Validation installs and checks the landed work and raises nothing; a commit of the user that breaks the type check is raised by the nightly validation with what the compiler said',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['project.enable', 'project.history', 'automation.graph-build', 'automation.summarization'],
+      ['project.dependencies', 'automation.implementation', 'guard.land', 'run.checkout', 'project.history'],
+      ['project.dependencies', 'automation.validation', 'trigger.event', 'trigger.schedule'],
     ],
   },
   {

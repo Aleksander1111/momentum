@@ -13,6 +13,10 @@ export class FakeCommandStream {
   private audio = new WebSocketServer({ noServer: true });
   private items: { id: number; kind: string; text: string; source: string }[] = [];
   private seq = 0;
+  /** Every item event sent, with its sequence number, for replays */
+  private sent: { seq: number; item: { id: number; kind: string; text: string; source: string } }[] = [];
+  /** How often a follower fetched the state afresh: once per hole it saw */
+  resyncs = 0;
   readonly session = `e2e-${Date.now()}`;
   /** Audio sockets opened by a mic in the app, open now, and ever */
   listening = 0;
@@ -21,6 +25,7 @@ export class FakeCommandStream {
   constructor() {
     this.server = createServer((req, res) => {
       if (req.url === '/api/state') {
+        this.resyncs++;
         res.setHeader('content-type', 'application/json');
         return res.end(JSON.stringify(this.snapshot()));
       }
@@ -52,11 +57,31 @@ export class FakeCommandStream {
     return (this.server.address() as AddressInfo).port;
   }
 
-  /** Something heard: a command or a question, acted on where the screen holding the mic sends it */
-  say(text: string, kind: 'command' | 'question' = 'command'): void {
+  /**
+   * Something heard: a command or a question, acted on where the screen holding the mic sends it. With `hole`, the
+   * event skips a sequence number, as a lost message does: a follower sees the hole and resyncs from the state.
+   */
+  say(text: string, kind: 'command' | 'question' = 'command', opts: { hole?: boolean } = {}): void {
     const item = { id: this.items.length + 1, kind, text, source: 'remote' };
     this.items.push(item);
-    const event = JSON.stringify({ type: 'item', session: this.session, seq: ++this.seq, item });
+    if (opts.hole) this.seq++;
+    this.sent.push({ seq: ++this.seq, item });
+    this.send(JSON.stringify({ type: 'item', session: this.session, seq: this.seq, item }));
+  }
+
+  /** Sends an item's event again, with the sequence number it had: a duplicate, as a flaky connection delivers */
+  replay(id: number): void {
+    const sent = this.sent.find((s) => s.item.id === id);
+    if (!sent) throw new Error(`No item ${id} was said`);
+    this.send(JSON.stringify({ type: 'item', session: this.session, seq: sent.seq, item: sent.item }));
+  }
+
+  /** Closes every feed connection: a follower reconnects and gets a fresh snapshot */
+  dropFeed(): void {
+    for (const ws of this.feed.clients) ws.terminate();
+  }
+
+  private send(event: string): void {
     for (const ws of this.feed.clients) ws.send(event);
   }
 

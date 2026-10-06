@@ -38,6 +38,10 @@ export interface Turn {
   hookContext: string[];
   /** Files the run wrote or edited so far in the conversation, relative to the checkout, with forward slashes */
   wrote: string[];
+  /** How many replies the model gave in this turn before this one: which move of the script is next */
+  step: number;
+  /** What the tools the model called in this turn answered, oldest first: a script decides its next move on them */
+  results: { tool: string; input: unknown; text: string }[];
   /** A file of the checkout, for moves */
   file(path: string): string;
 }
@@ -135,6 +139,26 @@ function written(messages: Message[], checkout: string): string[] {
       if (!['Write', 'Edit', 'MultiEdit'].includes(c.name ?? '') || !c.input?.file_path) continue;
       const f = slash(c.input.file_path);
       out.push(f.toLowerCase().startsWith(root) ? f.slice(root.length) : f);
+    }
+  }
+  return out;
+}
+
+/** What each tool the model called answered, in order: the tool_result blocks matched to their tool_use by id */
+function toolResults(messages: Message[]): { tool: string; input: unknown; text: string }[] {
+  const calls = new Map<string, { tool: string; input: unknown }>();
+  const out: { tool: string; input: unknown; text: string }[] = [];
+  for (const m of messages) {
+    if (typeof m.content === 'string') continue;
+    for (const c of m.content as { type: string; id?: string; name?: string; input?: unknown; tool_use_id?: string; content?: unknown }[]) {
+      if (m.role === 'assistant' && c.type === 'tool_use' && c.id) calls.set(c.id, { tool: c.name ?? '', input: c.input });
+      if (m.role !== 'user' || c.type !== 'tool_result') continue;
+      const call = calls.get(c.tool_use_id ?? '') ?? { tool: '', input: undefined };
+      const text =
+        typeof c.content === 'string'
+          ? c.content
+          : ((c.content as { type: string; text?: string }[] | undefined) ?? []).map((b) => b.text ?? '').join('\n');
+      out.push({ ...call, text });
     }
   }
   return out;
@@ -388,6 +412,8 @@ export class ScriptedModel {
         .flatMap((m) => (m.role === 'system' || m.role === 'user' ? textsOf(m) : []))
         .filter((x) => x.includes('consistency guard will not accept')),
       wrote: written(body.messages, checkout),
+      step,
+      results: toolResults(body.messages.slice(at + 1)),
       file: (p) => join(checkout, p),
     };
     let moves: Move[];

@@ -15,7 +15,21 @@ const BACKEND = join(REPO, 'apps', 'backend');
 const TSX = join(REPO, 'node_modules', 'tsx', 'dist', 'cli.mjs');
 if (!process.env.DATABASE_URL) process.loadEnvFile(join(REPO, '.env'));
 
-export type Project = 'todo-cli' | 'bookshelf-api' | 'handbook';
+export type Project = 'todo-cli' | 'bookshelf-api' | 'handbook' | 'notes-api';
+
+/**
+ * The commits an example project's repository is made of, oldest first, each the paths it adds: a project with a
+ * history rather than one initial commit. Paths left by every commit go in a last one. The others get one commit.
+ */
+export const HISTORY: Partial<Record<Project, { message: string; paths: string[] }[]>> = {
+  'notes-api': [
+    { message: 'Start the notes API: the domain, an in-memory store and the configuration', paths: ['package.json', 'package-lock.json', 'tsconfig.json', '.gitignore', 'README.md', 'src/config.ts', 'src/domain', 'src/store', 'src/lib/id.ts'] },
+    { message: 'Route requests with a small router over node:http', paths: ['src/router.ts', 'src/lib/http.ts'] },
+    { message: 'Serve notes, tags, search, health and a markdown export', paths: ['src/routes', 'src/server.ts', 'src/index.ts', 'src/search.ts', 'src/lib/markdown.ts'] },
+    { message: 'Cover every route with tests', paths: ['test'] },
+    { message: 'Document the API and the decisions behind it', paths: ['docs', 'CHANGELOG.md'] },
+  ],
+};
 export const PASSWORD = 'e2e-password';
 /** Runs start on this model unless a scenario sets another; keeps the suite inside its share of the 5-hour limit */
 export const MODEL = (process.env.E2E_MODEL ?? 'sonnet') as Settings['models']['single'];
@@ -40,13 +54,18 @@ function put(dir: string, file: string, text: string) {
   writeFileSync(join(dir, file), text);
 }
 
-function initRepo(dir: string, message: string) {
+function initRepo(dir: string, message: string, history: { message: string; paths: string[] }[] = []) {
   git(dir, 'init', '-q', '-b', 'main');
   git(dir, 'config', 'user.email', 'e2e@momentum.test');
   git(dir, 'config', 'user.name', 'Momentum e2e');
   git(dir, 'config', 'core.autocrlf', 'false');
+  for (const commit of history) {
+    git(dir, 'add', '-A', '--', ...commit.paths);
+    git(dir, 'commit', '-q', '-m', commit.message);
+  }
   git(dir, 'add', '-A');
-  git(dir, 'commit', '-q', '--allow-empty', '-m', message);
+  // Whatever the history left: for a project without one, everything
+  if (!history.length || git(dir, 'status', '--porcelain') !== '') git(dir, 'commit', '-q', '--allow-empty', '-m', message);
 }
 
 /** The harness workspace: this repository's automation definitions, every one approved */
@@ -194,8 +213,9 @@ export class Env {
     this.apiBase = apiBase;
     mkdirSync(this.root);
     for (const p of this.projects) {
+      // With its installed dependencies, as the user's checkout has them; they are not in its repository
       cpSync(join(REPO, 'examples', p), this.path(p), { recursive: true });
-      initRepo(this.path(p), 'Initial commit');
+      initRepo(this.path(p), 'Initial commit', HISTORY[p]);
     }
     mkdirSync(join(this.root, 'momentum'));
     harnessRepo(join(this.root, 'momentum'));

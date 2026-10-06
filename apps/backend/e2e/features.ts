@@ -11,6 +11,8 @@ export const FEATURES = {
   'project.harness-protected': 'The harness workspace cannot be reset',
   'project.linear': 'A project is one straight line: another branch, a detached HEAD or a merge commit keeps it from being enabled and switches it off',
   'project.churn': 'A repository cloned under the root or removed from it is seen without a restart; a main line other than main is followed',
+  'project.dependencies': 'A project with dependencies, a type check and a test suite: runs install into their own checkout and run the checks there; validation raises what fails with what the tools said',
+  'project.history': 'A repository with a history of commits keeps it: every landing is one commit on top, nothing is rewritten or merged',
 
   // Definitions and triggers
   'definition.materialize': 'Approved Harness/Automation artifacts are written to <workspace>/.claude and kept out of git',
@@ -48,6 +50,8 @@ export const FEATURES = {
   'guard.land': 'A run lands on the main line in one commit, with its own message or one built from what changed',
   'guard.inconsistent-issue': 'Changes that cannot be made consistent land with an issue raised over them',
   'guard.main-line-index': 'The main line is indexed on every tick; a user commit is picked up',
+  'guard.conflict': "A file a run and the user both changed lands on the run's side, with a Harness/Conflict raised in the same commit over the entities concerned, waiting in the feed",
+  'guard.user-checkout': "The user's checkout follows each landing file by file; their uncommitted edits and untracked files are never overwritten",
 
   // Summary states
   'state.verification': 'Entities are unverified until approved, verified after',

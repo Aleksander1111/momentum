@@ -47,6 +47,23 @@ export function runNode(env: Env, ws: string, script: string): string {
   return execFileSync(process.execPath, ['--input-type=module', '-e', script], { cwd: env.path(ws), encoding: 'utf8', timeout: 60_000, windowsHide: true });
 }
 
+/** A tool's output without the colours a terminal reporter adds */
+export const plainText = (text: string) => text.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
+
+/**
+ * Whether an npm script of the project passes in the user's checkout of the main line, with the dependencies the
+ * checkout has installed; what it printed, without colours
+ */
+export function npmPasses(env: Env, ws: string, script: string): { ok: boolean; output: string } {
+  try {
+    const output = execFileSync('npm', ['run', script], { cwd: env.path(ws), encoding: 'utf8', stdio: 'pipe', timeout: 180_000, windowsHide: true, shell: true });
+    return { ok: true, output: plainText(output) };
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string; message: string };
+    return { ok: false, output: plainText(`${err.stdout ?? ''}${err.stderr ?? ''}` || err.message) };
+  }
+}
+
 /** Whether the project's own tests pass on the main line, as the user's checkout has it */
 export function testsPass(env: Env, ws: string): boolean {
   try {
