@@ -1,13 +1,14 @@
 import { ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme, useWide } from '../../../ui/theme';
-import { Back } from '../../../ui/parts';
+import { Back, useBack } from '../../../ui/parts';
 import { EntityView } from '../../../ui/EntityView';
 
 export default function Entity() {
   useTheme();
   const wide = useWide();
   const { ws, path } = useLocalSearchParams<{ ws: string; path: string }>();
+  const back = useBack('Explorer', '/explorer');
   return (
     <ScrollView
       contentContainerStyle={
@@ -16,10 +17,7 @@ export default function Entity() {
           : { paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }
       }
     >
-      <Back
-        label="Explorer"
-        onPress={() => (router.canGoBack() ? router.back() : router.replace('/explorer'))}
-      />
+      <Back {...back} />
       {ws && path ? (
         <EntityView
           ws={ws}

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { router, useNavigation, type Href } from 'expo-router';
 import { C } from './theme';
 import { H, T } from './Text';
 import { Chevron } from './icons';
@@ -79,6 +80,17 @@ export function Count({ children }: { children: ReactNode }) {
       <T style={{ color: C.muted, fontSize: 12 }}>{children}</T>
     </View>
   );
+}
+
+/**
+ * Where Back goes from a screen inside a tab: to the screen beneath it in that tab, under `label`; to the tab it was
+ * opened from when it is the first screen of its tab, as an entity a chat links; to the tab's home without history.
+ */
+export function useBack(label: string, home: Href): { label: string; onPress: () => void } {
+  const beneath = (useNavigation().getState()?.index ?? 0) > 0;
+  if (beneath) return { label, onPress: () => router.back() };
+  if (router.canGoBack()) return { label: 'Back', onPress: () => router.back() };
+  return { label, onPress: () => router.replace(home) };
 }
 
 export function Back({ label, onPress }: { label: string; onPress: () => void }) {

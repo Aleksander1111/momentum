@@ -3,6 +3,7 @@ import { Platform, Pressable, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { getToken } from '../../lib/token';
 import { useChatContext } from '../../lib/context';
 import { embedded } from '../../lib/embed';
@@ -102,6 +103,7 @@ export default function TabsLayout() {
   useTheme();
   const wide = useWide();
   const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
   const [auth, setAuth] = useState<'unknown' | 'yes' | 'no'>(Platform.OS === 'web' ? 'yes' : 'unknown');
 
   useEffect(() => {
@@ -116,6 +118,10 @@ export default function TabsLayout() {
     <View style={{ flex: 1 }}>
       <Tabs
         tabBar={(props) => (embedded ? null : <Nav {...props} wide={wide} />)}
+        // Back from a screen another tab opened, such as an entity a chat links, returns to that tab, not to the feed
+        backBehavior="history"
+        // Every tab stays mounted: one shown again reloads what went stale while another was in front
+        screenListeners={{ focus: () => void qc.refetchQueries({ type: 'active', stale: true }) }}
         screenOptions={{
           headerShown: false,
           tabBarPosition: wide ? 'left' : 'bottom',
