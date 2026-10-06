@@ -14,16 +14,16 @@ artifacts:
 ---
 # Momentum repository
 
-pnpm monorepo of the harness: TypeScript, Node 24.
+pnpm 10 monorepo of the harness: TypeScript, Node 24.
 
 | Path | Holds |
 |---|---|
 | apps/backend | API, orchestrator, guard |
 | apps/app | Expo app for web and mobile |
 | packages/ | contract, entity, kb, runs |
-| automations/ | Automation definition files |
+| docs/ | Deck package (@momentum/docs), entity-types.tsv |
+| automations/ | Automation definitions |
 | knowledge-graph/ | This knowledge base |
-| docs/ | Presentation, slides, entity-types.tsv |
-| examples/ | Projects the end-to-end scenarios run over |
+| examples/ | Projects the e2e scenarios run over |
 
-Scripts: `pnpm dev` (watch), `pnpm backend`, `pnpm test` (vitest), `pnpm momentum` (CLI), `pnpm e2e [args]` (the only way scenarios run, through the test runner), `pnpm e2e:runner` (the runner's page at http://127.0.0.1:7400).
+Scripts: `pnpm dev`, `pnpm backend`, `pnpm test` (vitest), `pnpm typecheck`, `pnpm momentum` (CLI), `pnpm e2e [args]` (scenarios, only through the test runner), `pnpm e2e:runner` (runner page at 127.0.0.1:7400), `pnpm deck` (builds the presentation).
