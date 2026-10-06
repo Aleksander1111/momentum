@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { persistOptions, queryClient } from '../lib/query';
 import { AppearanceProvider } from '../ui/AppearanceProvider';
+import { NoticeBar } from '../ui/Notice';
 import { C, useTheme } from '../ui/theme';
 
 export default function RootLayout() {
@@ -30,6 +31,7 @@ function Root() {
         >
           <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.screen } }} />
+          <NoticeBar />
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

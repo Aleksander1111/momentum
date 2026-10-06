@@ -93,6 +93,17 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
   });
 
   await step(1, async () => {
+    // A reaction the harness refuses says why, and the card stays to be looked at again
+    const context = app.frame().page().context();
+    const approving = /\/feed\/.+\/approve(\?|$)/;
+    await context.route(approving, (route) =>
+      route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: `${HOLIDAYS.path} changed after it was shown; look at it again` }) }),
+    );
+    await app.swipeTop(HOLIDAYS.entity.title, true);
+    await expect(app.frame().getByRole('alert')).toContainText('changed after it was shown; look at it again');
+    await context.unroute(approving);
+    await expect(app.text(HOLIDAYS.entity.title)).toBeVisible();
+    expect((await api.entity(HOLIDAYS.ws, HOLIDAYS.path)).verification).toBe('unverified');
     for (const c of [HOLIDAYS, RELEASE]) {
       const before = env.git(c.ws, 'rev-list', '--count', 'main');
       await app.approve(c.ws, c.path);

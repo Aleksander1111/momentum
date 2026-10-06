@@ -96,8 +96,19 @@ async function request(method: string, path: string, body?: unknown, redirectOn4
     if (redirectOn401) void onUnauthorized();
     throw new UnauthorizedError('401');
   }
-  if (!res.ok) throw new HttpError(res.status, await res.text().catch(() => ''));
+  if (!res.ok) throw new HttpError(res.status, refusal(await res.text().catch(() => '')));
   return res;
+}
+
+/** What the back-end says when it refuses: the `error` of its answer, which is written for the user */
+function refusal(body: string): string {
+  try {
+    const { error } = JSON.parse(body) as { error?: unknown };
+    if (typeof error === 'string' && error) return error;
+  } catch {
+    // not the API's own answer
+  }
+  return body || 'The harness refused that.';
 }
 
 type Schema<T> = { parse: (data: unknown) => T };

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryClient } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import type { PersistedClient, PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
 import {
@@ -13,8 +13,9 @@ import {
   TypesResponse,
   Workspace,
 } from '@momentum/contract';
-import { api, NetworkError } from './api';
+import { api, HttpError, NetworkError, UnauthorizedError } from './api';
 import { withoutItem } from './feed';
+import { notify } from './notice';
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -22,6 +23,13 @@ const WEEK = 7 * 24 * 60 * 60 * 1000;
 const retry = (_count: number, error: unknown) => error instanceof NetworkError;
 
 export const queryClient = new QueryClient({
+  // A reaction the harness refused says why, such as a card that changed after it was shown; one made offline waits
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (error instanceof NetworkError || error instanceof UnauthorizedError) return;
+      notify(error instanceof HttpError ? error.message : 'That did not go through. Try again.');
+    },
+  }),
   defaultOptions: {
     queries: { gcTime: WEEK, staleTime: 5_000, retry },
     mutations: { retry, retryDelay: 1_000 },
@@ -86,7 +94,7 @@ const SCHEMAS: Record<string, { safeParse: (d: unknown) => { success: boolean } 
   run: RunDetail,
   entity: EntityDetail,
   metrics: MetricsResponse,
-  graphBuild: GraphBuildStatus,
+  'graph-build': GraphBuildStatus,
 };
 
 /**
@@ -108,8 +116,9 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   maxAge: WEEK,
   buster: '2',
   dehydrateOptions: {
-    // Keep the last good data even when the latest poll failed, so it stays available offline.
-    shouldDehydrateQuery: (q) => q.state.data !== undefined && q.queryKey[0] !== 'search',
+    // Keep the last good data even when the latest poll failed, so it stays available offline; only what a restore
+    // takes back is written, so a poll of the timeline or an answer costs no write
+    shouldDehydrateQuery: (q) => q.state.data !== undefined && String(q.queryKey[0]) in SCHEMAS,
     shouldDehydrateMutation: (m) => m.state.isPaused,
   },
 };
