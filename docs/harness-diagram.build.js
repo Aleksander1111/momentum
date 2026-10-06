@@ -15,7 +15,7 @@ const HARNESS = [
   ['Timeline', ['What you did', 'One event per run', 'What runs removed', 'What the harness did'], 'FaClockRotateLeft'],
   ['Metrics', ['Share of the usage limits', 'Entities by state', 'Runs per automation', '24 h, 7 d or 30 d'], 'FaChartLine'],
   ['Settings', ['Projects and graph build', 'Feed size', 'Cards and lifetimes', 'Concurrent runs'], 'FaGear'],
-  ['API', ['Typed routes, OpenAPI', 'Session on every route', 'Voice sockets', 'MCP tools'], 'FaPlug'],
+  ['API', ['Typed routes, OpenAPI', 'Session on every route but sign-in', 'Voice sockets', 'MCP tools'], 'FaPlug'],
   ['Orchestrator', ['Triggers due, feed room left', 'Events start runs', 'One automation per project', 'Your runs at once'], 'FaSitemap'],
   ['Runner', ['Claude Code, one per run', 'Own main-line checkout', 'Stop hook summarizes', 'Lost runs resume'], 'FaTerminal'],
   ['Consistency Guard', ['Checks every write', 'One commit per run', 'Issues, conflicts, reports', 'Index true to the main line'], 'FaShieldHalved'],
@@ -277,9 +277,10 @@ const CARDS = [
     comment: 'Put issues above features when their scores tie.',
   },
 ];
+// the phone's tab bar: the app's tabs but Settings, a corner button on a phone (apps/app/src/app/(tabs)/_layout.tsx)
 const TABS = [
   ['Feed', 'FaLayerGroup'], ['Explorer', 'FaDiagramProject'], ['Chat', 'FaComments'],
-  ['Timeline', 'FaClockRotateLeft'], ['Metrics', 'FaChartLine'], ['Settings', 'FaGear'],
+  ['Timeline', 'FaClockRotateLeft'], ['Metrics', 'FaChartLine'],
 ];
 const PHONE = { w: 2.72, h: 5.9, y: 1.05, bez: 0.1, r: 0.36 };
 const STAMP_Y = 2.87; // stamp centre, from the card top
