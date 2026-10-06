@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -154,6 +154,8 @@ function TopCard({
   const pan = Gesture.Pan()
     .enabled(!sheetOpen)
     .activeOffsetX([-10, 10])
+    // A finger moving up or down scrolls a card longer than the screen
+    .failOffsetY([-12, 12])
     .onUpdate((e) => {
       tx.value = e.translationX;
       wash.value = e.translationX;
@@ -184,17 +186,20 @@ function TopCard({
   }));
 
   return (
-    <GestureDetector gesture={pan}>
+    <GestureDetector gesture={pan} touchAction="pan-y">
       <Animated.View
-        style={[cardFrame(wide), cardSkin(), { boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
+        style={[cardFrame(wide), cardSkin(), { paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0, boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
       >
-        <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} swipe />
-        {issue ? (
-          <>
-            <IssueHead issue={issue} workspace={item.workspace} />
-            <IssueOptions issue={issue} picked={picked} onPick={setPicked} />
-          </>
-        ) : null}
+        {/* A card longer than the screen scrolls within it: nothing of it, an issue's options included, is out of reach */}
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 20, paddingHorizontal: 20, paddingBottom: 16 }}>
+          <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} swipe />
+          {issue ? (
+            <>
+              <IssueHead issue={issue} workspace={item.workspace} />
+              <IssueOptions issue={issue} picked={picked} onPick={setPicked} />
+            </>
+          ) : null}
+        </ScrollView>
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 22, top: issue ? 150 : 210 }, okStamp]}>
           <Stamp kind="ok" label={issue ? 'RESOLVE' : 'APPROVE'} />
         </Animated.View>
@@ -393,11 +398,15 @@ export default function Feed() {
   const top = items[0];
   const topKey = top ? entityKey(top) : null;
   const topSince = useRef(Date.now());
+  // Fetched since the feed opened; the feed restored from the device's cache keeps the time it was fetched then
+  const opened = useRef(Date.now());
+  const fresh = feed.dataUpdatedAt >= opened.current;
   useEffect(() => {
     topSince.current = Date.now();
-    // What the feed held when this card came on top, those with a reaction in flight included
-    held.current = topKey ? { key: topKey, known: new Set((feed.data?.items ?? []).map(entityKey)) } : null;
-  }, [topKey]);
+    // What the feed held when this card came on top, those with a reaction in flight included. A card from the feed
+    // kept since the app was last open is not held: the feed fetched now may rank another first.
+    held.current = topKey && fresh ? { key: topKey, known: new Set((feed.data?.items ?? []).map(entityKey)) } : null;
+  }, [topKey, fresh]);
   const workspaces = useWorkspaces();
   const included = (workspaces.data ?? []).some((w) => w.enabled);
 
