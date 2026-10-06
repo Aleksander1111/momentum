@@ -95,6 +95,8 @@ function treeRows(
   }
 }
 
+const holds = (nodes: TypeNode[], path: string): boolean => nodes.some((n) => n.path === path || holds(n.children, path));
+
 export default function Explorer() {
   useTheme();
   const wide = useWide();
@@ -146,6 +148,10 @@ export default function Explorer() {
     queryFn: () => api.search(ws as string, dq),
     enabled: !!ws && dq.length > 0,
   });
+
+  // A folder a link opens, such as a project's patterns, that has no entity yet
+  const emptyFolder =
+    params.folder && params.ws === ws && types.data && !holds(types.data.types, params.folder) ? params.folder : null;
 
   const selected = wide ? (params.ws === ws ? (params.path ?? null) : null) : lastOpened;
 
@@ -246,6 +252,9 @@ export default function Explorer() {
         </EntityLinks>
       ) : null}
       {rows.length ? <List>{rows}</List> : null}
+      {emptyFolder && !dq ? (
+        <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 }}>{`No ${emptyFolder.split('/').join(' · ')} entities in ${ws} yet`}</T>
+      ) : null}
       {dq && search.isSuccess && rows.length === 0 && !asked ? (
         <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 }}>No entity matches; press Enter to ask the graph</T>
       ) : null}
