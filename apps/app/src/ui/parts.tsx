@@ -64,12 +64,16 @@ export function Row({
   );
 }
 
-/** Row body: main line plus optional muted sub-line. */
-export function RowText({ title, sub, size = 15 }: { title: string; sub?: string; size?: number }) {
+/** Row body: main line plus optional muted sub-line; a sub-line without spaces, such as a path, may break anywhere. */
+export function RowText({ title, sub, size = 15, breakAnywhere }: { title: string; sub?: string; size?: number; breakAnywhere?: boolean }) {
   return (
     <View style={{ flex: 1, minWidth: 0 }}>
       <T style={{ fontSize: size }}>{title}</T>
-      {sub ? <T style={{ color: C.muted, fontSize: 12.5, marginTop: 2 }}>{sub}</T> : null}
+      {sub ? (
+        <T style={[{ color: C.muted, fontSize: 12.5, marginTop: 2 }, breakAnywhere && Platform.OS === 'web' ? ({ wordBreak: 'break-all' } as object) : null]}>
+          {sub}
+        </T>
+      ) : null}
     </View>
   );
 }

@@ -18,17 +18,17 @@ export function useCornerRoom(): number {
 
 export function SettingsButton() {
   const insets = useSafeAreaInsets();
-  const on = usePathname().startsWith('/settings');
+  // On Settings itself it leads nowhere, and the settings scrolled under it would be out of reach
+  if (usePathname().startsWith('/settings')) return null;
   return (
     <Pressable
       onPress={() => router.navigate('/settings')}
       accessibilityRole="button"
       accessibilityLabel="Settings"
-      accessibilityState={{ selected: on }}
       hitSlop={8}
       style={{ position: 'absolute', top: insets.top + 8, right: 10, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Icon name="settings" size={24} color={on ? C.accent : C.muted} />
+      <Icon name="settings" size={24} color={C.muted} />
     </Pressable>
   );
 }

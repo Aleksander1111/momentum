@@ -503,7 +503,7 @@ export default function Settings() {
           <View key={p.name}>
             <Row first={i === 0}>
               <ProjectLogo name={p.name} size={32} />
-              <RowText title={p.name} sub={p.path} />
+              <RowText title={p.name} sub={p.path} breakAnywhere />
               <Switch
                 on={p.enabled}
                 onToggle={() => {
@@ -609,6 +609,24 @@ export default function Settings() {
 
       <Sect>In the knowledge graph</Sect>
       <InTheGraph harness={s.harness.workspace} projects={s.projects.filter((p) => p.enabled).map((p) => p.name)} />
+
+      <Sect>This device</Sect>
+      <List>
+        <Row first>
+          <RowText title="Sign out" sub="Other devices stay signed in" />
+          <Btn
+            small
+            kind="ghost"
+            label="Sign out"
+            onPress={async () => {
+              await api.signOut();
+              // Nothing of the projects stays on a device signed out
+              qc.clear();
+              router.replace('/session');
+            }}
+          />
+        </Row>
+      </List>
     </ScrollView>
   );
 }

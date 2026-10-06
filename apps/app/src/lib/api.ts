@@ -135,6 +135,11 @@ export const api = {
     redirecting = false;
     return out;
   },
+  /** Ends this device's session; the others stay signed in */
+  async signOut(): Promise<void> {
+    await request('DELETE', '/session', undefined, false).catch(() => undefined);
+    await clearToken();
+  },
   workspaces: () => get('/workspaces', Workspace.array()),
   feed: () => get('/feed', FeedResponse),
   async approve(path: string, req: ApproveRequest): Promise<void> {
