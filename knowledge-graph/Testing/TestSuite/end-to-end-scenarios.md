@@ -28,5 +28,5 @@ Real-life situations over the four example projects, each isolated.
 
 - features.ts lists every feature; coverage fails while one has no scenario
 - A stall or dead back-end fails at once; a spent limit skips real ones
-- Scripted: flows, product lives, user alongside, kb tools, rules, stream holes, notes-api, API, swipes, limits, one line, harness tuning (orphan agent files removed), skipped summarization
+- Scripted: flows, product lives, user alongside, kb tools, rules, stream holes, notes-api, API, swipes, appearance, limits, one line, harness tuning, skipped summarization
 - Patterns: proposed in the feed, counted once approved
