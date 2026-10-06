@@ -91,17 +91,18 @@ function UsageTile({ label, m, segments, unit }: { label: string; m: MetricValue
   );
 }
 
+// Narrow enough to leave the automation's name a line of its own on a phone
 const COLS = [
-  { label: 'Runs', width: 40 },
-  { label: 'Failed', width: 44 },
-  { label: 'Avg time', width: 62 },
-  { label: '5 h', width: 42 },
-  { label: 'Week', width: 46 },
+  { label: 'Runs', width: 34 },
+  { label: 'Failed', width: 40 },
+  { label: 'Avg', width: 50 },
+  { label: '5 h', width: 38 },
+  { label: 'Week', width: 40 },
 ];
 
 function Cell({ i, children, head }: { i: number; children: string; head?: boolean }) {
   return (
-    <T style={{ width: COLS[i]!.width, textAlign: 'right', fontSize: head ? 11.5 : 13.5, color: head ? C.muted : C.ink }}>
+    <T numberOfLines={1} style={{ width: COLS[i]!.width, textAlign: 'right', fontSize: head ? 11.5 : 13, color: head ? C.muted : C.ink }}>
       {children}
     </T>
   );

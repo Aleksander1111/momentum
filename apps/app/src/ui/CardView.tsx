@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { entityLinkTarget, type Block, type Card, type CardDiff, type ContextItem, type Inline, type Mark } from '@momentum/contract';
@@ -9,6 +9,7 @@ import { DiagramDiff, SpanText } from './DiagramDiff';
 import { TypePill } from './domains';
 import { EntityLink, EntityLinks } from './EntityRef';
 import { ProjectLogo } from './ProjectLogo';
+import { Table, TABLE_TEXT } from './Table';
 import { SelectionMenu } from './SelectionMenu';
 import { SelectionScope } from './SelectionScope';
 import { chatContext } from '../lib/context';
@@ -95,42 +96,33 @@ const marked = (c: Inline[], m: Mark | null | undefined): Inline[] => (m ? [{ t:
 
 const rowWash = (m: Mark | null | undefined) => (m === 'ins' ? C.insRow : m === 'del' ? C.delRow : undefined);
 
-function cellWeights(head: Inline[][], rows: Inline[][][]): number[] {
-  const n = Math.max(head.length, ...rows.map((r) => r.length));
-  return Array.from({ length: n }, (_, col) =>
-    Math.max(4, plain(head[col] ?? []).length, ...rows.map((r) => plain(r[col] ?? []).length)),
-  );
+/** A card that swipes keeps its tables in its width: it cannot also scroll sideways */
+const Fit = createContext(false);
+
+/** A cell's text for measuring: as it reads now, its code between backticks to be measured in the monospace font */
+function measured(c: Inline[]): string {
+  return c
+    .map((i) => (i.t === 'del' ? '' : i.t === 'code' ? '`' + i.v + '`' : 'v' in i ? i.v : 'c' in i ? measured(i.c) : ''))
+    .join('')
+    .trim();
 }
 
-function Table({ head, rows, marks }: { head: Inline[][]; rows: Inline[][][]; marks?: (Mark | null)[] }) {
-  const weights = cellWeights(head, rows);
-  const cell = (c: Inline[] | undefined, col: number, header: boolean, last: boolean, mark: Mark | null) => (
-    <View
-      key={col}
-      style={{
-        flex: weights[col],
-        paddingVertical: 6,
-        paddingHorizontal: 8,
-        borderRightWidth: last ? 0 : 1,
-        borderColor: C.line,
-        backgroundColor: header ? C.card : undefined,
-      }}
-    >
-      <T {...SELECTABLE} style={{ fontSize: 13, fontWeight: header ? '700' : '400' }}>
-        <Inlines c={marked(c ?? [], mark)} />
-      </T>
-    </View>
-  );
-  const line = (cells: Inline[][], header: boolean, key: number, mark: Mark | null) => (
-    <View key={key} style={{ flexDirection: 'row', borderTopWidth: key === 0 ? 0 : 1, borderColor: C.line, backgroundColor: rowWash(mark) }}>
-      {weights.map((_, col) => cell(cells[col], col, header, col === weights.length - 1, mark))}
-    </View>
-  );
+function CardTable({ head, rows, marks }: { head: Inline[][]; rows: Inline[][][]; marks?: (Mark | null)[] }) {
+  const fit = useContext(Fit);
+  const all = head.length ? [head, ...rows] : rows;
+  const markOf = (i: number) => (head.length ? (i === 0 ? null : (marks?.[i - 1] ?? null)) : (marks?.[i] ?? null));
   return (
-    <View style={{ borderWidth: 1, borderColor: C.line, marginTop: 6, marginBottom: 14 }}>
-      {head.length ? line(head, true, 0, null) : null}
-      {rows.map((r, i) => line(r, false, head.length ? i + 1 : i, marks?.[i] ?? null))}
-    </View>
+    <Table
+      texts={all.map((r) => r.map(measured))}
+      header={head.length > 0}
+      fit={fit}
+      rowStyle={(i) => ({ backgroundColor: rowWash(markOf(i)) })}
+      cell={(i, c) => (
+        <T {...SELECTABLE} style={[TABLE_TEXT, { fontWeight: head.length && i === 0 ? '700' : '400' }]}>
+          <Inlines c={marked(all[i]?.[c] ?? [], markOf(i))} />
+        </T>
+      )}
+    />
   );
 }
 
@@ -178,7 +170,7 @@ function Blocks({
           </View>
         );
       case 'table':
-        return <Table key={k} head={b.head} rows={b.rows} marks={b.marks} />;
+        return <CardTable key={k} head={b.head} rows={b.rows} marks={b.marks} />;
       case 'code':
         return (
           <View key={k} style={{ backgroundColor: C.card, borderRadius: 8, padding: 10, marginBottom: 10 }}>
@@ -314,6 +306,7 @@ export function CardView({
   const add = (heading: string[], part: { quote: string } | { element: string }) =>
     chatContext.add({ workspace, path, title, heading, ...part } as ContextItem);
   return (
+    <Fit.Provider value={!!swipe}>
     <EntityLinks workspace={workspace}>
       <View
         style={{
@@ -355,5 +348,6 @@ export function CardView({
         ))}
       </SelectionScope>
     </EntityLinks>
+    </Fit.Provider>
   );
 }

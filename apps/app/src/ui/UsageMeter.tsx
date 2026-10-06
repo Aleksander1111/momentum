@@ -10,11 +10,22 @@ import { T } from './Text';
  * Colour follows the automation, never its rank; the automations without a slot fold into Other.
  */
 const SLOTS: Record<Scheme, string[]> = {
-  light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7'],
-  dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9'],
+  light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#0f8b8d', '#8c564b'],
+  dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#20a7a9', '#b07a6e'],
 };
 
-const SLOTTED: AutomationName[] = ['summarization', 'graph-build', 'implementation', 'chat', 'exploration', 'preparation', 'validation'];
+// The nightly consistency check and retention run in every project: each has a colour of its own, not Other's grey
+const SLOTTED: AutomationName[] = [
+  'summarization',
+  'graph-build',
+  'implementation',
+  'chat',
+  'exploration',
+  'preparation',
+  'validation',
+  'consistency-check',
+  'retention',
+];
 
 export type Segment = { key: string; label: string; color: string; value: number };
 
