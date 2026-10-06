@@ -21,12 +21,13 @@ Fastify routes typed by contract zod; OpenAPI 3.0 at `/openapi.json`.
 
 | Area | Routes |
 |---|---|
-| Session | POST, DELETE (204) /session |
-| Feed | GET /feed; POST /feed/{path}/approve, /send-back, /resolve, /wont-resolve |
-| Entities | GET /workspaces/{ws}/entities/*, artifact/*, types, search; POST …/ask |
-| Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
-| Projects | GET /workspaces; …/metrics, graph-build, reset, logo |
-| Timeline | GET /timeline, filtered, paged |
-| Settings | GET, PUT /settings |
+| Session | POST, DELETE /session |
+| Feed | GET /feed; POST /feed/{path}/approve, send-back, resolve, wont-resolve |
+| Entities | …/entities/*, artifact/*, types, search, ask |
+| Chats, runs | …/chats; /runs/{id}, messages, kill |
+| Projects | /workspaces; metrics, graph-build, reset, logo |
+| Other | /timeline, /settings |
 
-Routes declare refusals `{error}`: 400, 401, 404, 409; 503 mid-rebuild. Card and type-tree schemas named; nullable enums list null. Sockets, `/mcp`: undocumented.
+Public: POST /session, the document, web app files. Every other route, judged by the route matched, not the raw URL, needs a session (bearer or cookie).
+
+Refusals `{error}`: 400, 401, 404, 409; 503 mid-rebuild. Nullable enums list null. Sockets, `/mcp`: undocumented.

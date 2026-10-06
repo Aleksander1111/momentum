@@ -25,7 +25,7 @@ The backend's interface: Fastify routes typed by contract zod, documented at `/o
 | Runs | `/runs/:id`, messages, kill |
 | Other | `/timeline`, `/settings`, `/voice`, `/voice/audio` |
 
+- Session (bearer or cookie) everywhere but sign-in, the document, web app files; judged by the matched route
 - Sign-ins, refusals, sign-outs: on the timeline
-- Refusals `{error}`: 400, 401, 404, 409 (stale approve, resolve)
-- Document: card and type-tree schemas named; nullable enums list null
+- Refusals `{error}`: 400, 401, 404, 409
 - Pages get the web app, 503 mid-rebuild

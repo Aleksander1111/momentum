@@ -17,7 +17,7 @@ artifacts:
 ---
 # Voice MCP API
 
-`/mcp`: the API's handlers as a stateless MCP server (streamable HTTP) for voice tools; signed in, not in the OpenAPI document.
+`/mcp`: the API's handlers as a stateless MCP server (streamable HTTP) for voice tools; needs a session; not in the OpenAPI document.
 
 - **Feed:** `feed`, `approve`, `send_back` (comment: a chat run), `resolve_issue` (option or own text, applied by a chat run), `wont_resolve_issue`
 - **Entities:** `workspaces`, `entity`, `types`, `search`, `ask`
