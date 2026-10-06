@@ -27,8 +27,8 @@ export function useCurrentWorkspace(): [string | null, (ws: string) => void, str
   const names = (data ?? []).map((w) => w.name);
   const fallback = (data ?? []).find((w) => w.enabled)?.name ?? names[0] ?? null;
   const shown = chosen && names.includes(chosen) ? chosen : fallback;
-  // An enabled project, once shown, stays chosen: another one enabled later does not take its place
-  const keep = !!shown && shown !== chosen && !!data?.find((w) => w.name === shown)?.enabled;
+  // An enabled project shown when none was chosen stays chosen: another one enabled later does not take its place
+  const keep = !chosen && !!shown && !!data?.find((w) => w.name === shown)?.enabled;
   useEffect(() => {
     if (keep && shown) setCurrentWorkspace(shown);
   }, [keep, shown]);
