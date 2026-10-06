@@ -12,6 +12,10 @@ artifacts:
   - apps/app/app.json
   - apps/app/src/app/(tabs)/_layout.tsx
   - apps/app/src/lib/api.ts
+  - apps/app/tsconfig.json
+  - apps/app/assets
+  - apps/app/public
+  - apps/app/modules
 ---
 # App
 
@@ -23,4 +27,5 @@ One Expo (React Native) app, `apps/app`, for web and mobile.
 - Light or dark follows the system
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
 - Out of reach: queries pause, reactions queue, a 5 s probe restores them, a refusal says why; on a phone a bar above the tabs says so and that what shows was loaded last
+- Web install manifest and icons; Android Expo modules for selection menu and voice capture, optional
 - Typed contract client; 401 sends back to sign-in; sign-out ends this device's session only

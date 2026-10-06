@@ -11,6 +11,7 @@ artifacts:
   - package.json
   - pnpm-workspace.yaml
   - tsconfig.base.json
+  - scripts/dev.mjs
 ---
 # Momentum repository
 

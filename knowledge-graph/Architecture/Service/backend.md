@@ -22,6 +22,8 @@ references:
   - to: Architecture/Dependency/runs
     relation: depends_on
 artifacts:
+  - apps/backend/package.json
+  - apps/backend/tsconfig.json
   - apps/backend/src/app.ts
   - apps/backend/src/server.ts
   - apps/backend/src/cli.ts

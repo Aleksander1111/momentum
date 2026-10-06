@@ -12,6 +12,8 @@ references:
   - to: Architecture/Dependency/contract
     relation: depends_on
 artifacts:
+  - packages/entity/package.json
+  - packages/entity/tsconfig.json
   - packages/entity/src/parse.ts
   - packages/entity/src/validate.ts
   - packages/entity/src/card.ts

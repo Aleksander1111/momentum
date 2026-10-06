@@ -8,6 +8,8 @@ timeline_impact: 0
 unlocks: 1
 references: []
 artifacts:
+  - packages/kb/package.json
+  - packages/kb/tsconfig.json
   - packages/kb/src/index.ts
   - packages/kb/src/db.ts
   - packages/kb/src/workspace-index.ts
