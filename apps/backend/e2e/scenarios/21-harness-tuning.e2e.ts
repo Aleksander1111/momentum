@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
@@ -127,9 +127,13 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     const unreviewed = added(CHECK_AGENT, before);
     expect(unreviewed.some((l) => /french/i.test(l)), `a French rule among ${JSON.stringify(unreviewed)}`).toBe(true);
 
+    // An agent file of an automation that is gone, as a rename leaves one behind
+    const orphan = join(env.path(WS), '.claude', 'agents', 'momentum-mapping.md');
+    writeFileSync(orphan, '---\nname: momentum-mapping\n---\nBuild the knowledge graph.\n');
     await app.approve(HARNESS, 'Harness/Automation/chat');
     const materialized = join(env.path(WS), '.claude', 'agents', 'momentum-chat.md');
     await until('the approved definition in the project', async () => proposed.every((l) => readFileSync(materialized, 'utf8').includes(l)));
+    await until('the agent file no definition produces removed', async () => !existsSync(orphan), 30_000);
     await new Promise((r) => setTimeout(r, 3000));
     // Approving one definition writes every approved one again, but never a change nobody approved
     for (const ws of [WS, HARNESS]) {

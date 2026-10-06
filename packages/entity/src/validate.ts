@@ -27,7 +27,8 @@ export interface ValidationContext {
 }
 
 export function cardLength(body: string): number {
-  return [...body].length;
+  // A line ending counts once, however the file was checked out
+  return [...body.replace(/\r\n/g, '\n')].length;
 }
 
 /** Diagrams are PlantUML: a mermaid code block is not accepted */

@@ -3,8 +3,8 @@ import { AutomationName, TriggerFields } from '@momentum/contract';
 import { parseEntity } from '@momentum/entity';
 import { show } from '@momentum/runs';
 import { existsSync } from 'node:fs';
-import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { appendFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, posix, relative, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { config } from './config.ts';
 import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
@@ -106,7 +106,36 @@ export class Automations {
         await writeFile(target, content, 'utf8');
       }
     }
+    await this.removeOrphans(ws);
     await this.recordAutomations(ws);
+  }
+
+  /**
+   * Agent and skill files a definition once put in the workspace that no definition produces any more, approved or
+   * waiting in the feed: a renamed or retired automation's. They are deleted, so no run or session picks them up; the
+   * files of a definition waiting for approval stay as they were last approved.
+   */
+  private async removeOrphans(ws: Workspace): Promise<void> {
+    const harness = await this.workspaces.harness().catch(() => null);
+    const definitions = harness ? await harness.index.byType(DEFINITION_TYPE) : [];
+    // Nothing indexed yet says nothing about what is an orphan
+    if (definitions.length === 0) return;
+    const produced = new Set<string>();
+    for (const d of definitions) {
+      const prefix = `automations/${d.path.split('/').pop()}/`;
+      for (const a of d.frontmatter.artifacts) if (a.startsWith(prefix)) produced.add(a.slice(prefix.length));
+    }
+    const claude = join(ws.path, '.claude');
+    for (const kind of ['agents', 'skills']) {
+      const entries = await readdir(join(claude, kind), { recursive: true, withFileTypes: true }).catch(() => []);
+      for (const e of entries) {
+        if (!e.isFile()) continue;
+        const rel = posix.join(kind, relative(join(claude, kind), join(e.parentPath, e.name)).split(sep).join('/'));
+        if (!rel.split('/')[1]?.startsWith('momentum-') || produced.has(rel)) continue;
+        await rm(join(claude, rel), { force: true });
+        console.log(`${ws.name}: removed ${rel}, which no definition produces`);
+      }
+    }
   }
 
   async materializeAll(): Promise<void> {

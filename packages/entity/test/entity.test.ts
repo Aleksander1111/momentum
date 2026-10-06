@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  cardLength,
   entityLinkTarget,
   entityLinks,
   entityPathOf,
@@ -16,6 +17,13 @@ import {
 const fixture = readFileSync(join(import.meta.dirname, 'fixtures/private-mesh.md'), 'utf8');
 const types = loadEntityTypes(join(import.meta.dirname, '../../../docs/entity-types.tsv'));
 const path = 'Governance/Decision/remote-access/private-mesh';
+
+describe('card length', () => {
+  it('counts characters, and a line ending once whether the file was checked out with LF or CRLF', () => {
+    expect(cardLength('naïve ✓')).toBe(7);
+    expect(cardLength('a\r\nb\r\nc')).toBe(cardLength('a\nb\nc'));
+  });
+});
 
 describe('parse', () => {
   it('reads frontmatter, title and card', () => {

@@ -453,7 +453,7 @@ export const SCENARIOS: Scenario[] = [
       'Per automation, each run starts on the model the settings give its automation',
       "By risk, the estimator applies the user's rules: a typo fix starts on haiku, a schema change on opus",
       'Chats repeating one correction lead optimization in the harness to count it and propose a definition change',
-      'Approving the proposal materializes it into the project and its variant is recorded on the runs it shapes; an agent file changed without approval is never materialized',
+      'Approving the proposal materializes it into the project and its variant is recorded on the runs it shapes; an agent file changed without approval is never materialized, and one no definition produces is removed',
       'Triggers the user edits by hand take effect: without on_demand it refuses starts, and a new schedule is followed',
       "An exploration in the harness lands its research, while the code it changed is put back and raised as an issue",
     ],

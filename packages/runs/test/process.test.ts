@@ -3,13 +3,13 @@ import { runEnvironment } from '../src/process.ts';
 
 describe('run environment', () => {
   const harness = {
-    PATH: 'C:\Windows',
-    SystemRoot: 'C:\Windows',
+    PATH: 'C:/Windows',
+    SystemRoot: 'C:/Windows',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9000',
-    CLAUDE_CONFIG_DIR: 'C:\claude',
+    CLAUDE_CONFIG_DIR: 'C:/claude',
     CLAUDE_CODE_ENTRYPOINT: 'sdk-ts',
     DATABASE_URL: 'postgres://momentum:secret@127.0.0.1/momentum',
-    MOMENTUM_ROOT: 'C:\Projects',
+    MOMENTUM_ROOT: 'C:/Projects',
     Momentum_Host: '127.0.0.1',
     PGPASSWORD: 'secret',
     PGSSLMODE: 'disable',
@@ -18,10 +18,10 @@ describe('run environment', () => {
 
   it('keeps what Claude Code and the commands it runs need', () => {
     expect(runEnvironment(harness)).toEqual({
-      PATH: 'C:\Windows',
-      SystemRoot: 'C:\Windows',
+      PATH: 'C:/Windows',
+      SystemRoot: 'C:/Windows',
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:9000',
-      CLAUDE_CONFIG_DIR: 'C:\claude',
+      CLAUDE_CONFIG_DIR: 'C:/claude',
       CLAUDE_CODE_ENTRYPOINT: 'sdk-ts',
     });
   });
