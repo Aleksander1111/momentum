@@ -67,8 +67,19 @@ function nullableEnums<T>(doc: T): T {
 }
 
 export const COOKIE = 'momentum_session';
-const PUBLIC = new Set(['POST /session']);
-const API = /^\/(workspaces|feed|runs|settings|session|mcp|voice|timeline)(\/|\?|$)/;
+/** The routes anyone may reach: signing in, the API document and the web app's files. Every other route needs a session */
+const PUBLIC = new Set(['POST /session', 'GET /openapi.json', 'GET /*']);
+
+/**
+ * Decided by the route the request matched, never by its raw URL: the router decodes the path, so `/%77orkspaces` is
+ * `/workspaces`, and a route added later needs a session unless it is listed here
+ */
+function isPublic(req: FastifyRequest): boolean {
+  const route = req.routeOptions.url;
+  // No route at all: the not-found handler answers, with the web app's page or a 404
+  if (route === undefined) return true;
+  return PUBLIC.has(`${req.method === 'HEAD' ? 'GET' : req.method} ${route}`);
+}
 
 function tokenOf(req: FastifyRequest): string | undefined {
   const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
@@ -103,10 +114,9 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
 
   // Page loads of the web app get the app; the app's own requests get the API
   app.addHook('onRequest', async (req, reply) => {
-    const route = `${req.method} ${req.routeOptions.url ?? ''}`;
     const wantsPage = req.method === 'GET' && (req.headers.accept ?? '').includes('text/html');
-    if (wantsPage && spa && req.url !== '/openapi.json') return page(reply);
-    if (!API.test(req.url) || PUBLIC.has(route)) return;
+    if (wantsPage && spa && req.routeOptions.url !== '/openapi.json') return page(reply);
+    if (isPublic(req)) return;
     if (!(await auth.check(tokenOf(req)))) return reply.code(401).send({ error: 'Sign in first' });
   });
 
