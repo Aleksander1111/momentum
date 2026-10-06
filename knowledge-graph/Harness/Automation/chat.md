@@ -20,4 +20,4 @@ The direct chat: an automation the user starts instead of the schedule.
 - A send back's comment decides the target: change, split, replace, add alongside, or remove
 - A plan asked for goes to plans/<name>.md, which summarization makes a Harness/Plan
 - Never turns one chat into a skill, memory or definition change on its own; asked outright, it makes it
-- Only what it adds unasked waits in the feed
+- Everything it writes lands unverified; the user verifies the work in the feed
