@@ -3,13 +3,13 @@ import { Pressable, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import type { ReferenceView } from '@momentum/contract';
-import { api } from '../lib/api';
+import { api, HttpError } from '../lib/api';
 import { C } from './theme';
-import { H } from './Text';
+import { H, T } from './Text';
 import { States } from './StateBadge';
 import { CardView } from './CardView';
 import { Chevron, Count, List, Row, RowText } from './parts';
-import { EntityLinks, EntityRefs } from './EntityRef';
+import { EntityLinks, EntityRefs, entityName } from './EntityRef';
 import { MicButton } from './MicButton';
 import { useVoice } from '../lib/voice';
 import { openRun } from '../lib/runs';
@@ -56,7 +56,7 @@ export function EntityView({
   path: string;
   onOpen: (path: string) => void;
 }) {
-  const { data: e } = useEntity(ws, path);
+  const { data: e, error } = useEntity(ws, path);
   const wide = useWide();
   const qc = useQueryClient();
   // Said about this entity: a command changes it, a question asks about it; either opens its chat
@@ -65,6 +65,14 @@ export function EntityView({
     void qc.invalidateQueries({ queryKey: ['entity', ws, path] });
     openRun(o.runId, wide);
   });
+  // A link may outlive what it names: an issue resolved, an entity retired
+  if (error instanceof HttpError && error.status === 404) {
+    return (
+      <T style={{ color: C.muted, fontSize: 14.5, lineHeight: 21, paddingVertical: 24 }}>
+        {`${entityName(path).name} is no longer in the knowledge graph of ${ws}: it was retired or resolved. The timeline shows what became of it.`}
+      </T>
+    );
+  }
   if (!e) return null;
   return (
     <EntityLinks workspace={e.workspace} open={onOpen}>

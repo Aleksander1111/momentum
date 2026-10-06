@@ -1,9 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RunDetail, VoiceTarget } from '@momentum/contract';
 import { api } from '../lib/api';
-import { automationLabel, duration, usagePct } from '../lib/format';
+import { automationLabel, duration, runStatus, usagePct } from '../lib/format';
 import { openRun } from '../lib/runs';
 import { C, F, useWide } from './theme';
 import { T } from './Text';
@@ -11,14 +11,17 @@ import { Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
 import { chatContext, useChatContext } from '../lib/context';
 import { Btn } from './parts';
-import { EntityLinks } from './EntityRef';
+import { EntityLinks, EntityRef } from './EntityRef';
+import { useEntity } from './EntityView';
 
 const ACTIVE = new Set(['queued', 'running']);
 
-/** Automation, state, what the run has used so far, and Stop while it is active */
-function RunHead({ run, onStop }: { run: RunDetail; onStop: () => void }) {
+/** Automation, state, what the run has used so far, the card it is about, and Stop while it is active */
+function RunHead({ run, onStop }: { run: RunDetail; onStop: () => Promise<void> }) {
+  const [stopping, setStopping] = useState(false);
+  const target = useEntity(run.workspace, run.targetPath);
   const running = run.status === 'running';
-  const state = running && run.startedAt ? `running ${duration(run.startedAt)}` : run.status;
+  const state = stopping && ACTIVE.has(run.status) ? 'stopping' : running && run.startedAt ? `running ${duration(run.startedAt)}` : runStatus(run.status);
   const usage = run.usage.fiveHour !== null ? ` \u00b7 ${usagePct(run.usage.fiveHour)} of 5 h` : '';
   return (
     <View
@@ -44,8 +47,24 @@ function RunHead({ run, onStop }: { run: RunDetail; onStop: () => void }) {
       <View style={{ flex: 1 }}>
         <T style={{ fontSize: 13.5 }}>{`${automationLabel(run.automation)} · ${state}${usage}`}</T>
         <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.id}</T>
+        {run.targetPath ? (
+          <View style={{ marginTop: 4 }}>
+            <EntityRef workspace={run.workspace} path={run.targetPath} title={target.data?.title} size={13} />
+          </View>
+        ) : null}
       </View>
-      {ACTIVE.has(run.status) ? <Btn small kind="ghost" label="Stop" onPress={onStop} /> : null}
+      {ACTIVE.has(run.status) ? (
+        <Btn
+          small
+          kind="ghost"
+          label={stopping ? 'Stopping' : 'Stop'}
+          disabled={stopping}
+          onPress={() => {
+            setStopping(true);
+            onStop().catch(() => setStopping(false));
+          }}
+        />
+      ) : null}
     </View>
   );
 }

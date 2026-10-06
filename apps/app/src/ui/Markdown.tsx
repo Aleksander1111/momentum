@@ -51,7 +51,8 @@ function inline(text: string, entities: boolean): ReactNode[] {
     const tok = m[0];
     const k = out.length;
     if (m[1]) {
-      const label = m[2]!;
+      // A label keeps its own formatting, such as a file named in code: [`docs/a.md`](docs/a.md)
+      const label = inline(m[2]!, false);
       const href = m[3]!;
       const entity = entities ? entityLinkTarget(href) : null;
       if (entity)
@@ -66,7 +67,7 @@ function inline(text: string, entities: boolean): ReactNode[] {
             {label}
           </Text>,
         );
-      else out.push(label);
+      else out.push(<Text key={k}>{label}</Text>);
     } else if (m[4]) {
       const code = tok.slice(1, -1);
       const entity = entities ? entityLinkTarget(code) : null;

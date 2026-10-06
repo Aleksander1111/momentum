@@ -6,7 +6,7 @@ import { api } from '../../../lib/api';
 import { useCurrentWorkspace } from '../../../lib/workspace';
 import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { chatContext, useChatContext } from '../../../lib/context';
-import { relativeTime, runKind } from '../../../lib/format';
+import { relativeTime, runKind, runStatus } from '../../../lib/format';
 import { useTheme, useWide } from '../../../ui/theme';
 import { List, Pick, Row, RowText, Sect } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
@@ -74,7 +74,7 @@ export default function Chats() {
                   >
                     <RowText
                       title={c.title}
-                      sub={`${runKind(c.automation)} · ${c.status} · ${relativeTime(c.updatedAt)}`}
+                      sub={`${runKind(c.automation)} · ${runStatus(c.status)} · ${relativeTime(c.updatedAt)}`}
                     />
                     <States verification={c.verification} sync={c.sync} />
                   </Row>

@@ -1,4 +1,4 @@
-import type { AutomationName } from '@momentum/contract';
+import type { AutomationName, RunStatus } from '@momentum/contract';
 
 /** "consistency-check" → "Consistency check". */
 export function automationLabel(a: AutomationName): string {
@@ -11,7 +11,12 @@ export function runKind(a: AutomationName): string {
   return a === 'chat' ? 'Chat' : `${automationLabel(a)} run`;
 }
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** A run's status as the user reads it: a killed run is one somebody stopped. */
+export function runStatus(s: RunStatus): string {
+  return s === 'killed' ? 'stopped' : s;
+}
+
+const WEEKDAYS =['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function startOfDay(d: Date): number {
