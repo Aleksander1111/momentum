@@ -219,10 +219,8 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
 
   const implemented = await step(1, async () => {
     // Validation runs on landed work here, and later every night once the user schedules it
-    const trigger = kg('Harness/Trigger/validation');
-    env.commit(WS, { [trigger]: env.show(WS, trigger)!.replace(/^schedule: .*\r?\n/m, '') }, 'Validate landed work only');
-    await app.approve(WS, 'Harness/Trigger/validation');
-    await app.approve(WS, 'Harness/Trigger/implementation');
+    await env.trigger(WS, 'validation', { schedule: null });
+    await env.trigger(WS, 'implementation');
     env.commit(
       WS,
       {

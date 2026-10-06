@@ -153,7 +153,7 @@ scenario('maintenance', { enabled: [WS], triggers: ['consistency-check'] }, asyn
     await until('the decision indexed', async () => (await api.referencing(WS, SURVEY)).includes(DECISION));
     const taskTitle = (await api.entity(WS, TASK)).title;
     const since = new Date();
-    await app.approve(WS, 'Harness/Trigger/retention');
+    await env.trigger(WS, 'retention');
     const run = await api.automationRan(WS, 'retention', since, 15 * 60_000);
     expect(run.status).toBe('finished');
     expect(model.instructions.get(run.id)).toContain(`${LIFETIME.type}: ${LIFETIME.rule}`);

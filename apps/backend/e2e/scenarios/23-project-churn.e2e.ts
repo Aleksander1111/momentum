@@ -55,8 +55,8 @@ scenario('project-churn', { enabled: [WS] }, async ({ env, api, app, model, step
 
   await step(2, async () => {
     // Two scheduled loops of the handbook: one runs, the other waits its turn
-    await api.approve(WS, 'Harness/Trigger/consistency-check');
-    await api.approve(WS, 'Harness/Trigger/retention');
+    await env.trigger(WS, 'consistency-check');
+    await env.trigger(WS, 'retention');
     await until('one running, one queued', async () => {
       const rows = await api.runs(WS);
       return rows.filter((r) => r.status === 'running').length === 1 && rows.filter((r) => r.status === 'queued').length === 1;

@@ -15,15 +15,16 @@ export const FEATURES = {
   'project.history': 'A repository with a history of commits keeps it: every landing is one commit on top, nothing is rewritten or merged',
 
   // Definitions and triggers
-  'definition.materialize': 'Approved Harness/Automation artifacts are written to <workspace>/.claude and kept out of git',
+  'definition.materialize': 'Harness/Automation artifacts are written to <workspace>/.claude and kept out of git',
   'definition.land': 'A definition as it lands on the harness main line is materialized into every enabled project, whatever its verification',
   'definition.variant': 'A definition variant is recorded on each run of its automation for comparison',
   'definition.review': 'A definition whose files a run changed is in effect as it lands and waits in the feed, unverified, for the user to review',
-  'trigger.defaults': 'Default triggers land on the main line unverified and wait in the feed',
-  'trigger.schedule': 'An approved trigger with a cron schedule queues a run once per due time',
+  'trigger.defaults': 'Default triggers land on the main line, in effect at once, and wait unverified in the feed for review',
+  'trigger.in-effect': 'A trigger starts its automation as it lands on the main line, before the user reviews it',
+  'trigger.schedule': 'A trigger with a cron schedule queues a run once per due time',
   'trigger.event': 'entity_ahead starts implementation; implementation_finished starts validation',
   'trigger.on-demand': 'An automation with an on-demand trigger can be started by the user',
-  'trigger.unverified-ignored': 'A trigger not yet approved starts nothing',
+  'trigger.off': 'A trigger with no schedule, no events and no start on demand starts nothing',
 
   // Orchestrator
   'orchestrator.feed-room': 'Scheduled loops and the graph build queue only while the feed has room',

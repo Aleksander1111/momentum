@@ -187,12 +187,15 @@ export class Automations {
     return agents;
   }
 
-  /** Approved trigger entities of a workspace; one of an automation of the harness alone counts in the harness only */
+  /**
+   * The trigger entities of a workspace as they stand on its main line: like the definitions, a trigger is in effect as
+   * it lands, and verification is only the user's review of it. One of an automation of the harness alone counts in the
+   * harness only
+   */
   async triggers(ws: Workspace): Promise<Trigger[]> {
     const rows = await ws.index.byType(TRIGGER_TYPE);
     const out: Trigger[] = [];
     for (const r of rows) {
-      if (r.verification !== 'verified') continue;
       const automation = AutomationName.safeParse(r.frontmatter.automation ?? r.path.split('/').pop());
       const fields = TriggerFields.safeParse(r.frontmatter);
       if (!automation.success || !fields.success) continue;

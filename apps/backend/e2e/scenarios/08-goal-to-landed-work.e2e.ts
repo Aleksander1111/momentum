@@ -28,18 +28,16 @@ scenario('goal-to-landed-work', { enabled: [WS], triggers: ['exploration'] }, as
     await app.approve(WS, action.path);
     expect((await api.entity(WS, action.path)).sync).toBe('entity_ahead');
     const since = new Date();
-    await app.approve(WS, 'Harness/Trigger/preparation');
+    await env.trigger(WS, 'preparation');
     const run = await api.automationRan(WS, 'preparation', since);
     expect(run.status).toBe('finished');
     return until('a plan for the action', async () => (await api.entities(WS, 'Harness/Plan')).find((p) => refs(p).some((r) => r.to === action.path)), 15 * 60_000);
   });
 
   const implementation = await step(2, async () => {
-    await app.approve(WS, 'Harness/Trigger/implementation');
+    await env.trigger(WS, 'implementation');
     // Validation runs on landed work here, not on its nightly schedule
-    const file = 'knowledge-graph/Harness/Trigger/validation.md';
-    env.commit(WS, { [file]: env.show(WS, file)!.replace(/^schedule: .*\r?\n/m, '') }, 'Validate landed work only');
-    await app.approve(WS, 'Harness/Trigger/validation');
+    await env.trigger(WS, 'validation', { schedule: null });
     const before = env.head(WS);
     const since = new Date();
     await app.approve(WS, plan.path);

@@ -236,8 +236,8 @@ export class Orchestrator {
   }
 
   /**
-   * The default trigger entities land on the main line unverified and wait in the feed like any other change; an
-   * automation of the harness alone is triggered in the harness workspace only
+   * The default trigger entities land on the main line, in effect at once and unverified, so they wait in the feed for
+   * the user's review like any other change; an automation of the harness alone is triggered in the harness workspace only
    */
   private async proposeTriggers(ws: Workspace): Promise<void> {
     if ((await ws.index.byType(TRIGGER_TYPE)).length > 0) return;

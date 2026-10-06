@@ -23,8 +23,8 @@ scenario('exploration-idle', { enabled: [WS] }, async ({ env, api, app, step }) 
     env.commit(WS, { 'knowledge-graph/Product/Goal/manage-todos.md': GOAL }, 'Add the goal');
     const before = env.head(WS);
     const since = new Date();
-    // Approved now: its schedule is due at once
-    await app.approve(WS, 'Harness/Trigger/exploration');
+    // Switched on now: its schedule is due at once
+    await env.trigger(WS, 'exploration');
     const run = await api.automationRan(WS, 'exploration', since);
     expect(run.status).toBe('finished');
     expect(addedSince(env, WS, before)).toEqual([]);

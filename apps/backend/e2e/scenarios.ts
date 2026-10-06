@@ -25,13 +25,13 @@ export const SCENARIOS: Scenario[] = [
     projects: ['todo-cli'],
     real: true,
     covers: [
-      'project.discover', 'project.enable', 'definition.materialize', 'trigger.defaults', 'trigger.unverified-ignored',
+      'project.discover', 'project.enable', 'definition.materialize', 'trigger.defaults', 'trigger.off',
       'automation.graph-build', 'orchestrator.feed-room', 'feed.size', 'feed.approve', 'state.verification',
       'kb.index', 'kb.types', 'kb.validate', 'run.checkout', 'run.usage-share', 'run.process-limits', 'automation.summarization',
     ],
     steps: [
       'Project listed disabled; enabling it materializes the definitions and proposes the default triggers',
-      'No trigger starts anything while unverified',
+      'The default triggers, switched off in this world, start nothing',
       'Graph build runs until the feed is full, pauses, and continues as items are approved',
       'Build is measured complete by the harness each run and ends complete; every written entity is valid and typed',
       'Each run records its usage share and leaves no checkout behind',
@@ -39,7 +39,7 @@ export const SCENARIOS: Scenario[] = [
     // The features each step checks, step by step
     checks: [
       ['project.discover', 'project.enable', 'definition.materialize', 'trigger.defaults', 'state.verification'],
-      ['trigger.unverified-ignored'],
+      ['trigger.off'],
       ['automation.graph-build', 'orchestrator.feed-room', 'feed.size', 'feed.approve'],
       ['automation.graph-build', 'kb.index', 'kb.types', 'kb.validate', 'automation.summarization'],
       ['run.checkout', 'run.usage-share', 'run.process-limits'],
@@ -340,20 +340,20 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'automation.exploration', 'automation.preparation', 'automation.implementation', 'automation.validation', 'automation.summarization',
-      'automation.chat', 'trigger.schedule', 'trigger.event', 'trigger.unverified-ignored', 'state.entity-ahead', 'guard.land',
+      'automation.chat', 'trigger.schedule', 'trigger.event', 'trigger.in-effect', 'trigger.off', 'state.entity-ahead', 'guard.land',
       'feed.issue-options', 'orchestrator.serial-automations', 'metrics.implementation', 'run.checkout',
     ],
     steps: [
-      'Exploration on its schedule proposes research and a feature that advances a goal',
-      'An approved feature waits as entity_ahead while implementation is not approved; preparation writes a plan, summarized into a Harness/Plan',
+      'Exploration on its schedule, switched on and not yet reviewed, proposes research and a feature that advances a goal',
+      'An approved feature waits as entity_ahead while implementation is switched off; preparation writes a plan, summarized into a Harness/Plan',
       'Approving the plan starts implementation: code, tests and the updated card land in one commit; approving the result brings the plan in sync',
       'The finished implementation starts validation, which raises a defect; the user resolves it in their own words and the fix lands',
       'Automation runs of the project never overlapped and left no checkout behind',
     ],
     // The features each step checks, step by step
     checks: [
-      ['automation.exploration', 'trigger.schedule'],
-      ['state.entity-ahead', 'trigger.unverified-ignored', 'automation.preparation', 'automation.summarization', 'trigger.schedule', 'orchestrator.serial-automations'],
+      ['automation.exploration', 'trigger.schedule', 'trigger.in-effect'],
+      ['state.entity-ahead', 'trigger.off', 'automation.preparation', 'automation.summarization', 'trigger.schedule', 'orchestrator.serial-automations'],
       ['trigger.event', 'automation.implementation', 'automation.summarization', 'guard.land', 'state.entity-ahead'],
       ['automation.validation', 'trigger.event', 'feed.issue-options', 'automation.chat', 'metrics.implementation'],
       ['orchestrator.serial-automations', 'run.checkout', 'trigger.schedule'],

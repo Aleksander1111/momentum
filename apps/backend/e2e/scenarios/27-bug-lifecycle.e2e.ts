@@ -101,8 +101,7 @@ scenario('bug-lifecycle', { enabled: [WS], triggers: ['implementation'] }, async
 
   await step(0, async () => {
     // Validation, for landed work only until the user schedules it
-    env.commit(WS, { [validationTrigger]: env.show(WS, validationTrigger)!.replace(/^schedule: .*\r?\n/m, '') }, 'Validate landed work');
-    await app.approve(WS, 'Harness/Trigger/validation');
+    await env.trigger(WS, 'validation', { schedule: null });
     expect(await bugs()).toBe(0);
     const chat = await app.chat(WS, 'I could save a book with an empty title. File it as a bug.');
     expect((await api.runEnded(chat, 10 * 60_000)).status).toBe('finished');
@@ -214,7 +213,7 @@ scenario('bug-lifecycle', { enabled: [WS], triggers: ['implementation'] }, async
   model.on('a slow consistency check', { automation: 'consistency-check', kind: 'prompt' }, () => [move.hang()]);
 
   await step(4, async () => {
-    await api.approve(WS, 'Harness/Trigger/consistency-check');
+    await env.trigger(WS, 'consistency-check');
     const check = await until('the consistency check running', async () => (await api.runs(WS, 'consistency-check')).find((r) => r.status === 'running'), 60_000);
     // Production is down: the user starts a fix at once, beside the automation run
     const { runId } = await api.runAutomation(WS, 'implementation', 'Hotfix: 404 answers must say which path was not found.');

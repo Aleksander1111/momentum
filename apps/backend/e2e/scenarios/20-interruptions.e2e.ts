@@ -70,7 +70,7 @@ scenario('interruptions', { enabled: [WS] }, async ({ env, api, app, model, step
       'Describe the listing',
     );
     const since = new Date();
-    await app.approve(WS, 'Harness/Trigger/consistency-check');
+    await env.trigger(WS, 'consistency-check');
     const r = await until('the check to be cut off after filing an issue', async () => {
       const x = (await api.runs(WS, 'consistency-check')).find((x) => x.created_at >= since);
       return x && cutOff(x.id) ? x : null;

@@ -97,7 +97,7 @@ scenario('run-accounting', { enabled: [WS], env: LIMITS }, async ({ env, api, ap
     model.on('an automation reads its limits', (t) => t.automation === 'retention' && t.kind === 'prompt', probe);
     const chat = await api.chat(WS, 'What limits does this run have?');
     expect((await api.runEnded(chat.runId, 5 * 60_000)).status).toBe('finished');
-    await api.approve(WS, 'Harness/Trigger/retention');
+    await env.trigger(WS, 'retention');
     const { runId: automation } = await api.runAutomation(WS, 'retention', 'Read the limits of this run.');
     expect((await api.runEnded(automation, 5 * 60_000)).status).toBe('finished');
     for (const id of [chat.runId, automation]) {

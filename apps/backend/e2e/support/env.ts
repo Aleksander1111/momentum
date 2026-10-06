@@ -37,7 +37,10 @@ export const MODEL = (process.env.E2E_MODEL ?? 'sonnet') as Settings['models']['
 export interface EnvOptions {
   /** Projects enabled before the scenario starts; the rest stay disabled for the scenario to enable */
   enabled?: (Project | 'momentum')[];
-  /** Triggers approved before the scenario starts; an approved schedule fires at the first tick */
+  /**
+   * Default triggers switched on in this world; the others ship switched off, so a scenario starts only what it means to.
+   * A trigger is in effect as it lands, and a schedule that never ran fires at the first tick
+   */
   triggers?: AutomationName[];
   /** The graph build of the enabled projects; stopped unless the scenario builds the graph */
   graphBuild?: GraphBuildState;
@@ -70,9 +73,27 @@ function initRepo(dir: string, message: string, history: { message: string; path
   if (!history.length || git(dir, 'status', '--porcelain') !== '') git(dir, 'commit', '-q', '--allow-empty', '-m', message);
 }
 
-/** The harness workspace: this repository's automation definitions, as they are */
-function harnessRepo(dir: string) {
+/** A trigger's `events`, written inline or as a block list */
+const EVENTS = /^events:(.*)\n((?:[ \t]+- .*\n)*)/m;
+
+/** A default trigger switched off: no schedule, no events, no start on demand */
+const switchedOff = (text: string) =>
+  text
+    .replace(/\r\n/g, '\n')
+    .replace(/^schedule: .*\n/m, '')
+    .replace(EVENTS, 'events: []\n')
+    .replace(/^on_demand: .*$/m, 'on_demand: false');
+
+/**
+ * The harness workspace: this repository's automation definitions, as they are, with the default triggers of the
+ * automations the scenario does not switch on switched off
+ */
+function harnessRepo(dir: string, triggers: AutomationName[]) {
   cpSync(join(REPO, 'automations'), join(dir, 'automations'), { recursive: true });
+  for (const name of readdirSync(join(dir, 'automations'))) {
+    const file = join(dir, 'automations', name, 'trigger.md');
+    if (existsSync(file) && !triggers.includes(name as AutomationName)) writeFileSync(file, switchedOff(readFileSync(file, 'utf8')));
+  }
   const defs = join(REPO, 'knowledge-graph', 'Harness', 'Automation');
   for (const f of readdirSync(defs)) {
     put(dir, `knowledge-graph/Harness/Automation/${f}`, readFileSync(join(defs, f), 'utf8'));
@@ -249,7 +270,7 @@ export class Env {
       initRepo(this.path(p), 'Initial commit', HISTORY[p]);
     }
     mkdirSync(join(this.root, 'momentum'));
-    harnessRepo(join(this.root, 'momentum'));
+    harnessRepo(join(this.root, 'momentum'), opts.triggers ?? []);
 
     const admin = postgres(new URL('/postgres', this.databaseUrl).toString(), { onnotice: () => {} });
     const name = new URL(this.databaseUrl).pathname.slice(1);
@@ -349,6 +370,52 @@ export class Env {
     git(dir, 'add', '-A');
     git(dir, 'commit', '-q', '-m', message);
     return git(dir, 'rev-parse', 'HEAD');
+  }
+
+  /**
+   * The user switches a project's trigger on in one commit on its main line, as the harness ships it unless `fields`
+   * says otherwise; it is in effect as it lands, and this returns once the harness has indexed it. Verified unless said
+   * otherwise: the user's own edit, reviewed
+   */
+  async trigger(
+    project: string,
+    automation: AutomationName,
+    fields: { schedule?: string | null; events?: string[]; on_demand?: boolean } = {},
+    verified = true,
+  ): Promise<string> {
+    const file = `knowledge-graph/Harness/Trigger/${automation}.md`;
+    const shipped = readFileSync(join(REPO, 'automations', automation, 'trigger.md'), 'utf8').replace(/\r\n/g, '\n');
+    const field = (key: string) => shipped.match(new RegExp(`^${key}: (.*)$`, 'm'))?.[1];
+    const listed = shipped.match(EVENTS);
+    const shippedEvents = listed?.[1]?.trim() || `[${[...(listed?.[2] ?? '').matchAll(/- (.*)/g)].map((m) => m[1]!.trim()).join(', ')}]`;
+    const schedule = fields.schedule === undefined ? field('schedule') : fields.schedule === null ? undefined : `"${fields.schedule}"`;
+    const events = fields.events ? `[${fields.events.join(', ')}]` : shippedEvents;
+    const onDemand = fields.on_demand ?? field('on_demand') === 'true';
+    const current = this.show(project, file);
+    if (current === null) throw new Error(`${project} has no ${file}`);
+    const text = current
+      .replace(/\r\n/g, '\n')
+      .replace(/^schedule: .*\n/m, '')
+      .replace(/^verification: .*$/m, `verification: ${verified ? 'verified' : 'unverified'}`)
+      .replace(EVENTS, `${schedule ? `schedule: ${schedule}\n` : ''}events: ${events}\n`)
+      .replace(/^on_demand: .*$/m, `on_demand: ${onDemand}`);
+    const sha = this.commit(project, { [file]: text }, `Switch on the ${automation} trigger`);
+    const dir = this.path(project);
+    const indexed = (at: string | null | undefined) => {
+      if (!at) return false;
+      try {
+        git(dir, 'merge-base', '--is-ancestor', sha, at);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    for (const deadline = Date.now() + 60_000; ; ) {
+      const [row] = await this.sql<{ indexed_commit: string | null }[]>`select indexed_commit from harness.project where name = ${project}`;
+      if (indexed(row?.indexed_commit)) return sha;
+      if (Date.now() > deadline) throw new Error(`The harness did not index the ${automation} trigger of ${project} within a minute`);
+      await new Promise((r) => setTimeout(r, 500));
+    }
   }
 
   git(project: string, ...args: string[]): string {

@@ -53,7 +53,7 @@ const apiEntity = (extra: string) =>
     artifacts: ['src/server.js'],
   });
 
-// The user approves the triggers one by one as the work gets there
+// The user switches the triggers on one by one as the work gets there
 scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, step }) => {
   model.on('exploration proposes', { automation: 'exploration', kind: 'prompt' }, (t) => [
     move.entity(t, RESEARCH, {
@@ -96,9 +96,11 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
     );
     expect(testsPass(env, WS)).toBe(true);
     const since = new Date();
-    await app.approve(WS, 'Harness/Trigger/exploration');
+    // In effect as it lands: the user has not reviewed it
+    await env.trigger(WS, 'exploration', {}, false);
     const run = await api.automationRan(WS, 'exploration', since, 10 * 60_000);
     expect(run.trigger).toBe('schedule');
+    expect((await api.entity(WS, 'Harness/Trigger/exploration')).verification).toBe('unverified');
     expect(run.status).toBe('finished');
     // It was told the date, as every automation is
     expect(model.turns(run.id)[0]!.input).toMatch(/Today is \d{4}-\d{2}-\d{2}\./);
@@ -143,11 +145,11 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
   const plan = await step(1, async () => {
     await app.approve(WS, action);
     expect((await api.entity(WS, action)).sync).toBe('entity_ahead');
-    // The implementation trigger waits unverified in the feed: nothing implements the action yet
+    // The implementation trigger is switched off: nothing implements the action yet
     await new Promise((r) => setTimeout(r, 8000));
     expect(await api.runs(WS, 'implementation')).toEqual([]);
     const since = new Date();
-    await app.approve(WS, 'Harness/Trigger/preparation');
+    await env.trigger(WS, 'preparation');
     const run = await api.automationRan(WS, 'preparation', since, 15 * 60_000);
     expect(run.status).toBe('finished');
     expect(run.trigger).toBe('schedule');
@@ -214,10 +216,8 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
 
   const implemented = await step(2, async () => {
     // The validation trigger runs on landed work here, not on its nightly schedule
-    const file = 'knowledge-graph/Harness/Trigger/validation.md';
-    env.commit(WS, { [file]: env.show(WS, file)!.replace(/^schedule: .*\r?\n/m, '') }, 'Validate landed work only');
-    await app.approve(WS, 'Harness/Trigger/validation');
-    await app.approve(WS, 'Harness/Trigger/implementation');
+    await env.trigger(WS, 'validation', { schedule: null });
+    await env.trigger(WS, 'implementation');
     const before = env.head(WS);
     const since = new Date();
     await app.approve(WS, plan);

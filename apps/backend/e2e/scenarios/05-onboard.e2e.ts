@@ -8,7 +8,8 @@ import { expect, scenario } from '../support/fixtures.ts';
 const WS = 'todo-cli';
 // Every default trigger but optimization's, which runs in the harness workspace alone
 const TRIGGERS = 8;
-// The default triggers wait in the feed once the project is enabled, so the first build runs have room for two entities
+// The default triggers wait in the feed for review once the project is enabled, so the first build runs have room for two
+// entities; this world ships them switched off
 const FEED = TRIGGERS + 2;
 
 scenario('onboard', { settings: { feedSize: FEED } }, async ({ env, api, app, step, note }) => {

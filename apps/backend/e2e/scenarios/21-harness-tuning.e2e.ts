@@ -42,7 +42,7 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     const chat = await app.chat(WS, 'Which routes are there?');
     await api.runEnded(chat, 2 * 60_000);
     expect((await api.runs(WS, 'chat')).find((r) => r.id === chat)?.model).toBe('haiku');
-    await app.approve(WS, 'Harness/Trigger/consistency-check');
+    await env.trigger(WS, 'consistency-check');
     expect((await latest(WS, 'consistency-check', since)).model).toBe('opus');
   });
 
@@ -102,7 +102,7 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     }
     const before = env.head(HARNESS);
     const since = new Date();
-    await app.approve(HARNESS, 'Harness/Trigger/optimization');
+    await env.trigger(HARNESS, 'optimization');
     const run = await api.automationRan(HARNESS, 'optimization', since, 20 * 60_000);
     expect(run.status).toBe('finished');
     // It was told where the projects are
@@ -170,7 +170,7 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
       move.say('Explored.'),
     ]);
     const since = new Date();
-    await app.approve(HARNESS, 'Harness/Trigger/exploration');
+    await env.trigger(HARNESS, 'exploration');
     const run = await api.automationRan(HARNESS, 'exploration', since, 10 * 60_000);
     expect(run.status).toBe('finished');
     expect(env.show(HARNESS, code)).toBeNull();

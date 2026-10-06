@@ -80,7 +80,7 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
     await expect(app.text('Books API', false)).toBeVisible();
     await expect(app.text(/Unverified|Verified/, false)).toBeVisible();
 
-    // The default triggers wait in the feed: approve one, send another back
+    // The default triggers wait in the feed for review: approve one, send another back
     const [first, second] = (await api.feed()).items.filter((i) => i.type === 'Harness/Trigger');
     await app.approve(WS, first!.path);
     expect((await api.entity(WS, first!.path)).verification).toBe('verified');
