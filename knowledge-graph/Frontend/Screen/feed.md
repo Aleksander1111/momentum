@@ -22,10 +22,10 @@ kind: page
 Ranked cards from included projects, one on top, two behind.
 
 - Breadcrumb: logo, type pill, folders; verification and sync counters
-- A card changed since verified shows a diff: −/+ words, marks, diagrams Before/After/Diff
-- Linked entities open on a press; only web links open; selections go to chat
+- Changed since verified: a diff of words, marks, diagrams
+- Linked entities open; selections go to chat
 - Swipe right approves; left sends back with a comment
-- Issue cards add severity, concerns, options, the recommended one picked: right resolves with it; left takes a resolution or a reason not to
-- A reaction carries time on card and version; a refused one says why; polls every 15 s, queues offline
-- The top card stays until reacted to
+- Issue cards add severity, concerns, options, the recommended picked: right resolves with it; left takes a resolution or a reason not to
+- A reaction carries time on card and version; polls every 15 s, queues offline
+- The top card stays until reacted to: cards arriving above it come next; back on Feed, or its tab pressed, the top-ranked is first
 - Empty says why: nothing to review, or no project yet

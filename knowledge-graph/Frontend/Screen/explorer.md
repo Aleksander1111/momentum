@@ -24,11 +24,11 @@ kind: page
 
 Browse a workspace's entities by domain and type, search or ask them, or hand the exploration to an agent.
 
-- Workspace picker (shared with Chat and Metrics), entity total; a domain/type tree with counts; rows: domain, title, states
-- A workspace not included says nothing maps it, links to Settings
+- Project picker with logos, entity total; a domain/type tree with counts; rows: domain, title, states
+- A project not included says nothing maps it, links to Settings
 - Search, by words and meaning, replaces the tree; no match offers Enter to ask
 - A question, or Enter, is answered by [the search automation](Harness/Automation/search), linking its sources
 - A mic: spoken words search, a question is asked
 - "Explore through an agent" opens Chat, composer focused
-- A breadcrumb opens the tree at one folder
+- A link opens the tree at one folder; an empty one says so
 - Wide: the entity beside the tree; narrow: pushed
