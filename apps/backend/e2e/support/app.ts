@@ -238,7 +238,7 @@ export class App {
     // The app holds the card it showed first, from before its feed came in: the Feed tab pressed again shows the top-ranked
     await until('the card on top in the app', async () => {
       if (await this.text(item.title).isVisible()) return true;
-      await this.text('Feed').click();
+      await this.text('Feed').click({ timeout: 5_000 }).catch(() => {});
       return this.text(item.title).isVisible();
     }, 30_000, 1000);
     return item.title;
