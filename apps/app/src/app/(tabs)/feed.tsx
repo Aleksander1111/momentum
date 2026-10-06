@@ -24,6 +24,8 @@ import { IssueHead, IssueOptions } from '../../ui/IssueOptions';
 import { Btn } from '../../ui/parts';
 import { STATE_LABEL, StateIcon, Tip, type State } from '../../ui/StateBadge';
 import { useCornerRoom } from '../../ui/SettingsButton';
+import { useWorkspaces } from '../../lib/workspace';
+import { router } from 'expo-router';
 
 const THRESHOLD = 110;
 const FLING = 800;
@@ -260,6 +262,8 @@ function Sheet({
           <TextInput
             value={comment}
             onChangeText={setComment}
+            placeholder={issue ? 'How should it be resolved, or why not?' : 'What should change?'}
+            placeholderTextColor={C.muted}
             multiline
             autoFocus
             style={[
@@ -307,6 +311,21 @@ function Sheet({
   );
 }
 
+/** What the feed says without a card: where cards come from, or that nothing needs the user now */
+function Empty({ included }: { included: boolean }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 10 }}>
+      <H style={{ fontSize: 20, textAlign: 'center' }}>{included ? 'Nothing needs you right now' : 'No project included yet'}</H>
+      <T style={{ color: C.muted, fontSize: 14.5, lineHeight: 21, textAlign: 'center', maxWidth: 340 }}>
+        {included
+          ? 'Cards show up here as the runs write what needs your review.'
+          : 'Include a project in Settings: Momentum maps it into a knowledge graph, and what needs your review shows up here.'}
+      </T>
+      {included ? null : <Btn label="Open Settings" kind="primary" onPress={() => router.navigate('/settings')} style={{ marginTop: 8 }} />}
+    </View>
+  );
+}
+
 export default function Feed() {
   useTheme();
   const wide = useWide();
@@ -337,14 +356,24 @@ export default function Feed() {
       return withoutItem(f, v);
     }, feed.data);
   }, [feed.data, feed.dataUpdatedAt, reactions]);
-  const items = view?.items ?? [];
+  // The card on top stays there until the user reacts to it: an item a poll ranks above it comes next, so a swipe
+  // never lands on a card that slid in under the finger
+  const held = useRef<string | null>(null);
+  const items = useMemo(() => {
+    const all = view?.items ?? [];
+    const at = held.current ? all.findIndex((i) => entityKey(i) === held.current) : -1;
+    return at > 0 ? [all[at]!, ...all.slice(0, at), ...all.slice(at + 1)] : all;
+  }, [view]);
 
   const top = items[0];
   const topKey = top ? entityKey(top) : null;
   const topSince = useRef(Date.now());
   useEffect(() => {
     topSince.current = Date.now();
+    held.current = topKey;
   }, [topKey]);
+  const workspaces = useWorkspaces();
+  const included = (workspaces.data ?? []).some((w) => w.enabled);
 
   const [sheetFor, setSheetFor] = useState<{ item: FeedItem } | null>(null);
   const wash = useSharedValue(0);
@@ -366,7 +395,8 @@ export default function Feed() {
             style={[
               cardFrame(wide),
               cardSkin(),
-              { backgroundColor: C.behind2, transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
+              // Scaled from its top edge, so that edge shows above the card in front
+              { backgroundColor: C.behind2, transformOrigin: 'top', transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
             ]}
           />
         ) : null}
@@ -375,7 +405,7 @@ export default function Feed() {
             style={[
               cardFrame(wide),
               cardSkin(),
-              { backgroundColor: C.behind1, transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
+              { backgroundColor: C.behind1, transformOrigin: 'top', transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
             ]}
           />
         ) : null}
@@ -395,6 +425,7 @@ export default function Feed() {
             onDisapprove={() => setSheetFor({ item: top })}
           />
         ) : null}
+        {view && !top && workspaces.data ? <Empty included={included} /> : null}
       </View>
       {sheetFor ? (
         <Sheet
