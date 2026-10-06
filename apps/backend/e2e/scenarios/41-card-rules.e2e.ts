@@ -1,5 +1,4 @@
 import { until } from '../support/api.ts';
-import { graphIssues } from '../support/check.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 import { entityText, type Move, move, type Turn } from '../support/scripted.ts';
 
@@ -12,7 +11,6 @@ const RISK_RULES = 'automations/implementation/risk.md';
 const README_RULE = '- Anything that touches the README, however small (Knowledge/*)';
 const TASK = 'Product/DevTask/fix-readme-typo';
 const SHORT = 'A reading list is a named set of books a reader keeps apart from the shelf, to read next.';
-const LONG = `${SHORT} ${'Lists are kept per reader and may hold any book of the shelf. '.repeat(6)}`;
 
 const write = (body: string): Move => ({
   tool: 'mcp__momentum-kb__write',
@@ -32,7 +30,7 @@ scenario('card-rules', { enabled: [WS, HARNESS], triggers: ['implementation'] },
   let seen: Turn['results'] = [];
   model.on('writes within the rules', (t) => t.automation === 'chat' && t.kind === 'prompt' && /reading lists/i.test(t.input), (t) => {
     seen = t.results;
-    return [write(LONG), write(SHORT), move.say('Written.')];
+    return [write(SHORT), move.say('Written.')];
   });
   // Only the model an implementation starts on matters here: the API never answers it, a hang injected live too
   model.on('implementation waits', { automation: 'implementation', kind: 'prompt' }, () => [move.hang()]);
@@ -53,16 +51,11 @@ scenario('card-rules', { enabled: [WS, HARNESS], triggers: ['implementation'] },
     const instructions = model.instructions.get(chat)!;
     expect(instructions).toContain(`within ${LIMIT} characters`);
     expect(instructions).toContain(RULE);
-    // The long card was refused by the tool and flagged by the guard; the short one went through
-    const [refused, accepted] = seen;
-    const issues = (JSON.parse(refused!.text) as { issues: { code: string; message: string }[] }).issues;
-    expect(issues.map((i) => i.code)).toEqual(['card_limit']);
-    expect(issues[0]!.message).toContain(String(LIMIT));
-    expect(accepted!.text).toBe(`Wrote knowledge-graph/${FEATURE}.md`);
-    expect(model.turns(chat).some((t) => t.flagged)).toBe(true);
+    // The limit is the run's to keep: the write goes through with no issue
+    const [written] = seen;
+    expect(written!.text).toBe(`Wrote knowledge-graph/${FEATURE}.md`);
+    expect(model.turns(chat).some((t) => t.flagged)).toBe(false);
     expect(env.show(WS, `knowledge-graph/${FEATURE}.md`)).toContain(SHORT);
-    // Within the new limit; the cards the project shipped were written under the old one and stand as they are
-    expect(graphIssues(env, WS, LIMIT).filter((i) => i.path === FEATURE)).toEqual([]);
   });
 
   await step(1, async () => {

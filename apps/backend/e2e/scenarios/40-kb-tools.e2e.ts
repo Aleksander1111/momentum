@@ -30,10 +30,9 @@ const good = {
   body: '`GET /books?year=<year>` answers the books published that year, so a reader finds what came out when.',
   frontmatter: frontmatter([{ to: API, relation: 'extends' }]),
 };
-// Over the card limit, and depending on an entity that does not exist
+// Depending on an entity that does not exist
 const bad = {
   ...good,
-  body: `${good.body} ${'Every book of that year, in the order they were added, with nothing left out. '.repeat(12)}`,
   frontmatter: frontmatter([{ to: 'Product/Feature/tags', relation: 'depends_on' }]),
 };
 
@@ -89,10 +88,10 @@ scenario('kb-tools', { enabled: [WS] }, async ({ env, api, app, model, step }) =
 
   await step(1, async () => {
     const [, , , , refused, accepted] = seen;
-    // Refused with what the guard raises: the limit and the reference that does not resolve; the file is written all the same
+    // Answered with what the guard raises: the reference that does not resolve; the file is written all the same
     const answer = JSON.parse(refused!.text) as { wrote: string; issues: { code: string; message: string }[] };
     expect(answer.wrote).toBe(`knowledge-graph/${FEATURE}.md`);
-    expect(answer.issues.map((i) => i.code).sort()).toEqual(['card_limit', 'unresolved_reference']);
+    expect(answer.issues.map((i) => i.code)).toEqual(['unresolved_reference']);
     expect(answer.issues.find((i) => i.code === 'unresolved_reference')?.message).toContain('Product/Feature/tags');
     expect(accepted!.text).toBe(`Wrote knowledge-graph/${FEATURE}.md`);
     // The guard told the run at once, after the bad write and not before

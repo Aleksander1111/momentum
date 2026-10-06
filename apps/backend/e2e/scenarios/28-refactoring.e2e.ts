@@ -10,7 +10,6 @@ const WS = 'bookshelf-api';
 const API = 'Architecture/Api/books-api';
 const STORE = 'Architecture/Component/book-store';
 const DESIGN = 'Governance/DesignDoc/design';
-const RETIRE = 'Harness/Plan/retire-the-design-doc';
 const kg = (p: string) => `knowledge-graph/${p}.md`;
 /** The server once its routes are split out: it hands every request to them and answers 404 for the rest */
 const SPLIT_SERVER = `import { createServer } from 'node:http';
@@ -75,16 +74,8 @@ scenario('refactoring', { enabled: [WS], graphBuild: 'complete' }, async ({ env,
       const api = readFileSync(t.file(kg(API)), 'utf8')
         .replace('verification: verified', 'verification: unverified')
         .replace(`  - to: ${DESIGN}\n    relation: implements\n`, '');
-      moves.push(
-        move.write(t, kg(API), api),
-        move.entity(t, RETIRE, {
-          type: 'Harness/Plan',
-          title: 'Retire the design document',
-          card: '`docs/design.md` was deleted; the API card says what it said.',
-          impact: [1, 0, 0],
-          references: [{ to: DESIGN, relation: 'retires' }],
-        }),
-      );
+      // Left with no artifact, the design document's entity is spent: removed, and the API no longer points at it
+      moves.push(move.write(t, kg(API), api), move.remove(t, kg(DESIGN)));
     }
     return [...moves, move.say('Followed the files.')];
   });
@@ -127,29 +118,22 @@ scenario('refactoring', { enabled: [WS], graphBuild: 'complete' }, async ({ env,
   });
 
   await step(2, async () => {
+    const title = (await api.entity(WS, DESIGN)).title;
     const since = new Date();
     env.commit(WS, { 'docs/design.md': null }, 'Drop the outdated design document');
     const run = await summarization(since);
     expect(run.status).toBe('finished');
     expect(model.turns(run.id)[0]!.input).toMatch(/docs\/design\.md \(deleted\)/);
-    // Its entity, left with no artifact, is proposed for retirement
-    const plans = (await Promise.all((await entitiesOf(env, WS, run.id)).map((p) => api.entity(WS, p)))).filter(
-      (e) => e.type === 'Harness/Plan' && refs(e, 'retires').includes(DESIGN),
-    );
-    expect(plans, 'a plan retiring the design document').toHaveLength(1);
-    const plan = plans[0]!.path;
-    // The API still says it implements the design: the user has the reference dropped from the API's page
-    const holding = async () => (await api.referencing(WS, DESIGN)).filter((p) => p !== plan);
-    if ((await holding()).length) {
-      const { runId } = await api.chat(WS, `The design document was deleted: drop every reference to ${DESIGN} from this card.`, API);
-      expect((await api.runEnded(runId, 10 * 60_000)).status).toBe('finished');
-      expect(await holding()).toEqual([]);
-      await approveAll(runId);
-    }
-    // Once nothing references it, approving the plan retires it
-    await approveAll(run.id);
+    // Its entity, left with no artifact, is removed by the run, and nothing points at it any more
     expect(env.show(WS, kg(DESIGN))).toBeNull();
     expect(await api.referencing(WS, DESIGN)).toEqual([]);
+    // Reported, not proposed: a card in the feed names what went, and the run's timeline event lists it
+    const report = await until('the removal report in the feed', async () => (await api.feed()).items.find((i) => i.workspace === WS && i.type === 'Harness/Report'));
+    expect(report.title).toBe('Removed by the summarization run');
+    expect((await api.entity(WS, report.path)).markdown).toContain(DESIGN);
+    const event = await until('the run on the timeline', async () => (await api.timeline({ workspace: WS })).events.find((e) => e.runId === run.id));
+    expect(event.facts.removed).toEqual([{ path: DESIGN, title }]);
+    await approveAll(run.id);
     expect(graphIssues(env, WS)).toEqual([]);
     expect(await missingArtifacts(env, WS, env.sql)).toEqual([]);
   });

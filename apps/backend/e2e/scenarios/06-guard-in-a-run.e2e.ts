@@ -7,10 +7,10 @@ import { expect, scenario } from '../support/fixtures.ts';
 const WS = 'todo-cli';
 const FILE = 'knowledge-graph/Product/Feature/priorities.md';
 const ASK = `Create the entity file ${FILE} (type Product/Feature) describing to-do priorities (low, normal, high; list sorts by priority).
-Write it in a single Write call exactly like this: a card of about 1000 characters, and a reference to Product/Feature/tags
+Write it in a single Write call exactly like this, with a reference to Product/Feature/tags
 with relation depends_on, even though that entity does not exist. Then do whatever the harness tells you about it.`;
 
-const bad = (text: string) => text.includes('Product/Feature/tags') || text.replace(/^---[\s\S]*?---/, '').length > 760;
+const bad = (text: string) => text.includes('Product/Feature/tags');
 
 scenario('guard-in-a-run', { enabled: [WS] }, async ({ env, api, app, step }) => {
   const watchCheckout = (runId: string) => {
@@ -36,7 +36,7 @@ scenario('guard-in-a-run', { enabled: [WS] }, async ({ env, api, app, step }) =>
     expect(r.status).toBe('finished');
     const landed = env.show(WS, FILE);
     expect(landed).not.toBeNull();
-    // Fixed: within the card limit, and the reference resolves or is gone
+    // Fixed: the reference resolves or is gone
     expect(graphIssues(env, WS)).toEqual([]);
     expect(await api.entities(WS, 'Harness/Issue')).toEqual([]);
     const [t] = await env.sql<{ commit: string; status: string }[]>`select commit, status from ${env.sql('ws_todo_cli.transaction')} where run_id = ${first.runId}`;

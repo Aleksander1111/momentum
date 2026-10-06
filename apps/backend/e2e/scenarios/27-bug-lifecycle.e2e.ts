@@ -8,7 +8,6 @@ const WS = 'bookshelf-api';
 const API = 'Architecture/Api/books-api';
 const BUG = 'Product/Bug/empty-title-accepted';
 const DUPLICATE = 'Product/Bug/blank-titles-allowed';
-const RETIRE = 'Harness/Plan/retire-duplicate-bug';
 const REGRESSION = 'Harness/Issue/listing-ignores-limit';
 const kg = (p: string) => `knowledge-graph/${p}.md`;
 const FIX = "if (typeof input.title !== 'string' || !input.title.trim() || typeof input.author !== 'string') {";
@@ -137,30 +136,21 @@ scenario('bug-lifecycle', { enabled: [WS], triggers: ['implementation'] }, async
     await until('the bug counted fixed', async () => (await bugs()) === 0);
   });
 
-  model.on('a duplicate retired', (t) => t.automation === 'chat' && t.target === DUPLICATE && t.kind === 'prompt', (t) => [
-    move.entity(t, RETIRE, {
-      type: 'Harness/Plan',
-      title: 'Retire the duplicate bug',
-      card: `The report repeats ${BUG}, fixed already.`,
-      impact: [1, 0, 0],
-      references: [{ to: DUPLICATE, relation: 'retires' }],
-    }),
-    move.say('It duplicates the fixed bug; proposed retiring it.'),
+  // Nothing points at the duplicate: the chat removes it, and the harness reports what went
+  model.on('a duplicate removed', (t) => t.automation === 'chat' && t.target === DUPLICATE && t.kind === 'prompt', (t) => [
+    move.remove(t, kg(DUPLICATE)),
+    move.say(`It duplicates ${BUG}, fixed already; removed it.`),
   ]);
 
   await step(2, async () => {
     env.commit(WS, { [kg(DUPLICATE)]: bug('Blank titles allowed', 'A book can be saved with a blank title.') }, 'Report blank titles');
     await until('the duplicate in the feed', async () => (await api.feed()).items.some((i) => i.path === DUPLICATE));
-    const chat = await app.sendBack(WS, DUPLICATE, `Duplicate of ${filed}, which is fixed. Retire it.`);
+    const chat = await app.sendBack(WS, DUPLICATE, `Duplicate of ${filed}, which is fixed. Remove it.`);
     expect((await api.runEnded(chat, 10 * 60_000)).status).toBe('finished');
-    // The chat proposes retiring it; approving the plan carries it out
-    const plans = (await Promise.all((await entitiesOf(env, WS, chat)).map((p) => api.entity(WS, p)))).filter(
-      (e) => e.type === 'Harness/Plan' && refs(e, 'retires').includes(DUPLICATE),
-    );
-    expect(plans, 'a plan retiring the duplicate').toHaveLength(1);
-    await app.approve(WS, plans[0]!.path);
+    // The chat removed it itself; its timeline event says what went, with the title it had
     expect(env.show(WS, kg(DUPLICATE))).toBeNull();
-    if (plans[0]!.references.filter((r) => r.direction === 'out').every((r) => r.relation === 'retires')) expect(env.show(WS, kg(plans[0]!.path))).toBeNull();
+    const event = await until('the chat on the timeline', async () => (await api.timeline({ workspace: WS })).events.find((e) => e.runId === chat));
+    expect(event.facts.removed).toEqual([{ path: DUPLICATE, title: 'Blank titles allowed' }]);
     await until('no bug counted open', async () => (await bugs()) === 0);
   });
 

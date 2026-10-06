@@ -16,8 +16,8 @@ const LISTING = 'Product/Feature/listing';
 
 const feature = (title: string, card: string, references: { to: string; relation: string }[] = []) =>
   entityText({ type: 'Product/Feature', origin: 'requested', title, card, references });
-// Over the card limit, and depending on an entity that does not exist
-const invalid = (title: string) => feature(title, `${title} for to-dos. ${'Every detail spelled out at length. '.repeat(30)}`, [{ to: 'Product/Feature/tags', relation: 'depends_on' }]);
+// Depending on an entity that does not exist
+const invalid = (title: string) => feature(title, `${title} for to-dos.`, [{ to: 'Product/Feature/tags', relation: 'depends_on' }]);
 
 /** The run has written an entity under a type path: the moment a fault cuts it off */
 const wroteUnder = (t: Turn, type: string) => t.wrote.some((f) => f.startsWith(`knowledge-graph/${type}/`));

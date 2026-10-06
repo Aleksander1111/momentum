@@ -109,8 +109,7 @@ export class Guard {
   ) {}
 
   private async validation() {
-    const { cards } = await this.settings.values();
-    return { characterLimit: cards.characterLimit, types: this.workspaces.types };
+    return { types: this.workspaces.types };
   }
 
   /** Card blocks, the diff against the last verified version, embedding and index row for one entity at `commit` */
@@ -235,9 +234,10 @@ export class Guard {
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
     }
-    // A definition is materialized as it stands on the harness main line, whoever changed it
+    // The definitions are materialized as they stand on the harness main line, whoever changed them: an entity or its files
     if (ws.name === config.harnessName && changed) {
-      for (const p of changed) if (p.startsWith('Harness/Automation/')) this.bus.emit('definition_changed', { path: p });
+      const touched = [...changed].find((p) => p.startsWith('Harness/Automation/')) ?? artifactFiles.find((f) => f.startsWith('automations/'));
+      if (touched) this.bus.emit('definition_changed', { path: touched });
     }
     await this.recordMetrics(ws);
   }
@@ -673,18 +673,17 @@ export class Guard {
 
   /** Understanding and implementation metrics, recorded with every validated transaction */
   async recordMetrics(ws: Workspace): Promise<void> {
-    const { cards } = await this.settings.values();
     const s = ws.index.schema;
     const [u] = await ws.index.sql.unsafe<{ total: number; inconsistent: number; open_issues: number; bugs: number; defects: number }[]>(
       `select count(*)::int as total,
-        count(*) filter (where char_length(e.card) > $1 or exists (
+        count(*) filter (where exists (
           select 1 from ${s}.entity_reference x where x.from_path = e.path
           and not exists (select 1 from ${s}.entity t where t.path = x.to_path)))::int as inconsistent,
-        count(*) filter (where e.type = any($2::text[]) and e.verification = 'unverified')::int as open_issues,
+        count(*) filter (where e.type = any($1::text[]) and e.verification = 'unverified')::int as open_issues,
         count(*) filter (where e.type = 'Product/Bug' and not (e.verification = 'verified' and e.sync = 'synced'))::int as bugs,
         count(*) filter (where e.type = 'Harness/Issue' and e.frontmatter->>'source' = 'validation' and e.verification = 'unverified')::int as defects
       from ${s}.entity e`,
-      [cards.characterLimit, ISSUE_TYPES],
+      [ISSUE_TYPES],
     );
     if (!u) return;
     const consistency = u.total === 0 ? 1 : 1 - u.inconsistent / u.total;

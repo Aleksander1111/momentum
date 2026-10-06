@@ -18,25 +18,19 @@ const root = mkdtempSync(join(tmpdir(), 'momentum-approval-'));
 const repo = join(root, 'shop');
 const git = (...args: string[]) =>
   execFileSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@localhost', ...args], { cwd: repo, encoding: 'utf8' }).trim();
-const onMain = () => git('ls-tree', '-r', '--name-only', 'main', 'knowledge-graph');
 
-function entity(type: string, title: string, card: string, o: { verification?: string; references?: { to: string; relation: string }[] } = {}) {
+function entity(type: string, title: string, card: string, o: { verification?: string; sync?: string; references?: { to: string; relation: string }[] } = {}) {
   const refs = o.references?.length ? `\n${o.references.map((r) => `  - to: ${r.to}\n    relation: ${r.relation}`).join('\n')}` : ' []';
-  return `---\ntype: ${type}\norigin: user\nverification: ${o.verification ?? 'verified'}\nsync: synced\nproduct_impact: 2\ntimeline_impact: 2\nunlocks: 2\nreferences:${refs}\nartifacts: []\n---\n# ${title}\n\n${card}\n`;
+  return `---\ntype: ${type}\norigin: user\nverification: ${o.verification ?? 'verified'}\nsync: ${o.sync ?? 'synced'}\nproduct_impact: 2\ntimeline_impact: 2\nunlocks: 2\nreferences:${refs}\nartifacts: []\n---\n# ${title}\n\n${card}\n`;
 }
 const FILES: Record<string, string> = {
   'Product/Feature/search': entity('Product/Feature', 'Search', 'Find a book by its title.', { verification: 'unverified' }),
-  'Product/Feature/csv-export': entity('Product/Feature', 'CSV export', 'Export the books as CSV.'),
-  'Product/Feature/json-export': entity('Product/Feature', 'JSON export', 'Export the books as JSON.'),
+  // Approved, waiting for its implementation
+  'Product/Feature/json-export': entity('Product/Feature', 'JSON export', 'Export the books as JSON.', { sync: 'entity_ahead' }),
+  // What the implementation landed, for the user to approve
   'Architecture/Component/exporter': entity('Architecture/Component', 'Exporter', 'Writes the JSON export.', {
-    references: [{ to: 'Product/Feature/json-export', relation: 'implements' }],
-  }),
-  'Harness/Plan/retire-exports': entity('Harness/Plan', 'Retire the exports', 'Nobody exports any more.', {
     verification: 'unverified',
-    references: [
-      { to: 'Product/Feature/csv-export', relation: 'retires' },
-      { to: 'Product/Feature/json-export', relation: 'retires' },
-    ],
+    references: [{ to: 'Product/Feature/json-export', relation: 'implements' }],
   }),
 };
 
@@ -47,16 +41,13 @@ let approval: Approval;
 beforeAll(async () => {
   mkdirSync(repo);
   git('init', '-q', '-b', 'main');
-  // The plan comes in a commit of its own, as a run proposes it: what lands with it is part of its proposal
-  for (const group of [Object.keys(FILES).filter((p) => !p.startsWith('Harness/')), ['Harness/Plan/retire-exports']]) {
-    for (const path of group) {
-      const file = join(repo, 'knowledge-graph', `${path}.md`);
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, FILES[path]!);
-    }
-    git('add', '-A');
-    git('commit', '-q', '-m', `Add ${group.length} entities`);
+  for (const [path, text] of Object.entries(FILES)) {
+    const file = join(repo, 'knowledge-graph', `${path}.md`);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
   }
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Add the entities');
 
   db = await scratchDatabase('approval');
   await migrateHarness(db.sql);
@@ -95,21 +86,17 @@ describe('approval', () => {
   });
 
   it('refuses a card that changed after the user saw it', async () => {
-    await expect(approval.approve('shop', 'Harness/Plan/retire-exports', 0, 'a version never shown')).rejects.toThrow(Conflict);
-    expect(onMain()).toContain('knowledge-graph/Harness/Plan/retire-exports.md');
+    const start = git('rev-parse', 'main');
+    await expect(approval.approve('shop', 'Architecture/Component/exporter', 0, 'a version never shown')).rejects.toThrow(Conflict);
+    expect(git('rev-parse', 'main')).toBe(start);
   });
 
-  it('retires what nothing else references, keeps the rest, and is carried out with them', async () => {
-    const version = await ws.index.version('Harness/Plan/retire-exports');
-    await approval.approve('shop', 'Harness/Plan/retire-exports', 500, version!);
-    const files = onMain();
-    expect(files).not.toContain('knowledge-graph/Product/Feature/csv-export.md');
-    expect(files).toContain('knowledge-graph/Product/Feature/json-export.md');
-    expect(files).not.toContain('knowledge-graph/Harness/Plan/retire-exports.md');
-    const message = git('log', '-1', '--format=%B', 'main');
-    expect(message).toContain('Retire Product/Feature/csv-export');
-    expect(message).toContain('Keep Product/Feature/json-export: still referenced by Architecture/Component/exporter');
-    expect(message).toContain('Carried out, Harness/Plan/retire-exports is retired with them');
-    expect(await ws.index.row('Product/Feature/csv-export')).toBeNull();
+  it('brings what an approved result implements back in sync, in the same commit', async () => {
+    const version = await ws.index.version('Architecture/Component/exporter');
+    await approval.approve('shop', 'Architecture/Component/exporter', 500, version!);
+    expect(git('show', 'main:knowledge-graph/Architecture/Component/exporter.md')).toMatch(/^verification: verified$/m);
+    expect(git('show', 'main:knowledge-graph/Product/Feature/json-export.md')).toMatch(/^sync: synced$/m);
+    expect(git('log', '-1', '--format=%B', 'main')).toContain('Bring Product/Feature/json-export back in sync');
+    expect((await ws.index.row('Product/Feature/json-export'))?.sync).toBe('synced');
   });
 });

@@ -430,7 +430,7 @@ export class Runner {
       embed: this.embed,
       checkout: r.checkout,
       runId: r.id,
-      validation: async () => ({ characterLimit: cards.characterLimit, types: this.workspaces.types }),
+      validation: async () => ({ types: this.workspaces.types }),
       types: () => [...this.workspaces.types.values()],
       recordAgentMetric: async (m) => {
         await ws.index.sql`insert into ${this.t(ws, 'agent_metric')} ${ws.index.sql({
