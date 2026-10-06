@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { ensureCheckout, head, land, mergeBase, restorePath, show, workingChanges } from '../src/git.ts';
+import { commitAll, ensureCheckout, head, land, landCommit, mergeBase, nonLinear, restorePath, show, workingChanges } from '../src/git.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'momentum-git-'));
 const repo = join(dir, 'repo');
@@ -43,5 +43,84 @@ describe('putting paths back before landing', () => {
     expect(await show(repo, 'refs/heads/main', 'src/auth.ts')).toBe('safe\n');
     expect(await show(repo, 'refs/heads/main', 'src/kept.ts')).toBe('kept\n');
     expect(await show(repo, 'refs/heads/main', 'src/added.ts')).toBeNull();
+  });
+});
+
+/** A repository on main with one commit of these files */
+function repository(name: string, files: Record<string, string>): string {
+  const root = join(dir, name);
+  mkdirSync(root, { recursive: true });
+  git(root, 'init', '-q', '-b', 'main');
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(join(root, path, '..'), { recursive: true });
+    write(root, path, text);
+  }
+  git(root, 'add', '-A');
+  git(root, 'commit', '-q', '-m', 'Start');
+  return root;
+}
+const commitIn = (root: string, files: Record<string, string>, message: string) => {
+  for (const [path, text] of Object.entries(files)) write(root, path, text);
+  git(root, 'add', '-A');
+  git(root, 'commit', '-q', '-m', message);
+};
+
+describe('one straight line', () => {
+  it('names a branch, a detached HEAD and a merge, and nothing on a plain line', async () => {
+    const root = repository('line', { 'a.txt': 'a\n' });
+    const start = await head(root);
+    expect(await nonLinear(root, start)).toEqual([]);
+
+    git(root, 'branch', 'side');
+    expect(await nonLinear(root, start)).toEqual(['it has a branch besides main: side']);
+
+    git(root, 'checkout', '-q', 'side');
+    commitIn(root, { 'b.txt': 'b\n' }, 'On the side');
+    git(root, 'checkout', '-q', 'main');
+    commitIn(root, { 'a.txt': 'a2\n' }, 'On main');
+    git(root, '-c', 'user.name=test', '-c', 'user.email=test@localhost', 'merge', '-q', '--no-ff', '-m', 'Merge', 'side');
+    git(root, 'branch', '-D', 'side');
+    const [merge] = await nonLinear(root, start);
+    expect(merge).toMatch(/^merge commits landed on main: [0-9a-f]{7}$/);
+    // Taken as it stands once the user enables it there
+    expect(await nonLinear(root, await head(root))).toEqual([]);
+
+    git(root, 'checkout', '-q', '--detach');
+    expect(await nonLinear(root)).toEqual(['its HEAD is detached from any branch']);
+  });
+});
+
+describe('landing on a main line that moved', () => {
+  it('replays the run as one commit on the new tip', async () => {
+    const root = repository('replay', { 'a.txt': 'a\n', 'b.txt': 'b\n' });
+    const run = join(dir, 'replay-run');
+    await ensureCheckout(root, run, 'main');
+    write(run, 'a.txt', 'run\n');
+    commitIn(root, { 'b.txt': 'user\n' }, 'The user meanwhile');
+    const tip = await head(root);
+
+    const landed = await landCommit(root, 'main', (await commitAll(run, 'The run'))!, 'The run');
+    expect(landed).toMatchObject({ conflicts: [], changed: ['a.txt'] });
+    expect(git(root, 'rev-list', '--parents', '-n', '1', 'main').trim().split(' ')).toEqual([landed!.commit, tip]);
+    expect(await show(root, 'refs/heads/main', 'a.txt')).toBe('run\n');
+    expect(await show(root, 'refs/heads/main', 'b.txt')).toBe('user\n');
+  });
+
+  it("takes the run's side of a conflicting file, with what the harness raises in the same commit", async () => {
+    const root = repository('conflict', { 'a.txt': 'a\n' });
+    const run = join(dir, 'conflict-run');
+    await ensureCheckout(root, run, 'main');
+    write(run, 'a.txt', 'run\n');
+    commitIn(root, { 'a.txt': 'user\n' }, 'The user meanwhile');
+
+    const raised: string[][] = [];
+    const landed = await landCommit(root, 'main', (await commitAll(run, 'The run'))!, 'The run', async (conflicts) => {
+      raised.push(conflicts);
+      return [{ path: 'knowledge-graph/Harness/Conflict/run.md', content: 'conflict\n' }];
+    });
+    expect(raised).toEqual([['a.txt']]);
+    expect(landed?.conflicts).toEqual(['a.txt']);
+    expect(await show(root, 'refs/heads/main', 'a.txt')).toBe('run\n');
+    expect(await show(root, 'refs/heads/main', 'knowledge-graph/Harness/Conflict/run.md')).toBe('conflict\n');
   });
 });

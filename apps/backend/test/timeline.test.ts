@@ -1,19 +1,15 @@
-import { connect, migrateHarness, migrateWorkspace, type Sql } from '@momentum/kb';
+import { migrateHarness, migrateWorkspace, type Sql } from '@momentum/kb';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { scratchDatabase } from '../../../packages/kb/test/database.ts';
 import { createBus } from '../src/events.ts';
 import { describeRun, reactionEvent, runEvent, Timeline } from '../src/timeline.ts';
 
-process.loadEnvFile(join(import.meta.dirname, '../../../.env'));
 // A database of its own: the timeline is harness-wide, so the live one is never touched
-const url = new URL(process.env.DATABASE_URL!);
-const name = `momentum_timeline_${process.pid}`;
-const admin = postgres(new URL('/postgres', url).toString(), { onnotice: () => {} });
-url.pathname = `/${name}`;
+let db: Awaited<ReturnType<typeof scratchDatabase>>;
 let sql: Sql;
 let timeline: Timeline;
 // The project's repository, where what a run landed is read from its commit
@@ -29,8 +25,8 @@ beforeAll(async () => {
   git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'Summarize the goals\n\nThe body');
   const commit = git('rev-parse', 'HEAD');
 
-  await admin.unsafe(`create database ${name}`);
-  sql = connect(url.toString());
+  db = await scratchDatabase('timeline');
+  sql = db.sql;
   await migrateHarness(sql);
   await sql`insert into harness.project (name, path, enabled) values ('shop', ${repo}, true)`;
   await migrateWorkspace(sql, 'shop');
@@ -47,9 +43,7 @@ beforeAll(async () => {
 }, 120_000);
 
 afterAll(async () => {
-  await sql?.end();
-  await admin.unsafe(`drop database if exists ${name} with (force)`);
-  await admin.end();
+  await db?.drop();
   rmSync(repo, { recursive: true, force: true });
 });
 

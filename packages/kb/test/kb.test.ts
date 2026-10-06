@@ -2,13 +2,14 @@ import { parseEntity } from '@momentum/entity';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { connect, createEmbedder, crossProjectFeed, migrateHarness, migrateWorkspace, WorkspaceIndex } from '../src/index.ts';
+import { createEmbedder, crossProjectFeed, migrateHarness, migrateWorkspace, WorkspaceIndex, type Sql } from '../src/index.ts';
+import { scratchDatabase } from './database.ts';
 
-process.loadEnvFile(join(import.meta.dirname, '../../../.env'));
-const sql = connect();
 const embed = createEmbedder();
-const ws = `kbtest${process.pid}`;
-const index = new WorkspaceIndex(sql, ws);
+const ws = 'kbtest';
+let db: Awaited<ReturnType<typeof scratchDatabase>>;
+let sql: Sql;
+let index: WorkspaceIndex;
 const fixture = parseEntity(readFileSync(join(import.meta.dirname, '../../entity/test/fixtures/private-mesh.md'), 'utf8'));
 
 async function put(path: string, title: string, body: string, refs: { to: string; relation: string }[] = []) {
@@ -19,6 +20,9 @@ async function put(path: string, title: string, body: string, refs: { to: string
 }
 
 beforeAll(async () => {
+  db = await scratchDatabase('kb');
+  sql = db.sql;
+  index = new WorkspaceIndex(sql, ws);
   await migrateHarness(sql);
   await migrateWorkspace(sql, ws);
   await put('Architecture/Api/session', 'Session on the API', 'Per-user session token in an httpOnly cookie.');
@@ -28,9 +32,18 @@ beforeAll(async () => {
   await put('Product/Feature/offline-feed', 'Offline feed', 'The last polled feed stays readable without the network.');
 }, 180_000);
 
-afterAll(async () => {
-  await sql.unsafe(`drop schema if exists ${index.schema} cascade`);
-  await sql.end();
+afterAll(() => db?.drop());
+
+describe('migrations', () => {
+  it('run again on a database they built, keeping what it holds', async () => {
+    const before = await index.paths();
+    await migrateHarness(sql);
+    await migrateWorkspace(sql, ws);
+    await migrateHarness(sql);
+    await migrateWorkspace(sql, ws);
+    expect(await index.paths()).toEqual(before);
+    expect(before.size).toBe(3);
+  });
 });
 
 describe('workspace index', () => {

@@ -82,7 +82,8 @@ export async function nonLinear(repo: string, since?: string | null): Promise<st
   const line = await currentBranch(repo).catch(() => null);
   if (!line) reasons.push('its HEAD is detached from any branch');
   const branches = (await git(repo, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'])).split('\n').map((b) => b.trim()).filter(Boolean);
-  const others = branches.filter((b) => b !== line);
+  // Detached, the one branch there is is the line it left, not a second one
+  const others = line ? branches.filter((b) => b !== line) : branches.length > 1 ? branches : [];
   if (others.length > 0) reasons.push(`it has ${others.length === 1 ? 'a branch' : 'branches'} besides ${line ?? 'its line'}: ${others.join(', ')}`);
   if (since && line) {
     const merges = await mergesBetween(repo, since, `refs/heads/${line}`);
