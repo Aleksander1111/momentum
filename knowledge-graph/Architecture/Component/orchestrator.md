@@ -20,9 +20,9 @@ artifacts:
 ---
 # Orchestrator
 
-Runs the loops of enabled projects; the CLI's is passive and never ticks.
+Runs the loops of enabled projects; the CLI's never ticks.
 
-- **Tick**: rediscovers repos; disables a project no longer one line, skips one git cannot read; indexes main lines; with feed room, queues due triggers and a build run; starts queued runs: one automation run per project, user runs at once
+- **Tick**: rediscovers repos; disables a project no longer one line, skips one git cannot read; prunes hourly; indexes main lines; with feed room, queues due triggers and a build run; starts queued runs: one automation run per project, user runs at once
 - **Events**: entity_ahead → implementation, implementation_finished → validation, artifact_ahead → one summarization run (plus new uncovered files)
 - **Enable**: refused unless one line; materializes, indexes, commits default triggers, builds
 - **Disable**: stops a build; **reset** (not the harness): ends runs, removes checkouts, deletes the graph in one commit, drops the index

@@ -18,7 +18,9 @@ Postgres with pgvector, the queryable side of the knowledge base, migrated idemp
 
 | Schema | Holds |
 |---|---|
-| harness | project, setting, credential, session, usage_sample, voice_cursor |
-| ws_<workspace> | entity (tsvector, 384-dim embedding, card diff while unverified), entity_state, entity_artifact, entity_reference, automation, run (usage, model, risk, restarts, interview, targets), run_message, chat, transaction, attention_ranking, attention_metric, attention_pattern (its Harness/Pattern, accepted when approved), understanding_metric, agent_metric, usage_share, implementation_metric |
+| harness | project, setting, credential, session, usage_sample, voice_cursor, run_ref |
+| ws_<workspace> | entity (tsvector, 384-dim embedding, card diff), entity_state, entity_artifact, entity_reference, automation, run, run_message, chat, transaction, attention_*, understanding/agent/implementation metrics, usage_share |
 
-Renames mapping to graph-build; seeds entity_state.
+- Status columns checked against the contract's enums, replaced each start, `not valid` for older rows
+- Indexed for metrics, the run queue, chats on an entity
+- Hourly: expired sessions and limit readings over 35 days deleted

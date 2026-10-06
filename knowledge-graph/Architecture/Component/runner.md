@@ -26,10 +26,10 @@ artifacts:
 
 One Claude Code session per run, in a detached main-line checkout.
 
-- **States**: start, message, kill one at a time per run, each a guarded step; a run killed queued never starts
-- **Messages**: in order; a queued run's join its prompt; bookkeeping (shared words) stays out of chats
+- **States**: start, message, kill one at a time per run, each guarded; one killed queued never starts
+- **Messages**: in order; a queued run's join its prompt; bookkeeping stays out of chats
 - **Stop hook**: artifacts, build documents summarized once per state; results `implements` target
-- **Finish**: never rejects; guard lands it; usage, metrics; failed summarization: targets artifact_ahead; an unreported build run fails, 3 in a row stop the build
-- **Restart**: lost runs resume at most twice
+- **Finish**: never rejects; guard lands it; usage, metrics; failed summarization: targets artifact_ahead; 3 failed build runs in a row stop the build
+- **Restart**: lost runs resume ≤2 times; entities no open run holds leave updating
 - **Timeline**: an event per run; chats, interviews when failed
 - **Chat**: transcript `chats/<id>.jsonl`
