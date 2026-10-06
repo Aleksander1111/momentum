@@ -86,6 +86,8 @@ export const Inline: z.ZodType<Inline> = z.lazy(() =>
     z.object({ t: z.literal('del'), c: z.array(Inline) }),
   ]),
 );
+// Named in the OpenAPI document: the card's text nests, so clients meet it by reference
+z.globalRegistry.add(Inline, { id: 'CardInline' });
 
 /** A diff mark: text added or removed since the last verified version */
 export const Mark = z.enum(['ins', 'del']);
@@ -148,6 +150,7 @@ export const Block: z.ZodType<Block> = z.lazy(() =>
     z.object({ t: z.literal('del'), c: z.array(Block) }),
   ]),
 );
+z.globalRegistry.add(Block, { id: 'CardBlock' });
 
 export const Card = z.array(Block);
 export type Card = z.infer<typeof Card>;
@@ -213,6 +216,7 @@ export const TypeNode: z.ZodType<TypeNode> = z.lazy(() =>
     entities: z.array(EntityListItem),
   }),
 );
+z.globalRegistry.add(TypeNode, { id: 'TypeNode' });
 
 export const TypesResponse = z.object({
   workspace: z.string(),

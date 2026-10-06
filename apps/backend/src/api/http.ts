@@ -35,6 +35,7 @@ import {
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import {
   jsonSchemaTransform,
+  jsonSchemaTransformObject,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -49,6 +50,22 @@ import type { Voice } from '../voice/voice.ts';
 import { Conflict, NotFound } from '../workspaces.ts';
 import { mcpHandler } from './mcp.ts';
 
+/**
+ * OpenAPI 3.0 lets null through a nullable schema with an enum only when the enum lists null itself; the schemas Zod
+ * emits say nullable and list the values alone, so a client generated from the document refuses the nulls it gets
+ */
+function nullableEnums<T>(doc: T): T {
+  const walk = (x: unknown): void => {
+    if (Array.isArray(x)) return x.forEach(walk);
+    if (!x || typeof x !== 'object') return;
+    const o = x as Record<string, unknown>;
+    if (o.nullable === true && Array.isArray(o.enum) && !o.enum.includes(null)) o.enum = [...o.enum, null];
+    Object.values(o).forEach(walk);
+  };
+  walk(doc);
+  return doc;
+}
+
 export const COOKIE = 'momentum_session';
 const PUBLIC = new Set(['POST /session']);
 const API = /^\/(workspaces|feed|runs|settings|session|mcp|voice|timeline)(\/|\?|$)/;
@@ -59,7 +76,8 @@ function tokenOf(req: FastifyRequest): string | undefined {
 }
 
 const ws = z.object({ ws: z.string() });
-const errors = { 401: ErrorResponse, 404: ErrorResponse, 409: ErrorResponse };
+/** What a route may refuse with: input it does not accept, no session, nothing there, or a state that forbids it */
+const errors = { 400: ErrorResponse, 401: ErrorResponse, 404: ErrorResponse, 409: ErrorResponse };
 
 export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } }).withTypeProvider<ZodTypeProvider>();
@@ -70,6 +88,8 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
   await app.register(fastifySwagger, {
     openapi: { info: { title: 'Momentum API', version: '0.0.0' } },
     transform: jsonSchemaTransform,
+    // The schemas the routes share by reference, the card's nested blocks among them, defined in the document
+    transformObject: (doc) => nullableEnums(jsonSchemaTransformObject(doc)),
   });
 
   const spa = existsSync(config.appDist);
@@ -101,7 +121,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
 
   app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
 
-  app.post('/session', { schema: { body: SessionRequest, response: { 200: SessionResponse, 401: ErrorResponse } } }, async (req, reply) => {
+  app.post('/session', { schema: { body: SessionRequest, response: { 200: SessionResponse, 400: ErrorResponse, 401: ErrorResponse } } }, async (req, reply) => {
     if (!(await auth.verify(req.body.password))) {
       await momentum.timeline.record({ actor: 'user', kind: 'sign_in_failed', title: 'Sign in refused: wrong password', detail: req.ip });
       return reply.code(401).send({ error: 'Wrong password' });
@@ -112,12 +132,12 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     return { token, expiresAt: expiresAt.toISOString() };
   });
 
-  app.delete('/session', async (req: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/session', { schema: { response: { 204: z.null() } } }, async (req: FastifyRequest, reply: FastifyReply) => {
     const token = tokenOf(req);
     if (token) await momentum.timeline.record({ actor: 'user', kind: 'signed_out', title: 'Signed out' });
     if (token) await auth.endSession(token);
     reply.clearCookie(COOKIE, { path: '/' });
-    return reply.code(204).send();
+    return reply.code(204).send(null);
   });
 
   app.get('/workspaces', { schema: { response: { 200: z.array(Workspace), ...errors } } }, () => momentum.workspaceList());
