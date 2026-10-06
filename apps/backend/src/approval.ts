@@ -6,6 +6,7 @@ import type { Bus } from './events.ts';
 import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import type { Runner } from './runner.ts';
+import { Serial } from './serial.ts';
 import { reactionEvent, type Timeline } from './timeline.ts';
 import { Conflict, NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
@@ -15,7 +16,7 @@ const CHAT_RECORD = 'Harness/Chat/';
 /** Approve, send back and resolve an issue */
 export class Approval {
   /** Reactions to one entity go one at a time: the same swipe from two devices, or twice from one, acts once */
-  private reacting = new Map<string, Promise<unknown>>();
+  private reacting = new Serial();
 
   constructor(
     private readonly workspaces: Workspaces,
@@ -48,15 +49,7 @@ export class Approval {
 
   /** Runs one reaction to an entity once the reactions before it have finished */
   private one<T>(workspace: string, path: string, fn: () => Promise<T>): Promise<T> {
-    const key = `${workspace}:${path}`;
-    const next = (this.reacting.get(key) ?? Promise.resolve()).catch(() => {}).then(fn);
-    this.reacting.set(key, next);
-    void next
-      .finally(() => {
-        if (this.reacting.get(key) === next) this.reacting.delete(key);
-      })
-      .catch(() => {});
-    return next;
+    return this.reacting.run(`${workspace}:${path}`, fn);
   }
 
   /**

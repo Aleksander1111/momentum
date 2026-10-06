@@ -17,7 +17,8 @@ import { bookkeeping, guardHooks } from './hooks.ts';
 import { endKind, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
-import { NotFound, type Workspace, type Workspaces } from './workspaces.ts';
+import { Serial } from './serial.ts';
+import { Conflict, NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
 interface RunRow {
   id: string;
@@ -122,10 +123,13 @@ export const userStarted = (trigger: RunTrigger) => trigger === 'on_demand';
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 export class Runner {
   private active = new Map<string, Active>();
-  /** Runs between being started and their process being launched: a message to one waits for its launch */
-  private starting = new Map<string, Promise<void>>();
-  /** The last message write of each run, which the next one waits for */
-  private messageWrites = new Map<string, Promise<void>>();
+  /**
+   * Starting, steering and killing one run go one after another: a message waits for the launch before it, a kill for
+   * the message, and two messages to an ended chat resume it once
+   */
+  private lifecycle = new Serial();
+  /** Messages of one run are written one after another */
+  private messageWrites = new Serial();
   /** The latest account-wide reading of the limits, from whichever run reported it */
   private reading: Usage = { fiveHour: null, week: null };
 
@@ -185,20 +189,26 @@ export class Runner {
   }
 
   /**
+   * Moves a run to `to` only from one of the states in `from`, in one statement: the row as it now stands, or null when
+   * the run had moved on (killed while queued, started by another caller)
+   */
+  private async transition(ws: Workspace, id: string, from: RunStatus[], to: RunStatus, extra: Partial<RunRow> = {}): Promise<RunRow | null> {
+    const values = { status: to, ...extra };
+    const [r] = await ws.index.sql<RunRow[]>`update ${this.t(ws, 'run')} set ${ws.index.sql(values as never)}
+      where id = ${id} and status = any(${from}::text[]) returning *`;
+    return r ?? null;
+  }
+
+  /**
    * Messages of one run are written one after another: each takes the next sequence number, so two arriving together
    * (the assistant's text and the user's message) must not both read the same last one
    */
   private addMessage(ws: Workspace, id: string, role: RunMessage['role'], text: string, context: ContextItem[] = []): Promise<void> {
-    const write = (this.messageWrites.get(id) ?? Promise.resolve()).catch(() => {}).then(async () => {
+    return this.messageWrites.run(id, async () => {
       await ws.index.sql`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context)
         values (${id}, (select coalesce(max(seq), 0) + 1 from ${this.t(ws, 'run_message')} where run_id = ${id}), ${role}, ${text},
           ${ws.index.sql.json(context as never)})`;
     });
-    this.messageWrites.set(id, write);
-    void write.finally(() => {
-      if (this.messageWrites.get(id) === write) this.messageWrites.delete(id);
-    }).catch(() => {});
-    return write;
   }
 
   private ref(ws: Workspace, r: RunRow): RunRef {
@@ -282,15 +292,9 @@ export class Runner {
   /** Ends every open run of an automation in a workspace: running ones are killed, queued ones never start */
   async stopAutomation(workspace: string, automation: AutomationName): Promise<string[]> {
     const ws = await this.workspaces.get(workspace);
-    const rows = await ws.index.sql<{ id: string; status: RunStatus }[]>`select id, status from ${this.t(ws, 'run')}
+    const rows = await ws.index.sql<{ id: string }[]>`select id from ${this.t(ws, 'run')}
       where automation = ${automation} and status in ('queued', 'running')`;
-    for (const r of rows) {
-      if (this.active.has(r.id)) this.active.get(r.id)!.handle.kill();
-      else {
-        await this.setStatus(ws, r.id, 'killed', { ended_at: new Date() });
-        await this.timeline.run(runEvent(ws.name, await this.row(ws, r.id), 'run_killed', { facts: { status: 'killed' } }));
-      }
-    }
+    for (const r of rows) await this.kill(r.id);
     return rows.map((r) => r.id);
   }
 
@@ -341,40 +345,36 @@ export class Runner {
   }
 
   /** Starts a queued run: its own checkout of the main line as it stands, one Claude Code process */
-  async start(id: string): Promise<void> {
-    const started = this.launchRun(id);
-    this.starting.set(id, started);
-    try {
-      await started;
-    } finally {
-      this.starting.delete(id);
-    }
+  start(id: string): Promise<void> {
+    return this.lifecycle.run(id, () => this.launchRun(id));
   }
 
   private async launchRun(id: string): Promise<void> {
     const ws = await this.workspaceOf(id);
-    const r = await this.row(ws, id);
+    // Taken off the queue in one step: a run killed or started since the orchestrator listed it stays as it is
+    const r = await this.transition(ws, id, ['queued'], 'running', { started_at: new Date(), error: null });
+    if (!r) return;
     const ref = this.ref(ws, r);
     try {
       await ensureCheckout(ws.path, r.checkout, ws.main);
       const prompt = r.resume_prompt ?? (r.session_id ? RESUME : r.prompt);
-      await this.setStatus(ws, id, 'running', {
-        started_at: new Date(),
-        base_commit: r.base_commit ?? (await head(r.checkout)),
-        error: null,
-        resume_prompt: null,
-      });
+      await this.setStatus(ws, id, 'running', { base_commit: r.base_commit ?? (await head(r.checkout)), resume_prompt: null });
       this.guard.watch(ref);
       // A run queued again after a restart, or a chat the user wrote to, resumes its session
       await this.launch(ws, r, ref, prompt, r.session_id);
     } catch (e) {
-      // The build stops, if it must, before the run ends: once it has, a tick would queue the next build run
-      if (r.automation === 'graph-build') await this.afterFailedBuild(ws, { id, error: (e as Error).message });
-      await this.setStatus(ws, id, 'failed', { error: (e as Error).message, ended_at: new Date() });
-      await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } }));
-      await this.guard.unwatch(id);
-      this.bus.emit('run_ended', { workspace: ws.name, runId: id });
+      await this.launchFailed(ws, r, e as Error);
     }
+  }
+
+  /** A run whose process could not be launched has failed: it ends at once, saying why */
+  private async launchFailed(ws: Workspace, r: RunRow, e: Error): Promise<void> {
+    // The build stops, if it must, before the run ends: once it has, a tick would queue the next build run
+    if (r.automation === 'graph-build') await this.afterFailedBuild(ws, { id: r.id, error: e.message });
+    await this.setStatus(ws, r.id, 'failed', { error: e.message, ended_at: new Date() });
+    await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: e.message, facts: { status: 'failed' } }));
+    await this.guard.unwatch(r.id);
+    this.bus.emit('run_ended', { workspace: ws.name, runId: r.id });
   }
 
   private async launch(ws: Workspace, r: RunRow, ref: RunRef, prompt: string, resume: string | null): Promise<void> {
@@ -546,11 +546,14 @@ export class Runner {
    * A message from the chat tool: steers the running process, or resumes the session of a run that has ended on a fresh
    * checkout of the main line. A chat is started by the user, so it runs alongside whatever automation is running.
    */
-  async send(id: string, text: string, context: ContextItem[] = []): Promise<void> {
+  send(id: string, text: string, context: ContextItem[] = []): Promise<void> {
+    return this.lifecycle.run(id, () => this.sendNow(id, text, context));
+  }
+
+  private async sendNow(id: string, text: string, context: ContextItem[]): Promise<void> {
     const ws = await this.workspaceOf(id);
     await this.addMessage(ws, id, 'user', text, context);
     const prompt = withContext(context, text);
-    await this.starting.get(id);
     const entry = this.active.get(id);
     if (entry?.handle.send(prompt)) {
       // What it answers to the user's message is for the user again
@@ -568,15 +571,26 @@ export class Runner {
       }
       return;
     }
-    await ensureCheckout(ws.path, r.checkout, ws.main);
-    await this.setStatus(ws, id, 'running', { ended_at: null, error: null, base_commit: await head(r.checkout) });
-    this.guard.watch(this.ref(ws, r));
-    await this.launch(ws, r, this.ref(ws, r), prompt, r.session_id);
+    // Resumed on a fresh checkout of the main line, whichever way it ended
+    const resumed = await this.transition(ws, id, ['finished', 'failed', 'killed'], 'running', { ended_at: null, error: null });
+    if (!resumed) throw new Conflict(`Run ${id} is ${r.status} and cannot take a message now`);
+    try {
+      await ensureCheckout(ws.path, resumed.checkout, ws.main);
+      await this.setStatus(ws, id, 'running', { base_commit: await head(resumed.checkout) });
+      this.guard.watch(this.ref(ws, resumed));
+      await this.launch(ws, resumed, this.ref(ws, resumed), prompt, resumed.session_id);
+    } catch (e) {
+      await this.launchFailed(ws, resumed, e as Error);
+      throw e;
+    }
   }
 
   /** Ends a run; one the user stops says so on its event */
-  async kill(id: string, byUser = false): Promise<void> {
-    await this.starting.get(id);
+  kill(id: string, byUser = false): Promise<void> {
+    return this.lifecycle.run(id, () => this.killNow(id, byUser));
+  }
+
+  private async killNow(id: string, byUser: boolean): Promise<void> {
     const entry = this.active.get(id);
     if (entry) {
       entry.stoppedByUser ||= byUser;
@@ -585,9 +599,8 @@ export class Runner {
     }
     // Still waiting for a place: it never starts, and whatever it was to change stands where it did
     const ws = await this.workspaceOf(id);
-    const r = await this.row(ws, id);
-    if (r.status !== 'queued') return;
-    await this.setStatus(ws, id, 'killed', { ended_at: new Date() });
+    const r = await this.transition(ws, id, ['queued'], 'killed', { ended_at: new Date() });
+    if (!r) return;
     for (const path of new Set([r.target_path, ...(r.targets ?? [])])) {
       const row = path ? await ws.index.row(path) : null;
       if (row?.sync === 'updating') await ws.index.setSync(path!, r.automation === 'summarization' ? 'artifact_ahead' : await this.guard.syncOf(ws, path!, row.frontmatter));
@@ -623,10 +636,15 @@ export class Runner {
     );
   }
 
-  /** The run ended: what it left lands on the main line, its status and usage are recorded, its checkout goes */
+  /**
+   * The run ended: what it left lands on the main line, its status and usage are recorded, its checkout goes. It never
+   * rejects: nothing waits on it but a message to the run, and a run whose ending failed still ends, as failed.
+   */
   private async finish(ws: Workspace, id: string, entry: Active, result: SessionResult): Promise<void> {
-    const r = await this.row(ws, id);
+    const log = (what: string) => (e: unknown) => console.error(`run ${id}: ${what}:`, e);
+    let r: RunRow | null = null;
     try {
+      r = await this.row(ws, id);
       if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
       const landed = await this.guard.transaction(entry.ref);
       if (r.automation === 'chat') await this.recordTranscript(ws, r);
@@ -663,7 +681,7 @@ export class Runner {
           }),
         );
       }
-      const variant = (await this.automations.approved()).find((d) => d.name === r.automation)?.variant ?? null;
+      const variant = (await this.automations.approved()).find((d) => d.name === entry.ref.automation)?.variant ?? null;
       await ws.index.sql`insert into ${this.t(ws, 'agent_metric')} ${ws.index.sql({
         run_id: id,
         automation: r.automation,
@@ -675,12 +693,14 @@ export class Runner {
         this.bus.emit('implementation_finished', { workspace: ws.name, runId: id, targetPath: r.target_path });
       }
     } catch (e) {
-      await this.setStatus(ws, id, 'failed', { ended_at: new Date(), error: (e as Error).message });
-      await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } }));
+      log('ending')(e);
+      await this.setStatus(ws, id, 'failed', { ended_at: new Date(), error: (e as Error).message }).catch(log('status'));
+      const run = r ?? { id, automation: entry.ref.automation, targetPath: entry.ref.targetPath };
+      await this.timeline.run(runEvent(ws.name, run, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } })).catch(log('timeline'));
     } finally {
       this.active.delete(id);
-      await this.guard.unwatch(id);
-      await removeWorktree(ws.path, r.checkout).catch((e) => console.error(`checkout of run ${id}:`, e));
+      await this.guard.unwatch(id).catch(log('watcher'));
+      await removeWorktree(ws.path, entry.ref.checkout).catch(log('checkout'));
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
     }
   }
