@@ -7,8 +7,6 @@ product_impact: 2
 timeline_impact: 1
 unlocks: 2
 references:
-  - to: Governance/DesignDoc/plan/technology-runs
-    relation: concerns
   - to: Harness/Automation/summarization
     relation: concerns
   - to: Harness/Automation/graph-build

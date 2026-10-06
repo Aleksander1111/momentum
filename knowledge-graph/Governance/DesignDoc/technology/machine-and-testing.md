@@ -6,9 +6,7 @@ sync: synced
 product_impact: 1
 timeline_impact: 1
 unlocks: 1
-references:
-  - to: Governance/DesignDoc/plan/technology-platform
-    relation: concerns
+references: []
 artifacts: []
 ---
 # Machine and testing

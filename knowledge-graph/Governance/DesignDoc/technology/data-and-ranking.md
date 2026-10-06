@@ -6,9 +6,7 @@ sync: synced
 product_impact: 3
 timeline_impact: 2
 unlocks: 3
-references:
-  - to: Governance/DesignDoc/plan/technology-data
-    relation: concerns
+references: []
 artifacts: []
 ---
 # Data, retrieval and ranking

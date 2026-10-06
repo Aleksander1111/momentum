@@ -6,9 +6,7 @@ sync: synced
 product_impact: 2
 timeline_impact: 1
 unlocks: 1
-references:
-  - to: Governance/DesignDoc/plan/technology
-    relation: concerns
+references: []
 artifacts: []
 ---
 # Client and access
