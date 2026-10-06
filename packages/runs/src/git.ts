@@ -97,9 +97,16 @@ export async function mergesBetween(repo: string, from: string, to: string): Pro
   return (await git(repo, ['rev-list', '--merges', `${from}..${to}`])).split('\n').filter(Boolean);
 }
 
+/**
+ * What a run leaves is read as the repository keeps its text: a run on Windows may write a file back with CRLF, which
+ * would change every line and turn any change the main line made meanwhile into a conflict. Files the repository
+ * holds with CRLF stay so.
+ */
+const AS_STORED = ['-c', 'core.autocrlf=input'];
+
 /** Whether the working tree has no change, committed or not, against HEAD */
 export async function isClean(cwd: string): Promise<boolean> {
-  return !(await git(cwd, ['status', '--porcelain'])).trim();
+  return !(await git(cwd, [...AS_STORED, 'status', '--porcelain'])).trim();
 }
 
 /**
@@ -135,10 +142,11 @@ export async function worktreeDirs(repo: string): Promise<string[]> {
 }
 
 const IDENTITY = ['-c', 'user.name=Momentum', '-c', 'user.email=momentum@localhost'];
+const ADD = [...AS_STORED, 'add', '-A'];
 
 /** Commits everything in the checkout; returns the new commit, or null when nothing changed */
 export async function commitAll(checkout: string, message: string): Promise<string | null> {
-  await git(checkout, ['add', '-A']);
+  await git(checkout, ADD);
   if (await isClean(checkout)) return null;
   await git(checkout, [...IDENTITY, 'commit', '-q', '-m', message]);
   return head(checkout);
@@ -158,7 +166,7 @@ export async function workingTree(checkout: string): Promise<string> {
   const env = { ...process.env, GIT_INDEX_FILE: index };
   try {
     await copyFile(resolve(checkout, (await git(checkout, ['rev-parse', '--git-path', 'index'])).trim()), index);
-    await exec('git', ['add', '-A'], { cwd: checkout, env, ...OPTIONS });
+    await exec('git', ADD, { cwd: checkout, env, ...OPTIONS });
     return (await exec('git', ['write-tree'], { cwd: checkout, env, ...OPTIONS })).stdout.trim();
   } finally {
     await rm(index, { force: true });
@@ -406,7 +414,7 @@ async function ownCommits(repo: string, main: string, checkout: string): Promise
 
 /** Changes of the working tree against `base`, committed or not, including untracked files */
 export async function workingChanges(cwd: string, base: string): Promise<Change[]> {
-  const tracked = (await git(cwd, ['diff', '--name-status', '--no-renames', base]))
+  const tracked = (await git(cwd, [...AS_STORED, 'diff', '--name-status', '--no-renames', base]))
     .split('\n')
     .filter(Boolean)
     .map((line) => {

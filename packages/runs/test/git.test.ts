@@ -123,4 +123,29 @@ describe('landing on a main line that moved', () => {
     expect(await show(root, 'refs/heads/main', 'a.txt')).toBe('run\n');
     expect(await show(root, 'refs/heads/main', 'knowledge-graph/Harness/Conflict/run.md')).toBe('conflict\n');
   });
+
+  it('keeps the line endings the repository has: a file written back with CRLF changes only where its text does', async () => {
+    const root = repository('eol', { 'a.md': 'one\ntwo\nthree\nfour\nfive\nsix\n', 'b.md': 'b\n' });
+    // Kept as written, whatever the machine's own setting, as the example projects keep their files
+    git(root, 'config', 'core.autocrlf', 'false');
+    commitIn(root, { 'w.bat': 'echo\r\n' }, 'A file kept with CRLF');
+    const run = join(dir, 'eol-run');
+    await ensureCheckout(root, run, 'main');
+    // The run rewrites a whole file with CRLF and changes its last line, and only rewrites another
+    write(run, 'a.md', 'one\r\ntwo\r\nthree\r\nfour\r\nfive\r\nSIX\r\n');
+    write(run, 'b.md', 'b\r\n');
+    commitIn(root, { 'a.md': 'ONE\ntwo\nthree\nfour\nfive\nsix\n' }, 'The user meanwhile');
+
+    expect(await workingChanges(run, await head(run))).toEqual([{ status: 'M', path: 'a.md' }]);
+    const landed = await landCommit(root, 'main', (await commitAll(run, 'The run'))!, 'The run');
+    expect(landed).toMatchObject({ conflicts: [], changed: ['a.md'] });
+    expect(await show(root, 'refs/heads/main', 'a.md')).toBe('ONE\ntwo\nthree\nfour\nfive\nSIX\n');
+    expect(await show(root, 'refs/heads/main', 'w.bat')).toBe('echo\r\n');
+
+    // Only line endings rewritten: nothing to land
+    const only = join(dir, 'eol-only');
+    await ensureCheckout(root, only, 'main');
+    write(only, 'b.md', 'b\r\n');
+    expect(await commitAll(only, 'Nothing')).toBeNull();
+  });
 });
