@@ -32,5 +32,6 @@ Changes save when editing ends; projects reload whenever the tab opens.
 | Summarization | Never-summarized paths |
 | Lifetimes | Rule per entity type |
 | Agents | Concurrent runs in total |
-| Models | One, per automation (search too), or by risk |
+| Models | One, per automation, or by risk |
 | In the knowledge graph | Automations, [entity types](Code/ConfigSetting/entity-types), risk rules; triggers and patterns per project |
+| This device | Sign out; clears its cache |

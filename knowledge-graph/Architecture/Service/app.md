@@ -19,8 +19,8 @@ One Expo (React Native) app, `apps/app`, for web and mobile.
 
 - Six tabs: Feed, Explorer, Chat, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone; none when embedded
 - The Chat tab badges the card parts waiting for the next message
-- Tabs stay mounted: one shown again refetches what went stale; Back walks the history, so an entity a chat links returns to the chat
+- Tabs stay mounted: one shown again refetches what went stale; Back walks the history
 - Light or dark follows the system
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
-- A failed fetch pauses queries, queues reactions; a 5 s probe restores them; a refused one shows why
-- Typed contract client; 401 sends back to sign-in
+- A failed fetch pauses queries, queues reactions; a 5 s probe restores them; a refusal says why
+- Typed contract client; 401 sends back to sign-in; sign-out ends this device's session only
