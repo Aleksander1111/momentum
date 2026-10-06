@@ -880,6 +880,70 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    id: 'api-contract',
+    title: 'Every route and every tool, to their contract',
+    projects: ['handbook', 'todo-cli'],
+    real: false,
+    scripted: true,
+    covers: [
+      'api.http', 'api.mcp', 'api.auth', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.wont-resolve', 'project.reset',
+      'project.harness-protected', 'project.disable', 'automation.graph-build',
+    ],
+    steps: [
+      'Every route of the OpenAPI document the back-end serves is called, and each answer, refusals included, is what its schema allows',
+      'Through the momentum MCP server, a card is approved, one sent back, an issue resolved with an option and another closed as won\'t resolve',
+      'Through MCP, the graph build is stopped and started again, and a project is reset while the harness refuses to be',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['api.http', 'api.auth', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.wont-resolve', 'project.reset'],
+      ['api.mcp', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.wont-resolve'],
+      ['api.mcp', 'project.disable', 'automation.graph-build', 'project.reset', 'project.harness-protected'],
+    ],
+  },
+  {
+    id: 'feed-in-the-app',
+    title: 'A feed worked through on the phone, card by card',
+    projects: ['handbook', 'todo-cli'],
+    real: false,
+    scripted: true,
+    covers: ['feed.swipes', 'feed.rank', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.wont-resolve', 'app.pages', 'automation.chat'],
+    steps: [
+      'The feed orders the cards of both projects by their summed impact; equal ranks keep the order they came in',
+      'Swiped right, the top card is approved in one commit',
+      "An issue's recommended option is picked on the card and swiped right; a chat resolves it with that option",
+      "Swiped left, an issue is resolved in the user's own words, and another closed as won't resolve with the reason",
+      'Swiped left with a comment, a card is sent back to a chat on it; nothing went through the API instead of the app',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['feed.rank', 'app.pages'],
+      ['feed.swipes', 'feed.approve'],
+      ['feed.swipes', 'feed.issue-options', 'automation.chat'],
+      ['feed.swipes', 'feed.issue-options', 'feed.wont-resolve'],
+      ['feed.swipes', 'feed.send-back'],
+    ],
+  },
+  {
+    id: 'run-accounting',
+    title: "What each run took of the account and of the machine",
+    projects: ['bookshelf-api'],
+    real: false,
+    scripted: true,
+    covers: ['run.usage-share', 'run.process-limits', 'metrics.per-automation', 'orchestrator.parallel-user-runs', 'automation.chat'],
+    steps: [
+      'A run alone takes the whole rise of the account limits between its readings, shown on the run and in the metrics',
+      'Two runs at once split a rise evenly; a run started after it gets none of it, only its own',
+      'Each run is held to the memory and CPU limits set for runs, as its own job reports from inside; a command that would pass the memory limit does not get it',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['run.usage-share', 'metrics.per-automation', 'automation.chat'],
+      ['run.usage-share', 'orchestrator.parallel-user-runs'],
+      ['run.process-limits'],
+    ],
+  },
+  {
     id: 'linear-work',
     title: 'One straight line, enforced',
     projects: ['todo-cli'],

@@ -37,8 +37,8 @@ export const FEATURES = {
   'run.messages': 'The user posts messages to a running chat and reads its transcript',
   'run.kill': 'A killed run ends as killed; what it wrote so far still lands and reaches the feed',
   'run.context': 'Card parts added to a chat reach the agent as references',
-  'run.process-limits': 'Each run process is held to CPU and memory limits',
-  'run.usage-share': 'A rise in the account limits is split among the runs active at both readings and recorded per run',
+  'run.process-limits': 'Each run process is held to the memory and CPU limits set for runs, in a job its commands run in too',
+  'run.usage-share': 'A rise in the account limits, read before, during and after each turn, is split evenly among the runs active at both readings and recorded per run',
   'run.models': 'The model of a run follows the mode: single, per automation, or by risk estimated from the rules',
   'run.queue': 'Runs past the total wait in order; a message to a waiting chat joins its first one; a waiting run stopped never starts',
   'run.retry': 'An implementation that failed is started again on demand for the same entity',
@@ -63,7 +63,7 @@ export const FEATURES = {
   'state.summarized-once': 'Artifacts a run summarized itself start no summarization run; a rewrite that changes nothing leaves the entity synced, a failed one artifact_ahead',
 
   // Feed and approval
-  'feed.rank': 'The feed ranks entities across enabled projects by impact, unlocks and contradictions',
+  'feed.rank': 'The feed ranks entities across enabled projects by product impact, timeline impact and unlocks, summed; no project comes first, and equal ranks keep the order they came in',
   'feed.size': 'The feed holds at most the configured number of items',
   'feed.approve': 'Approval verifies in place: one commit on the main line, nothing else touched',
   'feed.send-back': 'Send back opens a chat run on the entity with the comment',
@@ -73,6 +73,7 @@ export const FEATURES = {
   'feed.contradictions': 'Open contradiction issues over an entity are counted on it',
   'feed.patterns': 'Ten agreeing reactions on one entity type are proposed as a Harness/Pattern in the feed; the pattern counts only once approved',
   'feed.stale': 'A card that changed after the device showed it is not approved unseen',
+  'feed.swipes': "Every reaction is made on the card in the app: a swipe right approves, a swipe left sends back with a comment, an issue's option is picked and swiped, the user's own resolution and won't resolve are written in the sheet",
   'feed.once': 'The same reaction from two devices, a second tap or a replayed offline swipe acts once; a send back never starts a second chat',
   'feed.retire': 'Approving a retirement removes what nothing else references, and the plan with it',
 
@@ -111,8 +112,8 @@ export const FEATURES = {
 
   // Access
   'api.auth': 'A session needs the password; a wrong one is refused',
-  'api.http': 'Every HTTP route answers to its contract',
-  'api.mcp': 'The momentum MCP server drives the feed, chats, automations, graph build and reset',
+  'api.http': 'Every route of the OpenAPI document the back-end serves answers with a body its schema accepts, refusals included',
+  'api.mcp': 'Every tool of the momentum MCP server works: the feed and its reactions, chats, runs, automations, graph build, reset, settings, metrics and timeline',
   'app.pages': 'Every app page loads and acts on the backend: feed, explorer, entity, chat, timeline, metrics, settings',
   'app.entity-links': "An entity named anywhere (a card's text, a chat, an answer, references, events, issues) shows its type's glyph and colour and opens on a press; references group by type",
   'app.entity-folds': "An entity's references and artifacts are folded until opened",

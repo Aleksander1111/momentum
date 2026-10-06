@@ -33,6 +33,8 @@
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "@types/ws": "^8.18.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "postgres": "^3.4.9",
     "ws": "^8.18.3"
   }

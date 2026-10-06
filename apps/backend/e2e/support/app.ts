@@ -30,6 +30,14 @@ declare global {
  * settings. Every action happens in the frame the observer shows, paced by its controls.
  */
 export class App {
+  /**
+   * Whether a reaction must go through the app. Off, an item another ranks above is acted on through the API, as the
+   * user's other device would; on, that fails the step, so a scenario proves every reaction it makes in the app.
+   */
+  strict = false;
+  /** Items acted on through the API because the app did not show them on top */
+  readonly throughApi: string[] = [];
+
   constructor(
     private readonly observer: Page,
     private readonly env: Env,
@@ -220,6 +228,8 @@ export class App {
     const [top] = (await this.api.feed()).items;
     await this.go('/feed');
     if (top?.path !== path || top.workspace !== ws) {
+      if (this.strict) throw new Error(`${path} is not on top of the feed (${top?.path ?? 'nothing'} is): the app cannot act on it`);
+      this.throughApi.push(path);
       await post({ type: 'note', text: `${item.title} is not on top of the feed: acting through the API` });
       return null;
     }

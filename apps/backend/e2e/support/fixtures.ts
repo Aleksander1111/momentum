@@ -122,6 +122,8 @@ export function scenario(id: string, opts: EnvOptions, body: (w: World) => Promi
     let ok = false;
     const done = new Set<number>();
     try {
+      // A scripted world reaches nothing of the account; live, its runs work as the real ones do
+      env.isolated = Boolean(s.scripted) && !real;
       await env.setUp(opts, voicePort, apiBase);
       await post({ type: 'env', id, appUrl: `${env.url}/`, databaseUrl: env.databaseUrl, workspaces: followed, dir: env.dir, token: env.token });
       await post({ type: 'note', text: `${s.title}: world at ${env.dir}, back-end ${env.url}` });

@@ -20,13 +20,13 @@ artifacts:
 
 Real-life situations over the four example projects, each in its own world.
 
-| Kind | Runs | Usage |
+| Kind | Runs | Account |
 |---|---|---|
 | Real | Claude Code on the account | Its share of the 5-hour rise |
-| Scripted | The scripted model | None |
+| Scripted | The scripted model | Unreached: own config, sign-in only, no outside host |
 | No runs | Never answered | None |
 
 - features.ts lists every feature; a coverage test fails while one has no scenario
 - A stall or a dead back-end fails at once; a used-up limit skips real scenarios
-- Scripted: harness flows; product lives; links and answers; working alongside the user; the kb tools; card and risk rules; stream holes; notes-api, TypeScript with dependencies and a history
+- Scripted: flows, product lives, the user alongside, kb tools, rules, stream holes, notes-api, the API document, swipes, usage and run limits
 - Patterns: proposed in the feed, counted once approved

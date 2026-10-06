@@ -289,6 +289,28 @@ export class ScriptedModel {
   /** The commit subject a run writes when the harness asks for one; null leaves the message file empty */
   subject: (t: Turn) => string | null = (t) => `Scripted ${t.automation} work`;
   private n = 0;
+  /**
+   * The account's limits as every answer reports them, in percentage points, the way the API's headers tell Claude Code
+   * how much of the 5-hour and weekly windows is used; null sends none. A scenario raises them to make the runs see
+   * usage rise. Live, the real API's headers apply.
+   */
+  limits: { fiveHour: number; week: number } | null = null;
+
+  private limitHeaders(): Record<string, string> {
+    if (!this.limits) return {};
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      'anthropic-ratelimit-unified-status': 'allowed',
+      'anthropic-ratelimit-unified-representative-claim': 'five_hour',
+      'anthropic-ratelimit-unified-5h-status': 'allowed',
+      'anthropic-ratelimit-unified-5h-utilization': String(this.limits.fiveHour / 100),
+      'anthropic-ratelimit-unified-5h-reset': String(now + 3 * 3600),
+      'anthropic-ratelimit-unified-7d-status': 'allowed',
+      'anthropic-ratelimit-unified-7d-utilization': String(this.limits.week / 100),
+      'anthropic-ratelimit-unified-7d-reset': String(now + 5 * 86400),
+    };
+  }
+
   /** The scenario whose runs this stand-in answers: its answers count to it */
   scenario = '';
   /** What the answers forwarded to the real API used */
@@ -370,12 +392,12 @@ export class ScriptedModel {
     if (this.held) await new Promise<void>((go) => this.held?.push(go) ?? go());
     if (this.live && !req.url?.startsWith('/v1/messages')) return void (await this.forward(req, raw, res));
     if (!req.url?.startsWith('/v1/messages')) {
-      res.writeHead(404, { 'content-type': 'application/json' });
+      res.writeHead(404, { 'content-type': 'application/json', ...this.limitHeaders() });
       return void res.end('{}');
     }
     if (this.live && req.url.includes('count_tokens')) return void (await this.forward(req, raw, res));
     if (req.url.includes('count_tokens')) {
-      res.writeHead(200, { 'content-type': 'application/json' });
+      res.writeHead(200, { 'content-type': 'application/json', ...this.limitHeaders() });
       return void res.end(JSON.stringify({ input_tokens: 100 }));
     }
     const body = JSON.parse(raw) as { model: string; stream?: boolean; system?: string | { text: string }[]; messages: Message[]; tools?: unknown[] };
@@ -522,7 +544,7 @@ export class ScriptedModel {
     if (moves.some((m) => 'hang' in m)) return; // the connection stays open, unanswered
     const failure = moves.find((m): m is { error: number; message?: string } => 'error' in m);
     if (failure) {
-      res.writeHead(failure.error, { 'content-type': 'application/json', 'x-should-retry': 'false' });
+      res.writeHead(failure.error, { 'content-type': 'application/json', 'x-should-retry': 'false', ...this.limitHeaders() });
       return void res.end(JSON.stringify({ type: 'error', error: { type: failure.error === 529 ? 'overloaded_error' : 'api_error', message: failure.message ?? 'Scripted failure' } }));
     }
     const blocks = moves.map((m, i) =>
@@ -532,10 +554,10 @@ export class ScriptedModel {
     const usage = { input_tokens: 100, output_tokens: 10, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
     const message = { id: `msg_s${id}`, type: 'message', role: 'assistant', model: body.model, stop_reason: null, stop_sequence: null, usage };
     if (!body.stream) {
-      res.writeHead(200, { 'content-type': 'application/json' });
+      res.writeHead(200, { 'content-type': 'application/json', ...this.limitHeaders() });
       return void res.end(JSON.stringify({ ...message, content: blocks, stop_reason: stop }));
     }
-    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', ...this.limitHeaders() });
     const ev = (type: string, data: object) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`);
     ev('message_start', { message: { ...message, content: [] } });
     blocks.forEach((b, index) => {

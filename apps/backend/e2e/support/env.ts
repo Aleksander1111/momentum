@@ -1,7 +1,7 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
-import { cpSync, createWriteStream, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import postgres from 'postgres';
 import type { AutomationName, GraphBuildState, Settings } from '@momentum/contract';
@@ -44,6 +44,8 @@ export interface EnvOptions {
   settings?: Partial<Omit<Settings, 'projects'>>;
   /** A fake command stream for voice; the scenario says what is heard */
   voice?: boolean;
+  /** Environment the back-end starts with, beyond the world's own: settings that live there, such as the run limits */
+  env?: Record<string, string>;
 }
 
 export const git = (cwd: string, ...args: string[]) =>
@@ -97,21 +99,29 @@ function freePort(): Promise<number> {
   });
 }
 
-/** Every process under `pid`, by the parent links Windows keeps */
+/**
+ * Every process under `pid`, by the parent links Windows keeps. Windows reuses process ids and keeps a process's parent
+ * id after the parent is gone, so a process counts as a child only when it was created after its parent: otherwise an
+ * unrelated program whose dead parent once had the id of a run process would pass for one.
+ */
 function descendants(pid: number): { pid: number; name: string }[] {
-  let rows: { ProcessId: number; ParentProcessId: number; Name: string }[] = [];
+  let rows: { ProcessId: number; ParentProcessId: number; Name: string; Created: number }[] = [];
   try {
-    const out = execFileSync('powershell', ['-NoProfile', '-Command', 'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name | ConvertTo-Json -Compress'], { encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+    const query = 'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,@{n="Created";e={[long]$_.CreationDate.ToFileTimeUtc()}} | ConvertTo-Json -Compress';
+    const out = execFileSync('powershell', ['-NoProfile', '-Command', query], { encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
     rows = JSON.parse(out);
   } catch {
     return [];
   }
+  const created = new Map(rows.map((r) => [r.ProcessId, r.Created]));
   const found: { pid: number; name: string }[] = [];
   const queue = [pid];
   while (queue.length) {
     const parent = queue.shift()!;
+    const born = created.get(parent) ?? 0;
     for (const r of rows) {
       if (r.ParentProcessId !== parent || r.ProcessId === parent || found.some((f) => f.pid === r.ProcessId)) continue;
+      if (r.Created < born) continue;
       found.push({ pid: r.ProcessId, name: r.Name });
       queue.push(r.ProcessId);
     }
@@ -168,6 +178,18 @@ export class Env {
   voicePort = 0;
   /** Where the runs' Claude Code sends its requests; unset for real runs */
   apiBase: string | null = null;
+  /** The environment the scenario gave the back-end */
+  extraEnv: Record<string, string> = {};
+  /**
+   * Whether the runs' Claude Code is kept off the account: a configuration folder of its own, holding only the
+   * sign-in, and no host but this machine reachable. Its figures then come from the scripted model alone: the usage it
+   * reports is not the account's cached reading, and it cannot refresh, and so replace, the user's sign-in.
+   */
+  isolated = false;
+
+  get claudeConfig() {
+    return join(this.dir, 'claude-config');
+  }
 
   constructor(
     readonly id: string,
@@ -204,14 +226,24 @@ export class Env {
       MOMENTUM_TICK_MS: process.env.E2E_TICK_MS ?? '3000',
       MOMENTUM_COMMAND_STREAM: `http://127.0.0.1:${this.voicePort || 9}`,
       LOG_LEVEL: 'warn',
+      ...this.extraEnv,
       ...(this.apiBase ? { ANTHROPIC_BASE_URL: this.apiBase } : {}),
+      ...(this.isolated
+        ? { CLAUDE_CONFIG_DIR: this.claudeConfig, HTTPS_PROXY: 'http://127.0.0.1:9', https_proxy: 'http://127.0.0.1:9', NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost' }
+        : {}),
     };
   }
 
   async setUp(opts: EnvOptions, voicePort = 0, apiBase: string | null = null): Promise<void> {
     this.voicePort = voicePort;
     this.apiBase = apiBase;
+    this.extraEnv = opts.env ?? {};
     mkdirSync(this.root);
+    if (this.isolated) {
+      mkdirSync(this.claudeConfig);
+      const signIn = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), '.credentials.json');
+      if (existsSync(signIn)) cpSync(signIn, join(this.claudeConfig, '.credentials.json'));
+    }
     for (const p of this.projects) {
       // With its installed dependencies, as the user's checkout has them; they are not in its repository
       cpSync(join(REPO, 'examples', p), this.path(p), { recursive: true });
