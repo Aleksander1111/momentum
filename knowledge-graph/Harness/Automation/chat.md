@@ -1,7 +1,7 @@
 ---
 type: Harness/Automation
 origin: user
-verification: verified
+verification: unverified
 sync: synced
 product_impact: 0
 timeline_impact: 0
@@ -15,9 +15,9 @@ artifacts:
 
 The direct chat: an automation the user starts instead of the schedule.
 
-- Own process and checkout, alongside the automation runs; can do anything they can
-- What the user asks for is done in the run, never proposed back for approval: asked to remove, it deletes the files and drops the references; asked to change, it changes
-- A send back's comment decides the target: change, split, replace, add alongside, or remove
-- A plan asked for goes to plans/<name>.md, which summarization makes a Harness/Plan
-- Never turns one chat into a skill, memory or definition change on its own; asked outright, it makes it
-- Everything it writes lands unverified; the user verifies the work in the feed
+- Own process and checkout alongside the automation runs; does anything they can
+- What the user asks for is done in the run, never proposed back for approval: asked to remove, it deletes the files and drops the references
+- A send back's comment decides the target: change, split, replace, add alongside or remove
+- A plan asked for goes to plans/<name>.md, summarized as a Harness/Plan
+- Never turns one chat into a skill, memory or definition change on its own; asked outright, it makes it: in effect as it lands, a trigger change once verified
+- Everything it writes lands unverified, for the user to verify in the feed
