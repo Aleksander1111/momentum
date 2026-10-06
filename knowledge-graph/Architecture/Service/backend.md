@@ -30,9 +30,8 @@ artifacts:
 ---
 # Back-end
 
-One Node process, `apps/backend`: API, orchestrator and consistency guard; only runs are separate processes. The "Momentum" scheduled task (`install.ps1`) serves it at every logon, hidden under the user's account: `serve.ps1` waits for Postgres and runs `pnpm dev`, which restarts on every change on main.
+One Node process, `apps/backend`: API, orchestrator and consistency guard; only runs are separate processes. The "Momentum" scheduled task (`install.ps1`) serves it at every logon, hidden: `serve.ps1` waits for Postgres and runs `pnpm dev`, which restarts on every change on main.
 
-- Fastify + zod, port 7300, only on the Tailscale interface
-- Serves the web build of the app on page loads
-- On start: connects to Postgres, migrates the timeline and has it follow the event bus, indexes the harness workspace, materializes definitions into enabled workspaces, starts the orchestrator
-- CLI `pnpm momentum`: passwords, enable, disable, logo, index, openapi
+- Fastify + zod, port 7300, Tailscale only; serves the web build
+- On start: connects to Postgres, migrates the timeline onto the event bus, indexes the harness, materializes definitions, starts the orchestrator
+- CLI `pnpm momentum` (passwords, enable, disable, logo, index, openapi) never orchestrates: enable/disable go through a running server's API, index marks it stale for one; errors exit 1
