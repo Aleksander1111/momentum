@@ -141,7 +141,15 @@ export class Orchestrator {
    * off at once and says why; nothing of it runs until the user makes it one line again and enables it
    */
   private async keptLinear(ws: Workspace): Promise<boolean> {
-    const reasons = await nonLinear(ws.path, await this.settings.indexedCommit(ws.name)).catch((e: Error) => [e.message]);
+    let reasons: string[];
+    try {
+      reasons = await nonLinear(ws.path, await this.settings.indexedCommit(ws.name));
+    } catch (e) {
+      // Git failing to answer (a lock another process holds, a repository being moved) says nothing about the line: the
+      // project sits this pass out and is looked at again on the next
+      console.error(`line of ${ws.name}:`, e);
+      return false;
+    }
     if (reasons.length === 0) return true;
     await this.settings.setEnabled(ws.name, false);
     await this.disable(ws);
