@@ -119,6 +119,7 @@ export const FEATURES = {
   'app.pages': 'Every app page loads and acts on the backend: feed, explorer, entity, chat, timeline, metrics, settings',
   'app.entity-links': "An entity named anywhere (a card's text, a chat, an answer, references, events, issues) shows its type's glyph and colour and opens on a press; references group by type",
   'app.entity-folds': "An entity's references and artifacts are folded until opened",
+  'app.appearance': 'The app takes the light or dark palette chosen in Settings, or the system one, on every screen at once, the feed card included',
   'app.offline': 'Swipes made while the back-end is unreachable wait on the device and land once it is back',
   'app.timeline': "The timeline lists the user's actions and one event per run, kept up to date as it runs and lands, newest first, by project and actor, live beside the app in the observer",
   'settings.graph-config': 'Settings lead to the configuration kept in the knowledge graph: automations, entity types, risk rules, triggers and patterns',

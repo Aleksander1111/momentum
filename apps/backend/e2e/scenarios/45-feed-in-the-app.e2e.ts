@@ -70,6 +70,26 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     expect(items.slice(CARDS.length).every((i) => i.rank <= items[CARDS.length - 1]!.rank)).toBe(true);
     await app.tab('Feed');
     await expect(app.text(HOLIDAYS.entity.title)).toBeVisible();
+    // The card wears the palette of the scheme in effect: dark, as the browser asks for here, and light once chosen
+    const skin = () =>
+      app.text(HOLIDAYS.entity.title).evaluate((el) => {
+        for (let e: HTMLElement | null = el as HTMLElement; e; e = e.parentElement) {
+          const s = getComputedStyle(e);
+          if (s.borderTopLeftRadius === '18px') return { background: s.backgroundColor, border: s.borderTopColor };
+        }
+        return null;
+      });
+    const DARK = { background: 'rgb(30, 38, 42)', border: 'rgb(54, 66, 71)' };
+    expect(await skin()).toEqual(DARK);
+    for (const [appearance, expected] of [
+      ['Light', { background: 'rgb(255, 255, 255)', border: 'rgb(213, 217, 211)' }],
+      ['System', DARK],
+    ] as const) {
+      await app.tab('Settings');
+      await app.frame().getByRole('radio', { name: appearance, exact: true }).click();
+      await app.tab('Feed');
+      await expect.poll(skin, { message: `the card in the ${appearance} appearance` }).toEqual(expected);
+    }
   });
 
   await step(1, async () => {

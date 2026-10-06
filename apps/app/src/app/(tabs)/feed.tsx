@@ -34,16 +34,19 @@ function cardFrame(wide: boolean): ViewStyle {
     : { position: 'absolute', left: 16, right: 16, top: 14, bottom: 12 };
 }
 
-const cardSkin: ViewStyle = {
-  backgroundColor: C.surface,
-  borderWidth: 1,
-  borderColor: C.line,
-  borderRadius: 18,
-  paddingTop: 20,
-  paddingHorizontal: 20,
-  paddingBottom: 16,
-  overflow: 'hidden',
-};
+/** Read while rendering, as every colour is: a constant would keep the scheme the module was loaded in */
+function cardSkin(): ViewStyle {
+  return {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 18,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    overflow: 'hidden',
+  };
+}
 
 const VERIFICATION: Verification[] = ['unverified', 'verified'];
 const SYNC: Sync[] = ['synced', 'entity_ahead', 'artifact_ahead', 'updating'];
@@ -181,7 +184,7 @@ function TopCard({
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
-        style={[cardFrame(wide), cardSkin, { boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
+        style={[cardFrame(wide), cardSkin(), { boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
       >
         <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} swipe />
         {issue ? (
@@ -362,7 +365,7 @@ export default function Feed() {
           <View
             style={[
               cardFrame(wide),
-              cardSkin,
+              cardSkin(),
               { backgroundColor: C.behind2, transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
             ]}
           />
@@ -371,7 +374,7 @@ export default function Feed() {
           <View
             style={[
               cardFrame(wide),
-              cardSkin,
+              cardSkin(),
               { backgroundColor: C.behind1, transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
             ]}
           />

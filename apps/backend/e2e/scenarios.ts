@@ -911,9 +911,9 @@ export const SCENARIOS: Scenario[] = [
     projects: ['handbook', 'todo-cli'],
     real: false,
     scripted: true,
-    covers: ['feed.swipes', 'feed.rank', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.wont-resolve', 'app.pages', 'automation.chat'],
+    covers: ['feed.swipes', 'feed.rank', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.wont-resolve', 'app.pages', 'app.appearance', 'automation.chat'],
     steps: [
-      'The feed orders the cards of both projects by their summed impact; equal ranks keep the order they came in',
+      'The feed orders the cards of both projects by their summed impact; equal ranks keep the order they came in; the card follows the appearance chosen',
       'Swiped right, the top card is approved in one commit',
       "An issue's recommended option is picked on the card and swiped right; a chat resolves it with that option",
       "Swiped left, an issue is resolved in the user's own words, and another closed as won't resolve with the reason",
@@ -921,7 +921,7 @@ export const SCENARIOS: Scenario[] = [
     ],
     // The features each step checks, step by step
     checks: [
-      ['feed.rank', 'app.pages'],
+      ['feed.rank', 'app.pages', 'app.appearance'],
       ['feed.swipes', 'feed.approve'],
       ['feed.swipes', 'feed.issue-options', 'automation.chat'],
       ['feed.swipes', 'feed.issue-options', 'feed.wont-resolve'],
