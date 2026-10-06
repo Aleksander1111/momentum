@@ -20,7 +20,9 @@ export interface LimitedProcessOptions {
 
 /**
  * Starts the Claude Code process of a run and places it in a Windows job object with CPU and memory limits (procgov).
- * Children the process starts afterwards inherit the job.
+ * The commands the run starts stay in the job: without -r, procgov's job lets processes break away, and the commands
+ * Claude Code runs were measured outside it. The memory limit is the whole job's: a command that would pass it is
+ * refused, or the run ends, rather than the machine running short.
  */
 export function spawnLimited(options: LimitedProcessOptions): (spawnOptions: SpawnOptions) => SpawnedProcess {
   return ({ command, args, cwd, env, signal }) => {
@@ -37,7 +39,7 @@ export function spawnLimited(options: LimitedProcessOptions): (spawnOptions: Spa
       const pid = child.pid;
       exec(
         options.procgov,
-        ['--nowait', '-q', '--maxjobmem', options.limits.maxMemory, '--cpu', String(options.limits.cpuCores), '--pid', String(pid)],
+        ['--nowait', '-q', '-r', '--maxjobmem', options.limits.maxMemory, '--cpu', String(options.limits.cpuCores), '--pid', String(pid)],
         { windowsHide: true },
       ).catch((e: Error) => {
         child.emit('error', new Error(`procgov could not limit run process ${pid}: ${e.message}`));
