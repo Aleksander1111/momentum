@@ -14,13 +14,13 @@ artifacts:
 ---
 # Index and metrics database
 
-Postgres with pgvector, the queryable side of the knowledge base, migrated idempotently on start.
+Postgres with pgvector, the queryable side of the knowledge base, migrated on start.
 
 | Schema | Holds |
 |---|---|
-| harness | project, setting, credential, session, usage_sample, voice_cursor, run_ref, timeline_event |
-| ws_<workspace> | entity (tsvector, 384-dim embedding, card diff), entity_state, entity_artifact, entity_reference, automation, run, run_message, chat, transaction, attention_*, understanding/agent/implementation metrics, usage_share |
+| harness | project (indexed commit, graph build, logo), setting, credential, session, usage_sample, voice_cursor, run_ref |
+| ws_<workspace> | entity (tsvector, 384-dim embedding, card blocks, diff, contradictions), entity_state, entity_artifact, entity_reference, automation, run, run_message, chat, transaction, attention_ranking/metric/pattern, understanding/agent/implementation metrics, usage_share |
 
-- Status columns checked against the contract's enums, replaced each start, `not valid` for older rows
+- Status columns checked against the contract's enums, replaced each start
 - Indexed for metrics, the run queue, chats on an entity
-- Hourly: expired sessions and limit readings over 35 days deleted
+- Pruned: sessions, readings past 35 days

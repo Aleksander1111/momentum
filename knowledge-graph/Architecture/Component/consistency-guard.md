@@ -20,10 +20,9 @@ artifacts:
 
 Lands each run's checked changes; keeps the index true to main.
 
-- Hooks: PostToolUse checks writes; SubagentStop: summarization ran; Stop: summarize once, ≤2 fixes, message, in shared words
-- Run end: one checked commit; invalid → Harness/Issue, conflict → Harness/Conflict
-- Handed artifacts its step never saw nor its entities cover: summarized after landing
-- Harness repo: lands only `HARNESS_SCOPE` and the graph; the rest put back in an issue
+- Hooks: PostToolUse checks writes; SubagentStop: summarization ran; Stop: summarize once, ≤2 fixes, then a commit message
+- Run end: one commit, all unverified; invalid → Harness/Issue, conflict → Harness/Conflict, removals → Harness/Report
+- Harness repo: lands only `HARNESS_SCOPE` and the graph; the rest put back, in the issue
 - Main line: one pass at a time; stops at a merge unless enabled; changed artifacts → artifact_ahead; moves followed
-- Index: diff since verified; implemented directly or via plan; metrics
+- Metrics per 24h/7d/30d: usage, attention, understanding, agents, run histograms, entity states, implementation
 - 10 agreeing reactions on a type → Harness/Pattern proposal
