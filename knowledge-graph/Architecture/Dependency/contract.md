@@ -20,15 +20,15 @@ kind: internal library
 
 | Area | Schemas |
 |---|---|
-| Entity | frontmatter, states, references, issues; link targets |
-| Card | markdown blocks, PlantUML SVG, pickable parts |
+| Entity | frontmatter, states, references, issues; links |
+| Card | blocks, PlantUML SVG, pickable parts |
 | Card diff | marks, spans, prior diagram, word counts |
 | Feed | items, versions, diffs, options, counts; reactions |
-| Search | results; ask: answer, sources |
+| Search | results; ask, sources |
 | Runs, chats | automations, status, usage %; context; interview |
 | Timeline | actor, kind, facts, query, page |
 | Voice | screen, status, partial text |
-| Graph build, metrics | coverage; series, usage, histograms |
-| Settings | projects, logo, cards, lifetimes, models, harness workspace |
+| Graph build, metrics | coverage; series, histograms |
+| Settings | projects, logo, cards, lifetimes, models |
 
-`openapi.json`: generated.
+`openapi.json`: generated OpenAPI 3.0; card blocks, type tree named.

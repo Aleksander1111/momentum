@@ -17,11 +17,11 @@ artifacts:
 ---
 # HTTP API
 
-Fastify routes typed by contract zod; OpenAPI at `/openapi.json`.
+Fastify routes typed by contract zod; OpenAPI 3.0 at `/openapi.json`.
 
 | Area | Routes |
 |---|---|
-| Session | POST, DELETE /session |
+| Session | POST, DELETE (204) /session |
 | Feed | GET /feed; POST /feed/{path}/approve, /send-back, /resolve, /wont-resolve |
 | Entities | GET /workspaces/{ws}/entities/*, artifact/*, types, search; POST …/ask |
 | Chats, runs | GET, POST …/chats; GET /runs/{id}; POST …/messages, /kill |
@@ -29,4 +29,4 @@ Fastify routes typed by contract zod; OpenAPI at `/openapi.json`.
 | Timeline | GET /timeline, filtered, paged |
 | Settings | GET, PUT /settings |
 
-Approve, resolve carry the card version shown. Errors `{error}`: 401, 404, 409 conflict; 503 mid-rebuild. Sockets `/voice`, `/voice/audio`; `/mcp`: voice tools.
+Routes declare refusals `{error}`: 400, 401, 404, 409; 503 mid-rebuild. Card and type-tree schemas named; nullable enums list null. Sockets, `/mcp`: undocumented.

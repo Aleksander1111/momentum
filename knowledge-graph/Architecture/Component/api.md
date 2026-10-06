@@ -15,7 +15,7 @@ artifacts:
 ---
 # API
 
-The backend's interface: Fastify routes typed by contract zod (OpenAPI `/openapi.json`), voice sockets, handlers as MCP tools at `/mcp`.
+The backend's interface: Fastify routes typed by contract zod, documented at `/openapi.json`; voice sockets; MCP tools at `/mcp`.
 
 | Area | Routes |
 |---|---|
@@ -26,6 +26,6 @@ The backend's interface: Fastify routes typed by contract zod (OpenAPI `/openapi
 | Other | `/timeline`, `/settings`, `/voice`, `/voice/audio` |
 
 - Sign-ins, refusals, sign-outs: on the timeline
-- Approve, resolve carry the version shown; conflicts: 409
-- `ask` answers from the entities found; MCP `run_automation` takes a target
-- Cookie or bearer, else 401; pages: web app, 503 mid-rebuild
+- Refusals `{error}`: 400, 401, 404, 409 (stale approve, resolve)
+- Document: card and type-tree schemas named; nullable enums list null
+- Pages get the web app, 503 mid-rebuild
