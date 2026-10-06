@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+// In a web page the schemas parse without generating code: they would compile a parser with `new Function`, and the
+// app's content security policy forbids eval, reporting even the attempt. Servers and the native app keep the fast path.
+if (typeof document !== 'undefined') z.config({ jitless: true });
+
 // Entity states
 
 export const Verification = z.enum(['unverified', 'verified']);

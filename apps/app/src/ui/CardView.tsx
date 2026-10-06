@@ -60,6 +60,13 @@ function Inlines({ c }: { c: Inline[] }): ReactNode {
               <Inlines c={i.c} />
             </EntityLink>
           );
+        // Only a link to the web opens, as in chats: a model writes the card, and another scheme could open anything
+        if (!/^https?:\/\//i.test(i.href))
+          return (
+            <Fragment key={k}>
+              <Inlines c={i.c} />
+            </Fragment>
+          );
         return (
           <Text
             key={k}

@@ -75,6 +75,12 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     // However many microphones a screen shows, the app holds one control socket: counted inside the app's frame, where
     // Firefox reports its sockets
     await app.frame().page().context().addInitScript(() => {
+      // What the page's content security policy refused: nothing the app itself does may be
+      const refused: string[] = [];
+      (window as unknown as { refused: string[] }).refused = refused;
+      document.addEventListener('securitypolicyviolation', (e) =>
+        refused.push(`${e.violatedDirective} ${e.blockedURI} at ${e.sourceFile.split('/').pop()}:${e.lineNumber}:${e.columnNumber}`),
+      );
       const Native = window.WebSocket;
       const controls: WebSocket[] = [];
       (window as unknown as { voiceControls: WebSocket[] }).voiceControls = controls;
@@ -96,6 +102,7 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     await listen();
     await new Promise((r) => setTimeout(r, 2000));
     expect(await sockets(), 'the control sockets the chat screen opened, open or not').toEqual([true]);
+    expect(await app.frame().evaluate(() => (window as unknown as { refused?: string[] }).refused), 'what the page refused to load').toEqual([]);
     const since = new Date();
     voice.say('which routes are there', 'question');
     const chat = await newest(since);
