@@ -3,6 +3,7 @@ import { fileOf, type ValidationIssue } from '@momentum/entity';
 import { head, messageFile, workingTree } from '@momentum/runs';
 import { isAbsolute, join } from 'node:path';
 import type { Guard, RunRef } from './guard.ts';
+import { messageRequest, SAY } from './protocol.ts';
 
 /** How often the Stop hook sends a run back to fix its changes before the guard raises an issue instead */
 const MAX_STOP_BLOCKS = 2;
@@ -15,13 +16,7 @@ const list = (issues: ValidationIssue[]) => issues.map((i) => `- ${i.path}: ${i.
  * What the Stop hook sent the run on for: the harness's bookkeeping (summarizing its artifacts, describing its changes),
  * whose replies are not for the user, or a fix of what the guard refused, which is
  */
-export const bookkeeping = (feedback: string) =>
-  feedback.includes('have the momentum-summarization sub-agent summarize') || feedback.includes('write the commit message your changes land');
-
-const messageRequest = (file: string) =>
-  `Before you finish, write the commit message your changes land on the main line with to ${file}, replacing what it holds: ` +
-  'a subject line of at most 72 characters in the imperative mood saying what was done, then, when the subject alone does ' +
-  'not say it, a blank line and a short body. Describe the work itself: no run id, no automation name, no prefix.';
+export const bookkeeping = (feedback: string) => feedback.includes(SAY.summarize) || feedback.includes(SAY.commitMessage);
 
 function writtenFile(run: RunRef, input: HookInput): string | null {
   if (input.hook_event_name !== 'PostToolUse') return null;
@@ -60,7 +55,7 @@ export function guardHooks(
             return {
               hookSpecificOutput: {
                 hookEventName: 'PostToolUse',
-                additionalContext: `The consistency guard will not accept this change yet:\n${list(issues)}`,
+                additionalContext: `The ${SAY.guardFlag} this change yet:\n${list(issues)}`,
               },
             };
           },
@@ -94,7 +89,7 @@ export function guardHooks(
                 blocks++;
                 return {
                   decision: 'block',
-                  reason: `Before you finish: the consistency guard cannot accept these knowledge-base changes. Fix them, or remove the change:\n${list(issues)}`,
+                  reason: `Before you finish: ${SAY.guardRefusal}. Fix them, or remove the change:\n${list(issues)}`,
                 };
               }
             }

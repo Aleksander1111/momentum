@@ -1,3 +1,4 @@
+import { CHECKOUT, MESSAGE_FILE, RUN_LINE, SAY } from '../../src/protocol.ts';
 import { post } from '../observer/post.ts';
 import { addTokens, emptyTokens, tokensOf, type Tokens } from '../observer/usage-fit.ts';
 import { appendFileSync } from 'node:fs';
@@ -181,18 +182,17 @@ function said(m: Message): string | null {
   return parts.length ? parts.join('\n\n') : null;
 }
 
-const RESUME = 'The harness restarted while you were working';
-
-function kindOf(input: string, first: boolean): TurnKind {
-  if (input.includes('have the momentum-summarization sub-agent summarize')) return 'summarize';
-  if (input.includes('write the commit message your changes land on the main line with')) return 'commit-message';
-  if (input.includes('the consistency guard cannot accept these knowledge-base changes')) return 'guard';
-  if (input.includes(RESUME)) return 'resume';
+/** What the harness asked of the run in a turn, by the words it asks in (src/protocol.ts) */
+export function kindOf(input: string, first: boolean): TurnKind {
+  if (input.includes(SAY.summarize)) return 'summarize';
+  if (input.includes(SAY.commitMessage)) return 'commit-message';
+  if (input.includes(SAY.guardRefusal)) return 'guard';
+  if (input.includes(SAY.resume)) return 'resume';
   return first ? 'prompt' : 'message';
 }
 
 /** Where the hook asks the commit message to go */
-export const messageFileOf = (input: string) => /write the commit message .*? to (.+?), replacing what it holds/s.exec(input)?.[1]?.trim() ?? null;
+export const messageFileOf = (input: string) => MESSAGE_FILE.exec(input)?.[1]?.trim() ?? null;
 
 interface Logged {
   run: string;
@@ -410,15 +410,15 @@ export class ScriptedModel {
     const body = JSON.parse(raw) as { model: string; stream?: boolean; system?: string | { text: string }[]; messages: Message[]; tools?: unknown[] };
     const system = typeof body.system === 'string' ? body.system : (body.system ?? []).map((s) => s.text).join('\n');
     const id = ++this.n;
-    const run = /^- Run: (\w+), automation ([\w-]+), started by (\w+)(?:, target entity (\S+))?$/m.exec(system);
+    const run = RUN_LINE.exec(system);
     if (!run || !body.tools?.length) {
       const prompt = body.messages.flatMap(textsOf).filter(own).join('\n');
       this.side.push({ system, prompt });
       if (this.live) return void (await this.forward(req, raw, res));
-      const answer = /estimate the risk of an implementation/.test(system) ? this.risk(prompt) : 'OK';
+      const answer = system.includes(SAY.riskEstimate) ? this.risk(prompt) : 'OK';
       return this.reply(res, body, id, [{ text: answer }]);
     }
-    const checkout = /this checkout: (.+?); main line:/.exec(system)?.[1] ?? '';
+    const checkout = CHECKOUT.exec(system)?.[1] ?? '';
     if (!this.instructions.has(run[1]!)) this.instructions.set(run[1]!, system);
     const inputs: number[] = [];
     body.messages.forEach((m, i) => {
@@ -439,7 +439,7 @@ export class ScriptedModel {
       hookContext: body.messages
         .slice(at + 1)
         .flatMap((m) => (m.role === 'system' || m.role === 'user' ? textsOf(m) : []))
-        .filter((x) => x.includes('consistency guard will not accept')),
+        .filter((x) => x.includes(SAY.guardFlag)),
       wrote: written(body.messages, checkout),
       step,
       results: toolResults(body.messages.slice(at + 1)),

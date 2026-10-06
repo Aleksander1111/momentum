@@ -17,6 +17,7 @@ import { bookkeeping, guardHooks } from './hooks.ts';
 import { endKind, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
+import { runLine, SAY, workspaceLine } from './protocol.ts';
 import { Serial } from './serial.ts';
 import { Conflict, NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
@@ -112,7 +113,7 @@ interface Active {
 const MAX_BUILD_FAILURES = 3;
 /** How often a run lost at restart is queued again before it fails */
 const MAX_RESTARTS = 2;
-const RESUME = 'The harness restarted while you were working. Continue where you left off.';
+const RESUME = `${SAY.resume}. Continue where you left off.`;
 
 /** Runs the user talks to turn by turn: each turn ends the run, the next message resumes its session */
 const conversational = (automation: AutomationName) => automation === 'chat' || automation === 'interview';
@@ -524,8 +525,8 @@ export class Runner {
   private context(ws: Workspace, r: RunRow, limit: number, rules: string, lifetimes: { type: string; rule: string }[]): string {
     return `# Momentum run
 
-- Workspace: ${ws.name} (${ws.path}); this checkout: ${r.checkout}; main line: ${ws.main}
-- Run: ${r.id}, automation ${r.automation}, started by ${r.trigger}${r.target_path ? `, target entity ${r.target_path}` : ''}
+${workspaceLine(ws, r.checkout)}
+${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: r.target_path })}
 - Work only in this checkout. It is a detached checkout of the main line as it stood when you started; the harness commits your changes and lands them on the main line when the run ends, the consistency guard validates them and the user verifies them through the attention feed. Never commit, never push, never create or switch branches, never touch the workspace directory.
 
 ## Knowledge base
@@ -810,7 +811,7 @@ export class Runner {
       : r.automation === 'implementation'
         ? ` The run's target entity is ${r.target_path}: what is written for these artifacts is the result of implementing it, so every entity written or rewritten for them references ${r.target_path} with \`implements\`, and ${[...asked].join(', ')} ${asked.size > 1 ? 'are' : 'is'} not rewritten. Pass this message on to the sub-agent as it stands.`
         : ` The run's target entity is ${r.target_path}.`;
-    return `Before you finish, have the momentum-summarization sub-agent summarize these artifacts into entities in this checkout, passing it the character limit and presentation rules from your instructions. Run it in the foreground and wait for it to finish before you stop.${target}\n\n${lines.join('\n')}`;
+    return `Before you finish, ${SAY.summarize} these artifacts into entities in this checkout, passing it the character limit and presentation rules from your instructions. Run it in the foreground and wait for it to finish before you stop.${target}\n\n${lines.join('\n')}`;
   }
 
   /** Whether an artifact is on the main line, for callers that must not assume a checkout */

@@ -1,4 +1,5 @@
 import type { AutomationName, ModelChoice, ModelSettings, Risk } from '@momentum/contract';
+import { SAY } from './protocol.ts';
 
 /** Estimates the risk of an implementation; a short call, it needs no stronger model */
 export const ESTIMATOR = 'haiku';
@@ -24,7 +25,7 @@ interface Doc {
 
 /** The question the estimator answers: the user's rules applied to the entity to implement and its plans */
 export function riskQuestion(rules: string, target: Doc & { type: string }, plans: Doc[]): { system: string; prompt: string } {
-  const system = `You estimate the risk of an implementation before it starts: how hard the implementation is. Apply only the rules below. Answer with exactly one word: low, medium or high.
+  const system = `You ${SAY.riskEstimate} before it starts: how hard the implementation is. Apply only the rules below. Answer with exactly one word: low, medium or high.
 
 # Rules
 
