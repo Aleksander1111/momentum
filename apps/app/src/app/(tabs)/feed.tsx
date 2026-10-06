@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -25,7 +25,7 @@ import { Btn } from '../../ui/parts';
 import { STATE_LABEL, StateIcon, Tip, type State } from '../../ui/StateBadge';
 import { useCornerRoom } from '../../ui/SettingsButton';
 import { useWorkspaces } from '../../lib/workspace';
-import { router } from 'expo-router';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
 
 const THRESHOLD = 110;
 const FLING = 800;
@@ -356,21 +356,47 @@ export default function Feed() {
       return withoutItem(f, v);
     }, feed.data);
   }, [feed.data, feed.dataUpdatedAt, reactions]);
-  // The card on top stays there until the user reacts to it: an item a poll ranks above it comes next, so a swipe
-  // never lands on a card that slid in under the finger
-  const held = useRef<string | null>(null);
+  // The card on top stays there while the feed is in front, until the user reacts to it: a card that comes in ranked
+  // above it comes next, so a swipe never lands on a card that slid in under the finger. A card back from a refused
+  // reaction keeps its place. Back on the feed, or with the Feed tab pressed again, the top-ranked card is first.
+  const held = useRef<{ key: string; known: Set<string> } | null>(null);
+  const [visit, setVisit] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      setVisit((v) => v + 1);
+      return () => {
+        held.current = null;
+      };
+    }, []),
+  );
+  const navigation = useNavigation();
+  useEffect(
+    () =>
+      navigation.addListener('tabPress' as never, () => {
+        held.current = null;
+        setVisit((v) => v + 1);
+      }),
+    [navigation],
+  );
   const items = useMemo(() => {
     const all = view?.items ?? [];
-    const at = held.current ? all.findIndex((i) => entityKey(i) === held.current) : -1;
-    return at > 0 ? [all[at]!, ...all.slice(0, at), ...all.slice(at + 1)] : all;
-  }, [view]);
+    const h = held.current;
+    const at = h ? all.findIndex((i) => entityKey(i) === h.key) : -1;
+    if (!h || at <= 0) return all;
+    const arrived = new Set(all.slice(0, at).filter((i) => !h.known.has(entityKey(i))));
+    if (!arrived.size) return all;
+    const rest = all.filter((i) => !arrived.has(i));
+    const after = rest.indexOf(all[at]!) + 1;
+    return [...rest.slice(0, after), ...arrived, ...rest.slice(after)];
+  }, [view, visit]);
 
   const top = items[0];
   const topKey = top ? entityKey(top) : null;
   const topSince = useRef(Date.now());
   useEffect(() => {
     topSince.current = Date.now();
-    held.current = topKey;
+    // What the feed held when this card came on top, those with a reaction in flight included
+    held.current = topKey ? { key: topKey, known: new Set((feed.data?.items ?? []).map(entityKey)) } : null;
   }, [topKey]);
   const workspaces = useWorkspaces();
   const included = (workspaces.data ?? []).some((w) => w.enabled);

@@ -89,6 +89,8 @@ export class App {
 
   async tab(name: 'Feed' | 'Explorer' | 'Chat' | 'Timeline' | 'Metrics' | 'Settings'): Promise<void> {
     await pace('action', `Open the ${name} tab`);
+    // On a phone Settings has no button on Settings itself: there already, nothing is to press
+    if (name === 'Settings' && new URL(this.frame().url()).pathname.startsWith('/settings')) return;
     // On a phone Settings is the icon in the top-right corner
     const target = name === 'Settings' ? this.frame().getByLabel('Settings', { exact: true }).or(this.text(name)).first() : this.text(name);
     await target.click();
