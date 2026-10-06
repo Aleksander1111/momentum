@@ -22,6 +22,6 @@ artifacts:
 
 | Module | Provides |
 |---|---|
-| session | `startSession`: one steerable, resumable Claude Code process a run; 5h/weekly usage % at start, end, mid-turn; `ask`: one tool-less turn |
-| process | `spawnLimited`: procgov job (`-r`) with CPU/memory limits, commands stay in; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` becomes `DATABASE_URL`); `killTree` |
-| git | waits 5 s on foreign locks; detached checkout at main tip; `land`: one commit, fast-forward or replay, conflicts: run's side; `nonLinear`: detached HEAD, other branches (detached: a lone branch is its line), merges; `restorePath`; `fileHistory` |
+| session | `startSession`: one steerable, resumable Claude Code process a run; 5h/weekly usage %; `ask`: one tool-less turn |
+| process | `spawnLimited`: procgov job with CPU/memory limits; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` becomes `DATABASE_URL`); `killTree` |
+| git | waits 5 s on locks; detached checkout at main tip; run's changes read as stored (`autocrlf=input`); `land`: one commit, fast-forward or replay, conflicts: run's side; `nonLinear`: detached HEAD, other branches, merges; `restorePath`; `fileHistory` |

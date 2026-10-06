@@ -16,19 +16,19 @@ kind: internal library
 ---
 # Contract
 
-`@momentum/contract`: zod schemas, types for back-end, app; jitless in browsers, as the CSP forbids eval.
+`@momentum/contract`: zod schemas, types for backend, app; jitless in browsers (CSP forbids eval).
 
 | Area | Schemas |
 |---|---|
 | Entity | frontmatter, states, references, issues; links |
 | Card | blocks, PlantUML SVG, pickable parts |
-| Card diff | marks, spans, prior diagram, word counts |
-| Feed | items, versions, diffs, options, counts; reactions |
+| Card diff | marks, spans, prior diagram, counts |
+| Feed | items, versions, diffs, issue options, concern titles, counts; reactions |
 | Search | results; ask, sources |
-| Runs, chats | automations, status, usage; context; interview |
-| Timeline | actor, kind, facts, query, page |
-| Voice | screen, status, partial text |
-| Graph build, metrics | coverage; series |
+| Runs, chats | automations, status, usage, context, interview |
+| Timeline | actor, kind, facts (removed too), page |
+| Voice | screen, status, partials |
+| Build, metrics | coverage; series |
 | Settings | projects, logo, cards, lifetimes, models |
 
 `openapi.json`: generated OpenAPI 3.0.

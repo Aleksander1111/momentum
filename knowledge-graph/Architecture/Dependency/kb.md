@@ -19,9 +19,9 @@ kind: internal library
 
 `@momentum/kb`: the index side of the knowledge base.
 
-- Postgres DDL: harness schema (projects, settings, credential, sessions, usage, voice cursor, run refs); per workspace: entities, runs, messages, chats, transactions, attention, metrics, usage shares; checks from the contract; pruning
-- Index: an entity's rows change in one transaction; references both ways, state history, types tree, full text + pgvector fused by rank, expanded along references
-- Version: hash of title, card, issue options; contradictions from open issues
-- Cross-project feed by rank; state counts; reactions
-- bge-small embeddings, retried on failure
+- Postgres DDL: harness schema (projects, settings, credential, sessions, usage, voice, run refs); per workspace: entities, runs, chats, transactions, attention, metrics, usage; contract checks; pruning
+- Index: an entity's rows change in one transaction; references both ways, state history, types tree, full text + pgvector fused by rank, expanded along references; same planned work
+- Version: hash of title, card, issue options; contradictions
+- Cross-project feed by rank, issues with titles of what they concern; state counts; reactions
+- bge-small embeddings, retried
 - MCP: search, read, references, types, write, record_agent_metric
