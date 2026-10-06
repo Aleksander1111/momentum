@@ -14,7 +14,7 @@ const TASKS = {
   sync: 'Product/DevTask/sync-across-devices',
 };
 const SPLIT = ['Product/DevTask/sync-file-format', 'Product/DevTask/sync-command'];
-const RETIRE = 'Harness/Plan/retire-sync-task';
+const kg = (p: string) => `knowledge-graph/${p}.md`;
 const PLANNING =
   'Set up sprint 12 in the knowledge base: a Product/Sprint entity, and one Product/DevTask for each item, planned in the sprint: search to-dos, export to CSV, and sync across devices. Search matters most, then sync, then the CSV export. Do not implement anything yet.';
 
@@ -42,8 +42,9 @@ scenario('sprint', { enabled: [WS], graphBuild: 'complete', triggers: ['implemen
   model.on('splitting', (t) => t.automation === 'chat' && t.target === TASKS.sync && t.kind === 'prompt', (t) => [
     move.entity(t, SPLIT[0]!, task('Sync file format', 'A list file two machines can merge: one line per to-do with an id and a timestamp.', [3, 2, 3])),
     move.entity(t, SPLIT[1]!, { ...task('Sync command', '`todo sync <folder>` merges the list with the copy in the folder.', [3, 2, 2]), references: [...task('', '', [0, 0, 0]).references, { to: SPLIT[0]!, relation: 'depends_on' }] }),
-    move.entity(t, RETIRE, { type: 'Harness/Plan', title: 'Retire the sync task', card: 'Split into the file format and the command.', impact: [1, 0, 0], references: [{ to: TASKS.sync, relation: 'retires' }] }),
-    move.say('Split it in two.'),
+    // Nothing points at the task it splits: the chat removes it
+    move.remove(t, kg(TASKS.sync)),
+    move.say('Split it in two and removed the sync task.'),
   ]);
   /** The tasks as the chat named them */
   const tasks = { search: '', export: '', sync: '' };
@@ -95,15 +96,16 @@ scenario('sprint', { enabled: [WS], graphBuild: 'complete', triggers: ['implemen
   });
 
   await step(1, async () => {
-    const chat = await app.sendBack(WS, tasks.sync, 'Too big for one task: split it into one task for the sync file format and one for the sync command, and retire this one.');
+    const title = (await api.entity(WS, tasks.sync)).title;
+    const chat = await app.sendBack(WS, tasks.sync, 'Too big for one task: split it into one task for the sync file format and one for the sync command, and remove this one.');
     expect((await api.runEnded(chat, 10 * 60_000)).status).toBe('finished');
     const written = await Promise.all((await entitiesOf(env, WS, chat)).map((p) => api.entity(WS, p)));
     const split = written.filter((e) => e.type === 'Product/DevTask' && e.path !== tasks.sync);
     expect(split.length, 'the tasks it was split into').toBeGreaterThanOrEqual(2);
-    const plans = written.filter((e) => e.type === 'Harness/Plan' && refs(e, 'retires').includes(tasks.sync));
-    expect(plans, 'a plan retiring the sync task').toHaveLength(1);
-    await app.approve(WS, plans[0]!.path);
-    expect(env.show(WS, `knowledge-graph/${tasks.sync}.md`)).toBeNull();
+    // The chat removed the task itself; its timeline event says what went
+    expect(env.show(WS, kg(tasks.sync))).toBeNull();
+    const event = await until('the chat on the timeline', async () => (await api.timeline({ workspace: WS })).events.find((e) => e.runId === chat));
+    expect(event.facts.removed).toEqual([{ path: tasks.sync, title }]);
     for (const p of split) expect((await api.feed()).items.map((i) => i.path)).toContain(p.path);
   });
 
@@ -145,7 +147,7 @@ scenario('sprint', { enabled: [WS], graphBuild: 'complete', triggers: ['implemen
     const runs = await api.runs(WS, 'implementation');
     expect(runs.filter((r) => [tasks.search, tasks.export].includes(r.target_path ?? ''))).toHaveLength(3);
     expect(m.agents.automations.find((a) => a.automation === 'implementation')?.runs.value).toBe(runs.length);
-    expect(m.attention.approved.value).toBeGreaterThanOrEqual(4);
+    expect(m.attention.approved.value).toBeGreaterThanOrEqual(3);
     expect(m.attention.sentBack.value).toBe(1);
     const { events } = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&limit=200`);
     const failed = events.find((e) => e.kind === 'run_failed' && e.automation === 'implementation');

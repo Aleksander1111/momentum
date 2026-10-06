@@ -130,7 +130,9 @@ scenario('refactoring', { enabled: [WS], graphBuild: 'complete' }, async ({ env,
     // Reported, not proposed: a card in the feed names what went, and the run's timeline event lists it
     const report = await until('the removal report in the feed', async () => (await api.feed()).items.find((i) => i.workspace === WS && i.type === 'Harness/Report'));
     expect(report.title).toBe('Removed by the summarization run');
-    expect((await api.entity(WS, report.path)).markdown).toContain(DESIGN);
+    const reported = (await api.entity(WS, report.path)).markdown;
+    expect(reported).toContain(title);
+    expect(reported).toContain(DESIGN);
     const event = await until('the run on the timeline', async () => (await api.timeline({ workspace: WS })).events.find((e) => e.runId === run.id));
     expect(event.facts.removed).toEqual([{ path: DESIGN, title }]);
     await approveAll(run.id);

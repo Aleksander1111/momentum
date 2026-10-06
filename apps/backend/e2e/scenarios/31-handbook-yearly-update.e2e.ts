@@ -1,9 +1,8 @@
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { graphIssues } from '../support/check.ts';
 import { expect, scenario } from '../support/fixtures.ts';
-import { entitiesOf, refs } from '../support/landed.ts';
 import { EXPENSES_MD, missingArtifacts } from '../support/life.ts';
 import { move, type Turn } from '../support/scripted.ts';
 
@@ -12,7 +11,6 @@ const LEAVE = 'Governance/Policy/leave-policy';
 const REMOTE = 'Governance/Policy/remote-work';
 const ONBOARDING = 'Knowledge/HowToGuide/onboarding';
 const EXPENSES = 'Governance/Policy/expenses';
-const RETIRE = 'Harness/Plan/retire-the-remote-work-policy';
 const kg = (p: string) => `knowledge-graph/${p}.md`;
 
 /** The card a summarization writes from the documents it lists, with the artifacts where they are now */
@@ -22,6 +20,13 @@ function rewrite(t: Turn, entity: string, docs: string[]): string {
   return file
     .replace(/artifacts:\n(  - .*\n)+/, `artifacts:\n${docs.map((d) => `  - ${d}\n`).join('')}`)
     .replace(/(\n# [^\n]+\n)[\s\S]*$/, `$1\n${bullets.slice(0, 600)}\n`);
+}
+
+/** Whether an entity in the checkout points at an entity */
+function referenced(t: Turn, entity: string): boolean {
+  const root = t.file('knowledge-graph');
+  const to = new RegExp(`^\\s*- to: ${entity}\\s*$`, 'm');
+  return readdirSync(root, { recursive: true, encoding: 'utf8' }).some((f) => f.endsWith('.md') && to.test(readFileSync(join(root, f), 'utf8')));
 }
 
 // The handbook's knowledge graph is complete; the user keeps its documents up to date
@@ -42,9 +47,9 @@ scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', sett
         .map((d) => /^(\S+)(?: \((?:moved to (\S+?)(?:,[^)]*)?|deleted)\))?$/.exec(d.trim()))
         .map((m) => (m ? (m[2] ?? m[1]!) : ''))
         .filter((p) => p && exists(p));
-      // A policy whose document went to the archive is retired
+      // A policy whose document went to the archive is spent: removed, unless another entity still points at it
       if (paths.length === 0) {
-        moves.push(move.entity(t, RETIRE, { type: 'Harness/Plan', title: 'Retire the remote work policy', card: 'Its document moved to the archive.', impact: [1, 0, 0], references: [{ to: entity!, relation: 'retires' }] }));
+        if (!referenced(t, entity!)) moves.push(move.remove(t, kg(entity!)));
       } else moves.push(move.write(t, kg(entity!), rewrite(t, entity!, paths)));
     }
     for (const [, file] of t.input.matchAll(/^- (docs\/\S+\.md)$/gm)) {
@@ -124,17 +129,14 @@ scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', sett
     env.commit(WS, {}, 'Archive the remote work policy');
     const run = await summarization(since);
     expect(run.status).toBe('finished');
-    // The archived document is never summarized: gone from what is, the policy over it is proposed for retirement
+    // The archived document is never summarized: gone from what is, the policy over it is spent
     expect(model.turns(run.id)[0]!.input).toMatch(/docs\/remote-work\.md \(deleted\)/);
     expect(model.turns(run.id)[0]!.input).not.toContain('archive/');
-    const plans = (await Promise.all((await entitiesOf(env, WS, run.id)).map((p) => api.entity(WS, p)))).filter(
-      (e) => e.type === 'Harness/Plan' && refs(e, 'retires').includes(REMOTE),
-    );
-    expect(plans, 'a plan retiring the remote work policy').toHaveLength(1);
-    await app.approve(WS, plans[0]!.path);
-    // The onboarding guide and the product still point at the policy: it stays until they no longer do
+    // The product still points at the policy: the run leaves it, and reports nothing removed
     expect(exists(kg(REMOTE))).toBe(true);
-    expect(env.git(WS, 'log', '-1', '--format=%B', 'main')).toContain(`Keep ${REMOTE}`);
+    expect(await api.referencing(WS, REMOTE)).toContain('Product/Product/handbook');
+    const event = await until('the run on the timeline', async () => (await api.timeline({ workspace: WS })).events.find((e) => e.runId === run.id));
+    expect((event.facts.removed ?? []).map((r) => r.path)).not.toContain(REMOTE);
     expect(graphIssues(env, WS)).toEqual([]);
   });
 });

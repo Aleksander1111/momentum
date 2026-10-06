@@ -13,8 +13,6 @@ references:
     relation: reads
   - to: Harness/Automation/chat
     relation: starts
-  - to: Product/BusinessRule/approval-removes-retired
-    relation: applies
 artifacts:
   - apps/backend/src/approval.ts
 ---
@@ -23,7 +21,7 @@ artifacts:
 One feed across enabled projects: all that needs the user, as entities.
 
 - Rank = product_impact + timeline_impact + unlocks; the feed size bounds the loops
-- [Approve](Product/BusinessRule/approval-removes-retired): one commit sets it verified, syncs what it `implements`, removes nothing
+- Approve: one commit sets it verified and syncs what it `implements`
 - Send back: the comment starts a chat run on the entity, or joins the open one
 - Resolve an issue: a picked option or the user's text starts a chat run
 - Won't resolve: verified, with the reason

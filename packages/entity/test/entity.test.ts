@@ -47,18 +47,18 @@ describe('parse', () => {
 });
 
 describe('validate', () => {
-  const ctx = { characterLimit: 700, types, resolves: (p: string) => p === 'Architecture/Api/session' };
+  const ctx = { types, resolves: (p: string) => p === 'Architecture/Api/session' };
 
   it('accepts the golden fixture', () => {
     expect(validateEntity(path, parseEntity(fixture), ctx)).toEqual([]);
   });
 
-  it('flags card limit, unresolved references, unknown type and path mismatch', () => {
+  it('flags unresolved references, unknown type and path mismatch, never the card length', () => {
     const e = parseEntity(fixture);
-    const codes = validateEntity('Product/Feature/x', e, { ...ctx, characterLimit: 50, resolves: () => false }).map(
+    const codes = validateEntity('Product/Feature/x', e, { ...ctx, resolves: () => false }).map(
       (i) => i.code,
     );
-    expect(codes).toEqual(['type_path_mismatch', 'card_limit', 'unresolved_reference']);
+    expect(codes).toEqual(['type_path_mismatch', 'unresolved_reference']);
     const unknown = { ...e, frontmatter: { ...e.frontmatter, type: 'Nope/Thing' } };
     expect(validateEntity('Nope/Thing/x', unknown, ctx).map((i) => i.code)).toEqual(['unknown_type']);
   });

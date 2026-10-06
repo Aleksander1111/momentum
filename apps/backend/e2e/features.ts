@@ -77,14 +77,13 @@ export const FEATURES = {
   'feed.stale': 'A card that changed after the device showed it is not approved unseen',
   'feed.swipes': "Every reaction is made on the card in the app: a swipe right approves, a swipe left sends back with a comment, an issue's option is picked and swiped, the user's own resolution and won't resolve are written in the sheet",
   'feed.once': 'The same reaction from two devices, a second tap or a replayed offline swipe acts once; a send back never starts a second chat',
-  'feed.retire': 'Approving a retirement removes what nothing else references, and the plan with it',
 
   // Knowledge base
   'kb.index': 'Entities are parsed, validated and indexed with references in both directions',
   'kb.types': 'Entities are grouped by type path',
   'kb.search': 'Search finds entities by full text and meaning and expands along references',
   'kb.mcp': 'Runs read, search, follow references and write entities through the momentum-kb MCP server',
-  'kb.validate': 'Card limit, unresolved references, unknown types, path mismatch, mermaid and card links missing from the references are rejected',
+  'kb.validate': 'Unresolved references, unknown types, path mismatch, mermaid and card links missing from the references are rejected',
   'kb.ask': 'A question in the explorer search is answered in one pass from the entities the search finds, each it draws from linked',
 
   // Automations, each a real Claude Code run

@@ -6,7 +6,6 @@ export type ValidationCode =
   | 'parse'
   | 'unknown_type'
   | 'type_path_mismatch'
-  | 'card_limit'
   | 'unresolved_reference'
   | 'unlisted_link'
   | 'mermaid_diagram'
@@ -20,7 +19,6 @@ export interface ValidationIssue {
 }
 
 export interface ValidationContext {
-  characterLimit: number;
   types: { has(type: string): boolean };
   /** Whether an entity path exists on the transaction's branch */
   resolves: (entityPath: string) => boolean;
@@ -46,14 +44,6 @@ export function validateEntity(path: string, entity: ParsedEntity, ctx: Validati
       path,
       code: 'type_path_mismatch',
       message: `type ${frontmatter.type} does not match the directory ${typeOfPath(path)}`,
-    });
-  }
-  const length = cardLength(body);
-  if (length > ctx.characterLimit) {
-    issues.push({
-      path,
-      code: 'card_limit',
-      message: `card is ${length} characters, over the limit of ${ctx.characterLimit}; split it into entities that reference each other`,
     });
   }
   if (MERMAID.test(body)) {

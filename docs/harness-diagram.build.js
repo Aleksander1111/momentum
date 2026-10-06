@@ -260,7 +260,7 @@ const CARDS = [
   {
     type: 'COMPONENT', project: 'momentum', title: 'Consistency guard on every change',
     desc: 'Reacts to every change in the knowledge base so it stays consistent at all times, despite free access.',
-    bullets: ['Groups related changes into a transaction', 'Validates card limits and references', 'Raises what it cannot fix as an issue', 'Updates the index and metrics database'],
+    bullets: ['Groups related changes into a transaction', 'Validates types and references', 'Raises what it cannot fix as an issue', 'Updates the index and metrics database'],
     diagram: { boxes: [['Run', 0, 0], ['Guard', 1, 0], ['Main line', 2, 0], ['Issue', 1, 1]], arrows: [[0, 1], [1, 2], [1, 3]] },
   },
   {

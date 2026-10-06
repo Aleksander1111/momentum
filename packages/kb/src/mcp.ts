@@ -70,7 +70,7 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
       ),
       tool(
         'write',
-        'Write an entity to knowledge-graph/<path>.md in this run\'s checkout; it lands on the main line when the run ends. The path starts with the type path (Domain/Type from entity-types.tsv; the types tool lists them). The body is the card without its title, which is written as its heading: free-form markdown within the configured character limit, in the form that presents the entity best. Where naming another entity helps the reading, link it where it is named, [its title](Domain/Type/name); every entity linked is also in references. Returns validation issues, which the consistency guard will also raise.',
+        'Write an entity to knowledge-graph/<path>.md in this run\'s checkout; it lands on the main line when the run ends. The path starts with the type path (Domain/Type from entity-types.tsv; the types tool lists them). The body is the card without its title, which is written as its heading: free-form markdown within the character limit in your instructions, in the form that presents the entity best. Where naming another entity helps the reading, link it where it is named, [its title](Domain/Type/name); every entity linked is also in references. Returns validation issues, which the consistency guard will also raise.',
         {
           path: z.string().min(1),
           title: z.string().min(1),

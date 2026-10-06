@@ -235,7 +235,12 @@ export class App {
       await post({ type: 'note', text: `${item.title} is not on top of the feed: acting through the API` });
       return null;
     }
-    await expect(this.text(item.title)).toBeVisible({ timeout: 30_000 });
+    // The app holds the card it showed first, from before its feed came in: the Feed tab pressed again shows the top-ranked
+    await until('the card on top in the app', async () => {
+      if (await this.text(item.title).isVisible()) return true;
+      await this.text('Feed').click();
+      return this.text(item.title).isVisible();
+    }, 30_000, 1000);
     return item.title;
   }
 

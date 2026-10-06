@@ -108,7 +108,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'retention',
-    title: 'Spent entities retired',
+    title: 'Spent entities removed',
     projects: ['handbook'],
     real: true,
     covers: ['automation.retention', 'feed.removal-report'],
@@ -371,7 +371,7 @@ export const SCENARIOS: Scenario[] = [
     ],
     steps: [
       'The nightly consistency check files a contradiction and a naming clash as issues with options, counted as open; nothing else changes',
-      'Picking the recommended option fixes the guide and its document in a chat; the issue retires and the contradiction count drops',
+      'Picking the recommended option fixes the guide and its document in a chat; the issue is deleted and the contradiction count drops',
       "Won't resolve keeps the clash verified with the reason; it is no longer counted as open",
       'With the lifetimes the user set, retention removes the spent task and keeps the survey a decision relies on; the feed and the timeline report what went',
       'A user deleting an entity by hand on the main line is indexed at once: it leaves the index and the broken reference lowers consistency',
@@ -594,12 +594,12 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'automation.chat', 'automation.implementation', 'automation.validation', 'trigger.event', 'trigger.schedule', 'metrics.implementation',
-      'feed.retire', 'feed.issue-options', 'orchestrator.parallel-user-runs', 'trigger.on-demand',
+      'feed.issue-options', 'orchestrator.parallel-user-runs', 'trigger.on-demand',
     ],
     steps: [
       'A bug the user files through the chat is counted open',
       'Approved, the bug is fixed and validated; it counts as fixed once the fix is approved',
-      'A duplicate report is sent back and retired',
+      'A duplicate report is sent back and removed by the chat, its timeline event listing what went',
       'The nightly validation catches a regression the user committed; picking the fix option repairs it',
       'A hotfix started on demand runs at once beside the automation run in progress',
     ],
@@ -607,7 +607,7 @@ export const SCENARIOS: Scenario[] = [
     checks: [
       ['automation.chat', 'metrics.implementation'],
       ['automation.implementation', 'automation.validation', 'trigger.event', 'metrics.implementation'],
-      ['feed.retire', 'automation.chat', 'metrics.implementation'],
+      ['automation.chat', 'metrics.implementation'],
       ['trigger.schedule', 'automation.validation', 'feed.issue-options', 'metrics.implementation'],
       ['orchestrator.parallel-user-runs', 'trigger.on-demand'],
     ],
@@ -618,18 +618,18 @@ export const SCENARIOS: Scenario[] = [
     projects: ['bookshelf-api'],
     real: false,
     scripted: true,
-    covers: ['state.moved-files', 'state.new-files', 'state.artifact-ahead', 'automation.summarization', 'feed.retire', 'metrics.understanding'],
+    covers: ['state.moved-files', 'state.new-files', 'state.artifact-ahead', 'automation.summarization', 'feed.removal-report', 'metrics.understanding'],
     steps: [
       'A renamed module: the card over it follows the new path',
       'Routes split out of the server into a new file: one summarization run covers both files under the API',
-      'A deleted design document: its entity is retired once nothing references it',
+      'A deleted design document: summarization removes its entity and the reference to it, and reports what went',
       'The rename reverted: the card follows the file back and the graph stays consistent',
     ],
     // The features each step checks, step by step
     checks: [
       ['state.moved-files', 'state.artifact-ahead', 'automation.summarization'],
       ['state.new-files', 'state.artifact-ahead', 'automation.summarization'],
-      ['feed.retire', 'state.moved-files', 'state.artifact-ahead', 'automation.summarization'],
+      ['feed.removal-report', 'state.moved-files', 'state.artifact-ahead', 'automation.summarization'],
       ['state.moved-files', 'state.artifact-ahead', 'automation.summarization', 'metrics.understanding'],
     ],
   },
@@ -640,12 +640,12 @@ export const SCENARIOS: Scenario[] = [
     real: false,
     scripted: true,
     covers: [
-      'feed.rank', 'feed.send-back', 'feed.retire', 'orchestrator.serial-automations', 'orchestrator.parallel-user-runs', 'run.retry', 'run.failure',
+      'feed.rank', 'feed.send-back', 'orchestrator.serial-automations', 'orchestrator.parallel-user-runs', 'run.retry', 'run.failure',
       'metrics.attention', 'metrics.per-automation', 'app.timeline',
     ],
     steps: [
       'Sprint planning in the chat writes the sprint and its tasks, ranked by impact',
-      'A task too big is sent back, split in two and retired',
+      'A task too big is sent back, split in two and removed by the chat',
       'Approved tasks are implemented one at a time in order, while the user chats',
       'A failed implementation leaves its task to do; started again on demand, it lands',
       'The sprint review: metrics and the timeline show the sprint',
@@ -653,7 +653,7 @@ export const SCENARIOS: Scenario[] = [
     // The features each step checks, step by step
     checks: [
       ['feed.rank'],
-      ['feed.send-back', 'feed.retire'],
+      ['feed.send-back'],
       ['orchestrator.serial-automations', 'orchestrator.parallel-user-runs'],
       ['run.retry', 'run.failure'],
       ['metrics.attention', 'metrics.per-automation', 'app.timeline', 'run.failure'],
@@ -665,19 +665,19 @@ export const SCENARIOS: Scenario[] = [
     projects: ['handbook'],
     real: false,
     scripted: true,
-    covers: ['state.new-files', 'state.moved-files', 'automation.summarization', 'settings.persist', 'feed.retire', 'feed.approve'],
+    covers: ['state.new-files', 'state.moved-files', 'automation.summarization', 'settings.persist', 'feed.approve'],
     steps: [
       'A new policy document is summarized into a new policy',
       'One commit across three documents is summarized in one run',
       'Policies moved into a folder: the cards follow their documents, their words unchanged',
-      'A policy archived: its entity is proposed for retirement and kept while others reference it',
+      'A policy archived: its entity is spent, and the run leaves it while others reference it',
     ],
     // The features each step checks, step by step
     checks: [
       ['state.new-files', 'automation.summarization', 'feed.approve'],
       ['automation.summarization'],
       ['state.moved-files'],
-      ['state.moved-files', 'settings.persist', 'feed.retire'],
+      ['state.moved-files', 'settings.persist'],
     ],
   },
   {
@@ -829,7 +829,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: ['settings.persist', 'settings.graph-config', 'run.models', 'guard.live-check', 'kb.validate', 'kb.mcp'],
     steps: [
-      "The card limit and presentation rules set in Settings reach the next run's instructions; a card over the new limit is refused by the write tool and flagged by the guard",
+      "The card limit and presentation rules set in Settings reach the next run's instructions; the limit is the run's to keep, and a write is never refused for its length",
       'Risk rules the user edits in the harness knowledge graph are what the estimator is asked with: the next implementation starts on the model its answer leads to',
       'After a restart every setting stands: feed size, card limit and rules, exclusions, lifetimes, total runs and models',
     ],

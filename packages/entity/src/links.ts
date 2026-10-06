@@ -1,6 +1,6 @@
 /**
  * Links between entities inside a card's text. A card may link an entity where naming it helps the reading, as a
- * markdown link whose target is the entity path: [the approval rule](Product/BusinessRule/approval-removes-retired).
+ * markdown link whose target is the entity path: [the consistency guard](Architecture/Component/consistency-guard).
  * The path may also be written as its file, knowledge-graph/<path>.md, or with the entity: scheme.
  */
 

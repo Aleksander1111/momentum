@@ -14,7 +14,6 @@ Rule categories:
 | Category | Raise when |
 |---|---|
 | reference | A reference does not resolve, or a card links an entity that is not among its references |
-| card-limit | A card is over the character limit |
 | type-path | A type is not in entity-types.tsv, or does not match the entity's directory |
 
 Content categories, by severity:

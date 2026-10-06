@@ -250,7 +250,7 @@ const ENTITY_PATH = /^[A-Z][A-Za-z0-9]*\/[A-Z][A-Za-z0-9]*(?:\/[^\s/#?]+)+$/;
 
 /**
  * The entity path a link target points at, or null when it points anywhere else (a URL, a file, an anchor). Entities
- * link each other in text by path, [the approval rule](Product/BusinessRule/approval-removes-retired); the path may
+ * link each other in text by path, [the consistency guard](Architecture/Component/consistency-guard); the path may
  * also be written as its file, knowledge-graph/<path>.md, or with the entity: scheme.
  */
 export function entityLinkTarget(href: string): string | null {
