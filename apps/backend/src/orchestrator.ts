@@ -255,6 +255,11 @@ export class Orchestrator {
     if (!(await this.settings.enabled()).some((p) => p.name === workspace)) return;
     for (const t of await this.automations.triggers(ws)) {
       if (!t.events.includes(event)) continue;
+      // A plan and the task it plans approved one after the other are the same work: the run already open does it
+      if (event === 'entity_ahead' && payload.targetPath) {
+        const same = await ws.index.samePlannedWork(payload.targetPath);
+        if (await this.runner.hasOpenRunOn(workspace, t.automation, same)) continue;
+      }
       await this.runner.create({
         workspace,
         automation: t.automation,

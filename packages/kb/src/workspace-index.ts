@@ -316,6 +316,15 @@ export class WorkspaceIndex {
     return !!r;
   }
 
+  /** The same work as the entity: itself, its plans, and what it plans when it is a plan */
+  async samePlannedWork(path: string): Promise<string[]> {
+    const refs = this.t('entity_reference');
+    const rows = await this.sql<{ path: string }[]>`
+      select from_path as path from ${refs} where to_path = ${path} and relation_type = 'plans'
+      union select to_path from ${refs} where from_path = ${path} and relation_type = 'plans'`;
+    return [path, ...rows.map((r) => r.path).filter((p) => p !== path).sort()];
+  }
+
   async feedCount(): Promise<number> {
     const [r] = await this.sql<{ n: number }[]>`select count(*)::int as n from ${this.t('attention_ranking')}`;
     return r?.n ?? 0;

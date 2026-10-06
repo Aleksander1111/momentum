@@ -113,6 +113,14 @@ describe('workspace index', () => {
     expect(await index.feedCount()).toBe(1);
   });
 
+  it('tells the work a plan and the task it plans share', async () => {
+    await put('Product/DevTask/export', 'Export', 'Export the feed.');
+    await put('Harness/Plan/export', 'Plan: export', 'Steps.', [{ to: 'Product/DevTask/export', relation: 'plans' }]);
+    expect(await index.samePlannedWork('Product/DevTask/export')).toEqual(['Product/DevTask/export', 'Harness/Plan/export']);
+    expect(await index.samePlannedWork('Harness/Plan/export')).toEqual(['Harness/Plan/export', 'Product/DevTask/export']);
+    expect(await index.samePlannedWork('Product/Feature/offline-feed')).toEqual(['Product/Feature/offline-feed']);
+  });
+
   it('names the entities an issue concerns by their titles', async () => {
     const path = 'Harness/Issue/session-offline';
     const refs = [

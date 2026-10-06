@@ -279,6 +279,14 @@ export class Runner {
     return !!r;
   }
 
+  /** Whether a queued or running run of the automation already works on one of these entities */
+  async hasOpenRunOn(workspace: string, automation: AutomationName, paths: string[]): Promise<boolean> {
+    const ws = await this.workspaces.get(workspace);
+    const [r] = await ws.index.sql`select 1 from ${this.t(ws, 'run')}
+      where automation = ${automation} and status in ('queued', 'running') and target_path in ${ws.index.sql(paths)}`;
+    return !!r;
+  }
+
   /** A chat on an entity that is still queued or running, with the last thing the user said in it */
   async openChatOn(workspace: string, path: string): Promise<{ id: string; lastUserMessage: string | null } | null> {
     const ws = await this.workspaces.get(workspace);
