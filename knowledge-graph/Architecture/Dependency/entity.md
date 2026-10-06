@@ -24,6 +24,6 @@ kind: internal library
 `@momentum/entity`, internal library: how an entity file is read, checked and rendered.
 
 - Parser and serializer: YAML frontmatter, `# title`, the rest is the card; file path to entity path, type path = first two segments
-- Validator: known type, type matches the directory, card within the limit (code points, CRLF counted once), references resolve on the branch, card links among the references; `out_of_scope` names a file the guard put back
-- Card builder: markdown AST (remark, GFM) to blocks; plantuml rendered to SVG by the local PlantUML server, pickable per shape, a diff card's before diagrams too; mermaid rejected by the validator
+- Validator: known type, type matches the directory, references resolve on the branch, card links among the references, no mermaid; `out_of_scope` names a file the guard put back. The card limit is the run's to keep, never a validation failure
+- Card builder: markdown AST (remark, GFM) to blocks; plantuml rendered to SVG by the local PlantUML server, pickable per shape, a diff card's before diagrams too
 - Entity types loaded from `docs/entity-types.tsv`
