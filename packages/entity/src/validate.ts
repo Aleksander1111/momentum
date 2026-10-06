@@ -9,7 +9,9 @@ export type ValidationCode =
   | 'card_limit'
   | 'unresolved_reference'
   | 'unlisted_link'
-  | 'mermaid_diagram';
+  | 'mermaid_diagram'
+  /** A file the run's automation may not change in the repository it ran in; it is put back, not landed */
+  | 'out_of_scope';
 
 export interface ValidationIssue {
   path: string;

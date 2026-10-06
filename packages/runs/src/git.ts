@@ -202,6 +202,16 @@ export async function show(cwd: string, ref: string, path: string): Promise<stri
   }
 }
 
+/** Puts a path of a checkout back as `base` has it: its content there, or gone when it had none there */
+export async function restorePath(checkout: string, base: string, path: string): Promise<void> {
+  if ((await git(checkout, ['ls-tree', '--name-only', base, '--', path])).trim()) {
+    await git(checkout, ['checkout', base, '--', path]);
+    return;
+  }
+  await git(checkout, ['rm', '-q', '-f', '--cached', '--ignore-unmatch', '--', path]);
+  await rm(join(checkout, path), { force: true });
+}
+
 /** Commits that changed a file, newest first, up to `ref` */
 export async function fileHistory(cwd: string, ref: string, path: string): Promise<string[]> {
   const out = await git(cwd, ['log', '--format=%H', ref, '--', path]);

@@ -15,7 +15,8 @@ import {
   type ValidationIssue,
 } from '@momentum/entity';
 import type { Embed } from '@momentum/kb';
-import { changes, fileHistory, head, land, listFiles, mergeBase, mergesBetween, messageFile, moves, show, workingChanges, type Landed } from '@momentum/runs';
+import { changes, fileHistory, head, land, listFiles, mergeBase, mergesBetween, messageFile, moves, restorePath, show, workingChanges, type Landed } from '@momentum/runs';
+import { HARNESS_SCOPE } from './automations.ts';
 import type { Moved } from './events.ts';
 import { watch, type FSWatcher } from 'chokidar';
 import { existsSync } from 'node:fs';
@@ -317,7 +318,9 @@ export class Guard {
    */
   async transaction(run: RunRef): Promise<TransactionResult> {
     const ws = await this.workspaces.get(run.workspace);
-    const { written, deleted, issues } = await this.check(run);
+    const refused = await this.confine(ws, run);
+    const { written, deleted, issues: found } = await this.check(run);
+    const issues = [...refused, ...found];
     await this.definitionsToReview(ws, run, written);
     // Only the user verifies: an entity a run changed lands unverified, whatever the run left in its frontmatter
     for (const w of written) {
@@ -365,6 +368,25 @@ export class Guard {
       conflicts: landed?.conflicts ?? [],
     });
     return { valid, paths, issues, conflicts: landed?.conflicts ?? [], commit: landed?.commit ?? null };
+  }
+
+  /**
+   * In the harness's own repository a run lands only what its automation may change there (HARNESS_SCOPE): anything
+   * else it changed is put back as the main line had it, before it is validated or landed, and named in its issue
+   */
+  private async confine(ws: Workspace, run: RunRef): Promise<ValidationIssue[]> {
+    if (ws.name !== config.harnessName) return [];
+    const scope = HARNESS_SCOPE[run.automation as keyof typeof HARNESS_SCOPE] ?? [];
+    if (scope === 'any') return [];
+    const allowed = [`${KNOWLEDGE_GRAPH}/`, ...scope];
+    const base = await mergeBase(ws.path, `refs/heads/${ws.main}`, await head(run.checkout));
+    const refused = (await workingChanges(run.checkout, base)).filter((c) => !allowed.some((p) => c.path.startsWith(p)));
+    for (const c of refused) await restorePath(run.checkout, base, c.path);
+    return refused.map((c) => ({
+      path: c.path,
+      code: 'out_of_scope' as const,
+      message: `the ${run.automation} automation may not change this in the harness's repository; it was put back, not landed`,
+    }));
   }
 
   /**

@@ -15,6 +15,25 @@ export const TRIGGER_TYPE = 'Harness/Trigger';
 export const STEPS: AutomationName[] = ['summarization'];
 /** Automations that run in the harness workspace alone, over every enabled project: they change the definitions */
 export const HARNESS_ONLY: AutomationName[] = ['optimization'];
+/**
+ * What a run may change in the harness's own repository besides the knowledge graph. The harness serves from its main
+ * line and restarts on every change that lands there, so code lands only from the runs the user holds: their chats and
+ * interviews, and the implementations of what they approved. Every other run writes what its definition says it writes.
+ */
+export const HARNESS_SCOPE: Record<AutomationName, 'any' | string[]> = {
+  chat: 'any',
+  interview: 'any',
+  implementation: 'any',
+  preparation: ['plans/'],
+  optimization: ['automations/'],
+  exploration: [],
+  'consistency-check': [],
+  retention: [],
+  validation: [],
+  summarization: [],
+  'graph-build': [],
+  search: [],
+};
 /** The user's rules for the risk of an implementation, an artifact of the implementation definition */
 export const RISK_RULES = 'automations/implementation/risk.md';
 

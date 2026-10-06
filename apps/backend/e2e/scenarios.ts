@@ -447,7 +447,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'run.models', 'settings.persist', 'automation.optimization', 'metrics.agent', 'definition.approve', 'definition.materialize',
-      'definition.variant', 'definition.review', 'trigger.on-demand', 'trigger.schedule',
+      'definition.variant', 'definition.review', 'trigger.on-demand', 'trigger.schedule', 'guard.harness-scope',
     ],
     steps: [
       'Per automation, each run starts on the model the settings give its automation',
@@ -455,6 +455,7 @@ export const SCENARIOS: Scenario[] = [
       'Chats repeating one correction lead optimization in the harness to count it and propose a definition change',
       'Approving the proposal materializes it into the project and its variant is recorded on the runs it shapes; an agent file changed without approval is never materialized',
       'Triggers the user edits by hand take effect: without on_demand it refuses starts, and a new schedule is followed',
+      "An exploration in the harness lands its research, while the code it changed is put back and raised as an issue",
     ],
     // The features each step checks, step by step
     checks: [
@@ -463,6 +464,7 @@ export const SCENARIOS: Scenario[] = [
       ['automation.optimization', 'metrics.agent', 'definition.review'],
       ['definition.approve', 'definition.materialize', 'definition.variant', 'definition.review'],
       ['trigger.on-demand', 'trigger.schedule'],
+      ['guard.harness-scope'],
     ],
   },
   {

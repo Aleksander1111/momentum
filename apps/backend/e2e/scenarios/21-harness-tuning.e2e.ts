@@ -160,4 +160,24 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     const run = await until('the check on its new schedule', async () => (await api.runs(WS, 'consistency-check')).find((r) => r.created_at >= since && r.trigger === 'schedule'), 2 * 60_000);
     expect(run.trigger).toBe('schedule');
   });
+
+  await step(5, async () => {
+    // The harness serves from its own main line: an exploration there writes the knowledge graph, never the code
+    const code = 'apps/backend/src/explored.ts';
+    const research = 'Harness/Research/next-tuning';
+    model.on('exploration reaches into the code', { automation: 'exploration', kind: 'prompt' }, (t) => [
+      move.write(t, code, 'export const explored = true;\n'),
+      move.entity(t, research, { type: 'Harness/Research', title: 'Next tuning', card: 'Tune the chat definition next: answers still come as tables.' }),
+      move.say('Explored.'),
+    ]);
+    const since = new Date();
+    await app.approve(HARNESS, 'Harness/Trigger/exploration');
+    const run = await api.automationRan(HARNESS, 'exploration', since, 10 * 60_000);
+    expect(run.status).toBe('finished');
+    expect(env.show(HARNESS, code)).toBeNull();
+    expect(env.show(HARNESS, `knowledge-graph/${research}.md`)).toContain('# Next tuning');
+    const issue = await api.entity(HARNESS, `Harness/Issue/guard-${run.id}`);
+    expect(issue.markdown).toContain(code);
+    expect(issue.markdown).toMatch(/may not change this in the harness's repository/);
+  });
 });
