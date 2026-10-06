@@ -171,6 +171,7 @@ export class Momentum {
         run_id: string;
         title: string;
         first: string | null;
+        outcome: string | null;
         automation: ChatsResponse['chats'][number]['automation'];
         status: ChatsResponse['chats'][number]['status'];
         updated_at: Date;
@@ -181,6 +182,7 @@ export class Momentum {
     >(
       `select r.id as run_id, r.title, r.automation, r.status,
          (select text from ${s}.run_message m where m.run_id = r.id and m.role = 'user' order by seq limit 1) as first,
+         (select t.title from harness.timeline_event t where t.run_id = r.id and t.actor = 'automation') as outcome,
          greatest(r.created_at, r.ended_at, (select max(at) from ${s}.run_message m where m.run_id = r.id)) as updated_at,
          e.path as entity_path, e.verification, e.sync
        from ${s}.run r
@@ -193,7 +195,8 @@ export class Momentum {
       chats: rows.map((r) => ({
         workspace,
         runId: r.run_id,
-        title: r.title || (r.first ?? '').split('\n')[0]!.slice(0, 80),
+        // A chat reads by what the user asked; an automation's run by what came of it, as the timeline says
+        title: (r.automation === 'chat' ? r.title : r.outcome || r.title) || (r.first ?? '').split('\n')[0]!.slice(0, 80),
         automation: r.automation,
         status: r.status,
         updatedAt: r.updated_at.toISOString(),

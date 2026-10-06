@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RunDetail, VoiceTarget } from '@momentum/contract';
@@ -7,7 +7,7 @@ import { automationLabel, duration, runStatus, usagePct } from '../lib/format';
 import { openRun } from '../lib/runs';
 import { C, F, useWide } from './theme';
 import { T } from './Text';
-import { Markdown } from './Markdown';
+import { hasWideBlocks, Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
 import { chatContext, useChatContext } from '../lib/context';
 import { Btn } from './parts';
@@ -19,6 +19,13 @@ const ACTIVE = new Set(['queued', 'running']);
 /** Automation, state, what the run has used so far, the card it is about, and Stop while it is active */
 function RunHead({ run, onStop }: { run: RunDetail; onStop: () => Promise<void> }) {
   const [stopping, setStopping] = useState(false);
+  // The time it has been running goes on while nothing else about the run changes
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (run.status !== 'running') return;
+    const t = setInterval(() => tick((n) => n + 1), 15_000);
+    return () => clearInterval(t);
+  }, [run.status]);
   const target = useEntity(run.workspace, run.targetPath);
   const running = run.status === 'running';
   const state = stopping && ACTIVE.has(run.status) ? 'stopping' : running && run.startedAt ? `running ${duration(run.startedAt)}` : runStatus(run.status);
@@ -154,7 +161,7 @@ export function Conversation({ runId }: { runId: string }) {
               key={m.seq}
               style={{
                 alignSelf: 'flex-start',
-                maxWidth: '84%',
+                ...(hasWideBlocks(m.text) ? { width: '100%' as const } : { maxWidth: '84%' as const }),
                 backgroundColor: C.surface,
                 borderWidth: 1,
                 borderColor: C.line,

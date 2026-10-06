@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { ContextItem } from '@momentum/contract';
+import { setCurrentWorkspace } from './workspace';
 
 /**
  * Parts of cards the user added to the chat's context: quotes of selected text and picked diagram elements. They wait
@@ -16,6 +17,8 @@ export const chatContext = {
   add(item: ContextItem) {
     if (items.some((i) => same(i, item))) return;
     items = [...items, item];
+    // The chat opens on the project the part comes from, where its chip waits
+    setCurrentWorkspace(item.workspace);
     emit();
   },
   remove(item: ContextItem) {

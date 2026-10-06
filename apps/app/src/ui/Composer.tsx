@@ -1,7 +1,8 @@
 import { forwardRef, useState } from 'react';
-import { Pressable, View, type TextInput } from 'react-native';
+import { Platform, Pressable, View, type NativeSyntheticEvent, type TextInput, type TextInputKeyPressEventData } from 'react-native';
 import type { ContextItem, VoiceItem, VoiceOutcome, VoiceTarget } from '@momentum/contract';
 import { chatContext } from '../lib/context';
+import { HttpError, NetworkError } from '../lib/api';
 import { useVoice } from '../lib/voice';
 import { C, F, useTheme } from './theme';
 import { DomainIcon, domainColour } from './domains';
@@ -74,6 +75,10 @@ export const Composer = forwardRef<
 >(function Composer({ placeholder, onSend, autoFocus, context, voice }, ref) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  // Why the last message did not go, until the text changes
+  const [failed, setFailed] = useState<string | null>(null);
+  // The field grows with what is written, up to a few lines
+  const [height, setHeight] = useState(20);
   const mic = useVoice(voice?.target ?? null, (outcome, item) => {
     if (outcome.kind === 'failed') setText(item.text);
     voice?.onOutcome(outcome, item);
@@ -83,12 +88,27 @@ export const Composer = forwardRef<
     const t = text.trim();
     if (!t || busy) return;
     setBusy(true);
+    setFailed(null);
     try {
       await onSend(t);
       setText('');
+    } catch (e) {
+      setFailed(
+        e instanceof NetworkError
+          ? 'Not sent: Momentum cannot be reached. It stays here to send again.'
+          : e instanceof HttpError
+            ? `Not sent: ${e.message}`
+            : 'Not sent. Try again.',
+      );
     } finally {
       setBusy(false);
     }
+  };
+  // On a keyboard Enter sends and Shift+Enter starts a new line; on a phone the return key starts one and the button sends
+  const onKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData & { shiftKey?: boolean }>) => {
+    if (Platform.OS !== 'web' || e.nativeEvent.key !== 'Enter' || e.nativeEvent.shiftKey) return;
+    e.preventDefault();
+    void send();
   };
   return (
     <View style={{ gap: 8 }}>
@@ -99,15 +119,22 @@ export const Composer = forwardRef<
           ))}
         </View>
       ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
         <Field
           ref={ref}
           placeholder={placeholder}
           value={heard ? (mic.partial ?? '') : text}
-          onChangeText={setText}
-          onSubmitEditing={send}
+          onChangeText={(v) => {
+            setText(v);
+            setFailed(null);
+          }}
+          multiline
+          onKeyPress={onKeyPress}
+          onContentSizeChange={(e) => setHeight(e.nativeEvent.contentSize.height)}
           autoFocus={autoFocus}
           editable={!heard}
+          invalid={!!failed}
+          style={{ height: Math.min(120, Math.max(20, height)), lineHeight: 20 }}
           containerStyle={{ flex: 1 }}
         />
         {voice ? (
@@ -129,6 +156,11 @@ export const Composer = forwardRef<
           <Icon name="send" size={18} color={C.surface} />
         </Pressable>
       </View>
+      {failed ? (
+        <T accessibilityRole="alert" style={{ color: C.no, fontSize: 13 }}>
+          {failed}
+        </T>
+      ) : null}
     </View>
   );
 });
