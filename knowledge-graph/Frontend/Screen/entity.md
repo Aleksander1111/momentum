@@ -17,9 +17,10 @@ kind: page
 
 One entity in full: its card with verification, sync and contradiction badges, then its references and artifacts, folded until opened.
 
-- References both ways, grouped by type, each opening its entity; artifacts with their kind
+- References both ways, each with its relation, opening its entity; artifacts with their kind
 - Entities the card links show their type's glyph and colour and open on a press; other links open only to the web
 - A card changed since last verified shows the diff, as in the feed
 - Selected text and diagram shapes can be added to the chat context
 - A mic: a spoken command changes the entity, a question asks about it, in its chat
-- Wide: beside the Explorer tree; mobile: its own page, Back to the Explorer, or to the tab that opened it, as a chat's link does
+- A link to a retired or resolved entity says so and points to the timeline
+- Wide: beside the Explorer tree; mobile: its own page

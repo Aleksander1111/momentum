@@ -22,11 +22,11 @@ artifacts:
 
 Chats per workspace, each a conversation on a run.
 
-- Grouped by workspace under its logo, polled every 15 s; rows: kind, status, age, states
+- Grouped by workspace under its logo, polled every 15 s; rows: title, kind, status, age, state
 - A project picker, shared with Explorer and Metrics, picks where a new chat goes
 - The composer starts a chat run; context card parts wait as chips above it
-- A mic beside send shows words as heard, then opens the chat
-- A conversation: run head (automation, state, 5-hour usage), bubbles polled every 3 s while active; Stop kills it
-- Entities an answer names show their type's glyph, open on a press
+- A mic beside send shows words as heard, then opens it
+- Run head: automation, state (running time), 5-hour usage, the entity the chat is about; Stop turns to Stopping until it ends
+- Bubbles polled every 3 s while active; entities an answer names show their glyph, open on a press
 - An interview shows the document it writes, takes answers context-free
-- Wide: beside the list; narrow: own page, Back to Chats or the opening tab
+- Wide: beside the list; narrow: a page
