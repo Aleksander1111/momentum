@@ -147,19 +147,26 @@ export class Api {
 }
 
 /**
- * Polls until `probe` returns a value; stops at once when the usage limit is reached, and when the probe throws an error
- * marked `fatal`: what it waits for can no longer happen
+ * Polls until `probe` returns a value; stops at once when the usage limit is reached, when the probe throws an error
+ * marked `fatal` (what it waits for can no longer happen), and when it throws an error no wait mends: a name or syntax
+ * error in the probe itself. Anything else the probe throws (a 404 before the entity lands, a file not written yet, the
+ * back-end restarting) is tried again, and the last one is named if the wait runs out.
  */
 export async function until<T>(what: string, probe: () => Promise<T | null | undefined | false>, timeoutMs = 120_000, everyMs = 2000): Promise<T> {
   const deadline = Date.now() + timeoutMs;
+  let last: Error | null = null;
   for (;;) {
     guarded();
     const v = await probe().catch((e: Error & { fatal?: boolean }) => {
-      if (e.fatal) throw e;
+      if (e.fatal || e instanceof ReferenceError || e instanceof SyntaxError) throw e;
+      last = e;
       return null;
     });
     if (v) return v;
-    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}`);
+    if (Date.now() > deadline) {
+      const failed = last as Error | null;
+      throw new Error(`Timed out waiting for ${what}${failed ? `; the last try failed: ${failed.message}` : ''}`, { cause: failed ?? undefined });
+    }
     await new Promise((r) => setTimeout(r, everyMs));
   }
 }

@@ -311,6 +311,8 @@ export class Env {
     const tree = this.backend?.pid ? descendants(this.backend.pid) : [];
     this.stop();
     await this.sql?.end().catch(() => {});
+    // The account's sign-in never stays behind, not even in a world kept for inspection
+    if (this.isolated) rmSync(join(this.claudeConfig, '.credentials.json'), { force: true, maxRetries: 5 });
     // Killed processes take a moment to go; the console host Windows gives each console goes with its console
     const own = tree.filter((p) => p.name.toLowerCase() !== 'conhost.exe');
     for (let waited = 0; waited < 10_000 && own.some((p) => alive(p.pid)); waited += 500) await new Promise((r) => setTimeout(r, 500));
