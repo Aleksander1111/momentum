@@ -27,6 +27,6 @@ Real-life situations over the four example projects, each in its own world.
 | No runs | Never answered | None |
 
 - features.ts lists every feature; a coverage test fails while one has no scenario
-- A stall or a dead back-end fails at once; a used-up limit skips real scenarios
-- Scripted: flows, product lives, the user alongside, kb tools, rules, stream holes, notes-api, the API document, swipes, usage and run limits, harness scope
+- A stall or dead back-end fails at once; a used-up limit skips real scenarios
+- Scripted: flows, product lives, the user alongside, kb tools, rules, stream holes, notes-api, API document, swipes, limits, harness scope, skipped summarization
 - Patterns: proposed in the feed, counted once approved
