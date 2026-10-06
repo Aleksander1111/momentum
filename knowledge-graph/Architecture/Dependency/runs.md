@@ -18,10 +18,10 @@ artifacts:
 ---
 # runs
 
-Library `@momentum/runs`: how the backend executes runs.
+`@momentum/runs`: how the backend executes runs.
 
 | Module | Provides |
 |---|---|
-| session | `startSession`: one steerable, resumable Claude Code process per run; 5h/weekly usage % at start, end, mid-turn; `ask`: one tool-less turn |
+| session | `startSession`: one steerable, resumable Claude Code process a run; 5h/weekly usage % at start, end, mid-turn; `ask`: one tool-less turn |
 | process | `spawnLimited`: procgov job (`-r`) with CPU/memory limits, commands stay in; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` becomes `DATABASE_URL`); `killTree` |
-| git | waits 5 s on a foreign lock; detached checkout at main tip; `land`: one commit, fast-forwarded or replayed, conflicts on the run's side; `nonLinear`: branches, detached HEAD, merges; `restorePath`: a path as a base has it; `fileHistory` |
+| git | waits 5 s on foreign locks; detached checkout at main tip; `land`: one commit, fast-forward or replay, conflicts: run's side; `nonLinear`: detached HEAD, other branches (detached: a lone branch is its line), merges; `restorePath`; `fileHistory` |
