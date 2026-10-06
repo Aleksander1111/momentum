@@ -70,13 +70,12 @@ function initRepo(dir: string, message: string, history: { message: string; path
   if (!history.length || git(dir, 'status', '--porcelain') !== '') git(dir, 'commit', '-q', '--allow-empty', '-m', message);
 }
 
-/** The harness workspace: this repository's automation definitions, every one approved */
+/** The harness workspace: this repository's automation definitions, as they are */
 function harnessRepo(dir: string) {
   cpSync(join(REPO, 'automations'), join(dir, 'automations'), { recursive: true });
   const defs = join(REPO, 'knowledge-graph', 'Harness', 'Automation');
   for (const f of readdirSync(defs)) {
-    const text = readFileSync(join(defs, f), 'utf8').replace(/^verification: unverified$/m, 'verification: verified');
-    put(dir, `knowledge-graph/Harness/Automation/${f}`, text);
+    put(dir, `knowledge-graph/Harness/Automation/${f}`, readFileSync(join(defs, f), 'utf8'));
   }
   // The entity types, the other configuration the settings lead to; the repository it belongs to is not in this copy
   cpSync(join(REPO, 'docs', 'entity-types.tsv'), join(dir, 'docs', 'entity-types.tsv'));

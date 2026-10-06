@@ -16,9 +16,9 @@ export const FEATURES = {
 
   // Definitions and triggers
   'definition.materialize': 'Approved Harness/Automation artifacts are written to <workspace>/.claude and kept out of git',
-  'definition.approve': 'Approving a definition in the harness workspace materializes it into every enabled project',
+  'definition.land': 'A definition as it lands on the harness main line is materialized into every enabled project, whatever its verification',
   'definition.variant': 'A definition variant is recorded on each run of its automation for comparison',
-  'definition.review': 'A definition whose files a run changed lands unverified and is not materialized until approved',
+  'definition.review': 'A definition whose files a run changed is in effect as it lands and waits in the feed, unverified, for the user to review',
   'trigger.defaults': 'Default triggers land on the main line unverified and wait in the feed',
   'trigger.schedule': 'An approved trigger with a cron schedule queues a run once per due time',
   'trigger.event': 'entity_ahead starts implementation; implementation_finished starts validation',

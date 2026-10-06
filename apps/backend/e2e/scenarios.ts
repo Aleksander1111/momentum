@@ -183,15 +183,15 @@ export const SCENARIOS: Scenario[] = [
     title: 'Optimization proposes from recurring issues',
     projects: ['bookshelf-api'],
     real: true,
-    covers: ['automation.optimization', 'metrics.agent', 'definition.approve', 'definition.variant'],
+    covers: ['automation.optimization', 'metrics.agent', 'definition.land', 'definition.variant'],
     steps: [
       'Two chats repeating a correction propose nothing; after a third, optimization records the counts and proposes the pattern and a definition change with evidence',
-      'Approving it materializes it into every enabled project; a definition variant is recorded on the runs it shapes',
+      'The proposal is in every enabled project as it lands, before anyone approves it; a definition variant is recorded on the runs it shapes',
     ],
     // The features each step checks, step by step
     checks: [
       ['automation.optimization', 'metrics.agent'],
-      ['definition.approve', 'definition.variant'],
+      ['definition.land', 'definition.variant'],
     ],
   },
   {
@@ -444,14 +444,14 @@ export const SCENARIOS: Scenario[] = [
     real: false,
     scripted: true,
     covers: [
-      'run.models', 'settings.persist', 'automation.optimization', 'metrics.agent', 'definition.approve', 'definition.materialize',
+      'run.models', 'settings.persist', 'automation.optimization', 'metrics.agent', 'definition.land', 'definition.materialize',
       'definition.variant', 'definition.review', 'trigger.on-demand', 'trigger.schedule', 'guard.harness-scope',
     ],
     steps: [
       'Per automation, each run starts on the model the settings give its automation',
       "By risk, the estimator applies the user's rules: a typo fix starts on haiku, a schema change on opus",
       'Chats repeating one correction lead optimization in the harness to count it and propose a definition change',
-      'Approving the proposal materializes it into the project and its variant is recorded on the runs it shapes; an agent file changed without approval is never materialized, and one no definition produces is removed',
+      'A definition a chat changes is in every project as it lands, waiting in the feed for review; its variant is recorded on the runs it shapes, and an agent file no definition produces is removed',
       'Triggers the user edits by hand take effect: without on_demand it refuses starts, and a new schedule is followed',
       "An exploration in the harness lands its research, while the code it changed is put back and raised as an issue",
     ],
@@ -460,7 +460,7 @@ export const SCENARIOS: Scenario[] = [
       ['run.models', 'settings.persist'],
       ['run.models', 'settings.persist'],
       ['automation.optimization', 'metrics.agent', 'definition.review'],
-      ['definition.approve', 'definition.materialize', 'definition.variant', 'definition.review'],
+      ['definition.land', 'definition.materialize', 'definition.variant', 'definition.review'],
       ['trigger.on-demand', 'trigger.schedule'],
       ['guard.harness-scope'],
     ],

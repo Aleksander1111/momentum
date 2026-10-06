@@ -235,9 +235,9 @@ export class Guard {
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
     }
-    // A definition committed straight to the harness main line is materialized like an approved one
+    // A definition is materialized as it stands on the harness main line, whoever changed it
     if (ws.name === config.harnessName && changed) {
-      for (const p of changed) if (p.startsWith('Harness/Automation/')) this.bus.emit('definition_approved', { path: p });
+      for (const p of changed) if (p.startsWith('Harness/Automation/')) this.bus.emit('definition_changed', { path: p });
     }
     await this.recordMetrics(ws);
   }

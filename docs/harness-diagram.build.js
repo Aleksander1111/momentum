@@ -7,17 +7,18 @@ const fa = require('react-icons/fa6');
 const OUT = process.argv[2] || 'harness-diagram.pptx';
 
 // ---------------------------------------------------------------- content
+// the app's six tabs, then the back end
 const HARNESS = [
-  ['Settings', ['Included projects', 'Feed size', 'Cards', 'Models', 'Links to graph config'], 'FaGear'],
-  ['Knowledge Graph Explorer', ['Entity browsing', 'Search by meaning', 'Answers to questions', 'Linked entities'], 'FaDiagramProject'],
-  ['Importance Rank', ['Dependencies', 'Stability', 'Performance', 'Priority', 'Velocity'], 'FaRankingStar'],
-  ['Chat', ['Question answering', 'Run steering', 'Automation launching'], 'FaComments'],
-  ['Metrics', ['Alignment issues', 'Agents usage', 'Sessions duration', 'Consistency'], 'FaChartLine'],
-  ['Optimization', ['Patterns across all chats', 'Three repeats at least', 'Skills, memories, agents', 'Approved in the feed'], 'FaWandMagicSparkles'],
-  ['Orchestrator', ['Automation deployment', 'Agents deployment', 'Metrics collection'], 'FaSitemap'],
-  ['API', ['Front-end entry point', 'Feed polling', 'Session results', 'Approvals'], 'FaPlug'],
-  ['Voice Tools', ['Full capability access', 'UI-free control', 'API calls'], 'FaMicrophone'],
-  ['RAG', ['Graph retrieval', 'Entity context', 'Chat context', 'Reference traversal'], 'FaMagnifyingGlass'],
+  ['Feed', ['Ranked cards of all projects', 'Swipe right to approve', 'Swipe left to send back', 'Issues resolved by option'], 'FaLayerGroup'],
+  ['Explorer', ['Domain and type tree', 'Search by words, meaning', 'Answers from the graph', 'Linked entities'], 'FaDiagramProject'],
+  ['Chat', ['Chats and interviews', 'Card parts as context', 'Spoken by the mic', 'Stop at any time'], 'FaComments'],
+  ['Timeline', ['What you did', 'One event per run', 'What runs removed', 'What the harness did'], 'FaClockRotateLeft'],
+  ['Metrics', ['Share of the usage limits', 'Entities by state', 'Runs per automation', '24 h, 7 d or 30 d'], 'FaChartLine'],
+  ['Settings', ['Projects and graph build', 'Feed size', 'Cards and lifetimes', 'Concurrent runs'], 'FaGear'],
+  ['API', ['Typed routes, OpenAPI', 'Session on every route', 'Voice sockets', 'MCP tools'], 'FaPlug'],
+  ['Orchestrator', ['Triggers due, feed room left', 'Events start runs', 'One automation per project', 'Your runs at once'], 'FaSitemap'],
+  ['Runner', ['Claude Code, one per run', 'Own main-line checkout', 'Stop hook summarizes', 'Lost runs resume'], 'FaTerminal'],
+  ['Consistency Guard', ['Checks every write', 'One commit per run', 'Issues, conflicts, reports', 'Index true to the main line'], 'FaShieldHalved'],
 ];
 
 // ---------------------------------------------------------------- geometry (inches, 13.333 x 7.5)
@@ -30,8 +31,8 @@ const HARN = { x: 0.35, w: 4.25, y: 1.45, bottom: 6.95, gap: 0.1 };
 const PROD = { x: 4.8, w: 8.2 };
 const BANDS = [
   { key: 'att', y: 1.45, h: 1.8, label: ['Attention', 'Layer'], ly: 2.3 },
-  { key: 'kn', y: 3.25, h: 1.2, label: ['Knowledge', 'Layer'], ly: 3.85 },
-  { key: 'prod', y: 4.45, h: 2.5, label: ['Product', 'Layer'], ly: 5.45 },
+  { key: 'kn', y: 3.25, h: 1.2, label: ['Understanding', 'Layer'], ly: 3.85 },
+  { key: 'prod', y: 4.45, h: 2.5, label: ['Implementation', 'Layer'], ly: 5.45 },
 ];
 const TOP = { w: 1.4, h: 0.46 };
 const LOW = { w: 1.3, h: 0.32 };
@@ -40,20 +41,21 @@ const ROWS = [4.87, 5.27, 5.67, 6.07, 6.47];
 const N = {};
 const node = (id, text, cx, cy, sz, layer) => (N[id] = { id, text, cx, cy, w: sz.w, h: sz.h, layer });
 node('af', 'Attention Feed', CX, 1.98, TOP, 0);
-node('prio', 'Prioritizer', CX - 1.05, 2.78, TOP, 0);
-node('ret', 'Retention', CX + 1.05, 2.78, TOP, 0);
+node('prio', 'Ranking', CX - 1.05, 2.78, TOP, 0);
+node('ret', 'Approval', CX + 1.05, 2.78, TOP, 0);
 node('sc', 'Entity Cards', CX - 2.0, 3.85, TOP, 1);
-node('cg', 'Consistency Gate', CX, 3.85, TOP, 1);
+node('cg', 'Consistency Guard', CX, 3.85, TOP, 1);
 node('kg', 'Knowledge Graph', CX + 2.0, 3.85, TOP, 1);
-const LEFT = ['Story', 'Plan', 'Change', 'Bug', 'Refactor'];
-const RIGHT = ['Exploration', 'Preparation', 'Implementation', 'Testing', 'Review'];
+// each automation beside what it leaves for summarization
+const LEFT = ['Chats', 'Interviews', 'Plans', 'Code', 'Documents'];
+const RIGHT = ['Chat', 'Interview', 'Preparation', 'Implementation', 'Graph Build'];
 LEFT.forEach((t, i) => node('l' + i, t, CX - 0.95, ROWS[i], LOW, 2));
 const BOX_ICONS = {
-  l0: 'FaBookOpen', l1: 'FaListCheck', l2: 'FaPenToSquare', l3: 'FaBug', l4: 'FaScrewdriverWrench',
+  l0: 'FaComments', l1: 'FaMicrophone', l2: 'FaListCheck', l3: 'FaCode', l4: 'FaFileLines',
 };
 RIGHT.forEach((t, i) => node('r' + i, t, CX + 0.95, ROWS[i], LOW, 2));
-node('sum', 'Summarizer', CX - 3.2, ROWS[4], LOW, 2);
-node('trg', 'Triggers', CX + 3.2, ROWS[4], LOW, 2);
+node('sum', 'Summarization', CX - 3.2, ROWS[4], LOW, 2);
+node('trg', 'Orchestrator', CX + 3.2, ROWS[4], LOW, 2);
 const ME = { cx: CX, headY: 0.08, headD: 0.24, bodyY: 0.35, bodyW: 0.56, bodyH: 0.47 };
 
 const STRAIGHT = [
@@ -152,7 +154,7 @@ async function render(pres, T) {
     const L = T.label;
     if (L && L.pill) {
       s.addText(b.label.join(' '), {
-        shape: pres.shapes.ROUNDED_RECTANGLE, rectRadius: 0.13, x: 11.85, y: b.ly - 0.14, w: 1.0, h: 0.28,
+        shape: pres.shapes.ROUNDED_RECTANGLE, rectRadius: 0.13, x: 11.62, y: b.ly - 0.14, w: 1.3, h: 0.28,
         fill: { color: B.labelFill }, line: { type: 'none' }, color: B.labelColor, fontFace: bodyFont, fontSize: 8.5, bold: true,
         align: 'center', valign: 'middle', margin: 0, isTextBox: true,
       });
@@ -256,23 +258,23 @@ async function render(pres, T) {
 // example cards: momentum's own work
 const CARDS = [
   {
-    type: 'PLAN', project: 'momentum', title: 'Consistency guard on every change',
+    type: 'COMPONENT', project: 'momentum', title: 'Consistency guard on every change',
     desc: 'Reacts to every change in the knowledge base so it stays consistent at all times, despite free access.',
     bullets: ['Groups related changes into a transaction', 'Validates card limits and references', 'Raises what it cannot fix as an issue', 'Updates the index and metrics database'],
     diagram: { boxes: [['Run', 0, 0], ['Guard', 1, 0], ['Main line', 2, 0], ['Issue', 1, 1]], arrows: [[0, 1], [1, 2], [1, 3]] },
   },
   {
-    type: 'CHANGE', project: 'momentum', title: 'Remote access over a private mesh',
+    type: 'DECISION', project: 'momentum', title: 'Remote access over a private mesh',
     desc: 'No port is exposed to the public internet; clients reach the machine through a WireGuard mesh.',
     bullets: ['API listens only on the mesh', 'One key per enrolled device', 'Lost devices revoked centrally', 'No shared secret in clients'],
     table: [['Layer', 'Protection'], ['Tunnel', 'End-to-end encryption'], ['API', 'Per-user session'], ['Edge', 'No inbound firewall rule']],
   },
   {
-    type: 'STORY', project: 'momentum', title: 'Attention feed ranking',
+    type: 'FEATURE', project: 'momentum', title: 'Attention feed ranking',
     desc: 'Ranks what should be done right now so the product ends up the best it can be.',
     bullets: ['One feed across enabled projects', 'Items are entities of any type', 'No project priority', 'Read straight from the index'],
     table: [['Parameter', 'Measures'], ['Product', 'Impact on the product'], ['Timeline', 'Impact on the timeline'], ['Unlocks', 'How much it unlocks']],
-    comment: 'Rank by the Importance Rank instead: dependencies, stability, performance, priority and velocity.',
+    comment: 'Put issues above features when their scores tie.',
   },
 ];
 const TABS = [
@@ -475,7 +477,7 @@ const THEME = {
   pres.title = 'Harness & Products';
   await render(pres, THEME);
   await renderApp(pres, THEME);
-  // How everything works together: entities, states, automations, summarization, the gate, git, user actions
+  // How everything works together: entities, states, automations, summarization, the guard, git, user actions
   await require('./harness-diagram.mechanics.js')(pres, THEME);
   await pres.writeFile({ fileName: OUT });
   console.log('wrote', OUT);

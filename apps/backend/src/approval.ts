@@ -175,9 +175,6 @@ export class Approval {
 
     if (entity.frontmatter.sync === 'entity_ahead') this.bus.emit('entity_ahead', { workspace, path });
     if (entity.frontmatter.type === TRIGGER_TYPE) this.bus.emit('triggers_changed', { workspace });
-    if (entity.frontmatter.type === DEFINITION_TYPE && ws.name === (await this.workspaces.harness()).name) {
-      this.bus.emit('definition_approved', { path });
-    }
     this.bus.emit('feed_changed');
   }
 

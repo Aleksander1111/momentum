@@ -50,12 +50,13 @@ scenario('optimization', { enabled: [WS, HARNESS] }, async ({ env, api, app, ste
   await step(1, async () => {
     const proposal = (await api.feed()).items.find((i) => i.workspace === HARNESS && i.type === 'Harness/Automation')!;
     const name = proposal.path.split('/').pop()!;
-    await app.approve(HARNESS, proposal.path);
+    // In effect as it landed: the user's approval is their review, not what puts it to work
     const agents = (await api.entity(HARNESS, proposal.path)).artifacts.map((a) => a.path).filter((p) => p.startsWith(`automations/${name}/agents/`));
     for (const a of agents) {
       const target = join(env.path(WS), '.claude', a.slice(`automations/${name}/`.length));
       await until(`${a} materialized in ${WS}`, async () => readFileSync(target, 'utf8').trim() === env.show(HARNESS, a));
     }
+    await app.approve(HARNESS, proposal.path);
 
     // A variant on the chat definition is recorded on the next chat's metrics
     const file = 'knowledge-graph/Harness/Automation/chat.md';

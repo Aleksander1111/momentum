@@ -65,26 +65,27 @@ function agentFile(text: string): { description: string; prompt: string } {
 export class Automations {
   constructor(private readonly workspaces: Workspaces) {}
 
-  /** Approved definitions on the harness main line */
-  async approved(): Promise<{ path: string; name: string; artifacts: string[]; variant: string | null; responsibility: string }[]> {
+  /**
+   * The definitions on the harness main line, as they stand there: verification is the user's review of an entity,
+   * never a switch for what the harness loads
+   */
+  async definitions(): Promise<{ path: string; name: string; artifacts: string[]; variant: string | null; responsibility: string }[]> {
     const harness = await this.workspaces.harness().catch((e) => {
       if (e instanceof NotFound) return null;
       throw e;
     });
     if (!harness) return [];
     const rows = await harness.index.byType(DEFINITION_TYPE);
-    return rows
-      .filter((r) => r.verification === 'verified')
-      .map((r) => ({
-        path: r.path,
-        name: r.path.split('/').pop()!,
-        artifacts: r.frontmatter.artifacts,
-        variant: typeof r.frontmatter.variant === 'string' ? r.frontmatter.variant : null,
-        responsibility: r.title,
-      }));
+    return rows.map((r) => ({
+      path: r.path,
+      name: r.path.split('/').pop()!,
+      artifacts: r.frontmatter.artifacts,
+      variant: typeof r.frontmatter.variant === 'string' ? r.frontmatter.variant : null,
+      responsibility: r.title,
+    }));
   }
 
-  /** Writes the approved definitions' artifacts into <workspace>\.claude\, kept out of git by .git/info/exclude */
+  /** Writes the definitions' artifacts into <workspace>\.claude\, kept out of git by .git/info/exclude */
   async materialize(ws: Workspace): Promise<void> {
     // Kept out of git before they are written: no git command ever sees them as untracked files
     const exclude = join(ws.path, '.git', 'info', 'exclude');
@@ -95,7 +96,7 @@ export class Automations {
       await appendFile(exclude, `${current.endsWith('\n') || !current ? '' : '\n'}${missing.join('\n')}\n`);
     }
     const harness = await this.workspaces.harness();
-    for (const def of await this.approved()) {
+    for (const def of await this.definitions()) {
       for (const artifact of def.artifacts) {
         const prefix = `automations/${def.name}/`;
         if (!artifact.startsWith(prefix) || artifact.endsWith('trigger.md') || artifact === RISK_RULES) continue;
@@ -111,9 +112,8 @@ export class Automations {
   }
 
   /**
-   * Agent and skill files a definition once put in the workspace that no definition produces any more, approved or
-   * waiting in the feed: a renamed or retired automation's. They are deleted, so no run or session picks them up; the
-   * files of a definition waiting for approval stay as they were last approved.
+   * Agent and skill files a definition once put in the workspace that no definition produces any more: a renamed or
+   * retired automation's. They are deleted, so no run or session picks them up.
    */
   private async removeOrphans(ws: Workspace): Promise<void> {
     const harness = await this.workspaces.harness().catch(() => null);
@@ -146,7 +146,7 @@ export class Automations {
   private async recordAutomations(ws: Workspace): Promise<void> {
     const triggers = await this.triggers(ws);
     const s = ws.index.sql(`${ws.index.schema}.automation`);
-    for (const def of await this.approved()) {
+    for (const def of await this.definitions()) {
       const row = {
         name: def.name,
         responsibility: def.responsibility,
@@ -160,15 +160,15 @@ export class Automations {
 
   async definition(ws: Workspace, name: AutomationName): Promise<Definition> {
     const file = join(ws.path, '.claude', 'agents', `momentum-${name}.md`);
-    if (!existsSync(file)) throw new Error(`The ${name} definition is not materialized in ${ws.name}; approve Harness/Automation/${name}`);
+    if (!existsSync(file)) throw new Error(`The ${name} definition is not materialized in ${ws.name}; Harness/Automation/${name} is not on the harness main line`);
     const { description, prompt } = agentFile(await readFile(file, 'utf8'));
-    const variant = (await this.approved()).find((d) => d.name === name)?.variant ?? null;
+    const variant = (await this.definitions()).find((d) => d.name === name)?.variant ?? null;
     return { name, description, instructions: prompt, variant };
   }
 
   /** The risk rules on the harness main line, once the implementation definition lists them among its artifacts */
   async riskRules(): Promise<string | null> {
-    const def = (await this.approved()).find((d) => d.name === 'implementation');
+    const def = (await this.definitions()).find((d) => d.name === 'implementation');
     if (!def?.artifacts.includes(RISK_RULES)) return null;
     const harness = await this.workspaces.harness();
     const text = await show(harness.path, `refs/heads/${harness.main}`, RISK_RULES);

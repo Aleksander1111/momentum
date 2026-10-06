@@ -709,7 +709,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
           }),
         );
       }
-      const variant = (await this.automations.approved()).find((d) => d.name === entry.ref.automation)?.variant ?? null;
+      const variant = (await this.automations.definitions()).find((d) => d.name === entry.ref.automation)?.variant ?? null;
       await ws.index.sql`insert into ${this.t(ws, 'agent_metric')} ${ws.index.sql({
         run_id: id,
         automation: r.automation,

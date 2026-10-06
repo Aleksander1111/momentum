@@ -185,7 +185,7 @@ const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" heig
 
 // ---------------------------------------------------------------- 1. the loop
 function loop() {
-  // You on top, the consistency gate at the bottom, the shortcut between them straight down the middle
+  // You on top, the consistency guard at the bottom, the shortcut between them straight down the middle
   const cx = 960, cy = 468, Rx = 480, Ry = 310, r = 60;
   const S = [
     ['You', 'FaUser', 'att', 'approve · send back · chat', 270],
@@ -193,7 +193,7 @@ function loop() {
     ['Runs', 'FaTerminal', 'prod', 'own checkout of the main line', 338],
     ['Work', 'FaFileCode', 'prod', 'entities and artifacts', 383],
     ['Summarization', 'FaWandMagicSparkles', 'prod', 'artifacts into cards', 419],
-    ['Consistency gate', 'FaShieldHalved', 'kn', 'validated, then landed', 450],
+    ['Consistency guard', 'FaShieldHalved', 'kn', 'validated, then landed', 450],
     ['Main line', 'FaCodeCommit', 'kn', 'one branch, a commit per run', 504],
     ['Attention feed', 'FaLayerGroup', 'att', 'ranked, unverified first', 576],
   ];
@@ -222,7 +222,7 @@ function loop() {
   g += onArc(320, 'queued', 'prod', 60);
   g += onArc(435, 'transaction', 'prod', 56);
   g += onArc(477, 'one commit', 'kn', 60);
-  // the shortcut: a card you commit yourself lands on the main line as you committed it, with no run and no gate
+  // the shortcut: a card you commit yourself lands on the main line as you committed it, with no run and no guard
   const main = at(504), far = Math.hypot(main[0] - card[0], main[1] - card[1]);
   const stop = [main[0] - ((main[0] - card[0]) * (r + 18)) / far, main[1] - ((main[1] - card[1]) * (r + 18)) / far];
   g += line(cx, cy - Ry + r + 12, card[0], card[1] - 44, { stroke: LAYER.att.strong, sw: 5, dash: '14 10' });
@@ -242,7 +242,7 @@ function loop() {
     g += circle(96, y, 13, { fill: LAYER[k].wash, stroke: LAYER[k].strong, sw: 3 }) + text(122, y + 7, s, { size: 21, fill: LAYER[k].strong, bold: true });
   });
   // what you do yourself: runs bypass the queue, cards need no run
-  g += pod(1470, 740, 390, 64, 'Your commits: no run, no gate', 'FaPenToSquare', LAYER.att);
+  g += pod(1470, 740, 390, 64, 'Your commits: no run, no guard', 'FaPenToSquare', LAYER.att);
   g += pod(1470, 820, 390, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
   return svg(g);
 }
@@ -464,8 +464,8 @@ function summarization() {
   return svg(g);
 }
 
-// ---------------------------------------------------------------- 6. consistency gate
-function gate() {
+// ---------------------------------------------------------------- 6. consistency guard
+function guard() {
   let g = '';
   // the road from the run checkout to the main line
   g += rect(60, 245, 1520, 120, { r: 60, fill: C.paper });
@@ -480,16 +480,16 @@ function gate() {
   g += miniCard(630, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14, rot: 3 });
   g += miniCard(660, 268, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 });
   g += text(720, 400, 'transaction', { size: 20, anchor: 'middle', italic: true, fill: C.muted });
-  // the gate
+  // the guard
   g += rect(830, 150, 34, 260, { r: 8, fill: C.ink }) + rect(1096, 150, 34, 260, { r: 8, fill: C.ink });
   g += rect(810, 120, 340, 64, { r: 14, fill: C.ink, shadow: true });
   [[880, C.ok, 'FaCheck', 'card limit'], [980, C.ok, 'FaCheck', 'type'], [1080, C.red, 'FaXmark', 'references']].forEach(([x, c, ic, label]) => {
     g += circle(x, 152, 21, { fill: c, stroke: C.white, sw: 3 }) + iconAt(ic, x, 152, 22, C.white);
     g += text(x, 98, label, { size: 18, anchor: 'middle', fill: c, bold: true });
   });
-  g += text(980, 450, 'Consistency gate', { head: true, bold: true, size: 30, anchor: 'middle' });
+  g += text(980, 450, 'Consistency guard', { head: true, bold: true, size: 30, anchor: 'middle' });
   g += text(980, 480, 'everything lands; what fails carries an issue', { size: 20, anchor: 'middle', italic: true, fill: C.muted });
-  // after the gate
+  // after the guard
   g += miniCard(1200, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 }) + circle(1312, 266, 15, { fill: C.ok, stroke: C.white, sw: 3 }) + iconAt('FaCheck', 1312, 266, 15, C.white);
   g += miniCard(1340, 262, 120, 84, { bars: [0.8, 0.6, 0.7], pad: 14 }) + circle(1452, 266, 15, { fill: C.red, stroke: C.white, sw: 3 }) + iconAt('FaFlag', 1452, 266, 15, C.white);
   g += line(1470, 305, 1620, 305, { stroke: C.ink, sw: 6, head: 'ink' });
@@ -526,8 +526,8 @@ function issues() {
     [].concat(sub).forEach((t, i) => (s += text(x + 112, y + h / 2 + 22 + i * 22, t, { size: 18, fill: C.muted })));
     return s;
   };
-  // by rule: the gate's checks, over every entity
-  g += caption(70, 70, 'By rule', "queries over the graph · the gate's checks", { size: 32, fill: C.ochre });
+  // by rule: the guard's checks, over every entity
+  g += caption(70, 70, 'By rule', "queries over the graph · the guard's checks", { size: 32, fill: C.ochre });
   [
     ['Reference', 'FaLinkSlash', 'unresolved reference'],
     ['Card limit', 'FaRulerHorizontal', ['card over the', 'character limit']],
@@ -769,7 +769,7 @@ function management() {
   g += path(`M1020 233 C1250 233 1370 233 1370 ${y - 62}`, { stroke: C.red, sw: 4, head: 'att' });
   g += text(1195, 222, 'as you commit it', { size: 18, italic: true, fill: C.muted, anchor: 'middle' });
   g += path(`M1020 493 C1080 493 1080 ${y} 1130 ${y}`, { stroke: C.ok, sw: 4, head: 'ok' });
-  const steps = [['FaShieldHalved', 'Consistency gate', LAYER.kn], ['FaCodeCommit', 'Main line', LAYER.kn], ['FaLayerGroup', 'Feed', LAYER.att], ['FaCircleCheck', 'Verified', LAYER.prod]];
+  const steps = [['FaShieldHalved', 'Consistency guard', LAYER.kn], ['FaCodeCommit', 'Main line', LAYER.kn], ['FaLayerGroup', 'Feed', LAYER.att], ['FaCircleCheck', 'Verified', LAYER.prod]];
   steps.forEach(([ic, s, L], i) => {
     const x = 1190 + i * 180;
     g += medallion(x, y, 52, L, ic, { k: 0.75 });
@@ -1043,16 +1043,16 @@ function tools() {
 
 // ---------------------------------------------------------------- slides
 const SLIDES = [
-  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency gate validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user commits needs no run and no gate: it lands as committed, and the consistency check reads it like any other. Runs the user starts go at once, alongside the queued automation runs.'],
+  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency guard validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user commits needs no run and no guard: it lands as committed, and the consistency check reads it like any other. Runs the user starts go at once, alongside the queued automation runs.'],
   ['Entities', entities, 'The unit of the knowledge base. The type is the path on disk. The entity is its card, within the character limit. References link entities and are walked by Graph RAG. A summary is an entity with artifacts beneath it.'],
   ['Entity types', entityTypes, 'Every entity has one of the types in docs/entity-types.tsv, grouped in domains, each with the colour and glyph the app shows; four examples per domain. The type is the path of the entity in the knowledge graph. The Harness domain holds the entities of Momentum itself: automations, triggers, issues, conflicts, chats, plans, research and patterns. Wherever the app names an entity, in a card, a chat, an answer or a list, it shows this glyph and colour and opens it on a press.'],
   ['Entity states', states, "Verification is the user's judgement: approval verifies, any rewrite by a run makes the entity unverified again. Sync is the entity against its artifacts and implementation. Contradictions count the open contradiction issues over the entity."],
   ['Automations', automations, 'Twelve automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Interview and search start only when the user asks; search answers in one turn and is not a run. Automation runs go one at a time per project; runs the user starts go at once.'],
   ['Triggers', triggers, 'Each automation has a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand. Exploration every two hours, preparation every two hours at half past, validation at 02:00, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Summarization runs in the Stop hook of every run and graph build while the project is enabled, so neither has a trigger entity. Scheduled loops and the graph build pause while the feed is at its limit; events still start their runs.'],
-  ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. An edit the user commits lands on the main line as committed. A change optimization proposes passes the consistency gate, lands unverified and takes effect once the user approves it in the feed. Optimization reads every chat and proposes a skill, memory, sub-agent or definition change only for a pattern seen at least three times, as a Harness/Pattern with its evidence; nothing is learnt from one chat, and nothing takes effect before the user approves it. Runs start on demand from the chat and stop from the chat; models and concurrency are settings, and the Settings tab leads to the rest in the knowledge graph.'],
+  ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. An edit the user commits lands on the main line as committed. A change optimization proposes passes the consistency guard, lands unverified and takes effect once the user approves it in the feed. Optimization reads every chat and proposes a skill, memory, sub-agent or definition change only for a pattern seen at least three times, as a Harness/Pattern with its evidence; nothing is learnt from one chat, and nothing takes effect before the user approves it. Runs start on demand from the chat and stop from the chat; models and concurrency are settings, and the Settings tab leads to the rest in the knowledge graph.'],
   ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the run's own checkout with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, types, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and coverage, and an interview's next question. The summarization sub-agent takes the run's artifacts over through the Agent tool at Stop, and the harness checks it ran before trusting it. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools every API handler, ask included, without the UI. A question typed in the explorer search is not a run: the search finds the entities, and the search automation answers from them in one turn without tools, linking each it drew from."],
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
-  ['Consistency gate', gate, 'Every write is checked while the run works. When it ends, the transaction passes the gate: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
+  ['Consistency guard', guard, 'Every write is checked while the run works. When it ends, the transaction passes the guard: card limit, type and references. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
   ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, cards over the character limit, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
   ['Issue resolution', resolution, "Every issue the consistency check raises offers two to four options to resolve it, each a label and one sentence of what it changes, with the obviously best one recommended when there is one. The feed card shows them with the recommended option picked; a tap picks another. Swipe right resolves with the picked option, swipe left with the user's own resolution: either starts a chat run that applies it to the concerned entities and retires the issue, and the changed entities come back to the feed unverified. Won't resolve keeps the issue, verified, with the reason: the check does not raise it again and it no longer counts as a contradiction."],
   ['Git', git,"One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],

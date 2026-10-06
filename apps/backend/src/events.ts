@@ -34,7 +34,7 @@ export interface Events {
   /** Trigger entities of a workspace changed on its main line */
   triggers_changed: [{ workspace: string }];
   /** A definition entity was approved in the harness workspace */
-  definition_approved: [{ path: string }];
+  definition_changed: [{ path: string }];
   /** A run ended; the orchestrator may start queued runs */
   run_ended: [{ workspace: string; runId: string }];
   /** The feed shrank: loops paused at the feed size may continue */

@@ -115,35 +115,30 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     expect(proposal.diff).not.toBeNull();
     proposed = added(CHAT_AGENT, before);
     expect(proposed.some((l) => /table|bullet/i.test(l)), `a rule against tables among ${JSON.stringify(proposed)}`).toBe(true);
-    // Not live before it is approved
-    const live = readFileSync(join(env.path(WS), '.claude', 'agents', 'momentum-chat.md'), 'utf8');
-    expect(proposed.filter((l) => live.includes(l))).toEqual([]);
+    // In effect as it lands, before anyone has reviewed it: verification is the user's, not a switch
+    const live = join(env.path(WS), '.claude', 'agents', 'momentum-chat.md');
+    await until('the proposal in effect in the project', async () => proposed.every((l) => readFileSync(live, 'utf8').includes(l)));
   });
 
   await step(3, async () => {
     const before = env.head(HARNESS);
-    const chat = await api.chat(HARNESS, 'Make the consistency check write its issues in French.');
-    expect((await api.runEnded(chat.runId, 10 * 60_000)).status).toBe('finished');
-    const unreviewed = added(CHECK_AGENT, before);
-    expect(unreviewed.some((l) => /french/i.test(l)), `a French rule among ${JSON.stringify(unreviewed)}`).toBe(true);
-
     // An agent file of an automation that has no definition
     const orphan = join(env.path(WS), '.claude', 'agents', 'momentum-unknown.md');
     writeFileSync(orphan, '---\nname: momentum-unknown\n---\nBuild the knowledge graph.\n');
-    await app.approve(HARNESS, 'Harness/Automation/chat');
-    const materialized = join(env.path(WS), '.claude', 'agents', 'momentum-chat.md');
-    await until('the approved definition in the project', async () => proposed.every((l) => readFileSync(materialized, 'utf8').includes(l)));
-    await until('the agent file no definition produces removed', async () => !existsSync(orphan), 30_000);
-    await new Promise((r) => setTimeout(r, 3000));
-    // Approving one definition writes every approved one again, but never a change nobody approved
+    const chat = await api.chat(HARNESS, 'Make the consistency check write its issues in French.');
+    expect((await api.runEnded(chat.runId, 10 * 60_000)).status).toBe('finished');
+    const french = added(CHECK_AGENT, before).filter((l) => /french/i.test(l));
+    expect(french.length, 'a French rule in the consistency check').toBeGreaterThan(0);
+    // In effect as it lands, in the projects and the harness alike; the definitions written again leave no orphan
     for (const ws of [WS, HARNESS]) {
-      const check = readFileSync(join(env.path(ws), '.claude', 'agents', 'momentum-consistency-check.md'), 'utf8');
-      expect(unreviewed.filter((l) => /french/i.test(l) && check.includes(l))).toEqual([]);
+      const check = join(env.path(ws), '.claude', 'agents', 'momentum-consistency-check.md');
+      await until(`the changed definition in ${ws}`, async () => french.every((l) => readFileSync(check, 'utf8').includes(l)));
     }
-    // The unreviewed change waits for the user like any other
-    await until('the unreviewed definition waiting', async () => (await api.entity(HARNESS, 'Harness/Automation/consistency-check')).verification === 'unverified');
+    await until('the agent file no definition produces removed', async () => !existsSync(orphan), 30_000);
+    // and it waits in the feed for the user's review like any other change
+    await until('the changed definition waiting for review', async () => (await api.entity(HARNESS, 'Harness/Automation/consistency-check')).verification === 'unverified');
 
-    // The approved proposal shapes the next chat, and its variant is recorded on it
+    // The proposal shapes the next chat, and its variant is recorded on it
     const variant = (await api.entities(HARNESS, 'Harness/Automation')).find((e) => e.path === 'Harness/Automation/chat')!.frontmatter.variant;
     expect(typeof variant, 'the proposal names its variant').toBe('string');
     const next = await app.chat(WS, 'Name one route.');

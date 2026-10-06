@@ -47,7 +47,7 @@ export class Orchestrator {
     bus.on('implementation_finished', ({ workspace, targetPath }) => void this.onEvent(workspace, 'implementation_finished', { targetPath }));
     // Summarization runs as a step and has no trigger entity; artifacts changed on the main line start it directly
     bus.on('artifact_ahead', ({ workspace, entities, added, deleted, moved }) => void this.summarizeMainLine(workspace, entities, added, deleted, moved));
-    bus.on('definition_approved', () => void this.automations.materializeAll());
+    bus.on('definition_changed', () => void this.automations.materializeAll());
     bus.on('run_ended', () => void this.tick());
     bus.on('feed_changed', () => void this.tick());
   }

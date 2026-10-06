@@ -149,7 +149,7 @@ async function perAutomation(ws: Workspace, span: Span, automations: Automations
             sum(week)::float8 as week
      from ${s}.usage_share where recorded_at > now() - interval '7 days' group by 1`,
   );
-  const variants = new Map((await automations.approved()).map((d) => [d.name, d.variant]));
+  const variants = new Map((await automations.definitions()).map((d) => [d.name, d.variant]));
   const zeros = span.buckets.map((b) => ({ at: b.toISOString(), value: 0 }));
   const gaps = span.buckets.map((b) => ({ at: b.toISOString(), value: null }));
   const names = new Set([...runs.keys(), ...week.keys(), ...fiveHour.keys()]);
