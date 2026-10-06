@@ -22,5 +22,5 @@ One Expo (React Native) app, `apps/app`, for web and mobile.
 - Tabs stay mounted: one shown again refetches what went stale; Back walks the history
 - Light or dark follows the system
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
-- A failed fetch pauses queries, queues reactions; a 5 s probe restores them; a refusal says why
+- Out of reach: queries pause, reactions queue, a 5 s probe restores them, a refusal says why; on a phone a bar above the tabs says so and that what shows was loaded last
 - Typed contract client; 401 sends back to sign-in; sign-out ends this device's session only

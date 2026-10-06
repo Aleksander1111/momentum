@@ -22,5 +22,6 @@ How the app shows an entity wherever it names one: the glyph of its main type, i
 
 - A row: references, events, an issue's concerns, an answer's sources
 - Grouped: by type, each group led by the type's pill, as an event's entities and an entity's references
-- Inline: a link in a card's text or a chat answer, on a faint wash of the colour; a path in code reads the same
+- Inline: a link in a card's text or a chat answer, on a faint wash of the colour
+- Named by its path alone, as in a chat's code or a run's list of what it wrote, it still reads by its title, found in the project's tree the Explorer loads; its file name until then
 - Opens the entity beside the Explorer tree on a wide screen, as its own page otherwise; the Explorer opens it in place
