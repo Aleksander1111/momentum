@@ -26,7 +26,8 @@ export function SettingsButton() {
       accessibilityRole="button"
       accessibilityLabel="Settings"
       hitSlop={8}
-      style={{ position: 'absolute', top: insets.top + 8, right: 10, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+      // On the screen's colour: a row scrolled under it goes behind it, not through it
+      style={{ position: 'absolute', top: insets.top + 8, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: C.screen, alignItems: 'center', justifyContent: 'center' }}
     >
       <Icon name="settings" size={24} color={C.muted} />
     </Pressable>

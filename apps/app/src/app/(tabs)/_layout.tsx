@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQueryClient } from '@tanstack/react-query';
+import { onlineManager, useQueryClient } from '@tanstack/react-query';
 import { getToken } from '../../lib/token';
 import { useChatContext } from '../../lib/context';
 import { embedded } from '../../lib/embed';
@@ -25,7 +25,8 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
   const insets = useSafeAreaInsets();
   // Parts of cards waiting to go with the next chat message
   const waiting = useChatContext().length;
-  return (
+  const online = useSyncExternalStore((l) => onlineManager.subscribe(l), () => onlineManager.isOnline(), () => true);
+  const bar = (
     <View
       style={
         wide
@@ -95,6 +96,18 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
           </Pressable>
         );
       })}
+    </View>
+  );
+  if (online || wide) return bar;
+  // Out of reach, the screens show what was loaded last, and reactions wait: the bar above the tabs says so
+  return (
+    <View>
+      <View style={{ backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.line, paddingVertical: 6, paddingHorizontal: 16 }}>
+        <T accessibilityRole="alert" style={{ fontSize: 12.5, color: C.muted, textAlign: 'center' }}>
+          Momentum cannot be reached: showing what was loaded last. Reactions wait and go when it is back.
+        </T>
+      </View>
+      {bar}
     </View>
   );
 }
