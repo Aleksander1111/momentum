@@ -127,9 +127,9 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     const unreviewed = added(CHECK_AGENT, before);
     expect(unreviewed.some((l) => /french/i.test(l)), `a French rule among ${JSON.stringify(unreviewed)}`).toBe(true);
 
-    // An agent file of an automation that is gone, as a rename leaves one behind
-    const orphan = join(env.path(WS), '.claude', 'agents', 'momentum-mapping.md');
-    writeFileSync(orphan, '---\nname: momentum-mapping\n---\nBuild the knowledge graph.\n');
+    // An agent file of an automation that has no definition
+    const orphan = join(env.path(WS), '.claude', 'agents', 'momentum-unknown.md');
+    writeFileSync(orphan, '---\nname: momentum-unknown\n---\nBuild the knowledge graph.\n');
     await app.approve(HARNESS, 'Harness/Automation/chat');
     const materialized = join(env.path(WS), '.claude', 'agents', 'momentum-chat.md');
     await until('the approved definition in the project', async () => proposed.every((l) => readFileSync(materialized, 'utf8').includes(l)));

@@ -1,8 +1,4 @@
 import { migrateHarness, migrateWorkspace, type Sql } from '@momentum/kb';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { scratchDatabase } from '../../../packages/kb/test/database.ts';
 import { createBus } from '../src/events.ts';
@@ -12,61 +8,24 @@ import { describeRun, reactionEvent, runEvent, Timeline } from '../src/timeline.
 let db: Awaited<ReturnType<typeof scratchDatabase>>;
 let sql: Sql;
 let timeline: Timeline;
-// The project's repository, where what a run landed is read from its commit
-const repo = mkdtempSync(join(tmpdir(), 'momentum-timeline-'));
-const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
-
-const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000);
-
 beforeAll(async () => {
-  git('init', '-q');
-  writeFileSync(join(repo, 'goals.md'), '# Goals\n');
-  git('add', '-A');
-  git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'Summarize the goals\n\nThe body');
-  const commit = git('rev-parse', 'HEAD');
-
   db = await scratchDatabase('timeline');
   sql = db.sql;
   await migrateHarness(sql);
-  await sql`insert into harness.project (name, path, enabled) values ('shop', ${repo}, true)`;
+  await sql`insert into harness.project (name, path, enabled) values ('shop', 'C:/Projects/shop', true)`;
   await migrateWorkspace(sql, 'shop');
-  // History from before the timeline: a scheduled run, a chat, a reaction and what the run landed
-  await sql.unsafe(`insert into ws_shop.run (id, automation, checkout, trigger, status, title, created_at, started_at, ended_at, model, usage_five_hour)
-    values ('r1', 'exploration', 'x', 'schedule', 'finished', 'Main line changes (1)', $1, $2, $3, 'opus', 1.5),
-           ('c1', 'chat', 'x', 'on_demand', 'finished', 'Ask', $4, $4, $5, null, null)`, [ago(60), ago(59), ago(50), ago(40), ago(39)]);
-  await sql.unsafe(`insert into ws_shop.run_message (run_id, seq, role, text) values ('c1', 1, 'user', 'Which routes are there?')`);
-  await sql.unsafe(`insert into ws_shop.transaction (run_id, commit, paths, status, created_at) values ('r1', $1, '{Product/Goal/a}', 'validated', $2)`, [commit, ago(50)]);
-  await sql.unsafe(`insert into ws_shop.attention_metric (entity_path, entity_type, time_spent_ms, reaction, recorded_at)
-    values ('Product/Goal/a', 'Product/Goal', 4000, 'approved', $1)`, [ago(30)]);
   timeline = new Timeline(sql);
   await timeline.migrate();
 }, 120_000);
 
 afterAll(async () => {
   await db?.drop();
-  rmSync(repo, { recursive: true, force: true });
 });
 
 describe('timeline', () => {
-  it('starts with the history the projects already hold, one event per run saying what it did, oldest first', async () => {
-    const { events } = await timeline.list({ limit: 100 });
-    expect(events.map((e) => e.kind).reverse()).toEqual(['run_finished', 'chat_started', 'approved']);
-    const finished = events.find((e) => e.kind === 'run_finished')!;
-    expect(finished).toMatchObject({ workspace: 'shop', actor: 'automation', runId: 'r1', title: 'Summarize the goals' });
-    expect(finished.facts).toMatchObject({
-      trigger: 'schedule',
-      status: 'finished',
-      model: 'opus',
-      durationMs: 9 * 60_000,
-      usage: { fiveHour: 1.5 },
-      paths: ['Product/Goal/a'],
-      subject: 'Summarize the goals',
-    });
-    expect(events.find((e) => e.kind === 'chat_started')).toMatchObject({ actor: 'user', detail: 'Which routes are there?' });
-    expect(events.find((e) => e.kind === 'approved')).toMatchObject({ title: 'Approved “a”', facts: { timeSpentMs: 4000 } });
-  });
-
   it('filters by project and actor and pages back from the newest', async () => {
+    await timeline.record({ actor: 'harness', kind: 'project_disabled', workspace: 'shop', title: 'Disabled shop' });
+    await timeline.record(reactionEvent('shop', { path: 'Product/Goal/a', type: 'Product/Goal', title: 'A' }, 'approved', { timeSpentMs: 4000 }));
     await timeline.record({ actor: 'user', kind: 'signed_in', title: 'Signed in' });
     await timeline.record(reactionEvent('shop', { path: 'Product/Goal/b', type: 'Product/Goal', title: 'B' }, 'sent_back', { detail: 'Split it', runId: 'c2' }));
     const all = await timeline.list({ limit: 100 });
@@ -76,7 +35,8 @@ describe('timeline', () => {
     const shop = await timeline.list({ workspace: 'shop', limit: 100 });
     expect(shop.events.every((e) => e.workspace === 'shop')).toBe(true);
     const user = await timeline.list({ actor: 'user', limit: 100 });
-    expect(user.events.map((e) => e.kind)).toEqual(['sent_back', 'signed_in', 'approved', 'chat_started']);
+    expect(user.events.map((e) => e.kind)).toEqual(['sent_back', 'signed_in', 'approved']);
+    expect(user.events.find((e) => e.kind === 'approved')).toMatchObject({ title: 'Approved “A”', facts: { timeSpentMs: 4000 } });
 
     const first = await timeline.list({ limit: 3 });
     expect(first.events).toHaveLength(3);
@@ -122,16 +82,6 @@ describe('timeline', () => {
     expect(events[0]).toMatchObject({ runId: 'c3', kind: 'changes_landed', title: 'Rename the goal' });
   });
 
-  it('rebuilds run events kept another way, keeping what the user did', async () => {
-    await sql`insert into harness.timeline_event (actor, kind, title) values ('harness', 'artifact_ahead', 'Artifacts changed under 3 entities')`;
-    await sql.unsafe(`comment on table harness.timeline_event is '2'`);
-    const users = (await timeline.list({ actor: 'user', limit: 100 })).events.length;
-    await new Timeline(sql).migrate();
-    const { events } = await timeline.list({ limit: 100 });
-    expect(events.some((e) => (e.kind as string) === 'artifact_ahead')).toBe(false);
-    expect(events.filter((e) => e.runId === 'r1')).toMatchObject([{ title: 'Summarize the goals' }]);
-    expect(events.filter((e) => e.actor === 'user')).toHaveLength(users);
-  });
 });
 
 describe('run titles', () => {

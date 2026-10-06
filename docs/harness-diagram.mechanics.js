@@ -898,18 +898,6 @@ function git() {
   g += commit(1400, C.ok, 'chat landed', { fill: true });
   g += commit(1700, C.ok, 'next run', { fill: true });
 
-  // before and after
-  g += rect(60, 760, 960, 170, { r: 22, fill: C.paper });
-  for (let i = 0; i < 14; i++) {
-    const y = 780 + i * 7;
-    g += path(`M120 825 C200 825 220 ${y} 330 ${y} H${470 - (i % 4) * 30}`, { stroke: C.accent, sw: 2.5, opacity: 0.55 });
-  }
-  g += line(100, 825, 120, 825, { stroke: C.accent, sw: 4 });
-  g += text(300, 912, 'run branches, before', { size: 22, anchor: 'middle', bold: true, fill: C.accent });
-  g += line(530, 825, 640, 825, { stroke: C.muted, sw: 5, head: 'muted' });
-  g += line(690, 825, 970, 825, { stroke: C.ink, sw: 14 });
-  [740, 830, 920].forEach((x) => (g += circle(x, 825, 14, { fill: C.white, stroke: C.ink, sw: 6 })));
-  g += text(830, 912, '1 main line', { size: 22, anchor: 'middle', bold: true });
   g += iconAt('FaLaptopCode', 1480, 845, 64, C.ink);
   g += caption(1530, 840, 'Your checkout follows', 'clean files updated, dirty ones left alone', { size: 26 });
   return svg(g);

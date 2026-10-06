@@ -253,7 +253,7 @@ export async function workspaceMetrics(ws: Workspace, automations: Automations, 
   const openIssues = await span.series(`${s}.understanding_metric`, 'open_issues', 'last');
   const misalignments = await span.series(`${s}.agent_metric`, 'misalignments', 'sum');
   const recurring = await span.series(`${s}.agent_metric`, 'recurring_issues', 'sum');
-  const runs = await span.series(`${s}.run`, '1', 'count', `automation <> 'setup'`, 'created_at');
+  const runs = await span.series(`${s}.run`, '1', 'count', 'true', 'created_at');
   const outstanding = await span.series(`${s}.implementation_metric`, 'outstanding_issues', 'last');
   const bugs = await span.series(`${s}.implementation_metric`, 'bugs', 'last');
   const defects = await span.series(`${s}.implementation_metric`, 'defects', 'last');

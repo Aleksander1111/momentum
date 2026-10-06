@@ -61,7 +61,6 @@ beforeAll(async () => {
   db = await scratchDatabase('approval');
   await migrateHarness(db.sql);
   const settings = new HarnessSettings(db.sql);
-  await settings.migrate();
   await db.sql`insert into harness.project (name, path, enabled) values ('shop', ${repo}, true)`;
   const timeline = new Timeline(db.sql);
   await timeline.migrate();

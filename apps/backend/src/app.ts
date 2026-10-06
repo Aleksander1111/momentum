@@ -22,7 +22,6 @@ export async function createMomentum(options: { orchestrate?: boolean } = {}) {
   const sql = connect(config.databaseUrl);
   await migrateHarness(sql);
   const settings = new HarnessSettings(sql);
-  await settings.migrate();
   await settings.discover();
   const bus = createBus();
   const timeline = new Timeline(sql);

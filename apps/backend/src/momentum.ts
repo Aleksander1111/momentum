@@ -186,7 +186,7 @@ export class Momentum {
        from ${s}.run r
        left join ${s}.chat c on c.run_id = r.id
        left join ${s}.entity e on e.path = coalesce(c.entity_path, r.target_path)
-       where r.automation <> 'setup' and (c.run_id is not null or exists (select 1 from ${s}.run_message m where m.run_id = r.id))
+       where (c.run_id is not null or exists (select 1 from ${s}.run_message m where m.run_id = r.id))
        order by updated_at desc`,
     );
     return {

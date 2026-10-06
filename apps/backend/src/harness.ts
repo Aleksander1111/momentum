@@ -39,33 +39,6 @@ export class HarnessSettings {
 
   constructor(private readonly sql: Sql) {}
 
-  async migrate(): Promise<void> {
-    await this.sql`alter table harness.project add column if not exists indexed_commit text`;
-    await this.sql`alter table harness.project add column if not exists index_version int not null default 0`;
-    // The graph build was called mapping: its columns and model setting keep their values under the new name
-    for (const suffix of ['', '_progress', '_since', '_coverage']) {
-      await this.sql.unsafe(`do $$ begin
-        if exists (select 1 from information_schema.columns
-                   where table_schema = 'harness' and table_name = 'project' and column_name = 'mapping${suffix}') then
-          if exists (select 1 from information_schema.columns
-                     where table_schema = 'harness' and table_name = 'project' and column_name = 'graph_build${suffix}') then
-            execute 'update harness.project set graph_build${suffix} = coalesce(graph_build${suffix}, mapping${suffix})';
-            execute 'alter table harness.project drop column mapping${suffix}';
-          else
-            execute 'alter table harness.project rename column mapping${suffix} to graph_build${suffix}';
-          end if;
-        end if;
-      end $$`);
-    }
-    await this.sql`update harness.setting
-      set value = jsonb_set(value #- '{perAutomation,mapping}', '{perAutomation,graph-build}', value -> 'perAutomation' -> 'mapping')
-      where key = 'models' and jsonb_exists(value -> 'perAutomation', 'mapping')`;
-    await this.sql`alter table harness.project add column if not exists graph_build text`;
-    await this.sql`alter table harness.project add column if not exists graph_build_progress text`;
-    await this.sql`alter table harness.project add column if not exists graph_build_since timestamptz`;
-    await this.sql`alter table harness.project add column if not exists graph_build_coverage real`;
-    await this.sql`alter table harness.project add column if not exists logo text`;
-  }
 
   /** A git repository under the root is a workspace; deleting the directory retires it */
   async discover(): Promise<ProjectSetting[]> {
@@ -145,9 +118,6 @@ export class HarnessSettings {
     const rows = await this.sql<{ key: Key; value: never }[]>`select key, value from harness.setting`;
     const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     const cache: Omit<Settings, 'projects' | 'harness'> = { ...DEFAULTS, ...stored };
-    // Runs were once bounded per project too; automation runs now go one at a time and only the total is set
-    const agents = stored.agents as { concurrentTotal?: number } | undefined;
-    if (agents) cache.agents = { concurrentTotal: agents.concurrentTotal ?? DEFAULTS.agents.concurrentTotal };
     // An automation added after the models were stored starts on the default; a removed one is dropped
     const models = stored.models as ModelSettings | undefined;
     if (models) {

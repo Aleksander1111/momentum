@@ -8,8 +8,7 @@ import type {
   TimelineQuery,
   TimelineResponse,
 } from '@momentum/contract';
-import { schemaOf, type Sql } from '@momentum/kb';
-import { git } from '@momentum/runs';
+import type { Sql } from '@momentum/kb';
 import type { Bus } from './events.ts';
 
 export interface NewEvent {
@@ -49,7 +48,6 @@ export function automationLabel(a: string): string {
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const lastSegment = (path: string) => path.split('/').filter(Boolean).at(-1) ?? path;
 const quoted = (title: string) => `“${title}”`;
 
 /** Chats and interviews: the user talks to them turn by turn, and their turns are the user's own events */
@@ -172,8 +170,6 @@ const landedFacts = (l: Pick<Landed, 'paths' | 'removed' | 'issues' | 'conflicts
   ...(subjectOf(l.message) ? { subject: subjectOf(l.message)! } : {}),
 });
 
-/** Run events are rebuilt from the projects' runs when the way they are kept changes */
-const RUN_EVENTS_VERSION = '5';
 
 /**
  * Everything that happened in the harness: one event per thing the user did, and one per automation run, kept up to date
@@ -184,7 +180,6 @@ export class Timeline {
   constructor(private readonly sql: Sql) {}
 
   async migrate(): Promise<void> {
-    const [r] = await this.sql<{ t: string | null }[]>`select to_regclass('harness.timeline_event')::text as t`;
     await this.sql`create table if not exists harness.timeline_event (
       id bigserial primary key,
       at timestamptz not null default now(),
@@ -200,16 +195,7 @@ export class Timeline {
     )`;
     await this.sql`create index if not exists timeline_event_at on harness.timeline_event (at desc, id desc)`;
     await this.sql`create index if not exists timeline_event_workspace on harness.timeline_event (workspace, at desc, id desc)`;
-    const [kept] = await this.sql<{ v: string | null }[]>`select obj_description('harness.timeline_event'::regclass) as v`;
-    if (r?.t && kept?.v !== RUN_EVENTS_VERSION) {
-      // Run events kept another way: they go and are read again from the projects' runs; what the user did stays
-      await this.sql`delete from harness.timeline_event where actor <> 'user' or kind in ('automation_started', 'run_stopped')`;
-      await this.sql`create unique index if not exists timeline_event_run on harness.timeline_event (run_id) where actor = 'automation'`;
-      await this.backfill(true).catch((e) => console.error('timeline backfill:', e));
-    }
     await this.sql`create unique index if not exists timeline_event_run on harness.timeline_event (run_id) where actor = 'automation'`;
-    if (!r?.t) await this.backfill(false).catch((e) => console.error('timeline backfill:', e));
-    await this.sql.unsafe(`comment on table harness.timeline_event is '${RUN_EVENTS_VERSION}'`);
   }
 
   /** Recording never fails the action it records: a lost event is logged */
@@ -314,132 +300,6 @@ export class Timeline {
       next: rows.length > q.limit ? Number(page.at(-1)!.id) : null,
     };
   }
-
-  /**
-   * A timeline added to a harness with history starts with it: runs with what they landed, reactions to the feed and
-   * chats, read from each project's records
-   */
-  private async backfill(runsOnly: boolean): Promise<void> {
-    const events: NewEvent[] = [];
-    const projects = await this.sql<{ name: string; path: string }[]>`select name, path from harness.project`;
-    for (const { name, path } of projects) {
-      const s = schemaOf(name);
-      const [exists] = await this.sql<{ t: string | null }[]>`select to_regclass(${`${s}.run`})::text as t`;
-      if (!exists?.t) continue;
-      events.push(...(await this.backfillProject(name, s, path, runsOnly)));
-    }
-    events.sort((a, b) => a.at!.getTime() - b.at!.getTime());
-    await this.insert(events);
-    if (events.length) console.log(`timeline: ${events.length} events from the history of ${projects.length} projects`);
-  }
-
-  private async backfillProject(ws: string, s: string, repo: string, runsOnly: boolean): Promise<NewEvent[]> {
-    const out: NewEvent[] = [];
-    // What each run landed, all its landings together
-    const landings = new Map<string, Landed>();
-    const transactions = await this.sql.unsafe<{ run_id: string; commit: string | null; paths: string[]; issues: unknown[]; conflicts: string[]; created_at: Date }[]>(
-      `select * from ${s}.transaction order by created_at`,
-    );
-    for (const t of transactions) {
-      if (!t.commit && t.paths.length === 0 && t.issues.length === 0) continue;
-      const l = landings.get(t.run_id) ?? { workspace: ws, runId: t.run_id, automation: '', commit: null, message: null, paths: [], issues: 0, conflicts: [] };
-      l.paths = [...new Set([...l.paths, ...t.paths])];
-      l.issues += t.issues.length;
-      l.conflicts = [...l.conflicts, ...t.conflicts];
-      l.commit = t.commit ?? l.commit;
-      l.at = t.created_at;
-      landings.set(t.run_id, l);
-    }
-    // What each landed, as its commit says
-    const subjects = await commitSubjects(repo, [...landings.values()].map((l) => l.commit).filter((c): c is string => !!c));
-    for (const l of landings.values()) l.message = (l.commit && subjects.get(l.commit)) || null;
-
-    const runs = await this.sql.unsafe<
-      {
-        id: string;
-        automation: string;
-        trigger: RunTrigger;
-        status: RunStatus;
-        title: string;
-        target_path: string | null;
-        error: string | null;
-        model: string | null;
-        created_at: Date;
-        started_at: Date | null;
-        ended_at: Date | null;
-        usage_five_hour: number | null;
-        usage_week: number | null;
-        first: string | null;
-      }[]
-    >(
-      `select r.*, (select text from ${s}.run_message m where m.run_id = r.id and m.role = 'user' order by seq limit 1) as first
-       from ${s}.run r`,
-    );
-    for (const r of runs) {
-      const run = { id: r.id, automation: r.automation, title: r.title, targetPath: r.target_path };
-      const landed = landings.get(r.id);
-      const ended = r.ended_at !== null && ['finished', 'failed', 'killed'].includes(r.status);
-      const facts: TimelineFacts = {
-        trigger: r.trigger,
-        status: r.status,
-        ...(r.model ? { model: r.model } : {}),
-        ...(ended && r.started_at ? { durationMs: r.ended_at!.getTime() - r.started_at.getTime() } : {}),
-        ...(ended ? { usage: { fiveHour: r.usage_five_hour, week: r.usage_week } } : {}),
-        ...(landed ? landedFacts(landed) : {}),
-      };
-      if (conversational(r.automation)) {
-        // A chat started from the feed is the user's reaction, recorded with it
-        if (!runsOnly && (r.automation === 'interview' || !r.target_path)) {
-          out.push({
-            workspace: ws,
-            actor: 'user',
-            kind: r.automation === 'interview' ? 'interview_started' : 'chat_started',
-            title: r.automation === 'interview' ? 'Started an interview' : 'Started a chat',
-            detail: r.first,
-            runId: r.id,
-            automation: r.automation,
-            at: r.created_at,
-          });
-        }
-        // Its run has an event when it failed, was stopped or landed something
-        if (ended && r.status !== 'finished') out.push(runEvent(ws, run, endKind(r.status), { at: r.ended_at!, detail: r.error, facts }));
-        else if (landed) out.push(runEvent(ws, run, 'changes_landed', { at: landed.at!, detail: landed.message, facts }));
-        continue;
-      }
-      const kind = ended ? endKind(r.status) : r.started_at ? 'run_started' : 'run_queued';
-      const at = (ended ? r.ended_at : r.started_at) ?? r.created_at;
-      out.push(runEvent(ws, run, kind, { at, detail: r.error ?? landed?.message ?? null, facts }));
-    }
-
-    if (runsOnly) return out;
-    const reactions = await this.sql.unsafe<{ entity_path: string; entity_type: string; reaction: string; time_spent_ms: number; recorded_at: Date; title: string | null }[]>(
-      `select a.*, e.title from ${s}.attention_metric a left join ${s}.entity e on e.path = a.entity_path`,
-    );
-    for (const a of reactions) {
-      const issue = a.entity_type === 'Harness/Issue';
-      const reaction = a.reaction === 'rejected' ? 'wont_resolve' : issue ? 'resolved' : a.reaction === 'approved' ? 'approved' : 'sent_back';
-      out.push(
-        reactionEvent(ws, { path: a.entity_path, type: a.entity_type, title: a.title ?? lastSegment(a.entity_path) }, reaction, {
-          timeSpentMs: a.time_spent_ms,
-          at: a.recorded_at,
-        }),
-      );
-    }
-    return out;
-  }
-}
-
-/** The subject of each commit still in the repository, by hash */
-async function commitSubjects(repo: string, commits: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  for (let i = 0; i < commits.length; i += 100) {
-    const text = await git(repo, ['log', '--no-walk', '--ignore-missing', '--format=%H%x09%s', ...commits.slice(i, i + 100)]).catch(() => '');
-    for (const line of text.split('\n')) {
-      const [hash, subject] = line.split('\t');
-      if (hash && subject) out.set(hash, subject);
-    }
-  }
-  return out;
 }
 
 function view(r: Row): TimelineEvent {
