@@ -163,18 +163,21 @@ export function Pick({
   options,
   onChange,
   icon,
+  up,
 }: {
   value: string | null;
   options: string[];
   onChange: (v: string) => void;
   icon?: (option: string, size: number) => ReactNode;
+  /** Opens upwards, for a picker at the bottom of the screen */
+  up?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <View style={{ zIndex: 10 }}>
+    <View style={{ zIndex: 10, flexShrink: 1, minWidth: 0 }}>
       <Pressable onPress={() => setOpen((o) => !o)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {value !== null && icon ? icon(value, 22) : null}
-        <H style={{ fontSize: 17 }}>{value ?? ''}</H>
+        <H numberOfLines={1} style={{ fontSize: 17, flexShrink: 1 }}>{value ?? ''}</H>
         <View
           style={{
             width: 7,
@@ -187,7 +190,7 @@ export function Pick({
         />
       </Pressable>
       {open ? (
-        <List style={{ position: 'absolute', top: 30, left: 0, minWidth: 220, boxShadow: '0 2px 8px rgba(30,41,59,.14)' }}>
+        <List style={[{ position: 'absolute', left: 0, minWidth: 220, boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, up ? { bottom: 30 } : { top: 30 }]}>
           {options.map((o, i) => (
             <Row
               key={o}

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
 
@@ -26,5 +26,11 @@ export function useCurrentWorkspace(): [string | null, (ws: string) => void, str
   const { data } = useWorkspaces();
   const names = (data ?? []).map((w) => w.name);
   const fallback = (data ?? []).find((w) => w.enabled)?.name ?? names[0] ?? null;
-  return [chosen && names.includes(chosen) ? chosen : fallback, setCurrentWorkspace, names];
+  const shown = chosen && names.includes(chosen) ? chosen : fallback;
+  // An enabled project, once shown, stays chosen: another one enabled later does not take its place
+  const keep = !!shown && shown !== chosen && !!data?.find((w) => w.name === shown)?.enabled;
+  useEffect(() => {
+    if (keep && shown) setCurrentWorkspace(shown);
+  }, [keep, shown]);
+  return [shown, setCurrentWorkspace, names];
 }

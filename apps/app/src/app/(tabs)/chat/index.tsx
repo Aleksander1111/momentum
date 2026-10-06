@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View, type TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
-import { useWorkspaces } from '../../../lib/workspace';
+import { useCurrentWorkspace } from '../../../lib/workspace';
 import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { chatContext, useChatContext } from '../../../lib/context';
 import { relativeTime, runKind } from '../../../lib/format';
 import { useTheme, useWide } from '../../../ui/theme';
-import { List, Row, RowText, Sect } from '../../../ui/parts';
+import { List, Pick, Row, RowText, Sect } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { Composer } from '../../../ui/Composer';
 import { Conversation } from '../../../ui/Conversation';
@@ -18,9 +18,8 @@ export default function Chats() {
   const wide = useWide();
   const qc = useQueryClient();
   const params = useLocalSearchParams<{ ws?: string; compose?: string; run?: string }>();
-  const { data: workspaces } = useWorkspaces();
-  const names = (workspaces ?? []).map((w) => w.name);
-  const [lastGroup, setLastGroup] = useState<string | null>(null);
+  // A new chat goes to the project chosen here, in Explorer or in Metrics, or to that of the chat opened last
+  const [target, setTarget, names] = useCurrentWorkspace();
   const composer = useRef<TextInput>(null);
 
   const chats = useQueries({
@@ -33,11 +32,10 @@ export default function Chats() {
 
   // "Explore through an agent" lands here with the workspace chosen and the composer focused.
   useEffect(() => {
-    if (params.ws) setLastGroup(params.ws);
+    if (params.ws) setTarget(params.ws);
     if (params.compose) composer.current?.focus();
   }, [params.ws, params.compose]);
 
-  const target = lastGroup ?? (workspaces ?? []).find((w) => w.enabled)?.name ?? names[0] ?? null;
   const context = useChatContext(target);
 
   const openRun = (runId: string) => {
@@ -70,7 +68,7 @@ export default function Chats() {
                     first={k === 0}
                     selected={wide && params.run === c.runId}
                     onPress={() => {
-                      setLastGroup(ws);
+                      setTarget(ws);
                       openRun(c.runId);
                     }}
                   >
@@ -86,7 +84,10 @@ export default function Chats() {
           );
         })}
       </ScrollView>
-      <View style={{ paddingTop: 12 }}>
+      <View style={{ paddingTop: 12, gap: 10, zIndex: 10 }}>
+        {names.length > 1 ? (
+          <Pick value={target} options={names} onChange={setTarget} up icon={(o, size) => <ProjectLogo name={o} size={size} />} />
+        ) : null}
         <Composer
           ref={composer}
           placeholder={`Ask ${target ?? ''}`.trim()}

@@ -459,7 +459,7 @@ export default function Metrics() {
       }
     >
       <View
-        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingRight: corner, zIndex: 10 }}
+        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, paddingRight: corner, zIndex: 10 }}
       >
         <Pick value={ws} options={names} onChange={setWs} icon={(o, size) => <ProjectLogo name={o} size={size} />} />
         <Segmented value={range} options={RANGES} onChange={setRange} />

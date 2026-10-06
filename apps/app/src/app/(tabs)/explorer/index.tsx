@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import type { EntityListItem, TypeNode } from '@momentum/contract';
 import { api } from '../../../lib/api';
-import { useCurrentWorkspace } from '../../../lib/workspace';
+import { useCurrentWorkspace, useWorkspaces } from '../../../lib/workspace';
 import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { C, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
@@ -101,6 +101,7 @@ export default function Explorer() {
   const corner = useCornerRoom();
   const params = useLocalSearchParams<{ ws?: string; path?: string; folder?: string }>();
   const [ws, setWs, names] = useCurrentWorkspace();
+  const excluded = useWorkspaces().data?.find((w) => w.name === ws)?.enabled === false;
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [q, setQ] = useState('');
 
@@ -196,6 +197,14 @@ export default function Explorer() {
         <Pick value={ws} options={names} onChange={setWs} icon={(o, size) => <ProjectLogo name={o} size={size} />} />
         {types.data ? <Count>{`${types.data.total} entities`}</Count> : null}
       </View>
+      {ws && excluded ? (
+        <Pressable onPress={() => router.navigate('/settings')} accessibilityRole="link" style={{ marginBottom: 12 }}>
+          <T style={{ color: C.muted, fontSize: 13.5, lineHeight: 19 }}>
+            {`${ws} is not included, so nothing maps it into the knowledge graph. `}
+            <T style={{ color: C.accent, fontSize: 13.5 }}>Include it in Settings</T>
+          </T>
+        </Pressable>
+      ) : null}
       <Field
         icon="search"
         placeholder="Search or ask a question"
