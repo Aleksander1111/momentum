@@ -1,6 +1,9 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import type { TypeNode } from '@momentum/contract';
+import { api } from '../lib/api';
 import { embedded } from '../lib/embed';
 import { pathSegments } from '../lib/format';
 import { C, useTheme, useWide } from './theme';
@@ -28,6 +31,23 @@ export function entityName(path: string): { name: string; type: string } {
 }
 
 type Open = ((path: string) => void) | null;
+
+function find(nodes: TypeNode[], path: string): string | null {
+  for (const n of nodes) {
+    const hit = n.entities.find((e) => e.path === path)?.title ?? find(n.children, path);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * An entity's title, from the tree of its project the Explorer shows: where an entity is named by its path alone, as in
+ * a chat's code or a run's list of what it wrote, it still reads by its title. Null when it is not in the tree.
+ */
+export function useEntityTitle(workspace: string | null | undefined, path: string, known?: string | null): string | null {
+  const { data } = useQuery({ queryKey: ['types', workspace], queryFn: () => api.types(workspace as string), enabled: !!workspace && !known });
+  return known || (data ? find(data.types, path) : null);
+}
 
 /** Where entity links open: the workspace they belong to and, on a screen that shows entities itself, how it opens one */
 interface Links {
@@ -74,7 +94,8 @@ export function EntityRef({
   const open = useOpenEntity(workspace);
   const t = type || entityName(path).type;
   const colour = domainColour(t, scheme);
-  const label = title || entityName(path).name;
+  const linked = useLinksWorkspace();
+  const label = useEntityTitle(workspace ?? linked, path, title) || entityName(path).name;
   const body = (hovered: boolean) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 }}>
       <DomainIcon type={t} size={Math.round(size + 1)} color={colour} />
@@ -120,7 +141,9 @@ export function EntityLink({ path, children, size }: { path: string; children?: 
   const { scheme } = useTheme();
   const ctx = useContext(LinksContext);
   const open = useOpenEntity(ctx.workspace);
-  const { type, name } = entityName(path);
+  const { type, name: fromPath } = entityName(path);
+  // A label given is the link's own; only a path alone is named by the entity's title
+  const name = useEntityTitle(ctx.workspace, path, children ? fromPath : null) || fromPath;
   const colour = domainColour(type, scheme);
   const glyph = Math.round((size ?? 14) * 0.95);
   return (

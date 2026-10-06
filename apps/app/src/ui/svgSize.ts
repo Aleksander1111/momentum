@@ -11,3 +11,9 @@ export function svgSize(svg: string): { width: number; ratio: number } {
   const ratio = vw > 0 && vh > 0 ? vw / vh : attrW && attrH ? Number(attrW[1]) / Number(attrH[1]) : 2;
   return { width: Number.isFinite(width) && width > 0 ? width : 320, ratio };
 }
+
+/**
+ * PlantUML sizes each label for the font it measured with and stretches the text to that length; drawn in another
+ * font, a label spreads letter by letter. Without the lengths every label keeps its font's own spacing.
+ */
+export const naturalText = (svg: string) => svg.replace(/\s(?:textLength|lengthAdjust)="[^"]*"/g, '');

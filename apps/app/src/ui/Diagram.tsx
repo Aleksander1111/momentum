@@ -4,7 +4,7 @@ import { SvgCss } from 'react-native-svg/css';
 import type { DiagramElement } from '@momentum/contract';
 import { AddToContext } from './AddToContext';
 import { DiagramFull } from './DiagramFull';
-import { svgSize } from './svgSize';
+import { naturalText, svgSize } from './svgSize';
 import { C } from './theme';
 
 /** A thin arrow is hard to hit with a finger: its box counts this far around it */
@@ -31,7 +31,7 @@ export function Diagram({ svg, elements, onAdd }: { svg: string; elements?: Diag
   const height = width / size.ratio;
   const scale = width / viewWidth;
   const pickable = !!onAdd && !!elements?.length;
-  const shown = useMemo(() => (picked !== null ? faded(svg, picked) : svg), [svg, picked]);
+  const shown = useMemo(() => (picked !== null ? faded(naturalText(svg), picked) : naturalText(svg)), [svg, picked]);
 
   useEffect(() => setPicked(null), [svg]);
 

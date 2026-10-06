@@ -3,12 +3,12 @@ import { View } from 'react-native';
 import type { DiagramElement } from '@momentum/contract';
 import { AddToContext } from './AddToContext';
 import { DiagramFull } from './DiagramFull';
-import { svgSize } from './svgSize';
+import { naturalText, svgSize } from './svgSize';
 import { C } from './theme';
 
 /** PlantUML pins width and height; without them the drawing scales to the box it is given */
 function inline(svg: string): string {
-  return svg.replace(/<svg\b[^>]*>/i, (open) =>
+  return naturalText(svg).replace(/<svg\b[^>]*>/i, (open) =>
     open
       .replace(/\s(width|height)="[^"]*"/gi, '')
       .replace(/\sstyle="[^"]*"/i, '')
