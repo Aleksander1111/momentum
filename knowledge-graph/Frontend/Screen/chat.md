@@ -27,5 +27,5 @@ Chats per workspace, each a conversation attached to a run.
 - A mic beside send: the words show as heard; its outcome opens the chat
 - A conversation: run head (automation, state, 5-hour usage), bubbles polled every 3 s while active; Stop kills it
 - Entities an answer names, by link or path, show their type's glyph and colour and open on a press
-- An interview shows the document it writes and takes answers without context
-- Web (700 px+) shows it beside the list
+- An interview shows the document it writes, takes answers without context
+- Wide: beside the list; narrow: its own page, Back to Chats or to the tab that opened it

@@ -17,11 +17,10 @@ artifacts:
 
 One Expo (React Native) app, `apps/app`, for web and mobile.
 
-- Six tabs: Feed, Explorer, Chat, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone; none in the e2e observer
+- Six tabs: Feed, Explorer, Chat, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone; none when embedded
+- The Chat tab badges the card parts waiting for the next message
+- Tabs stay mounted: one shown again refetches what went stale; Back walks the history, so an entity a chat links returns to the chat
 - Light or dark follows the system
-- Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL` on the mesh
-- A failed fetch pauses queries, queues reactions; a 5 s probe restores them
-- A refused reaction shows the back-end's reason over every screen
-- Typed `@momentum/contract` client for every route
-- 401 clears the token, back to sign-in; token in a cookie on web, SecureStore on mobile
-- Momentum icon, favicon; Android APK built locally
+- Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
+- A failed fetch pauses queries, queues reactions; a 5 s probe restores them; a refused one shows why
+- Typed contract client; 401 sends back to sign-in

@@ -25,7 +25,7 @@ kind: page
 Browse a workspace's entities by domain and type, search them, ask them, or hand the exploration to an agent.
 
 - Workspace picker, entity total; a domain/type tree with counts; rows with domain, title and states
-- Search, by words and meaning, replaces the tree with results
+- Search, by words and meaning, replaces the tree with results; no match offers Enter to ask
 - A question, or Enter, is answered above them by [the search automation](Harness/Automation/search), linking what it drew from; a chat takes it further
 - A mic: spoken words fill the search, a spoken question is asked
 - "Explore through an agent" opens the Chat tab, composer focused
