@@ -1,7 +1,7 @@
 ---
 type: Harness/Automation
 origin: user
-verification: unverified
+verification: verified
 sync: synced
 product_impact: 0
 timeline_impact: 0
