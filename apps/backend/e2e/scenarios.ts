@@ -297,7 +297,7 @@ export const SCENARIOS: Scenario[] = [
       'Every momentum MCP tool works against the project',
       'Voice sockets refuse an app that is not signed in',
       'Every app page loads and approves, sends back and chats against the backend',
-      'The timeline lists the sign-ins, settings, reactions, chats and one event per run newest first, and shows the next one live beside the app',
+      'The timeline lists the sign-ins, settings, reactions, chats and one event per run newest first, and shows the next one live beside the app; past a page, older events come when asked for while new ones keep arriving',
     ],
     // The features each step checks, step by step
     checks: [

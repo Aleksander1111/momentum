@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { AutomationName, TimelineActor, TimelineEvent } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { embedded } from '../../lib/embed';
@@ -261,16 +261,30 @@ export default function Timeline() {
   const [workspace, setWorkspace] = useState<string | null>(null);
   const [actor, setActor] = useState<ActorFilter>('all');
 
-  const q = useInfiniteQuery({
+  const filter = { workspace: workspace ?? undefined, actor: actor === 'all' ? undefined : actor };
+  // The newest page alone is polled: what happens shows at once, and the event of a run under way changes in place
+  const newest = useQuery({
     queryKey: ['timeline', workspace, actor],
-    queryFn: ({ pageParam }) =>
-      api.timeline({ workspace: workspace ?? undefined, actor: actor === 'all' ? undefined : actor, before: pageParam ?? undefined, limit: PAGE }),
-    initialPageParam: null as number | null,
-    getNextPageParam: (last) => last.next,
+    queryFn: () => api.timeline({ ...filter, limit: PAGE }),
     refetchInterval: 4_000,
   });
-
-  const events = (q.data?.pages ?? []).flatMap((p) => p.events);
+  // Older pages are fetched once each, when asked for, from where the newest page ended at the first ask
+  const [anchor, setAnchor] = useState<number | null>(null);
+  useEffect(() => setAnchor(null), [workspace, actor]);
+  const older = useInfiniteQuery({
+    queryKey: ['timeline', workspace, actor, 'before', anchor],
+    queryFn: ({ pageParam }) => api.timeline({ ...filter, before: pageParam, limit: PAGE }),
+    initialPageParam: anchor ?? 0,
+    getNextPageParam: (last) => last.next ?? undefined,
+    enabled: anchor !== null,
+    staleTime: Infinity,
+  });
+  // Every event seen stays, in its latest version: one the newest page has moved past is not lost before the older pages
+  const seen = useMemo(() => new Map<number, TimelineEvent>(), [workspace, actor]);
+  for (const e of older.data?.pages.flatMap((p) => p.events) ?? []) if (!seen.has(e.id)) seen.set(e.id, e);
+  for (const e of newest.data?.events ?? []) seen.set(e.id, e);
+  const events = [...seen.values()].sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);
+  const more = anchor === null ? newest.data?.next != null : older.hasNextPage;
   const days: { label: string; events: TimelineEvent[] }[] = [];
   for (const e of events) {
     const label = dayLabel(new Date(e.at));
@@ -303,16 +317,16 @@ export default function Timeline() {
           </List>
         </View>
       ))}
-      {q.isSuccess && events.length === 0 ? (
+      {newest.isSuccess && events.length === 0 ? (
         <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 32 }}>Nothing has happened yet</T>
       ) : null}
-      {q.hasNextPage ? (
+      {more ? (
         <Btn
           kind="ghost"
           small
-          label={q.isFetchingNextPage ? 'Loading…' : 'Show older'}
-          disabled={q.isFetchingNextPage}
-          onPress={() => void q.fetchNextPage()}
+          label={older.isFetching ? 'Loading…' : 'Show older'}
+          disabled={older.isFetching}
+          onPress={() => (anchor === null ? setAnchor(newest.data?.next ?? null) : void older.fetchNextPage())}
           style={{ alignSelf: 'center', marginTop: 16 }}
         />
       ) : null}

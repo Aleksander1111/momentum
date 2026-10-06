@@ -119,5 +119,17 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
     await api.putSettings({ feedSize: 30 });
     await until('the settings change in the timeline', async () => (await api.call<TimelineResponse>('GET', '/timeline?limit=1')).events[0]?.kind === 'settings_changed');
     await expect(app.timeline().getByText('Changed the feed size').first()).toBeVisible({ timeout: 15_000 });
+
+    // Past a page of events, the oldest come only when asked for, and what happens meanwhile still shows at the top
+    for (let size = 31; size <= 95; size++) await api.putSettings({ feedSize: size });
+    await app.go('/timeline');
+    const refused = app.text('Sign in refused: wrong password', false);
+    await expect(app.frame().getByText('Changed the feed size').first()).toBeVisible({ timeout: 15_000 });
+    await expect(refused).toHaveCount(0);
+    await app.frame().getByText('Show older', { exact: true }).click();
+    await expect(refused.first()).toBeVisible({ timeout: 15_000 });
+    await api.putSettings({ agents: { concurrentTotal: 7 } });
+    await expect(app.frame().getByText('Changed the total of runs').first()).toBeVisible({ timeout: 15_000 });
+    await expect(refused.first()).toBeVisible();
   });
 });
