@@ -16,7 +16,7 @@ kind: internal library
 ---
 # Contract
 
-`@momentum/contract`: zod schemas, types for backend and app.
+`@momentum/contract`: zod schemas, types for back-end, app; jitless in browsers, as the CSP forbids eval.
 
 | Area | Schemas |
 |---|---|
@@ -25,10 +25,10 @@ kind: internal library
 | Card diff | marks, spans, prior diagram, word counts |
 | Feed | items, versions, diffs, options, counts; reactions |
 | Search | results; ask, sources |
-| Runs, chats | automations, status, usage %; context; interview |
+| Runs, chats | automations, status, usage; context; interview |
 | Timeline | actor, kind, facts, query, page |
 | Voice | screen, status, partial text |
-| Graph build, metrics | coverage; series, histograms |
+| Graph build, metrics | coverage; series |
 | Settings | projects, logo, cards, lifetimes, models |
 
-`openapi.json`: generated OpenAPI 3.0; card blocks, type tree named.
+`openapi.json`: generated OpenAPI 3.0.
