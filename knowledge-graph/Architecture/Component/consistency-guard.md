@@ -18,12 +18,12 @@ artifacts:
 ---
 # Consistency guard
 
-Lands each run's checked changes; keeps the index true to the main line.
+Lands each run's checked changes; keeps the index true to main.
 
-- Hooks: PostToolUse checks writes; SubagentStop: summarization ran; Stop: summarize once, ≤2 fixes, message
+- Hooks: PostToolUse checks writes; SubagentStop: summarization ran; Stop: summarize once, ≤2 fixes, message, in shared words
 - Run end: one checked commit; invalid → Harness/Issue, conflict → Harness/Conflict
 - Handed artifacts its step never saw nor its entities cover: summarized after landing
-- Harness repo: lands only `HARNESS_SCOPE` and the graph; the rest put back, in an issue
+- Harness repo: lands only `HARNESS_SCOPE` and the graph; the rest put back in an issue
 - Main line: one pass at a time; stops at a merge unless enabled; changed artifacts → artifact_ahead; moves followed
 - Index: diff since verified; implemented directly or via plan; metrics
 - 10 agreeing reactions on a type → Harness/Pattern proposal
