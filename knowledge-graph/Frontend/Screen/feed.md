@@ -22,10 +22,10 @@ kind: page
 Ranked cards from enabled projects, one at a time:
 
 - Breadcrumb: project logo, type pill, folders; verification and sync counters
-- A card changed since verified shows a diff: −/+ word counts, marked changes, diagrams Before/After/Diff
+- A card changed since verified shows a diff: −/+ words, marked changes, diagrams Before/After/Diff
 - Linked entities show type glyph, colour; open on a press; only web links open
 - Selections go to chat
 - Swipe right approves; left sends back with a comment
 - Issue cards add severity, concerns, options: right resolves with the pick; left takes a resolution or won't-resolve reason
-- A reaction carries time on card and version: one changed meanwhile is refused, shown again; polls every 15 s; queues offline
+- A reaction carries time on card and version: one changed meanwhile is refused, reason shown, card stays; polls every 15 s; queues offline
 - Cards take the palette set in Settings live
