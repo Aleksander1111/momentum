@@ -85,11 +85,10 @@ export class HarnessSettings {
   }
 
   /** The knowledge graph build of a project: its state, the progress its last run reported, and when it started */
-  async graphBuild(name: string): Promise<{ state: GraphBuildState | null; progress: string | null; since: Date | null; coverage: number | null }> {
-    const [r] = await this.sql<
-      { graph_build: GraphBuildState | null; graph_build_progress: string | null; graph_build_since: Date | null; graph_build_coverage: number | null }[]
-    >`select graph_build, graph_build_progress, graph_build_since, graph_build_coverage from harness.project where name = ${name}`;
-    return { state: r?.graph_build ?? null, progress: r?.graph_build_progress ?? null, since: r?.graph_build_since ?? null, coverage: r?.graph_build_coverage ?? null };
+  async graphBuild(name: string): Promise<{ state: GraphBuildState | null; progress: string | null; since: Date | null }> {
+    const [r] = await this.sql<{ graph_build: GraphBuildState | null; graph_build_progress: string | null; graph_build_since: Date | null }[]>`
+      select graph_build, graph_build_progress, graph_build_since from harness.project where name = ${name}`;
+    return { state: r?.graph_build ?? null, progress: r?.graph_build_progress ?? null, since: r?.graph_build_since ?? null };
   }
 
   async setGraphBuild(name: string, state: GraphBuildState): Promise<void> {
@@ -100,7 +99,7 @@ export class HarnessSettings {
 
   /** Forgets what the harness knows of a project's knowledge graph: the indexed commit and the build */
   async resetProject(name: string): Promise<void> {
-    await this.sql`update harness.project set indexed_commit = null, graph_build = null, graph_build_progress = null, graph_build_since = null, graph_build_coverage = null
+    await this.sql`update harness.project set indexed_commit = null, graph_build = null, graph_build_progress = null, graph_build_since = null
       where name = ${name}`;
   }
 
@@ -108,10 +107,6 @@ export class HarnessSettings {
     await this.sql`update harness.project set graph_build_progress = ${progress} where name = ${name}`;
   }
 
-  /** The share of the repository covered, 0–1, as the last run reported it */
-  async setGraphBuildCoverage(name: string, coverage: number): Promise<void> {
-    await this.sql`update harness.project set graph_build_coverage = ${Math.min(1, Math.max(0, coverage))} where name = ${name}`;
-  }
 
   async values(): Promise<Omit<Settings, 'projects' | 'harness'>> {
     if (this.cache) return this.cache;

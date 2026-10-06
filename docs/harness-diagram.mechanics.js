@@ -464,6 +464,98 @@ function summarization() {
   return svg(g);
 }
 
+// The measure of apps/backend/src/completeness.ts: what a reader needs answered, and the repository accounted for
+function completeness() {
+  let g = '';
+  const bar = (x, y, w, frac, o = {}) => rect(x, y, w, o.h ?? 12, { r: (o.h ?? 12) / 2, fill: C.paper }) + (frac > 0 ? rect(x, y, w * frac, o.h ?? 12, { r: (o.h ?? 12) / 2, fill: o.fill ?? C.ok }) : '');
+
+  // Understanding: the questions every product's graph must answer, each filled by an entity of one of its types
+  g += caption(70, 70, 'Understanding', 'the questions a reader needs answered', { size: 30, subSize: 19 });
+  const slots = [
+    ['What the product is', 'Product/Product', true],
+    ['What it is for', 'Product/Goal · Initiative · RoadmapItem', true],
+    ['What it does', 'Product/Capability · Feature · UseCase', false],
+    ['How it is built', 'Architecture/System · Service', true],
+    ['Where the code is', 'Code/Repository', true],
+    ['Where it runs', 'Infrastructure/Environment · Deployment · CiCdPipeline', true],
+    ['How it is tested', 'Testing/TestSuite · TestPlan · TestCase', true],
+    ['What rules and decisions shape it', 'Governance/Decision · Constraint · Requirement · DesignDoc', true],
+  ];
+  const sx = 70, sy = 140, sh = 74, sw = 640;
+  g += rect(sx, sy, sw, slots.length * sh, { r: 16, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+  slots.forEach(([q, types, filled], i) => {
+    const y = sy + i * sh;
+    if (i) g += line(sx, y, sx + sw, y, { stroke: C.line, sw: 1.5 });
+    if (!filled) g += rect(sx + 1, y + 1, sw - 2, sh - 2, { fill: LAYER.kn.wash });
+    g += circle(sx + 38, y + sh / 2, 20, { fill: filled ? LAYER.prod.wash : C.white, stroke: filled ? C.ok : C.ochre, sw: 3 });
+    g += stateGlyph(filled ? 'verified' : 'unverified', sx + 38, y + sh / 2, 26);
+    g += text(sx + 76, y + 31, q, { size: 21, bold: true, fill: filled ? C.ink : C.ochre });
+    g += text(sx + 76, y + 56, types, { size: 15, fill: C.muted });
+  });
+  g += text(sx, sy + slots.length * sh + 44, '7 of 8 answered', { head: true, bold: true, size: 26, fill: C.ok });
+  g += text(sx + 230, sy + slots.length * sh + 44, 'any one of the types fills the slot', { size: 18, fill: C.muted, italic: true });
+
+  // Territory: every area of the repository accounted for, a directory artifact claiming all in it
+  const tx = 1180;
+  g += caption(tx, 70, 'Territory', 'every area of the repository accounted for', { size: 30, subSize: 19 });
+  const areas = [
+    ['apps/backend', 0.6, 'test · its own files'], ['apps/app', 0.4, 'assets · modules · public'], ['packages/kb', 0.33, 'test · its own files'],
+    ['scripts', 0, 'its own files'], ['docs', 1, ''], ['examples', 1, ''],
+  ];
+  const ay = 140, ah = 58;
+  areas.forEach(([name, frac, missing], i) => {
+    const y = ay + i * ah;
+    g += icon(frac === 1 ? 'FaFolder' : 'FaFolderOpen', tx, y + 6, 30, frac === 1 ? C.ok : C.ochre);
+    g += text(tx + 44, y + 30, name, { size: 21, bold: true });
+    g += bar(tx + 280, y + 18, 180, frac, { fill: frac === 1 ? C.ok : C.ochre });
+    g += text(tx + 472, y + 30, `${Math.round(frac * 100)}%`, { size: 19, bold: true, fill: frac === 1 ? C.ok : C.ochre });
+    if (missing) g += text(tx + 528, y + 30, missing, { size: 15, fill: C.muted, italic: true });
+  });
+  g += text(tx, 935, 'An area counts by its parts, not its files, and weighs the logarithm of its size', { size: 18, fill: C.muted, italic: true });
+  // one card over a directory claims all in it
+  const ex = ay + 5 * ah;
+  g += miniCard(tx + 20, 600, 250, 120, { crumb: 'CODE / REPOSITORY', title: 'Examples', glyphs: ['verified'], bars: [0.9, 0.7], pad: 14, titleSize: 18 });
+  g += text(tx + 34, 700, 'artifacts: examples', { size: 15, fill: C.accent, bold: true });
+  g += path(`M${tx + 145} 596 C${tx + 145} 560 ${tx + 100} ${ex + 56} ${tx + 70} ${ex + 48}`, { stroke: C.ok, sw: 4, head: 'ok' });
+  g += path(`M${tx + 300} 660H${tx + 560}M${tx + 360} 660V640M${tx + 460} 660V640M${tx + 560} 660V640`, { stroke: C.ok, sw: 3 });
+  [['bookshelf-api', 360], ['notes-api', 460], ['todo-cli', 560]].forEach(([nm, dx]) => {
+    g += icon('FaFolder', tx + dx - 14, 600, 28, C.ok) + text(tx + dx, 700, nm, { size: 15, anchor: 'middle', fill: C.muted });
+  });
+  g += text(tx + 300, 745, 'one card claims a whole directory', { size: 18, fill: C.muted, italic: true });
+  // implementation detail claims nothing
+  g += miniCard(tx + 20, 790, 250, 110, { crumb: 'CODE / SOURCEFILE', title: 'guard.ts', bars: [0.9, 0.7], pad: 14, titleSize: 18, stroke: C.red, sw: 2 });
+  g += line(tx + 30, 890, tx + 260, 800, { stroke: C.red, sw: 5 });
+  g += text(tx + 300, 835, 'A file, class or function card', { size: 20, bold: true, fill: C.red });
+  g += text(tx + 300, 862, 'counts for nothing: the graph exists to spare the reader those', { size: 16, fill: C.muted, italic: true });
+
+  // the score: the mean of both halves
+  const cx = 960, cy = 330, r = 118, circ = 2 * Math.PI * r;
+  g += circle(cx, cy, r, { stroke: C.paper, sw: 26 });
+  g += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${C.ok}" stroke-width="26" stroke-linecap="round" stroke-dasharray="${n(circ * 0.72)} ${n(circ)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+  g += text(cx, cy + 18, '72%', { head: true, bold: true, size: 64, anchor: 'middle' });
+  g += text(cx, cy + 54, 'complete', { size: 22, anchor: 'middle', fill: C.muted, italic: true });
+  g += path(`M${sx + sw + 16} 420 C820 420 820 330 ${cx - r - 20} 330`, { stroke: C.ok, sw: 4, head: 'ok' });
+  g += pill(790, 456, '88%', { color: C.ok, bold: true, italic: false });
+  g += path(`M${tx - 16} 300 C1100 300 1100 330 ${cx + r + 20} 330`, { stroke: C.ochre, sw: 4, head: 'kn' });
+  g += pill(1130, 266, '57%', { color: C.ochre, bold: true, italic: false });
+  g += text(cx, cy + r + 60, 'the mean of both halves', { head: true, italic: true, size: 22, anchor: 'middle', fill: C.muted });
+
+  // measured, never asked: the harness measures the main line and tells the next build run what is missing
+  const steps = [
+    ['FaRuler', 'Measured on the main line', 'by the harness, never estimated by a run', LAYER.kn],
+    ['FaTerminal', 'Each build run is told the gaps', 'the slots unfilled, the areas not accounted for', LAYER.prod],
+    ['FaFlagCheckered', 'Complete when nothing is left', 'that the repository can fill; the run reports it', LAYER.att],
+  ];
+  steps.forEach(([ic, t, sub, L], i) => {
+    const y = 560 + i * 112;
+    g += circle(cx - 170, y + 30, 34, { fill: L.wash, stroke: L.strong, sw: 3.5 }) + iconAt(ic, cx - 170, y + 30, 32, L.strong);
+    g += text(cx - 120, y + 26, t, { head: true, bold: true, size: 22 });
+    g += text(cx - 120, y + 52, sub, { size: 16, fill: C.muted });
+    if (i < steps.length - 1) g += line(cx - 170, y + 70, cx - 170, y + 104, { stroke: C.muted, sw: 3, head: 'muted' });
+  });
+  return svg(g);
+}
+
 // ---------------------------------------------------------------- 6. consistency guard
 function guard() {
   let g = '';
@@ -1008,10 +1100,10 @@ function tools() {
   // 3. reports to the harness
   panel(X[2], Y[0], LAYER.prod, 'FaClipboardCheck', 'MCP · IN-PROCESS', 'momentum-run', 'what the run reports to the harness');
   rows(X[2], Y[0], [
-    ['report_graph_build', 'coverage, next, documents'],
+    ['report_graph_build', 'progress, next, documents'],
     ['report_interview', 'next question, done'],
   ], LAYER.prod);
-  // the graph build's coverage, as the observer shows it
+  // the graph build's completeness, as the harness measures it
   const bx = X[2] + 36, by = Y[0] + 270, bw = PW - 72;
   g += text(bx, by, 'Knowledge graph build', { size: 17, bold: true }) + text(bx + bw, by, '62%', { size: 17, bold: true, fill: C.ok, anchor: 'end' });
   g += rect(bx, by + 14, bw, 16, { r: 8, fill: C.white, stroke: C.line, sw: 1.5 }) + rect(bx, by + 14, bw * 0.62, 16, { r: 8, fill: C.ok });
@@ -1050,8 +1142,9 @@ const SLIDES = [
   ['Automations', automations, 'Twelve automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Interview and search start only when the user asks; search answers in one turn and is not a run. Automation runs go one at a time per project; runs the user starts go at once.'],
   ['Triggers', triggers, 'Each automation has a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand. Exploration every two hours, preparation every two hours at half past, validation at 02:00, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Summarization runs in the Stop hook of every run and graph build while the project is enabled, so neither has a trigger entity. Scheduled loops and the graph build pause while the feed is at its limit; events still start their runs.'],
   ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. An edit the user commits lands on the main line as committed. A change optimization proposes passes the consistency guard, lands unverified and takes effect once the user approves it in the feed. Optimization reads every chat and proposes a skill, memory, sub-agent or definition change only for a pattern seen at least three times, as a Harness/Pattern with its evidence; nothing is learnt from one chat, and nothing takes effect before the user approves it. Runs start on demand from the chat and stop from the chat; models and concurrency are settings, and the Settings tab leads to the rest in the knowledge graph.'],
-  ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the run's own checkout with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, types, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and coverage, and an interview's next question. The summarization sub-agent takes the run's artifacts over through the Agent tool at Stop, and the harness checks it ran before trusting it. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools every API handler, ask included, without the UI. A question typed in the explorer search is not a run: the search finds the entities, and the search automation answers from them in one turn without tools, linking each it drew from."],
+  ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the run's own checkout with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, types, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and documents, and an interview's next question. The summarization sub-agent takes the run's artifacts over through the Agent tool at Stop, and the harness checks it ran before trusting it. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools every API handler, ask included, without the UI. A question typed in the explorer search is not a run: the search finds the entities, and the search automation answers from them in one turn without tools, linking each it drew from."],
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
+  ['Graph completeness', completeness, "How complete a project's knowledge graph is, measured by the harness on the main line and never estimated by a run: the mean of two halves. Understanding is the questions every product's graph must answer, eight slots, each filled by an entity of one of its types: what the product is, what it is for, what it does, how it is built, where the code is, where it runs, how it is tested, and what rules and decisions shape it. Territory is every area of the repository accounted for: a top-level directory, or each child of one that holds only directories, with the files at the root as one more. An area counts by its parts, its direct subdirectories and its own files, and weighs the logarithm of its file count. An entity accounts for a part by listing it, anything in it, or a directory above it as an artifact, so one card listing examples claims the whole of it. Cards of implementation-detail types, a file, a class, a function, claim nothing: the graph exists to spare the reader those. Each graph build run is told what is missing; it reports complete only once nothing missing can be filled from the repository. The Settings tab shows the score, the questions answered, the share of the repository accounted for and what is missing."],
   ['Consistency guard', guard, 'Every write is checked while the run works. When it ends, the transaction passes the guard: type, references and the links on each card. Everything lands as one commit; what fails carries an issue entity. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
   ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, card links missing from the references, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
   ['Issue resolution', resolution, "Every issue the consistency check raises offers two to four options to resolve it, each a label and one sentence of what it changes, with the obviously best one recommended when there is one. The feed card shows them with the recommended option picked; a tap picks another. Swipe right resolves with the picked option, swipe left with the user's own resolution: either starts a chat run that applies it to the concerned entities and retires the issue, and the changed entities come back to the feed unverified. Won't resolve keeps the issue, verified, with the reason: the check does not raise it again and it no longer counts as a contradiction."],

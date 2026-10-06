@@ -36,7 +36,7 @@ scenario('morning-triage', { enabled: [...PROJECTS], triggers: ['consistency-che
       ...Array.from({ length: Math.min(room, 2) }, (_, i) =>
         move.entity(t, `Knowledge/Faq/question-${n}-${i}`, { type: 'Knowledge/Faq', title: `Question ${n}.${i}`, card: `An answer mapped by build run ${n}.` }),
       ),
-      move.graphBuild({ complete: n >= 4, progress: `Run ${n} done`, coverage: Math.min(1, n / 4) }),
+      move.graphBuild({ complete: n >= 4, progress: `Run ${n} done` }),
       move.say('Mapped.'),
     ];
   });
@@ -111,7 +111,7 @@ scenario('morning-triage', { enabled: [...PROJECTS], triggers: ['consistency-che
       return (await api.graphBuild('todo-cli')).state === 'complete';
     }, 40 * 60_000, 5000);
     expect((await api.feed()).items.length).toBeLessThanOrEqual(FEED);
-    expect((await api.graphBuild('todo-cli')).coverage).toBe(1);
+    expect((await api.graphBuild('todo-cli')).completeness.score).toBeGreaterThan(0);
     expect(env.files('todo-cli').filter((f) => !f.startsWith('knowledge-graph/Harness/')).length).toBeGreaterThan(0);
   });
 });

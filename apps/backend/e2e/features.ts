@@ -87,7 +87,7 @@ export const FEATURES = {
   'kb.ask': 'A question in the explorer search is answered in one pass from the entities the search finds, each it draws from linked',
 
   // Automations, each a real Claude Code run
-  'automation.graph-build': 'Builds the knowledge graph run after run, reporting progress and coverage, until covered or stopped',
+  'automation.graph-build': 'Builds the knowledge graph run after run, told what the measured completeness finds missing, until complete or stopped',
   'automation.summarization': 'Summarizes the artifacts a run left, handed over by the Stop hook, once',
   'automation.exploration': 'Picks the next best action for the goals and writes research and an action entity; idle when goals are met',
   'automation.preparation': 'Writes plans for startable action points; summarization makes them Harness/Plan entities',

@@ -163,10 +163,20 @@ export class WorkspaceIndex {
     return new Set(rows.map((r) => r.path));
   }
 
+  /** The entities over an artifact: those listing it, and those listing a directory above it, which claims all in it */
   async byArtifact(artifactPath: string): Promise<string[]> {
     const rows = await this.sql<{ entity_path: string }[]>`
-      select entity_path from ${this.t('entity_artifact')} where artifact_path = ${artifactPath}`;
+      select distinct entity_path from ${this.t('entity_artifact')}
+      where artifact_path = ${artifactPath} or ${artifactPath} like artifact_path || '/%'`;
     return rows.map((r) => r.entity_path);
+  }
+
+  /** Every artifact an entity lists, with the entity's type, and the type of every entity: what the completeness measure reads */
+  async claims(): Promise<{ artifacts: { artifact: string; type: string }[]; types: string[] }> {
+    const artifacts = await this.sql<{ artifact: string; type: string }[]>`
+      select a.artifact_path as artifact, e.type from ${this.t('entity_artifact')} a join ${this.t('entity')} e on e.path = a.entity_path`;
+    const types = await this.sql<{ type: string }[]>`select distinct type from ${this.t('entity')}`;
+    return { artifacts, types: types.map((t) => t.type) };
   }
 
   async byType(type: string): Promise<EntityRow[]> {

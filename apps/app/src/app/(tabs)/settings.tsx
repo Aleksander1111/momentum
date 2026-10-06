@@ -413,19 +413,22 @@ function GraphBuildRow({ name }: { name: string }) {
     `${usagePct(m.usage.fiveHour)} of 5 h`,
     `${usagePct(m.usage.week)} of week`,
   ].join(sep);
-  // The full build, extrapolated from the share of the repository the runs report covered
+  // Completeness as the harness measures it on the main line, and the full build extrapolated from what it took so far
+  const c = m.completeness;
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const slots = c.understanding.slots;
+  const measured = [
+    `${pct(c.score)} complete`,
+    `${slots.filter((s) => s.filled).length} of ${slots.length} questions answered`,
+    `${pct(c.territory.score)} of the repository accounted for`,
+    ...(c.detail > 0 ? [`${c.detail} implementation-detail ${c.detail === 1 ? 'entity' : 'entities'}`] : []),
+  ].join(sep);
   const full =
-    m.coverage === null
-      ? 'coverage not reported yet'
-      : m.state === 'complete' || !m.estimate
-        ? `${Math.round(m.coverage * 100)}% covered`
-        : [
-            `${Math.round(m.coverage * 100)}% covered`,
-            `full build \u2248 ${durationMs(m.estimate.totalMs)}`,
-            `${usagePct(m.estimate.usage.fiveHour)} of 5 h`,
-            `${usagePct(m.estimate.usage.week)} of week`,
-          ].join(sep);
-  const sub = `${soFar}\n${full}`;
+    m.state === 'complete' || !m.estimate
+      ? null
+      : [`full build \u2248 ${durationMs(m.estimate.totalMs)}`, `${usagePct(m.estimate.usage.fiveHour)} of 5 h`, `${usagePct(m.estimate.usage.week)} of week`].join(sep);
+  const missing = [...slots.filter((s) => !s.filled).map((s) => s.name.toLowerCase()), ...c.territory.areas.filter((a) => a.score < 1).map((a) => a.path)];
+  const sub = [soFar, measured, full, missing.length ? `missing: ${missing.join(', ')}` : null].filter(Boolean).join('\n');
   return (
     <Row style={{ paddingLeft: 28, backgroundColor: C.card }}>
       <RowText title="Knowledge graph" sub={sub} size={14} />

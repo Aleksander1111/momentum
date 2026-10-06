@@ -47,20 +47,20 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
     if (/first graph build run/.test(t.input)) {
       return [
         move.entity(t, 'Architecture/Component/store', component('store', 'Store', 'Reads and writes the to-dos in one JSON file.', ['src/store.js'])),
-        move.graphBuild({ complete: false, progress: 'Covered src/store.js; next: the CLI.', coverage: 0.4, documents: ['README.md'] }),
+        move.graphBuild({ complete: false, progress: 'Covered src/store.js; next: the CLI.', documents: ['README.md'] }),
         move.say('Mapped the store.'),
       ];
     }
     if (/Covered src\/store\.js; next: the CLI/.test(t.input)) {
       return [
         move.entity(t, 'Architecture/Component/cli', component('cli', 'Command line', 'Parses `add`, `list`, `done` and `remove` and calls the store.', ['src/cli.js'])),
-        move.graphBuild({ complete: false, progress: 'Covered the store and the CLI; next: the tests.', coverage: 0.7 }),
+        move.graphBuild({ complete: false, progress: 'Covered the store and the CLI; next: the tests.' }),
         move.say('Mapped the CLI.'),
       ];
     }
     return [
       move.entity(t, 'Knowledge/HowToGuide/run-the-tests', { type: 'Knowledge/HowToGuide', title: 'Run the tests', card: '`node --test` runs `test/store.test.js`.', artifacts: ['test/store.test.js'] }),
-      move.graphBuild({ complete: true, progress: 'Covered the whole repository.', coverage: 1 }),
+      move.graphBuild({ complete: true, progress: 'Covered the whole repository.' }),
       move.say('Done mapping.'),
     ];
   });
@@ -90,8 +90,10 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
     // Partly covered, with the progress the next run starts from
     const status = await api.graphBuild(WS);
     expect(status.state).toBe('building');
-    expect(status.coverage).toBeGreaterThan(0);
-    expect(status.coverage).toBeLessThan(1);
+    // Measured, not reported: the entities so far account for some of the repository, and the next run is told the rest
+    expect(status.completeness.score).toBeGreaterThan(0);
+    expect(status.completeness.score).toBeLessThan(1);
+    expect(status.completeness.territory.areas.some((a) => a.missing.length > 0)).toBe(true);
     expect(status.progress).toBeTruthy();
     progress = status.progress!;
   });
@@ -107,6 +109,7 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
     const prompt = model.turns(second!.id)[0]!.input;
     expect(prompt).toContain('Progress reported by the previous graph build run');
     expect(prompt).toContain(progress);
+    expect(prompt).toMatch(/The harness measures the graph \d+% complete/);
     expect(prompt).toContain('room for 1 more items');
     // Still more to map: the build goes on once there is room again
     expect((await api.graphBuild(WS)).state).toBe('building');
@@ -148,10 +151,15 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
     await api.call('PUT', `/workspaces/${WS}/graph-build`, { building: true });
     await until('the build to complete', async () => (await api.graphBuild(WS)).state === 'complete', 20 * 60_000, 5000);
     const status = await api.graphBuild(WS);
-    expect(status.coverage).toBe(1);
+    expect(status.completeness.score).toBeGreaterThan(0);
+    expect(status.completeness.score).toBeLessThanOrEqual(1);
     expect(status.estimate).not.toBeNull();
     // At least one entity from each run that got to write
     expect(status.entities).toBeGreaterThanOrEqual(3);
+    // The settings show the completeness as measured, once the row fetched it again (every 30 s while not building)
+    await app.tab('Settings');
+    await expect(app.text(new RegExp(`${Math.round(status.completeness.score * 100)}% complete`), false)).toBeVisible({ timeout: 40_000 });
+    await expect(app.text(/questions answered/, false)).toBeVisible();
     expect(status.activeRunId).toBeNull();
     await new Promise((r) => setTimeout(r, 8000));
     expect((await builds()).filter((r) => r.status === 'queued' || r.status === 'running')).toEqual([]);

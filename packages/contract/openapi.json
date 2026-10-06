@@ -1687,11 +1687,19 @@
                                 "items": {
                                   "type": "string"
                                 }
+                              },
+                              "titles": {
+                                "default": {},
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
                               }
                             },
                             "required": [
                               "options",
-                              "concerns"
+                              "concerns",
+                              "titles"
                             ],
                             "additionalProperties": false
                           }
@@ -5523,9 +5531,101 @@
                     "spentMs": {
                       "type": "number"
                     },
-                    "coverage": {
-                      "nullable": true,
-                      "type": "number"
+                    "completeness": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "number"
+                        },
+                        "understanding": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "slots": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "types": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "filled": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "types",
+                                  "filled"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "slots"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "territory": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "areas": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "path": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "number"
+                                  },
+                                  "missing": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "path",
+                                  "score",
+                                  "missing"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "areas"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "detail": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "score",
+                        "understanding",
+                        "territory",
+                        "detail"
+                      ],
+                      "additionalProperties": false
                     },
                     "estimate": {
                       "nullable": true,
@@ -5576,7 +5676,7 @@
                     "entities",
                     "usage",
                     "spentMs",
-                    "coverage",
+                    "completeness",
                     "estimate",
                     "activeRunId",
                     "resettable"
@@ -5749,9 +5849,101 @@
                     "spentMs": {
                       "type": "number"
                     },
-                    "coverage": {
-                      "nullable": true,
-                      "type": "number"
+                    "completeness": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "number"
+                        },
+                        "understanding": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "slots": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "types": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "filled": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "types",
+                                  "filled"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "slots"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "territory": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "areas": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "path": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "number"
+                                  },
+                                  "missing": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "path",
+                                  "score",
+                                  "missing"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "areas"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "detail": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "score",
+                        "understanding",
+                        "territory",
+                        "detail"
+                      ],
+                      "additionalProperties": false
                     },
                     "estimate": {
                       "nullable": true,
@@ -5802,7 +5994,7 @@
                     "entities",
                     "usage",
                     "spentMs",
-                    "coverage",
+                    "completeness",
                     "estimate",
                     "activeRunId",
                     "resettable"
@@ -5959,9 +6151,101 @@
                     "spentMs": {
                       "type": "number"
                     },
-                    "coverage": {
-                      "nullable": true,
-                      "type": "number"
+                    "completeness": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "number"
+                        },
+                        "understanding": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "slots": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "types": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "filled": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "types",
+                                  "filled"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "slots"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "territory": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "areas": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "path": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "number"
+                                  },
+                                  "missing": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "path",
+                                  "score",
+                                  "missing"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "areas"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "detail": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "score",
+                        "understanding",
+                        "territory",
+                        "detail"
+                      ],
+                      "additionalProperties": false
                     },
                     "estimate": {
                       "nullable": true,
@@ -6012,7 +6296,7 @@
                     "entities",
                     "usage",
                     "spentMs",
-                    "coverage",
+                    "completeness",
                     "estimate",
                     "activeRunId",
                     "resettable"

@@ -56,7 +56,7 @@ scenario('onboard', { settings: { feedSize: FEED } }, async ({ env, api, app, st
   await step(3, async () => {
     await until('the build to complete', async () => (await api.graphBuild(WS)).state === 'complete', 90 * 60_000, 10_000);
     const status = await api.graphBuild(WS);
-    expect(status.coverage).toBe(1);
+    expect(status.completeness.score).toBeGreaterThan(0);
     expect(status.progress).toBeTruthy();
     expect(status.entities).toBeGreaterThan(0);
     expect(graphIssues(env, WS)).toEqual([]);

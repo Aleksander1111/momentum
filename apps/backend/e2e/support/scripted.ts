@@ -103,7 +103,7 @@ export const move = {
   entity: (t: Turn, path: string, e: Entity): Move => ({ tool: 'Write', input: { file_path: t.file(`knowledge-graph/${path}.md`), content: entityText(e) } }),
   bash: (command: string): Move => ({ tool: 'Bash', input: { command, description: 'Scripted command' } }),
   remove: (t: Turn, path: string): Move => ({ tool: 'Bash', input: { command: `rm -f "${t.file(path).replaceAll('\\', '/')}"`, description: 'Remove a file' } }),
-  graphBuild: (v: { complete: boolean; progress: string; coverage: number; documents?: string[] }): Move => ({
+  graphBuild: (v: { complete: boolean; progress: string; documents?: string[] }): Move => ({
     tool: 'mcp__momentum-run__report_graph_build',
     input: v,
   }),

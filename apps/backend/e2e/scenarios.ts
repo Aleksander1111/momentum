@@ -33,7 +33,7 @@ export const SCENARIOS: Scenario[] = [
       'Project listed disabled; enabling it materializes the definitions and proposes the default triggers',
       'No trigger starts anything while unverified',
       'Graph build runs until the feed is full, pauses, and continues as items are approved',
-      'Build reports coverage each run and ends complete; every written entity is valid and typed',
+      'Build is measured complete by the harness each run and ends complete; every written entity is valid and typed',
       'Each run records its usage share and leaves no checkout behind',
     ],
     // The features each step checks, step by step
@@ -400,7 +400,7 @@ export const SCENARIOS: Scenario[] = [
       'With the feed full the build waits; approving makes room and the next run continues from the reported progress',
       'Stopping the build in Settings ends the run in progress; resuming starts the next one',
       'A build whose runs keep failing stops after three failures in a row and says why, instead of retrying forever',
-      'Resumed, the build completes: coverage 1, an estimate from the runs, and nothing more queued',
+      'Resumed, the build completes: completeness measured, an estimate from the runs, and nothing more queued',
     ],
     // The features each step checks, step by step
     checks: [

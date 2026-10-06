@@ -9,7 +9,7 @@ import { config } from './config.ts';
 import type { Bus, Moved } from './events.ts';
 import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
-import { graphBuildPrompt } from './graph-build.ts';
+import { completeness, graphBuildPrompt } from './graph-build.ts';
 import { userStarted, type Runner } from './runner.ts';
 import type { Timeline } from './timeline.ts';
 import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
@@ -217,7 +217,7 @@ export class Orchestrator {
     }
   }
 
-  /** One graph build run at a time per workspace, told how much room the feed has */
+  /** One graph build run at a time per workspace, told what the measure finds missing and how much room the feed has */
   private async queueGraphBuild(ws: Workspace, projects: string[]): Promise<void> {
     const { state, progress } = await this.settings.graphBuild(ws.name);
     if (state !== 'building') return;
@@ -231,7 +231,7 @@ export class Orchestrator {
       automation: 'graph-build',
       trigger: 'event',
       title: 'Knowledge graph',
-      prompt: graphBuildPrompt(progress, room),
+      prompt: graphBuildPrompt(progress, room, await completeness(ws, this.settings)),
     });
   }
 

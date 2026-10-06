@@ -133,7 +133,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
           references: [{ to: REPO_ENTITY, relation: 'part_of' }],
         }),
       ),
-      move.graphBuild({ complete: done, progress: `Mapped ${covered} of ${source.length} source files`, coverage: done ? 1 : covered / source.length, ...(first ? { documents: ['README.md', 'docs/api.md'] } : {}) }),
+      move.graphBuild({ complete: done, progress: `Mapped ${covered} of ${source.length} source files`, ...(first ? { documents: ['README.md', 'docs/api.md'] } : {}) }),
       move.say('Mapped a batch.'),
     ];
   });
@@ -155,7 +155,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     const builds = await api.runs(WS, 'graph-build');
     expect(builds.length).toBeGreaterThan(2);
     expect(builds.every((r) => r.status === 'finished')).toBe(true);
-    expect((await api.graphBuild(WS)).coverage).toBe(1);
+    expect((await api.graphBuild(WS)).completeness.score).toBeGreaterThan(0);
     // Every source file and the documents are artifacts of entities on the main line
     const artifacts = (await env.sql<{ artifact_path: string }[]>`select artifact_path from ${env.sql('ws_notes_api.entity_artifact')}`).map((a) => a.artifact_path);
     for (const f of filesUnder(env.path(WS), 'src')) expect(artifacts, f).toContain(f);

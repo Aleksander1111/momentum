@@ -12,8 +12,8 @@ let sql: Sql;
 let index: WorkspaceIndex;
 const fixture = parseEntity(readFileSync(join(import.meta.dirname, '../../entity/test/fixtures/private-mesh.md'), 'utf8'));
 
-async function put(path: string, title: string, body: string, refs: { to: string; relation: string }[] = []) {
-  const frontmatter = { ...fixture.frontmatter, type: path.split('/').slice(0, 2).join('/'), references: refs, artifacts: [] };
+async function put(path: string, title: string, body: string, refs: { to: string; relation: string }[] = [], artifacts: string[] = []) {
+  const frontmatter = { ...fixture.frontmatter, type: path.split('/').slice(0, 2).join('/'), references: refs, artifacts };
   const [embedding] = await embed([`${title}\n${body}`]);
   await index.upsert({ path, title, body, frontmatter, cardBlocks: [], cardDiff: null, embedding: embedding! });
   return frontmatter;
@@ -137,5 +137,19 @@ describe('workspace index', () => {
     // An entity no longer there has no title: the app names it from its path
     expect(issue?.titles).toEqual({ 'Architecture/Api/session': 'Session on the API', 'Product/Feature/offline-feed': 'Offline feed' });
     await index.leaveFeed(path);
+  });
+});
+
+describe('the entities over an artifact', () => {
+  it('are those listing it, and those listing a directory above it', async () => {
+    await put('Code/Repository/examples', 'Examples', 'Projects the scenarios run over.', [], ['examples', 'README.md']);
+    expect(await index.byArtifact('examples')).toEqual(['Code/Repository/examples']);
+    expect(await index.byArtifact('examples/handbook/docs/remote-work.md')).toEqual(['Code/Repository/examples']);
+    expect(await index.byArtifact('README.md')).toEqual(['Code/Repository/examples']);
+    expect(await index.byArtifact('examples-other/x.md')).toEqual([]);
+    const { artifacts, types } = await index.claims();
+    expect(artifacts).toEqual(expect.arrayContaining([{ artifact: 'examples', type: 'Code/Repository' }]));
+    expect(types).toEqual(expect.arrayContaining(['Code/Repository', 'Architecture/Api']));
+    await index.remove('Code/Repository/examples');
   });
 });

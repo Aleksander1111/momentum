@@ -31,9 +31,10 @@ create table if not exists harness.project (
   graph_build text,
   graph_build_progress text,
   graph_build_since timestamptz,
-  graph_build_coverage real,
   logo text
 );
+-- The build's completeness is measured on the main line, no longer reported by its runs
+alter table harness.project drop column if exists graph_build_coverage;
 create table if not exists harness.setting (
   key text primary key,
   value jsonb not null

@@ -98,7 +98,7 @@ interface Active {
   /** What the run used in earlier sessions, and its share of the rises in this one */
   base: Rise;
   usage: Rise;
-  graphBuild?: { complete: boolean; progress: string; coverage: number; documents?: string[] };
+  graphBuild?: { complete: boolean; progress: string; documents?: string[] };
   interview?: InterviewState | null;
   /** The artifacts, as they stood, that summarization was last asked for */
   summarized?: string;
@@ -448,11 +448,10 @@ export class Runner {
       tools: [
         tool(
           'report_graph_build',
-          'Report the progress of building the knowledge graph of this repository: what is covered, what the next run should take up, and the share of the repository covered so far (0–1), which estimates the full build. Set complete once the repository is covered; the graph build then stops. List in documents the repository files to summarize; they are handed to the summarization sub-agent when you stop.',
+          'Report the progress of building the knowledge graph of this repository: what is covered and what the next run should take up. The harness measures completeness itself on the main line and tells the next run what is missing. Set complete only once nothing missing can be filled from the repository; the graph build then stops. List in documents the repository files to summarize; they are handed to the summarization sub-agent when you stop.',
           {
             complete: z.boolean(),
             progress: z.string(),
-            coverage: z.number().min(0).max(1),
             documents: z.array(z.string()).optional(),
           },
           async (v) => {
@@ -744,7 +743,6 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   /** The graph build goes on run after run until a run reports the repository covered, or the user stops it */
   private async recordGraphBuild(ws: Workspace, status: RunStatus, report: Active['graphBuild']): Promise<void> {
     if (report?.progress) await this.settings.setGraphBuildProgress(ws.name, report.progress);
-    if (report) await this.settings.setGraphBuildCoverage(ws.name, report.complete ? 1 : report.coverage);
     if (status !== 'finished') return;
     if (report?.complete && (await this.settings.graphBuild(ws.name)).state === 'building') {
       await this.settings.setGraphBuild(ws.name, 'complete');

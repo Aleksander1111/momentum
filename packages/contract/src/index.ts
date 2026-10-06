@@ -484,6 +484,26 @@ export type VoiceDown = z.infer<typeof VoiceDown>;
 export const GraphBuildState = z.enum(['building', 'stopped', 'complete']);
 export type GraphBuildState = z.infer<typeof GraphBuildState>;
 
+/**
+ * How complete the knowledge graph is, measured by the harness against what a reader needs from it, never estimated by
+ * a run: the mean of understanding (the questions every product's graph answers, each a slot filled by an entity of
+ * one of its types) and territory (every area of the repository accounted for by an entity, an area's score the share
+ * of its units claimed). Entities of implementation-detail types claim nothing.
+ */
+export const Completeness = z.object({
+  /** 0–1 */
+  score: z.number(),
+  understanding: z.object({ score: z.number(), slots: z.array(z.object({ name: z.string(), types: z.array(z.string()), filled: z.boolean() })) }),
+  territory: z.object({
+    score: z.number(),
+    /** `missing`: the area's unclaimed units, a directory or `<area>/*` for the files directly in it */
+    areas: z.array(z.object({ path: z.string(), score: z.number(), missing: z.array(z.string()) })),
+  }),
+  /** Entities of implementation-detail types, which the graph exists to spare the reader */
+  detail: z.number(),
+});
+export type Completeness = z.infer<typeof Completeness>;
+
 export const GraphBuildStatus = z.object({
   workspace: z.string(),
   /** null until the project is enabled for the first time */
@@ -498,9 +518,9 @@ export const GraphBuildStatus = z.object({
   usage: Usage,
   /** Time the graph build runs have spent running so far, the run in progress included */
   spentMs: z.number(),
-  /** Share of the repository covered, 0–1, as reported by the last run; null until a run reports it */
-  coverage: z.number().nullable(),
-  /** The full build extrapolated from what the covered share took; null until coverage is reported */
+  /** Measured on the main line as it stands, whether or not a run has written anything yet */
+  completeness: Completeness,
+  /** The full build extrapolated from what the completeness so far took; null until something is complete */
   estimate: z.object({ totalMs: z.number(), usage: Usage }).nullable(),
   activeRunId: z.string().nullable(),
   /** Whether the project can be reset; the harness workspace cannot */
