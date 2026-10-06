@@ -31,6 +31,10 @@ references:
     relation: concerns
   - to: Harness/Automation/graph-build
     relation: concerns
+  - to: Harness/Automation/interview
+    relation: concerns
+  - to: Harness/Automation/search
+    relation: concerns
 artifacts: []
 ---
 # Automations
@@ -40,4 +44,4 @@ Background loops per project, preparing work ahead of the user.
 - Defined by responsibility, not entity type; each searches the whole knowledge base
 - Configured as entities: a definition in the harness workspace (Claude Code files as artifacts) and a trigger per workspace; step-only automations have none
 - AI is not the default: queries and rules carry indices, metrics, lifetimes and references; AI only for deciding, planning, reviewing, summarizing
-- Ten: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, graph build
+- Twelve: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, graph build, interview, search

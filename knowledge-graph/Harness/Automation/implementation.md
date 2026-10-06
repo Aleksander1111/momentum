@@ -10,6 +10,7 @@ references: []
 artifacts:
   - automations/implementation/agents/momentum-implementation.md
   - automations/implementation/risk.md
+  - automations/implementation/trigger.md
 ---
 # Implementation
 

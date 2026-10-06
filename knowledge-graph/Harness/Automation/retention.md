@@ -9,6 +9,7 @@ unlocks: 0
 references: []
 artifacts:
   - automations/retention/agents/momentum-retention.md
+  - automations/retention/trigger.md
 ---
 # Retention
 

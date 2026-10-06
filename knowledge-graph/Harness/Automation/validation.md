@@ -9,6 +9,7 @@ unlocks: 0
 references: []
 artifacts:
   - automations/validation/agents/momentum-validation.md
+  - automations/validation/trigger.md
 ---
 # Validation
 

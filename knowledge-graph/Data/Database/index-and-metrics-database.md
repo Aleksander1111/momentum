@@ -18,7 +18,7 @@ Postgres with pgvector, the queryable side of the knowledge base, migrated idemp
 
 | Schema | Holds |
 |---|---|
-| harness | project, setting, credential, session, usage_sample, voice_cursor, run_ref |
+| harness | project, setting, credential, session, usage_sample, voice_cursor, run_ref, timeline_event |
 | ws_<workspace> | entity (tsvector, 384-dim embedding, card diff), entity_state, entity_artifact, entity_reference, automation, run, run_message, chat, transaction, attention_*, understanding/agent/implementation metrics, usage_share |
 
 - Status columns checked against the contract's enums, replaced each start, `not valid` for older rows

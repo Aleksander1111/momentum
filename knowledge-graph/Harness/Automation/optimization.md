@@ -9,6 +9,7 @@ unlocks: 0
 references: []
 artifacts:
   - automations/optimization/agents/momentum-optimization.md
+  - automations/optimization/trigger.md
 ---
 # Optimization
 

@@ -9,6 +9,7 @@ unlocks: 0
 references: []
 artifacts:
   - automations/consistency-check/agents/momentum-consistency-check.md
+  - automations/consistency-check/trigger.md
 ---
 # Consistency check
 

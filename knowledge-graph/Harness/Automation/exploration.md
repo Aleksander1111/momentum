@@ -9,6 +9,7 @@ unlocks: 0
 references: []
 artifacts:
   - automations/exploration/agents/momentum-exploration.md
+  - automations/exploration/trigger.md
 ---
 # Exploration
 

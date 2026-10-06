@@ -9,6 +9,7 @@ unlocks: 3
 references: []
 artifacts:
   - automations/interview/agents/momentum-interview.md
+  - automations/interview/trigger.md
 ---
 # Interview
 

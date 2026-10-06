@@ -13,6 +13,7 @@ references:
     relation: feeds
 artifacts:
   - automations/preparation/agents/momentum-preparation.md
+  - automations/preparation/trigger.md
 ---
 # Preparation
 

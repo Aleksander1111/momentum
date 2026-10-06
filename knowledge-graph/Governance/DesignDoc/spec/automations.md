@@ -29,21 +29,27 @@ references:
     relation: concerns
   - to: Harness/Automation/graph-build
     relation: concerns
+  - to: Harness/Automation/interview
+    relation: concerns
+  - to: Harness/Automation/search
+    relation: concerns
 artifacts: []
 ---
 # Spec: automations
 
-Defined by responsibility alone; definitions and triggers are entities.
+Defined by responsibility; definitions and triggers are entities.
 
 | Automation | Does |
 |---|---|
 | Exploration | next best action within goals |
-| Preparation | plans under `plans/` |
-| Consistency check | raises issues as entities; counts contradictions |
-| Retention | retires spent entities by type rules |
-| Implementation | works in its own checkout; lands on the main line |
-| Validation | validates landed work and the project; failures raise issues |
-| Optimization | fixes recurring chat issues |
+| Preparation | plans in `plans/` |
+| Consistency check | raises issues; counts contradictions |
+| Retention | retires spent entities |
+| Implementation | own checkout; lands on the main line |
+| Validation | checks landed work; failures raise issues |
+| Optimization | proposes fixes for what recurs in chats |
 | Summarization | Stop-hook sub-agent; one run per main-line change |
-| Chat | user-started run, alongside the loops |
+| Chat | user-started, alongside the loops |
 | Graph build | builds graph on enable |
+| Interview | one document, question by question |
+| Search | graph answers, no run |

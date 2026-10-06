@@ -13,12 +13,12 @@ artifacts: []
 ---
 # Spec: index and metrics database
 
-One store per workspace on the dedicated machine, updated by the guard on every validated transaction.
+One store per workspace, updated by the guard on every transaction.
 
 | Group | Tables |
 |---|---|
 | Entities | entity, entity_state, entity_artifact, entity_reference, chat |
-| Runs | automation, run, usage_share |
+| Runs | automation, run, run_message, transaction, usage_share |
 | Attention | attention_ranking, attention_metric, attention_pattern |
 | Metrics | understanding, agent, implementation |
 

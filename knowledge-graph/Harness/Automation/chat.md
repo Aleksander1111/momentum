@@ -9,6 +9,7 @@ unlocks: 0
 references: []
 artifacts:
   - automations/chat/agents/momentum-chat.md
+  - automations/chat/trigger.md
 ---
 # Chat
 
