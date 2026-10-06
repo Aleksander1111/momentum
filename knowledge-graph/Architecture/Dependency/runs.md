@@ -18,10 +18,10 @@ artifacts:
 ---
 # runs
 
-Internal library `@momentum/runs`, used by the backend to execute runs.
+Library `@momentum/runs`: how the backend executes runs.
 
 | Module | Provides |
 |---|---|
-| session | `startSession`: one Claude Code process per run (Agent SDK), steerable, resumable; 5-hour/weekly usage % at start, end and mid-turn; `ask`: one tool-less turn |
-| process | `spawnLimited`: in a procgov job (`-r`) with CPU/memory limits; the commands it runs stay in the job; `killTree` |
-| git | Waits up to 5 s for a foreign lock; detached run checkout at the main line tip; `land`: one commit fast-forwarded or replayed, conflicts take the run's side; `nonLinear`: branches, detached HEAD, merges; a commit of files rebuilt on a moved tip unless they changed; `fileHistory` |
+| session | `startSession`: one steerable, resumable Claude Code process per run; 5h/weekly usage % at start, end, mid-turn; `ask`: one tool-less turn |
+| process | `spawnLimited`: procgov job (`-r`) with CPU/memory limits, commands stay in; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` becomes `DATABASE_URL`); `killTree` |
+| git | waits 5 s on a foreign lock; detached checkout at main tip; `land`: one commit fast-forwarded or replayed, conflicts take the run's side; `nonLinear`: branches, detached HEAD, merges; files rebuilt on a moved tip unless changed; `fileHistory` |
