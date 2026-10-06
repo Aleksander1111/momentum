@@ -18,7 +18,7 @@ artifacts:
 ---
 # momentum-run MCP server
 
-In-process MCP server the runner gives every run next to `momentum-kb`.
+In-process MCP server every run gets beside `momentum-kb`.
 
 **report_graph_build** (every run)
 
@@ -37,4 +37,4 @@ A build run that never reports fails; 3 failures in a row stop the build.
 |---|---|
 | question | Next question, or closing remark |
 | done | Unlocks summary and commit message |
-| document | File outside knowledge-graph/; summarized when done |
+| document | Relative file outside knowledge-graph/, else refused; summarized when done |

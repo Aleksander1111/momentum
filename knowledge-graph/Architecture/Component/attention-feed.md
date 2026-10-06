@@ -25,6 +25,7 @@ One feed across enabled projects: everything needing the user's attention, as en
 - Send back: the comment starts a chat run on the entity, or joins the open one
 - Resolve an issue: a picked option or the user's text starts a chat run
 - Won't resolve: verified, with the reason
-- Ten alike reactions to one type propose a Harness/Pattern, counted once approved
+- Ten alike reactions to one type propose a Harness/Pattern
 - One reaction at a time per entity; the same one twice acts once
+- An entity a chat left unverified comes back
 - Each goes on the timeline

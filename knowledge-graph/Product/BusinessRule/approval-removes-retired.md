@@ -20,8 +20,8 @@ artifacts:
 
 A retirement is a Harness/Plan with a `retires` reference to each entity it retires; retention and chat write it, leaving the files in place.
 
-- Approving it makes one commit deleting each `retires` target still standing, unless something else references it; a Harness/Chat, or an entity written with the retirement, keeps nothing alive and drops its reference
-- A plan that retires and plans nothing else is carried out, then deleted; others drop references to what went
-- Commit: "Approve <title>", then "Retire <path>" or "Keep <path>: still referenced by …" per target
-- The main line is reindexed, so retired entities leave index and feed
-- The approval goes on the timeline with its effects
+- Approving makes one commit deleting each `retires` target still standing unless something else references it; a Harness/Chat, or an entity written with the retirement, keeps nothing alive and drops its reference
+- A plan that only retires is carried out, then deleted; others drop references to what went
+- Commit: "Approve <title>", then "Retire <path>" or "Keep <path>: still referenced by …"
+- Approving twice does nothing; a card changed since shown is a conflict
+- The main line is reindexed; the approval goes on the timeline with its effects
