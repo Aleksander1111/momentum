@@ -24,6 +24,6 @@ Graph RAG over the entity types in docs/entity-types.tsv.
 - Origins: user, requested, automation; the user's lands verified, an automation's unverified
 - Every entity is its card: a user-set limit sized for mobile, free form; too big means split
 - A type is a path on disk; chats, actions, patterns are entities too
-- A Harness/Pattern proposes a skill, memory, definition change or reaction after three sightings, in effect once approved, a definition change as it lands
+- A Harness/Pattern proposes a skill, memory, definition change or reaction after three sightings: in effect as it lands, a reaction only once approved
 - Runs write in their own checkout and land on the main line at run end
 - An approved plan is entity_ahead until implemented; no ingestion component
