@@ -19,5 +19,5 @@ Summarizes repository artifacts: chats, plans, implemented results, documents th
 - One entity per summary, artifacts listed; its card a paragraph, bullets, table or PlantUML diagram
 - Rewrites the entity over a changed artifact only when its card turns wrong or incomplete; a spent entity gets a retirement plan
 - Links entities a card names where it helps, each also among its references
-- A chat becomes its Harness/Chat record only: nothing is learnt from one chat
+- A chat becomes its Harness/Chat record only, titled by what it did: nothing is learnt from one chat
 - Skips the paths the user excludes
