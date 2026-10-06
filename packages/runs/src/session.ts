@@ -97,6 +97,26 @@ class InputQueue implements AsyncIterable<SDKUserMessage> {
 
 const NO_USAGE: Usage = { fiveHour: null, week: null };
 
+/** A rate limit event as Claude Code sends it: the limit it is about, and each window's use as a fraction of it */
+interface RateLimitInfo {
+  rateLimitType?: string;
+  utilization?: number;
+  unifiedWindows?: Partial<Record<'five_hour' | 'seven_day', { utilization?: number | null }>>;
+}
+
+/**
+ * The reading a rate limit event carries, in percentage points like the usage call's. Claude Code reports both windows
+ * under `unifiedWindows`; older versions only the one limit the event is about, as `utilization`. Both are fractions.
+ */
+export function usageOfRateLimit(info: RateLimitInfo): Usage {
+  const pct = (f: number | null | undefined) => (typeof f === 'number' ? Math.round(f * 10_000) / 100 : null);
+  const windows = info.unifiedWindows;
+  if (windows) return { fiveHour: pct(windows.five_hour?.utilization), week: pct(windows.seven_day?.utilization) };
+  if (info.rateLimitType === 'five_hour') return { fiveHour: pct(info.utilization), week: null };
+  if (info.rateLimitType === 'seven_day') return { fiveHour: null, week: pct(info.utilization) };
+  return NO_USAGE;
+}
+
 async function readUsage(q: Query): Promise<Usage> {
   try {
     const u = await q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true });
@@ -203,11 +223,8 @@ export function startSession(spec: SessionSpec): SessionHandle {
         const text = assistantText(m);
         if (text) spec.onAssistantText?.(text);
         if (m.type === 'rate_limit_event') {
-          const info = m.rate_limit_info;
-          if (info.utilization !== undefined) {
-            if (info.rateLimitType === 'five_hour') spec.onUsage?.({ fiveHour: info.utilization, week: null });
-            if (info.rateLimitType === 'seven_day') spec.onUsage?.({ fiveHour: null, week: info.utilization });
-          }
+          const reading = usageOfRateLimit(m.rate_limit_info);
+          if (reading.fiveHour !== null || reading.week !== null) spec.onUsage?.(reading);
         }
         if (m.type === 'result') {
           if (m.subtype !== 'success') {
