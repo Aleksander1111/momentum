@@ -36,6 +36,8 @@ export class Orchestrator {
     private readonly automations: Automations,
     private readonly bus: Bus,
     private readonly timeline: Timeline,
+    /** Built for a command, not the server: it sets projects up and never ticks */
+    private readonly passive = false,
   ) {
     bus.on('entity_ahead', ({ workspace, path }) => void this.onEvent(workspace, 'entity_ahead', { targetPath: path }));
     bus.on('implementation_finished', ({ workspace, targetPath }) => void this.onEvent(workspace, 'implementation_finished', { targetPath }));
@@ -278,6 +280,7 @@ export class Orchestrator {
    * an automation run waits while another automation run of its project is active, a run the user started does not
    */
   async tick(): Promise<void> {
+    if (this.passive) return;
     if (this.ticking) {
       this.again = true;
       return;

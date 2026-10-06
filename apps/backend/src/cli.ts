@@ -9,13 +9,38 @@ import { config } from './config.ts';
 
 const [command, ...args] = process.argv.slice(2);
 const LOGO_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
-const m = await createMomentum();
+// The server is the one process that orchestrates: here nothing ticks, starts a run or indexes beside it
+const m = await createMomentum({ orchestrate: false });
 
 async function ask(question: string): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const answer = await rl.question(question);
   rl.close();
   return answer;
+}
+
+/** The running server, signed in for this one command; null when none answers on this machine */
+async function server(): Promise<{ call: (method: string, path: string, body?: unknown) => Promise<void>; done: () => Promise<void> } | null> {
+  let base: string;
+  try {
+    base = `http://${config.host()}:${config.port}`;
+  } catch {
+    return null;
+  }
+  const up = await fetch(`${base}/openapi.json`, { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false);
+  if (!up) return null;
+  const { token } = await m.auth.createSession();
+  return {
+    call: async (method, path, body) => {
+      const res = await fetch(`${base}${path}`, {
+        method,
+        headers: { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`The server refused ${method} ${path}: ${res.status} ${await res.text()}`);
+    },
+    done: () => m.auth.endSession(token),
+  };
 }
 
 try {
@@ -41,8 +66,21 @@ try {
     case 'disable': {
       const name = args[0];
       if (!name) throw new Error(`Usage: momentum ${command} <workspace>`);
-      await m.momentum.putSettings({ projects: [{ name, enabled: command === 'enable' }] });
-      console.log(`${name} ${command}d.`);
+      if (!(await m.settings.projects()).some((p) => p.name === name)) throw new Error(`No workspace ${name} under ${config.root}`);
+      const projects = [{ name, enabled: command === 'enable' }];
+      const s = await server();
+      if (s) {
+        try {
+          await s.call('PUT', '/settings', { projects });
+        } finally {
+          await s.done();
+        }
+        console.log(`${name} ${command}d by the running server.`);
+      } else {
+        // No server: the project is set up here and the server takes it from there when it starts
+        await m.momentum.putSettings({ projects });
+        console.log(`${name} ${command}d; the server starts its work when it runs.`);
+      }
       break;
     }
     case 'logo': {
@@ -61,9 +99,16 @@ try {
       break;
     }
     case 'index': {
+      const s = await server();
+      await s?.done();
       for (const name of args.length ? args : (await m.settings.projects()).map((p) => p.name)) {
         const ws = await m.workspaces.get(name);
         await m.settings.setIndexedCommit(name, '');
+        // A running server indexes its enabled projects on its next pass, and the others when they are enabled
+        if (s) {
+          console.log(`${name} is indexed afresh by the running server.`);
+          continue;
+        }
         await m.guard.indexMainLine(ws);
         console.log(`${name} indexed.`);
       }
@@ -80,7 +125,11 @@ try {
     default:
       console.log('Commands: generate-password | set-password [password] | enable <workspace> | disable <workspace> | logo <workspace> <file | --remove> | index [workspace...] | openapi');
   }
+} catch (e) {
+  // Exiting in `finally` would otherwise drop the error unsaid, with a success code
+  console.error((e as Error).message);
+  process.exitCode = 1;
 } finally {
   await m.sql.end();
-  process.exit(0);
+  process.exit();
 }

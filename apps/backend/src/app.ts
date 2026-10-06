@@ -14,8 +14,11 @@ import { Timeline } from './timeline.ts';
 import { Voice } from './voice/voice.ts';
 import { Workspaces } from './workspaces.ts';
 
-/** One back-end: API, orchestrator and consistency guard in one process */
-export async function createMomentum() {
+/**
+ * One back-end: API, orchestrator and consistency guard in one process. `orchestrate: false` builds it for a command
+ * beside a running server: its orchestrator never ticks, so nothing is indexed or started twice.
+ */
+export async function createMomentum(options: { orchestrate?: boolean } = {}) {
   const sql = connect(config.databaseUrl);
   await migrateHarness(sql);
   await sql`create table if not exists harness.run_ref (id text primary key, workspace text not null)`;
@@ -32,7 +35,7 @@ export async function createMomentum() {
   const automations = new Automations(workspaces);
   const runner = new Runner(workspaces, settings, guard, automations, bus, embed, timeline);
   const approval = new Approval(workspaces, settings, guard, runner, bus, timeline);
-  const orchestrator = new Orchestrator(workspaces, settings, guard, runner, automations, bus, timeline);
+  const orchestrator = new Orchestrator(workspaces, settings, guard, runner, automations, bus, timeline, options.orchestrate === false);
   const momentum = new Momentum(sql, workspaces, settings, approval, runner, orchestrator, automations, embed, timeline);
   const auth = new Auth(sql);
   // Followed only once the server starts it: the CLI never acts on what is said
