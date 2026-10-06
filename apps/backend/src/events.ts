@@ -33,7 +33,7 @@ export interface Events {
   implementation_finished: [{ workspace: string; runId: string; targetPath: string | null }];
   /** Trigger entities of a workspace changed on its main line */
   triggers_changed: [{ workspace: string }];
-  /** A definition entity was approved in the harness workspace */
+  /** A definition entity or its files changed on the harness main line */
   definition_changed: [{ path: string }];
   /** A run ended; the orchestrator may start queued runs */
   run_ended: [{ workspace: string; runId: string }];

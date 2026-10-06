@@ -19,6 +19,10 @@ artifacts:
   - packages/entity/src/card.ts
   - packages/entity/src/plantuml.ts
   - packages/entity/src/types.ts
+  - packages/entity/src/diff.ts
+  - packages/entity/src/diagram-elements.ts
+  - packages/entity/src/links.ts
+  - packages/entity/src/index.ts
 kind: internal library
 ---
 # entity package

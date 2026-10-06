@@ -15,8 +15,8 @@ artifacts: []
 
 One feed across enabled projects where everything needing the user shows up; items are entities of any type.
 
-- The user verifies, approves or sends back; a reaction can be a change request, a split or new entities
-- The approved state is the system: nothing unapproved counts
+- The user approves (verifies), sends back, resolves or won't resolve; a reaction can be a change request, a split or new entities
+- Everything a run writes lands on the main line unverified and waits in the feed; approval is the user's review and, for implementable entities, what starts implementation; only triggers wait for it to take effect
 - Counters above the cards show entities by state: verification and sync
-- Ranked by impact on the product, impact on the timeline and how much the work unlocks, so features, optimizations and refactorings compete on one scale
+- Ranked by impact on the product and the timeline and by what the work unlocks
 - No project priority: rank comes from the entities

@@ -21,12 +21,12 @@ kind: page
 
 Ranked cards from included projects, one on top, two behind.
 
-- Breadcrumb: logo, type pill, folders; verification and sync counters
+- Breadcrumb: logo, type, folders; verification and sync counters
 - Changed since verified: a diff of words, marks, diagrams
-- A card longer than the screen scrolls within itself; its tables keep to its width, no column narrower than its longest word
+- A long card scrolls within itself; tables keep to its width
 - Linked entities open; selections go to chat
 - Swipe right approves; left sends back with a comment
 - Issue cards add severity, concerns, options, the recommended picked: right resolves with it; left takes a resolution or a reason not to
-- A reaction carries time on card and version; polls every 15 s, queues offline
-- The top card of a feed fetched since opening stays until reacted to: cards arriving above it come next; back on Feed, or its tab pressed, the top-ranked is first
+- A reaction carries time on card; approve and resolve carry the card's version; polls every 15 s, queues offline
+- The top card stays until reacted to
 - Empty says why: nothing to review, or no project yet

@@ -7,14 +7,17 @@ product_impact: 2
 timeline_impact: 1
 unlocks: 3
 references:
-  - to: Harness/Automation/implementation
-    relation: serves
+  - to: Code/Repository/momentum
+    relation: part_of
+  - to: Architecture/Dependency/contract
+    relation: depends_on
 artifacts:
   - packages/runs/package.json
   - packages/runs/src/index.ts
   - packages/runs/src/session.ts
   - packages/runs/src/process.ts
   - packages/runs/src/git.ts
+kind: internal library
 ---
 # runs
 

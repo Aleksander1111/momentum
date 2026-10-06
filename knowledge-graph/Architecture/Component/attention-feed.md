@@ -15,6 +15,8 @@ references:
     relation: starts
 artifacts:
   - apps/backend/src/approval.ts
+  - apps/backend/src/metrics.ts
+  - packages/kb/src/workspace-index.ts
 ---
 # Attention feed
 
@@ -25,7 +27,7 @@ One feed across enabled projects: all that needs the user, as entities.
 - Send back: the comment starts a chat run on the entity, or joins the open one
 - Resolve an issue: a picked option or the user's text starts a chat run
 - Won't resolve: verified, with the reason
-- Ten alike reactions to one type propose a Harness/Pattern
+- Ten approvals in a row of one type propose a Harness/Pattern, checked at each approval
 - One reaction at a time per entity; the same one twice acts once
 - An entity a chat left unverified comes back
 - Each goes on the timeline

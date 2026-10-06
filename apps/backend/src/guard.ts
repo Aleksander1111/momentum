@@ -453,8 +453,8 @@ export class Guard {
   }
 
   /**
-   * A definition whose files a run changed is a proposal like any other: it lands unverified, so it waits for the
-   * user in the feed and is not materialized into any project until approved
+   * A definition whose files a run changed lands unverified like any other entity, so it waits for the user's review in
+   * the feed; it is in effect as it lands, materialized into every project from the harness main line
    */
   private async definitionsToReview(ws: Workspace, run: RunRef, written: { path: string; entity: ParsedEntity }[]): Promise<void> {
     const base = await mergeBase(ws.path, `refs/heads/${ws.main}`, await head(run.checkout));

@@ -17,13 +17,13 @@ artifacts: []
 ---
 # Orchestrator
 
-Starts and supervises the automation loops per enabled project, in the API's deployable.
+Runs the automation loops per enabled project, in the API's process.
 
 - Runs start from trigger entities: schedule, event or on demand
 - Loops pause when the feed reaches its limit
-- Enabling a project starts the graph build; disabling stops everything
-- Reset wipes a project's entities, runs and database and rebuilds; not the harness workspace
-- One killable Claude Code process per run, in its own detached checkout of the main line, with its own limits; what it leaves lands when it ends
-- A run cut off by a restart resumes, twice at most
-- Automation runs go one at a time per project; user runs go at once
-- Usage shows live; a killed run's writes still reach the feed
+- Enabling a project starts the graph build; disabling stops the build, running runs finish, queued ones wait
+- Reset wipes a project and rebuilds; not the harness
+- One killable Claude Code process per run, in its own checkout of the main line; what it leaves lands when it ends
+- A run cut off by a restart resumes, twice at most; a chat or interview fails at once and resumes on the next message
+- Automation runs go one at a time per project; user runs at once
+- A killed run's writes reach the feed

@@ -42,6 +42,6 @@ artifacts: []
 Background loops per project, preparing work ahead of the user.
 
 - Defined by responsibility, not entity type; each searches the whole knowledge base
-- Configured as entities: a definition in the harness workspace (Claude Code files as artifacts) and a trigger per workspace; step-only automations have none
-- AI is not the default: queries and rules carry indices, metrics, lifetimes and references; AI only for deciding, planning, reviewing, summarizing
+- Configured as entities: a definition in the harness workspace (Claude Code files as artifacts) and a trigger per workspace for nine; summarization (a step), graph build (on enable) and search (no run) have none; optimization's trigger is in the harness only
+- AI only for deciding, planning, reviewing, summarizing; queries and rules carry the rest
 - Twelve: exploration, preparation, consistency check, retention, implementation, validation, optimization, summarization, chat, graph build, interview, search

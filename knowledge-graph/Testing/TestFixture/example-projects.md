@@ -16,7 +16,7 @@ artifacts:
 ---
 # Example projects
 
-Four small projects under `examples/`, copied into each end-to-end scenario's own workspaces root as the projects the harness runs over. Nothing else uses them.
+Four small projects under `examples/`; each end-to-end scenario's own workspaces root gets fresh copies of the ones it names, as the projects the harness runs over. Nothing else uses them.
 
 | Project | What it is |
 |---|---|

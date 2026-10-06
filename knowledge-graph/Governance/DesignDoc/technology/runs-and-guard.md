@@ -19,5 +19,5 @@ artifacts: []
 - **Instructions:** agent file plus summarization sub-agent
 - **Summaries:** the Stop hook blocks once and hands the changed artifacts and graph-build documents to the sub-agent
 - **Landing:** the checkout lands on the main line as one commit; a conflict takes the run's side and raises a Harness/Conflict; automation runs queue per project, user runs go at once
-- **KB access:** MCP `momentum-kb`; `momentum-run` for the graph build
+- **KB access:** MCP `momentum-kb`; `momentum-run` for graph build and interview
 - **Guard:** PostToolUse validates each write, Stop sends the run back; one transaction per run

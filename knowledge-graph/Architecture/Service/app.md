@@ -21,11 +21,10 @@ artifacts:
 
 One Expo (React Native) app, `apps/app`, for web and mobile.
 
-- Six tabs: Feed, Explorer, Chat, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone; none when embedded
-- The Chat tab badges the card parts waiting for the next message
-- Tabs stay mounted: one shown again refetches what went stale; Back walks the history
-- Light or dark follows the system
+- Six tabs: Feed, Explorer, Chat, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone
+- The Chat tab badges waiting context parts
+- Tabs stay mounted; Back walks the history
+- Light or dark as chosen in Settings, kept on the device; System follows it
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
-- Out of reach: queries pause, reactions queue, a 5 s probe restores them, a refusal says why; on a phone a bar above the tabs says so and that what shows was loaded last
-- Web install manifest and icons; Android Expo modules for selection menu and voice capture, optional
-- Typed contract client; 401 sends back to sign-in; sign-out ends this device's session only
+- Out of reach: queries pause, reactions queue, a 5 s probe restores them, a refusal says why; a phone shows a bar above the tabs
+- Typed contract client; 401 sends to sign-in; sign-out ends this device's session

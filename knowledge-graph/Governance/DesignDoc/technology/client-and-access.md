@@ -13,8 +13,8 @@ artifacts: []
 
 - **App:** Expo + Expo Router, one app for web and mobile; web build served by the back-end
 - **Gestures:** swipe right approves, left disapproves with a comment
-- **Polling:** TanStack Query `refetchInterval`, no sockets; feed cached, reactions queue offline
-- **Diagrams:** PlantUML to SVG by the guard via a local server; react-native-svg on mobile, image on web
-- **Auth:** single user, generated or set password; httpOnly cookie on web, SecureStore on mobile, bearer for MCP; API on Tailscale only (`MOMENTUM_HOST` for local tests)
+- **Polling:** TanStack Query `refetchInterval` for data; WebSockets only for voice (`/voice`, `/voice/audio`)
+- **Diagrams:** PlantUML to SVG by the guard via a local server; react-native-svg on mobile, inline SVG on web, shapes pickable
+- **Auth:** single user, generated or set password; httpOnly cookie on web, SecureStore on mobile, bearer for MCP; API on Tailscale only
 - **Voice tools:** API doubles as MCP server at `/mcp`, plus `run_automation`
 - **Mobile:** sideloaded Android APK; iPhone uses the web PWA

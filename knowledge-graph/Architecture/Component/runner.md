@@ -21,15 +21,20 @@ references:
     relation: concerns
 artifacts:
   - apps/backend/src/runner.ts
+  - apps/backend/src/serial.ts
+  - apps/backend/src/usage.ts
+  - apps/backend/src/models.ts
+  - apps/backend/src/protocol.ts
+  - apps/backend/src/hooks.ts
 ---
 # Runner
 
 One Claude Code session a run, in a detached main-line checkout.
 
 - **States**: start, message, kill serial per run, guarded; a killed queued run never starts; open runs by automation or target
-- **Messages**: in order; a queued run's join its prompt; bookkeeping kept out of chats
+- **Messages**: in order; a queued run's join its prompt
 - **Stop hook**: artifacts, build documents summarized once a state; results `implements` the target
 - **Finish**: never rejects; guard lands it; usage, metrics; failed summarization: targets artifact_ahead; 3 failed builds in a row stop it
-- **Restart**: lost runs resume ≤2×; entities no open run holds leave updating
-- **Timeline**: event a run; chats, interviews if failed
-- **Chat**: `chats/<id>.jsonl` transcript
+- **Restart**: lost runs resume ≤2×; chats and interviews fail at once, resume on the next message; entities no open run holds leave updating
+- **Timeline**: event a run
+- **Chat**: `chats/<id>.jsonl`

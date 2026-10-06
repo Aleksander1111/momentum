@@ -13,7 +13,7 @@ artifacts: []
 ---
 # Spec: index and metrics database
 
-One store per workspace, updated by the guard on every transaction.
+One store per workspace, updated by the guard on every transaction, beside the harness schema.
 
 | Group | Tables |
 |---|---|
@@ -21,5 +21,6 @@ One store per workspace, updated by the guard on every transaction.
 | Runs | automation, run, run_message, transaction, usage_share |
 | Attention | attention_ranking, attention_metric, attention_pattern |
 | Metrics | understanding, agent, implementation |
+| Harness | project, setting, credential, session, usage_sample, voice_cursor, run_ref, timeline_event |
 
-An entity carries its contradictions, counted from references; one with an artifact row is a summary. entity_state logs each verification and sync change, none once the entity is gone. Usage is percentage points of the 5-hour and weekly limits, split evenly among concurrent runs. Ranking is precomputed so polls do no work.
+One with an artifact row is a summary. entity_state logs each state change, and one last null row once the entity is gone. Usage is percentage points of the limits, split among concurrent runs.

@@ -32,8 +32,8 @@ artifacts:
 ---
 # Back-end
 
-One Node process, `apps/backend`: API, orchestrator and consistency guard; only runs are separate processes. The "Momentum" scheduled task (`install.ps1`) serves it hidden at every logon: `serve.ps1` waits for Postgres and runs `pnpm dev`, restarted on every change on main and 15 s after it stops.
+One Node process, `apps/backend`: API, orchestrator and consistency guard; runs, search answers and risk estimates are the only separate processes. The "Momentum" scheduled task (`install.ps1`) serves it at every logon: `serve.ps1` runs `pnpm dev`, restarted on every change on main.
 
-- `createMomentum` wires Postgres, settings, bus, timeline, guard, runner, approval, orchestrator, auth, voice
+- `createMomentum` wires Postgres, workspaces, settings, bus, timeline, automations, embedder, guard, runner, approval, orchestrator, auth, voice
 - Server: no password, no start; recovers runs, indexes the harness first, materializes definitions, listens, starts orchestrator and voice
-- CLI `pnpm momentum` (passwords, enable, disable, logo, index, openapi) never ticks or indexes beside a running server: those go through its API
+- CLI `pnpm momentum` (passwords, enable, disable, logo, index, openapi) goes through the server's API

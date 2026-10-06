@@ -32,7 +32,7 @@ artifacts: []
 Every enabled project is explored through entity cards instead of its files.
 
 - **Graph build** reads the repository top down, run after run, until the harness measures nothing missing
-- **Summarization** turns every run's artifacts, and the user's own commits, into entities from a Stop hook
+- **Summarization** turns every run's artifacts into entities from its Stop hook, and the user's own commits in a run the main-line index starts
 - **Entities** are markdown by type, referenced to each other, each claiming the artifacts it accounts for
 - **Explorer** browses by domain and type; **search** answers a question from the entities it finds
 - **Guard** validates every change before it lands; the **consistency check** raises contradictions as issues to resolve

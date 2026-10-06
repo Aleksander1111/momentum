@@ -12,6 +12,9 @@ references:
 artifacts:
   - apps/backend/src/api/http.ts
   - apps/backend/src/api/mcp.ts
+  - apps/backend/src/momentum.ts
+  - apps/backend/src/auth.ts
+  - apps/backend/src/voice/voice.ts
 ---
 # API
 

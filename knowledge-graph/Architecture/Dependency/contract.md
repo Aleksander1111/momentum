@@ -23,12 +23,12 @@ kind: internal library
 | Entity | frontmatter, states, references, issues, links |
 | Card | blocks, PlantUML SVG, pickable parts |
 | Card diff | marks, spans, prior diagram, counts |
-| Feed | items, versions, diffs, issue options, titles, counts; reactions |
+| Feed | items, versions, diffs, issue options, counts; reactions |
 | Search | results; ask, sources |
 | Runs, chats | automations, status, usage, context, interview |
 | Timeline | actor, kind, facts, page |
 | Voice | screen, status, partials |
-| Build, metrics | completeness (slots, areas, detail), estimate; series |
-| Settings | projects, logo, cards, lifetimes, models |
+| Build, metrics | completeness, estimate; series |
+| Settings | projects, logo, feed size, cards, lifetimes, models, concurrency, exclusions |
 
 `openapi.json`: generated OpenAPI 3.0

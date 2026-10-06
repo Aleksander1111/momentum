@@ -14,6 +14,7 @@ references:
 artifacts:
   - apps/backend/src/guard.ts
   - apps/backend/src/hooks.ts
+  - apps/backend/src/protocol.ts
   - apps/backend/src/metrics.ts
 ---
 # Consistency guard
@@ -25,4 +26,4 @@ Lands each run's checked changes; keeps the index true to main.
 - Harness repo: lands only `HARNESS_SCOPE` and the graph; the rest put back, in the issue
 - Main line: one pass at a time; stops at a merge unless enabled; changed artifacts → artifact_ahead; moves followed
 - Metrics per 24h/7d/30d: usage, attention, understanding, agents, run histograms, entity states, implementation
-- 10 agreeing reactions on a type → Harness/Pattern proposal
+- 10 approvals in a row on a type → Harness/Pattern proposal

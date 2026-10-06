@@ -17,5 +17,5 @@ artifacts: []
 
 - Entry point between the front-end and the agents
 - Ships in the same back-end deployable as the orchestrator
-- The front-end polls for new feed items and long-running run results; no push channel, as changes are infrequent enough for polling
-- Every capability is reachable through the user's voice tools, so the system can be driven without the UI
+- The front-end polls for new feed items and long-running run results; no push channel for them, as changes are infrequent enough for polling; voice alone uses WebSockets
+- Every capability but reading a repository file, changing a logo and signing out is reachable through the user's voice tools, so the system can be driven without the UI

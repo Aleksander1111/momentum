@@ -17,7 +17,7 @@ const CARD_CHARS = 2400;
 const KEPT_MS = 10 * 60_000;
 const KEPT = 200;
 
-/** The definition of the search automation, as it ships: used until the user has approved one */
+/** The definition of the search automation, as it ships: used until a materialized one exists in the workspace */
 const DEFINITION = 'automations/search/agents/momentum-search.md';
 
 function instructionsOf(text: string): string {
@@ -37,7 +37,7 @@ export class Answers {
     private readonly models: () => Promise<ModelSettings>,
   ) {}
 
-  /** The search automation's instructions: approved and materialized in the workspace, or as the harness ships them */
+  /** The search automation's instructions: materialized in the workspace from the harness main line, or as the harness ships them */
   private async instructions(ws: Workspace): Promise<string> {
     const materialized = join(ws.path, '.claude', 'agents', 'momentum-search.md');
     if (existsSync(materialized)) return instructionsOf(await readFile(materialized, 'utf8'));

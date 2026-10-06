@@ -6,7 +6,13 @@ sync: synced
 product_impact: 1
 timeline_impact: 0
 unlocks: 1
-references: []
+references:
+  - to: Code/Repository/momentum
+    relation: part_of
+  - to: Architecture/Dependency/contract
+    relation: depends_on
+  - to: Architecture/Dependency/entity
+    relation: depends_on
 artifacts:
   - packages/kb/package.json
   - packages/kb/tsconfig.json
