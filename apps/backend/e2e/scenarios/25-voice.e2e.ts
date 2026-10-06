@@ -72,8 +72,30 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
   });
 
   await step(1, async () => {
+    // However many microphones a screen shows, the app holds one control socket: counted inside the app's frame, where
+    // Firefox reports its sockets
+    await app.frame().page().context().addInitScript(() => {
+      const Native = window.WebSocket;
+      const controls: WebSocket[] = [];
+      (window as unknown as { voiceControls: WebSocket[] }).voiceControls = controls;
+      window.WebSocket = class extends Native {
+        constructor(url: string | URL, protocols?: string | string[]) {
+          super(url, protocols);
+          if (/\/voice\?client=/.test(String(url))) controls.push(this);
+        }
+      };
+    });
+    const sockets = () =>
+      app.frame().evaluate(() => (window as unknown as { voiceControls?: WebSocket[] }).voiceControls?.map((s) => s.readyState === WebSocket.OPEN) ?? null);
+    // The wide explorer with an entity open shows two microphones at once: the search's and the entity's
+    await app.go(`/explorer?ws=${WS}&path=${encodeURIComponent(API)}`);
+    await expect(app.text(/Books API|books/i).first()).toBeVisible({ timeout: 30_000 });
+    await new Promise((r) => setTimeout(r, 2000));
+    expect(await sockets(), 'the control sockets the explorer opened, open or not').toEqual([true]);
     await app.go(`/chat?ws=${WS}&compose=1`);
     await listen();
+    await new Promise((r) => setTimeout(r, 2000));
+    expect(await sockets(), 'the control sockets the chat screen opened, open or not').toEqual([true]);
     const since = new Date();
     voice.say('which routes are there', 'question');
     const chat = await newest(since);

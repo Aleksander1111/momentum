@@ -31,6 +31,13 @@ const set = (change: Partial<State>) => {
 };
 
 let control: WebSocket | null = null;
+/** The one connection being opened: every screen asking meanwhile shares it */
+let connecting: Promise<void> | null = null;
+let retry: ReturnType<typeof setTimeout> | null = null;
+/** How long until the next try: doubled after every one that failed, back to the first once a socket opens */
+const FIRST_RETRY_MS = 3000;
+const LAST_RETRY_MS = 60_000;
+let retryMs = FIRST_RETRY_MS;
 let target: VoiceTarget | null = null;
 let mic: Mic | null = null;
 
@@ -38,11 +45,37 @@ function sendTarget() {
   if (control?.readyState === WebSocket.OPEN) control.send(JSON.stringify({ type: 'target', target }));
 }
 
-async function connect() {
-  if (control) return;
-  const socket = await openSocket('/voice');
+function connect(): Promise<void> {
+  if (control || listeners.size === 0) return Promise.resolve();
+  connecting ??= open().finally(() => (connecting = null));
+  return connecting;
+}
+
+/** The next try, while a screen still listens */
+function reconnect() {
+  if (retry || listeners.size === 0) return;
+  retry = setTimeout(() => {
+    retry = null;
+    void connect();
+  }, retryMs);
+  retryMs = Math.min(retryMs * 2, LAST_RETRY_MS);
+}
+
+async function open() {
+  let socket: WebSocket;
+  try {
+    socket = await openSocket('/voice');
+  } catch {
+    reconnect();
+    return;
+  }
+  // Every screen went while it opened
+  if (listeners.size === 0) return void socket.close();
   control = socket;
-  socket.onopen = sendTarget;
+  socket.onopen = () => {
+    retryMs = FIRST_RETRY_MS;
+    sendTarget();
+  };
   socket.onmessage = (m) => {
     const parsed = VoiceDown.safeParse(JSON.parse(String(m.data)));
     if (!parsed.success) return;
@@ -54,17 +87,26 @@ async function connect() {
       if (state.owner) handlers.get(state.owner)?.(msg.outcome, msg.item);
     }
   };
-  socket.onclose = () => {
-    control = null;
+  socket.onclose = (e) => {
+    if (control === socket) control = null;
     set({ status: state.status && { ...state.status, connected: false } });
-    setTimeout(() => void connect(), 3000);
+    // Voice is off on the harness: asking every few seconds changes nothing, so it asks once a minute
+    if (e.code === 1011) retryMs = LAST_RETRY_MS;
+    reconnect();
   };
 }
 
 function subscribe(l: () => void) {
   listeners.add(l);
   void connect();
-  return () => listeners.delete(l);
+  return () => {
+    listeners.delete(l);
+    if (listeners.size > 0) return;
+    // No screen listens any more: the socket goes until one does
+    if (retry) clearTimeout(retry);
+    retry = null;
+    control?.close();
+  };
 }
 
 async function stopMic() {
