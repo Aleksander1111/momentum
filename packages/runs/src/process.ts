@@ -18,6 +18,23 @@ export interface LimitedProcessOptions {
   onPid?: (pid: number) => void;
 }
 
+/** The harness's own settings and the database it keeps sessions, the password hash and every index in */
+const HIDDEN = /^(DATABASE_URL|MOMENTUM_.*|PG[A-Z_]*)$/i;
+
+/**
+ * What a run's process sees of the harness's environment: all of it but the harness's settings and its database. A run
+ * works with its permissions bypassed, on what the model reads; given the database's address it could sign itself in
+ * or rewrite any workspace's index. MOMENTUM_RUN_DATABASE_URL, when set, reaches runs as their DATABASE_URL: a
+ * database of their own, such as one for the tests they run.
+ */
+export function runEnvironment(env: Record<string, string | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) if (value !== undefined && !HIDDEN.test(key)) out[key] = value;
+  const own = Object.entries(env).find(([key]) => key.toUpperCase() === 'MOMENTUM_RUN_DATABASE_URL')?.[1];
+  if (own) out.DATABASE_URL = own;
+  return out;
+}
+
 /**
  * Starts the Claude Code process of a run and places it in a Windows job object with CPU and memory limits (procgov).
  * The commands the run starts stay in the job: without -r, procgov's job lets processes break away, and the commands
@@ -28,7 +45,7 @@ export function spawnLimited(options: LimitedProcessOptions): (spawnOptions: Spa
   return ({ command, args, cwd, env, signal }) => {
     const child = spawn(command, args, {
       cwd,
-      env: env as NodeJS.ProcessEnv,
+      env: runEnvironment(env),
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });
