@@ -18,10 +18,11 @@ artifacts:
 ---
 # Consistency guard
 
-Validates each run's knowledge-base changes; keeps the index true to the main line.
+Lands each run's checked changes; keeps the index true to the main line.
 
-- Hooks: PostToolUse reports issues per write; Stop: summarization once, fixes twice at most, a commit message
-- Run end: one checked transaction, landed unverified; invalid → Harness/Issue, conflicts → Harness/Conflict
-- Main line: one pass at a time; halts at a merge commit unless enabled; entities over changed artifacts go artifact_ahead unless changed or summarized by the landing run; moves followed, into exclusions = deleted
-- Index: card diff against last verified; implemented directly or via a plan; metrics
-- Ten agreeing reactions on a type commit a Harness/Pattern proposal; it counts once approved
+- Hooks: PostToolUse flags writes; Stop: summarization once, ≤2 fixes, a commit message
+- Run end: one checked commit, unverified; invalid → Harness/Issue, conflict → Harness/Conflict
+- Harness repo: a run lands only its automation's `HARNESS_SCOPE` and the graph; the rest is put back, named in the issue
+- Main line: one pass at a time; stops at a merge unless enabled; changed artifacts make entities artifact_ahead unless the run covered them; moves followed, into exclusions = deleted
+- Index: diff since verified; implemented directly or via a plan; metrics
+- Ten agreeing reactions on a type: a Harness/Pattern proposal

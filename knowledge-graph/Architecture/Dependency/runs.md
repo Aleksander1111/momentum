@@ -24,4 +24,4 @@ Library `@momentum/runs`: how the backend executes runs.
 |---|---|
 | session | `startSession`: one steerable, resumable Claude Code process per run; 5h/weekly usage % at start, end, mid-turn; `ask`: one tool-less turn |
 | process | `spawnLimited`: procgov job (`-r`) with CPU/memory limits, commands stay in; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` becomes `DATABASE_URL`); `killTree` |
-| git | waits 5 s on a foreign lock; detached checkout at main tip; `land`: one commit fast-forwarded or replayed, conflicts take the run's side; `nonLinear`: branches, detached HEAD, merges; files rebuilt on a moved tip unless changed; `fileHistory` |
+| git | waits 5 s on a foreign lock; detached checkout at main tip; `land`: one commit, fast-forwarded or replayed, conflicts on the run's side; `nonLinear`: branches, detached HEAD, merges; `restorePath`: a path as a base has it; `fileHistory` |
