@@ -27,8 +27,11 @@ const DEFAULTS = {
 
 type Key = keyof typeof DEFAULTS;
 
-/** What the index holds per entity; raised when that changes, so every project is indexed again. 1: card diffs and pickable diagram shapes */
-const INDEX_VERSION = 1;
+/**
+ * What the index holds per entity; raised when that changes, so every project is indexed again. 1: card diffs and
+ * pickable diagram shapes; 2: diagrams without scripts, handlers or links but to the web
+ */
+const INDEX_VERSION = 2;
 
 /** Harness settings in the harness schema: enabling a project must not create commits in it */
 export class HarnessSettings {

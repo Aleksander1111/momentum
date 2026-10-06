@@ -12,10 +12,12 @@ export function pickable(svg: string): { svg: string; elements: DiagramElement[]
   try {
     root = parse(svg);
   } catch {
-    return { svg, elements: [] };
+    // What cannot be read cannot be made safe: it is left out, as when PlantUML could not draw the diagram
+    return { svg: '', elements: [] };
   }
   const svgNode = root.children.find((c): c is El => c.type === 'el' && c.tag === 'svg');
-  if (!svgNode) return { svg, elements: [] };
+  if (!svgNode) return { svg: '', elements: [] };
+  sanitize(svgNode);
   const drawing = svgNode.children.find((c): c is El => c.type === 'el' && c.tag === 'g');
   if (drawing && svgNode.attrs['data-diagram-type'] !== 'SALT') groupDecorations(drawing);
 
@@ -90,6 +92,36 @@ function serialize(n: Node | Child): string {
   if (n.type === 'root') return n.children.map(serialize).join('');
   if (n.selfClosing) return n.open;
   return `${n.open}${n.children.map(serialize).join('')}</${n.tag}>`;
+}
+
+/**
+ * The app draws the SVG into its own page, and a model writes the diagram: nothing in it may run code, pull in another
+ * document or link anywhere but the web. Elements that could are dropped, and so are event handlers and links of
+ * any other kind; what PlantUML draws is left as it is.
+ */
+const UNSAFE = new Set(['script', 'foreignobject', 'iframe', 'object', 'embed', 'handler', 'listener']);
+
+function safeLink(tag: string, value: string): boolean {
+  const v = value.trim();
+  if (v.startsWith('#')) return true;
+  if (tag === 'a') return /^https?:\/\//i.test(v);
+  if (tag === 'image') return /^data:image\/(png|jpe?g|gif|webp);/i.test(v);
+  return false;
+}
+
+function sanitize(el: El): void {
+  el.children = el.children.filter((c) => c.type !== 'el' || !UNSAFE.has(c.tag.toLowerCase()));
+  const unsafe = Object.keys(el.attrs).filter((name) => {
+    const n = name.toLowerCase();
+    return n.startsWith('on') || ((n === 'href' || n === 'xlink:href' || n === 'src') && !safeLink(el.tag.toLowerCase(), el.attrs[name]!));
+  });
+  if (unsafe.length) {
+    for (const name of unsafe) delete el.attrs[name];
+    el.open = `<${el.tag}${Object.entries(el.attrs)
+      .map(([k, v]) => ` ${k}="${v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`)
+      .join('')}${el.selfClosing ? '/' : ''}>`;
+  }
+  for (const c of el.children) if (c.type === 'el') sanitize(c);
 }
 
 function stamp(el: El, n: number): void {

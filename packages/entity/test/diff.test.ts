@@ -132,7 +132,25 @@ describe('pickable', () => {
     expect(h).toBeCloseTo(46.3);
   });
 
-  it('leaves an SVG it cannot read as it is', () => {
-    expect(pickable('<svg><g></svg>')).toEqual({ svg: '<svg><g></svg>', elements: [] });
+  it('leaves out an SVG it cannot read, since it cannot make it safe', () => {
+    expect(pickable('<svg><g></svg>')).toEqual({ svg: '', elements: [] });
+    expect(pickable('<html><script>alert(1)</script></html>')).toEqual({ svg: '', elements: [] });
+  });
+
+  it('drops what runs code or leaves the page, and keeps the drawing and its web links', () => {
+    const { svg } = pickable(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10"><script>alert(1)</script>' +
+        '<g><a href="javascript:alert(1)" xlink:href="javascript:alert(1)"><text x="1" y="1">bad</text></a>' +
+        '<a href="https://example.com/doc" target="_top"><text x="1" y="2">good</text></a>' +
+        '<rect onclick="alert(1)" onmouseover="alert(2)" width="1" height="1"/><foreignObject><div>x</div></foreignObject>' +
+        '<use href="https://evil.example/x.svg#a"/><use href="#local"/><image href="data:image/png;base64,AAAA"/>' +
+        '<image href="data:image/svg+xml;base64,AAAA"/></g></svg>',
+    );
+    expect(svg).not.toMatch(/<script|javascript:|onclick|onmouseover|foreignObject|evil\.example|svg\+xml/i);
+    expect(svg).toContain('<a href="https://example.com/doc" target="_top">');
+    expect(svg).toContain('<a><text x="1" y="1">bad</text></a>');
+    expect(svg).toContain('<rect width="1" height="1"/>');
+    expect(svg).toContain('<use href="#local"/>');
+    expect(svg).toContain('href="data:image/png;base64,AAAA"');
   });
 });
