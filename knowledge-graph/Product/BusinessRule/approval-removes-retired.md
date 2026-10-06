@@ -10,12 +10,11 @@ references: []
 artifacts:
   - apps/backend/src/approval.ts
 ---
-# Approval removes retired entities
+# Approval verifies and removes nothing
 
-A Harness/Plan with a `retires` reference per entity, written by the user, removes them on approval. Runs never write one: what a run removes is removed, and a Harness/Report card says what went.
+Approving an entity in the feed is the user's review of it, nothing more. A `retires` reference no longer removes anything on approval: what a run removes it deletes itself, and a Harness/Report says what went.
 
-- Approving makes one commit deleting each `retires` target unless something else references it; a Harness/Chat, or an entity written with the retirement, keeps nothing alive
-- A plan that only retires is carried out, then deleted; others drop references to what went
-- Commit: "Approve <title>", then "Retire <path>" or "Keep <path>: referenced by …"
-- Approving twice does nothing; a card changed since shown conflicts
-- The main line is reindexed; the approval goes on the timeline with its effects
+- One commit, "Approve <title>": the entity becomes verified and its sync is recomputed
+- Each entity it `implements` (and what an implemented Harness/Plan `plans`) is set synced: "Bring <path> back in sync"
+- Approving twice does nothing; a card changed since it was shown conflicts
+- Approving a definition triggers nothing; the main line is reindexed and the approval goes on the timeline
