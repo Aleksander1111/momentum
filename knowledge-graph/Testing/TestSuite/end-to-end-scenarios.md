@@ -18,7 +18,7 @@ artifacts:
 ---
 # End-to-end scenarios
 
-Real-life situations over the four example projects, each in its own world.
+Real-life situations over the four example projects, each isolated.
 
 | Kind | Runs | Account |
 |---|---|---|
@@ -26,7 +26,7 @@ Real-life situations over the four example projects, each in its own world.
 | Scripted | The scripted model | Unreached: own config, sign-in only, no outside host |
 | No runs | Never answered | None |
 
-- features.ts lists every feature; a coverage test fails while one has no scenario
-- A stall or dead back-end fails at once; a used-up limit skips real scenarios
-- Scripted: flows, product lives, the user alongside, kb tools, rules, stream holes, notes-api, API document, swipes, limits, harness scope, skipped summarization
+- features.ts lists every feature; coverage fails while one has no scenario
+- A stall or dead back-end fails at once; a spent limit skips real ones
+- Scripted: flows, product lives, user alongside, kb tools, rules, stream holes, notes-api, API, swipes, limits, one line, harness tuning (orphan agent files removed), skipped summarization
 - Patterns: proposed in the feed, counted once approved
