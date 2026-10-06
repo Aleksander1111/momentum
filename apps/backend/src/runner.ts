@@ -1,5 +1,5 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
-import type { AutomationName, ContextItem, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
+import type { AutomationName, ContextItem, EntityFrontmatter, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
 import { ask, ensureCheckout, head, removeWorktree, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
@@ -342,6 +342,25 @@ export class Runner {
         await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: 'Lost at restart', facts: { status: 'failed' } }));
         console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart`);
       }
+      await this.releaseUpdating(ws);
+    }
+  }
+
+  /**
+   * An entity stays updating while a run works on it; with no open run on it, it stands where it stood before. A run
+   * that ended before the harness recorded every target of a run left some updating for good.
+   */
+  private async releaseUpdating(ws: Workspace): Promise<void> {
+    const open = await ws.index.sql<{ target_path: string | null; targets: string[] }[]>`
+      select target_path, targets from ${this.t(ws, 'run')} where status in ('queued', 'running')`;
+    const worked = new Set(open.flatMap((o) => [o.target_path, ...(o.targets ?? [])]));
+    const updating = await ws.index.sql<{ path: string; frontmatter: EntityFrontmatter }[]>`
+      select path, frontmatter from ${this.t(ws, 'entity')} where sync = 'updating'`;
+    for (const e of updating) {
+      if (worked.has(e.path)) continue;
+      const sync = (await ws.index.syncBefore(e.path)) ?? (await this.guard.syncOf(ws, e.path, e.frontmatter));
+      await ws.index.setSync(e.path, sync);
+      console.log(`${ws.name}: ${e.path} was left updating by no open run; it stands ${sync} again`);
     }
   }
 

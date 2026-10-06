@@ -21,7 +21,6 @@ import { Workspaces } from './workspaces.ts';
 export async function createMomentum(options: { orchestrate?: boolean } = {}) {
   const sql = connect(config.databaseUrl);
   await migrateHarness(sql);
-  await sql`create table if not exists harness.run_ref (id text primary key, workspace text not null)`;
   const settings = new HarnessSettings(sql);
   await settings.migrate();
   await settings.discover();

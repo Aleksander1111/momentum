@@ -2,7 +2,7 @@ import { parseEntity } from '@momentum/entity';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createEmbedder, crossProjectFeed, migrateHarness, migrateWorkspace, WorkspaceIndex, type Sql } from '../src/index.ts';
+import { createEmbedder, crossProjectFeed, migrateHarness, migrateWorkspace, pruneHarness, pruneWorkspace, WorkspaceIndex, type Sql } from '../src/index.ts';
 import { scratchDatabase } from './database.ts';
 
 const embed = createEmbedder();
@@ -43,6 +43,26 @@ describe('migrations', () => {
     await migrateWorkspace(sql, ws);
     expect(await index.paths()).toEqual(before);
     expect(before.size).toBe(3);
+  });
+
+  it('refuse a value the contract does not have', async () => {
+    const run = (automation: string, status: string) =>
+      sql.unsafe(`insert into ws_kbtest.run (id, automation, checkout, trigger, status) values ($1, $2, 'x', 'event', $3)`, [`${automation}-${status}`, automation, status]);
+    await run('exploration', 'queued');
+    await expect(run('mapping', 'queued')).rejects.toThrow(/run_automation_check/);
+    await expect(run('exploration', 'paused')).rejects.toThrow(/run_status_check/);
+    await expect(sql.unsafe(`update ws_kbtest.entity set sync = 'stale'`)).rejects.toThrow(/entity_sync_check/);
+  });
+
+  it('prune expired sessions and readings older than the metrics show, and nothing else', async () => {
+    await sql`insert into harness.session (token_hash, expires_at) values ('gone', now() - interval '1 minute'), ('kept', now() + interval '1 day')`;
+    await sql`insert into harness.usage_sample (at, five_hour, week) values (now() - interval '40 days', 1, 1), (now() - interval '20 days', 2, 2)`;
+    await sql`insert into ws_kbtest.usage_share (run_id, automation, recorded_at) values ('old', 'chat', now() - interval '40 days'), ('new', 'chat', now())`;
+    await pruneHarness(sql);
+    await pruneWorkspace(sql, ws);
+    expect((await sql`select token_hash from harness.session`).map((r) => r.token_hash)).toEqual(['kept']);
+    expect((await sql`select five_hour from harness.usage_sample`).map((r) => r.five_hour)).toEqual([2]);
+    expect((await sql`select run_id from ws_kbtest.usage_share`).map((r) => r.run_id)).toEqual(['new']);
   });
 });
 

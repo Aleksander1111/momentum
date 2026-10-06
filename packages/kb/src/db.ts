@@ -1,3 +1,4 @@
+import { AutomationName, Origin, Risk, RunStatus, RunTrigger, Sync, Verification } from '@momentum/contract';
 import postgres from 'postgres';
 
 export type Sql = postgres.Sql<Record<string, never>>;
@@ -50,7 +51,36 @@ create table if not exists harness.voice_cursor (
   last_item int not null,
   at timestamptz not null default now()
 );
+create index if not exists session_expires on harness.session (expires_at);
+-- Which workspace each run is in, for the routes that know a run by its id alone
+create table if not exists harness.run_ref (id text primary key, workspace text not null);
+create index if not exists run_ref_workspace on harness.run_ref (workspace);
 `;
+
+/**
+ * The values a column may hold, as the contract has them: checked by the database on every row written from now on.
+ * Each check is replaced whole on every start, so it follows the contract; `not valid` leaves rows from before as they
+ * stand (a run of an automation since renamed, for one).
+ */
+const CHECKS: [table: string, column: string, values: readonly string[]][] = [
+  ['entity', 'origin', Origin.options],
+  ['entity', 'verification', Verification.options],
+  ['entity', 'sync', Sync.options],
+  ['run', 'automation', AutomationName.options],
+  ['run', 'trigger', RunTrigger.options],
+  ['run', 'status', RunStatus.options],
+  ['run', 'risk', Risk.options],
+  ['transaction', 'status', ['validated', 'invalid']],
+  ['attention_metric', 'reaction', ['approved', 'rejected', 'sent_back']],
+];
+
+function checksDdl(s: string): string {
+  return CHECKS.map(([table, column, values]) => {
+    const name = `${table}_${column}_check`;
+    const list = values.map((v) => `'${v}'`).join(', ');
+    return `alter table ${s}.${table} drop constraint if exists ${name};\nalter table ${s}.${table} add constraint ${name} check (${column} in (${list})) not valid;`;
+  }).join('\n');
+}
 
 function workspaceDdl(s: string): string {
   return /* sql */ `
@@ -223,7 +253,35 @@ create table if not exists ${s}.implementation_metric (
 update ${s}.run set automation = 'graph-build' where automation = 'mapping';
 update ${s}.agent_metric set automation = 'graph-build' where automation = 'mapping';
 delete from ${s}.automation where name = 'mapping';
+-- What the metrics, the run queue, the feed's reactions and the timeline look rows up by
+create index if not exists attention_metric_recorded on ${s}.attention_metric (recorded_at);
+create index if not exists attention_metric_type on ${s}.attention_metric (entity_type, recorded_at desc);
+create index if not exists understanding_metric_recorded on ${s}.understanding_metric (recorded_at);
+create index if not exists implementation_metric_recorded on ${s}.implementation_metric (recorded_at);
+create index if not exists agent_metric_recorded on ${s}.agent_metric (recorded_at);
+create index if not exists usage_share_run on ${s}.usage_share (run_id);
+drop index if exists ${s}.entity_state_path;
+create index if not exists entity_state_path_at on ${s}.entity_state (path, at desc);
+create index if not exists run_automation_status on ${s}.run (automation, status);
+create index if not exists run_created on ${s}.run (created_at);
+create index if not exists run_chat_target on ${s}.run (target_path) where automation = 'chat';
+create index if not exists transaction_run on ${s}.transaction (run_id);
+create index if not exists transaction_created on ${s}.transaction (created_at);
+${checksDdl(s)}
 `;
+}
+
+/** How long readings of the account's limits are kept: the metrics show thirty days at most */
+const KEEP_READINGS_DAYS = 35;
+
+/** Sessions past their expiry and readings older than any metric shows; the rest of the history is the user's */
+export async function pruneHarness(sql: Sql): Promise<void> {
+  await sql`delete from harness.session where expires_at < now()`;
+  await sql`delete from harness.usage_sample where at < now() - make_interval(days => ${KEEP_READINGS_DAYS})`;
+}
+
+export async function pruneWorkspace(sql: Sql, workspace: string): Promise<void> {
+  await sql.unsafe(`delete from ${schemaOf(workspace)}.usage_share where recorded_at < now() - make_interval(days => $1)`, [KEEP_READINGS_DAYS]);
 }
 
 export async function migrateHarness(sql: Sql): Promise<void> {

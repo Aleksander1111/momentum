@@ -67,7 +67,17 @@ export class WorkspaceIndex {
 
   // Entities
 
-  async upsert(e: IndexedEntity, tx: Sql = this.sql): Promise<void> {
+  /** The rows of one entity change together: a reader never sees it without its references or artifacts, or half gone */
+  private atomically(tx: Sql | undefined, fn: (tx: Sql) => Promise<void>): Promise<void> {
+    if (tx) return fn(tx);
+    return this.sql.begin((t) => fn(t as unknown as Sql)) as Promise<void>;
+  }
+
+  upsert(e: IndexedEntity, tx?: Sql): Promise<void> {
+    return this.atomically(tx, (t) => this.upsertIn(e, t));
+  }
+
+  private async upsertIn(e: IndexedEntity, tx: Sql): Promise<void> {
     const fm = e.frontmatter;
     const row = {
       path: e.path,
@@ -100,15 +110,26 @@ export class WorkspaceIndex {
     await this.logState(e.path, tx);
   }
 
-  async remove(path: string, tx: Sql = this.sql): Promise<void> {
-    await tx`delete from ${this.t('entity')} where path = ${path}`;
-    await this.logState(path, tx);
+  remove(path: string, tx?: Sql): Promise<void> {
+    return this.atomically(tx, async (t) => {
+      await t`delete from ${this.t('entity')} where path = ${path}`;
+      await this.logState(path, t);
+    });
   }
 
-  async setSync(path: string, sync: Sync, tx: Sql = this.sql): Promise<void> {
-    await tx`update ${this.t('entity')} set sync = ${sync},
-      frontmatter = jsonb_set(frontmatter, '{sync}', to_jsonb(${sync}::text)) where path = ${path}`;
-    await this.logState(path, tx);
+  setSync(path: string, sync: Sync, tx?: Sql): Promise<void> {
+    return this.atomically(tx, async (t) => {
+      await t`update ${this.t('entity')} set sync = ${sync},
+        frontmatter = jsonb_set(frontmatter, '{sync}', to_jsonb(${sync}::text)) where path = ${path}`;
+      await this.logState(path, t);
+    });
+  }
+
+  /** The last state the entity stood in other than updating: where it stood before a run took it on */
+  async syncBefore(path: string): Promise<Sync | null> {
+    const [r] = await this.sql<{ sync: Sync }[]>`select sync from ${this.t('entity_state')}
+      where path = ${path} and sync is not null and sync <> 'updating' order by at desc limit 1`;
+    return r?.sync ?? null;
   }
 
   /** Appends the entity's states to its history when they changed; nulls once it is gone */

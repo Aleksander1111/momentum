@@ -1,4 +1,4 @@
-import { crossProjectFeed } from '@momentum/kb';
+import { crossProjectFeed, pruneHarness, pruneWorkspace } from '@momentum/kb';
 import { commitPathsFrom, listFiles, nonLinear, removeWorktree, worktreeDirs } from '@momentum/runs';
 import { CronExpressionParser } from 'cron-parser';
 import { rm } from 'node:fs/promises';
@@ -14,6 +14,9 @@ import { userStarted, type Runner } from './runner.ts';
 import type { Timeline } from './timeline.ts';
 import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
 
+/** How often expired sessions and readings past what the metrics show are deleted */
+const PRUNE_EVERY_MS = 60 * 60_000;
+
 const PROMPTS: Record<string, string> = {
   schedule: 'Scheduled run: carry out your responsibility for this workspace now.',
 };
@@ -27,6 +30,7 @@ export class Orchestrator {
   private timer: NodeJS.Timeout | null = null;
   private ticking = false;
   private again = false;
+  private pruned = 0;
 
   constructor(
     private readonly workspaces: Workspaces,
@@ -291,6 +295,11 @@ export class Orchestrator {
       await this.settings.discover().catch((e) => console.error('discover projects:', e));
       const enabled = [];
       for (const ws of await this.workspaces.enabled()) if (await this.keptLinear(ws)) enabled.push(ws);
+      if (Date.now() - this.pruned > PRUNE_EVERY_MS) {
+        this.pruned = Date.now();
+        await pruneHarness(this.workspaces.sql).catch((e) => console.error('prune the harness:', e));
+        for (const ws of enabled) await pruneWorkspace(this.workspaces.sql, ws.name).catch((e) => console.error(`prune ${ws.name}:`, e));
+      }
       for (const ws of enabled) await this.guard.indexMainLine(ws).catch((e) => console.error(`index ${ws.name}:`, e));
       const values = await this.settings.values();
       const feed = await crossProjectFeed(this.workspaces.sql, enabled.map((w) => w.name), values.feedSize);
