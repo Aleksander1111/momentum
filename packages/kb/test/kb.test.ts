@@ -112,4 +112,22 @@ describe('workspace index', () => {
     await index.leaveFeed('Product/Feature/offline-feed');
     expect(await index.feedCount()).toBe(1);
   });
+
+  it('names the entities an issue concerns by their titles', async () => {
+    const path = 'Harness/Issue/session-offline';
+    const refs = [
+      { to: 'Architecture/Api/session', relation: 'concerns' },
+      { to: 'Product/Feature/offline-feed', relation: 'concerns' },
+      { to: 'Product/Feature/gone', relation: 'concerns' },
+    ];
+    const frontmatter = { ...(await put(path, 'Session and offline feed disagree', 'They disagree.', refs)), options: [{ label: 'Align', change: 'Say the same.' }] };
+    const [embedding] = await embed(['Session and offline feed disagree']);
+    await index.upsert({ path, title: 'Session and offline feed disagree', body: 'They disagree.', frontmatter, cardBlocks: [], cardDiff: null, embedding: embedding! });
+    await index.enterFeed(path, frontmatter);
+    const issue = (await crossProjectFeed(sql, [ws], 10)).find((f) => f.path === path)?.issue;
+    expect(issue?.concerns).toEqual(['Architecture/Api/session', 'Product/Feature/offline-feed', 'Product/Feature/gone']);
+    // An entity no longer there has no title: the app names it from its path
+    expect(issue?.titles).toEqual({ 'Architecture/Api/session': 'Session on the API', 'Product/Feature/offline-feed': 'Offline feed' });
+    await index.leaveFeed(path);
+  });
 });

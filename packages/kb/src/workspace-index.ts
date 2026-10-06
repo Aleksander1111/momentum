@@ -339,10 +339,13 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
   if (workspaces.length === 0) return [];
   const parts = workspaces.map((w) => {
     const s = schemaOf(w);
+    // An issue names the entities it concerns by their titles
+    const titles = `case when e.type = 'Harness/Issue' then (select jsonb_object_agg(c.path, c.title) from ${s}.entity c
+      where c.path in (select r->>'to' from jsonb_array_elements(e.frontmatter->'references') r where r->>'relation' = 'concerns')) end`;
     return `select '${w.replaceAll("'", "''")}' as workspace, e.path, e.type, e.title, e.card_blocks, e.card_diff, e.verification, e.sync, e.contradictions,
-      e.frontmatter, a.rank, a.entered_at, ${VERSION} as version from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
+      e.frontmatter, a.rank, a.entered_at, ${VERSION} as version, ${titles} as concern_titles from ${s}.attention_ranking a join ${s}.entity e on e.path = a.entity_path`;
   });
-  const rows = await sql.unsafe<(EntityRow & { workspace: string; rank: number; version: string })[]>(
+  const rows = await sql.unsafe<(EntityRow & { workspace: string; rank: number; version: string; concern_titles: Record<string, string> | null })[]>(
     `${parts.join(' union all ')} order by rank desc, entered_at asc limit $1`,
     [limit],
   );
@@ -358,12 +361,12 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
     contradictions: r.contradictions,
     rank: Number(r.rank),
     version: r.version,
-    issue: issueOf(r.type, r.frontmatter),
+    issue: issueOf(r.type, r.frontmatter, r.concern_titles ?? {}),
   }));
 }
 
 /** The options of an issue the user resolves from the feed; null for any other entity or an issue without options */
-function issueOf(type: string, frontmatter: EntityFrontmatter): FeedItem['issue'] {
+function issueOf(type: string, frontmatter: EntityFrontmatter, titles: Record<string, string>): FeedItem['issue'] {
   if (type !== 'Harness/Issue') return null;
   const f = IssueFields.safeParse(frontmatter);
   if (!f.success || f.data.options.length === 0) return null;
@@ -374,6 +377,7 @@ function issueOf(type: string, frontmatter: EntityFrontmatter): FeedItem['issue'
     options,
     recommended: recommended !== undefined && recommended < options.length ? recommended : undefined,
     concerns: frontmatter.references.filter((r) => r.relation === 'concerns').map((r) => r.to),
+    titles,
   };
 }
 

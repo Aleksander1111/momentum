@@ -40,7 +40,7 @@ export function IssueHead({ issue, workspace }: { issue: Issue; workspace: strin
           <View style={{ gap: 3, marginTop: 3, alignItems: 'flex-start' }}>
             {issue.concerns.map((p, i) => (
               <View key={p} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
-                <EntityRef workspace={workspace} path={p} size={12.5} />
+                <EntityRef workspace={workspace} path={p} title={issue.titles[p]} size={12.5} />
                 {i === 0 ? <T style={{ color: C.no, fontSize: 10.5, fontWeight: '700', letterSpacing: 1.2 }}>AT FAULT</T> : null}
               </View>
             ))}

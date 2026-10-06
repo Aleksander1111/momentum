@@ -276,9 +276,9 @@ export const FeedItem = z.object({
   rank: z.number(),
   /** The card as shown: a reaction carrying it is refused once the card has changed since */
   version: z.string().default(''),
-  /** An issue with options to resolve it; the entities it concerns, the one at fault first */
+  /** An issue with options to resolve it; the entities it concerns, the one at fault first, and their titles by path */
   issue: IssueFields.pick({ category: true, severity: true, options: true, recommended: true })
-    .extend({ concerns: z.array(z.string()) })
+    .extend({ concerns: z.array(z.string()), titles: z.record(z.string(), z.string()).default({}) })
     .nullable()
     .default(null),
 });
