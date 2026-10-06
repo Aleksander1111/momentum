@@ -21,6 +21,7 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     const transcript = /- (chats\/\w+\.jsonl)/.exec(t.input)?.[1];
     if (!transcript) return undefined;
     return [
+      move.summarize(),
       move.entity(t, `Harness/Chat/${t.run}`, {
         type: 'Harness/Chat',
         title: 'Routes of the books API',

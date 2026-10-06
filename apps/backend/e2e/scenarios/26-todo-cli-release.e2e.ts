@@ -88,6 +88,7 @@ scenario('todo-cli-release', { enabled: [WS], graphBuild: 'complete', triggers: 
   ]);
   model.on('implementation', { automation: 'implementation', kind: 'prompt' }, (t) => [move.write(t, 'src/due.js', DUE_JS), move.say('Implemented due dates.')]);
   model.on('implementation summarizes', { automation: 'implementation', kind: 'summarize' }, (t) => [
+    move.summarize(),
     move.entity(t, DUE, {
       type: 'Architecture/Component',
       title: 'Due dates',

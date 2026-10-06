@@ -63,6 +63,7 @@ scenario('sprint', { enabled: [WS], graphBuild: 'complete', triggers: ['implemen
     if (!t.target || !code.length) return undefined;
     const name = t.target.split('/').pop()!;
     return [
+      move.summarize(),
       move.entity(t, `Architecture/Component/${name}`, { type: 'Architecture/Component', title: name, card: `The code of ${t.target}.`, references: [{ to: t.target, relation: 'implements' }], artifacts: code }),
       move.say('Summarized.'),
     ];

@@ -49,6 +49,7 @@ export const FEATURES = {
   'guard.stop-blocked': 'A run cannot stop while its entities are invalid',
   'guard.land': 'A run lands on the main line in one commit, with its own message or one built from what changed',
   'guard.inconsistent-issue': 'Changes that cannot be made consistent land with an issue raised over them',
+  'guard.summarization-checked': "What a run handed its summarization step and the step never saw is summarized after the run lands, not taken as done",
   'guard.harness-scope': "In the harness's own repository a run lands only what its automation may change there; the rest is put back and raised as an issue",
   'guard.main-line-index': 'The main line is indexed on every tick; a user commit is picked up',
   'guard.conflict': "A file a run and the user both changed lands on the run's side, with a Harness/Conflict raised in the same commit over the entities concerned, waiting in the feed",

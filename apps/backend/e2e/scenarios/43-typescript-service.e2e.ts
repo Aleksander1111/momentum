@@ -140,6 +140,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
   model.on('summarizes the documents', { automation: 'graph-build', kind: 'summarize' }, (t) =>
     /README\.md \(to map/.test(t.input)
       ? [
+          move.summarize(),
           move.entity(t, PRODUCT, { type: 'Product/Product', title: 'notes-api', card: 'An HTTP API for notes with tags, search and markdown export; see `docs/api.md` for the routes.', impact: [3, 1, 2], artifacts: ['README.md', 'docs/api.md'] }),
           move.say('Summarized.'),
         ]
@@ -180,6 +181,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     ];
   });
   model.on('implementation summarizes', { automation: 'implementation', kind: 'summarize' }, (t) => [
+    move.summarize(),
     move.write(
       t,
       kg(ROUTES),

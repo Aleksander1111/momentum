@@ -782,7 +782,14 @@ export class Runner {
     const document = r.automation === 'interview' ? entry.interview?.document : undefined;
     if (document && !excluded(document) && !artifacts.has(document)) artifacts.set(document, 'interview');
     if (artifacts.size === 0) return null;
-    this.guard.handedToSummarization(r.id, [...artifacts.keys()]);
+    // The work an implementation was asked for, its target and what a target plan plans, is never summarized as its result
+    const asked = new Set<string>();
+    if (r.automation === 'implementation' && r.target_path) {
+      asked.add(r.target_path);
+      const row = await ws.index.row(r.target_path);
+      if (row?.frontmatter.type === 'Harness/Plan') for (const ref of row.frontmatter.references) if (ref.relation === 'plans') asked.add(ref.to);
+    }
+    this.guard.handedToSummarization(r.id, [...artifacts.keys()], [...asked]);
     // Asked once per state of the artifacts: a run that stops again after its sub-agent finished in the background
     // does not summarize the same artifacts twice
     const state = await Promise.all(
@@ -791,13 +798,6 @@ export class Runner {
     const key = JSON.stringify(state);
     if (entry.summarized === key) return null;
     entry.summarized = key;
-    // The work an implementation was asked for, its target and what a target plan plans, is never summarized as its result
-    const asked = new Set<string>();
-    if (r.automation === 'implementation' && r.target_path) {
-      asked.add(r.target_path);
-      const row = await ws.index.row(r.target_path);
-      if (row?.frontmatter.type === 'Harness/Plan') for (const ref of row.frontmatter.references) if (ref.relation === 'plans') asked.add(ref.to);
-    }
     // The entities over each artifact already, which summarization rewrites rather than adding new ones beside them
     const lines = await Promise.all(
       [...artifacts].map(async ([path, what]) => {

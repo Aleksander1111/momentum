@@ -6,6 +6,8 @@ import type { Guard, RunRef } from './guard.ts';
 
 /** How often the Stop hook sends a run back to fix its changes before the guard raises an issue instead */
 const MAX_STOP_BLOCKS = 2;
+/** The sub-agent every run hands its artifacts to */
+export const SUMMARIZATION_AGENT = 'momentum-summarization';
 
 const list = (issues: ValidationIssue[]) => issues.map((i) => `- ${i.path}: ${i.message}`).join('\n');
 
@@ -61,6 +63,17 @@ export function guardHooks(
                 additionalContext: `The consistency guard will not accept this change yet:\n${list(issues)}`,
               },
             };
+          },
+        ],
+      },
+    ],
+    // The summarization step finished: what it was handed is its to have summarized, or left as it stood
+    SubagentStop: [
+      {
+        hooks: [
+          async (input): Promise<SyncHookJSONOutput> => {
+            if (input.hook_event_name === 'SubagentStop' && input.agent_type === SUMMARIZATION_AGENT) guard.summarizationRan(run.id);
+            return {};
           },
         ],
       },

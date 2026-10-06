@@ -25,6 +25,7 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
   model.on('interviewer', { automation: 'interview' }, (t: Turn) => {
     if (t.kind === 'summarize') {
       return [
+        move.summarize(),
         move.entity(t, SUMMARY, { type: 'Knowledge/MeetingNote', origin: 'user', title: 'Reading habits', card: 'Two books a month, listed on paper; a slow start ends a book.', artifacts: [DOC] }),
         move.say('Summarized.'),
       ];

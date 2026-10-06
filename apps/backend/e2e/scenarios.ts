@@ -519,7 +519,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'guard.main-line-index', 'state.artifact-ahead', 'state.updating', 'state.summarized-once', 'automation.summarization', 'settings.persist',
-      'orchestrator.serial-automations', 'run.failure',
+      'orchestrator.serial-automations', 'run.failure', 'guard.summarization-checked',
     ],
     steps: [
       'One commit editing two documents starts one summarization run that rewrites both cards',
@@ -527,6 +527,7 @@ export const SCENARIOS: Scenario[] = [
       'A failed summarization leaves its entities behind their documents until the next edit summarizes them',
       'Two quick edits of one document: the second is summarized after the first, and the card ends on the latest',
       'A run editing an excluded document and a summarized one hands only the summarized one to summarization',
+      'A run that stops without its summarization step leaves the document it changed to a summarization run after it lands',
     ],
     // The features each step checks, step by step
     checks: [
@@ -535,6 +536,7 @@ export const SCENARIOS: Scenario[] = [
       ['run.failure', 'state.summarized-once', 'state.artifact-ahead', 'automation.summarization'],
       ['orchestrator.serial-automations', 'automation.summarization'],
       ['settings.persist', 'automation.summarization'],
+      ['guard.summarization-checked', 'state.artifact-ahead'],
     ],
   },
   {

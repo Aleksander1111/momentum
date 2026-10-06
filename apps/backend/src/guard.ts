@@ -27,6 +27,19 @@ import type { Bus } from './events.ts';
 import type { HarnessSettings } from './harness.ts';
 import type { Workspace, Workspaces } from './workspaces.ts';
 
+interface Handoff {
+  artifacts: Set<string>;
+  /** Handed since the step last finished: not yet seen by it */
+  pending: Set<string>;
+  keep: Set<string>;
+}
+
+/** What a run's summarization step was handed, and what of it is covered */
+interface Summarized {
+  handed: Set<string>;
+  covered: Set<string>;
+}
+
 export interface RunRef {
   id: string;
   workspace: string;
@@ -72,8 +85,11 @@ export class Guard {
   private watchers = new Map<string, { watcher: FSWatcher; issues: Map<string, ValidationIssue[]> }>();
   /** The main line of a workspace is indexed by one caller at a time: each change is seen, and acted on, once */
   private indexing = new Map<string, Promise<unknown>>();
-  /** Artifacts each run's summarization step was handed: landed with the run, they are summarized already */
-  private summarized = new Map<string, Set<string>>();
+  /**
+   * What each run's summarization step was handed: the artifacts, those handed since the step last finished, and the
+   * entities over them the run was told to leave as they stand (an implementation's target and what it plans)
+   */
+  private summarized = new Map<string, Handoff>();
 
   constructor(
     private readonly workspaces: Workspaces,
@@ -131,7 +147,7 @@ export class Guard {
    */
   /** `acceptMerges`: the user enabled the project as it stands, merge commits it holds included */
   indexMainLine(ws: Workspace, acceptMerges = false): Promise<void> {
-    return this.exclusive(ws, () => this.indexNow(ws, new Set(), false, acceptMerges));
+    return this.exclusive(ws, () => this.indexNow(ws, null, acceptMerges));
   }
 
   /** Runs `fn` while nothing else indexes the workspace's main line */
@@ -146,8 +162,12 @@ export class Guard {
     return next;
   }
 
-  /** `fromRun`: the change is a run's landing, whose new files its own summarization step covered */
-  private async indexNow(ws: Workspace, handled: Set<string> = new Set(), fromRun = false, acceptMerges = false): Promise<void> {
+  /**
+   * `landing`: the change is a run's landing, and what its summarization step was handed and did cover. A run's new
+   * files are its step's to cover; those it was handed and left uncovered are new files like the user's, and the
+   * entities over a changed artifact it left as they were are behind it
+   */
+  private async indexNow(ws: Workspace, landing: Summarized | null = null, acceptMerges = false): Promise<void> {
     const commit = await head(ws.path, `refs/heads/${ws.main}`);
     const previous = await this.settings.indexedCommit(ws.name);
     if (previous === commit) return;
@@ -172,7 +192,8 @@ export class Guard {
         moved = (await moves(ws.path, previous, commit))
           .filter((m) => !entityPathOf(m.from) && !entityPathOf(m.to) && !excluded(m.to))
           .map((m) => ({ from: m.from, to: m.to, unchanged: m.similarity === 100 }));
-        added = fromRun ? [] : diff.filter((c) => c.status === 'A' && !entityPathOf(c.path) && !moved.some((m) => m.to === c.path)).map((c) => c.path);
+        const newFiles = diff.filter((c) => c.status === 'A' && !entityPathOf(c.path) && !moved.some((m) => m.to === c.path)).map((c) => c.path);
+        added = landing ? newFiles.filter((f) => landing.handed.has(f) && !landing.covered.has(f)) : newFiles;
         deleted = diff.filter((c) => c.status === 'D' && !entityPathOf(c.path) && !moved.some((m) => m.from === c.path)).map((c) => c.path);
       } catch {
         changed = null;
@@ -201,7 +222,7 @@ export class Guard {
     }
     await ws.index.refreshContradictions();
     await this.settings.setIndexedCommit(ws.name, commit);
-    await this.artifactsChanged(ws, artifactFiles.filter((f) => !handled.has(f)), changed, added, deleted, moved);
+    await this.artifactsChanged(ws, artifactFiles.filter((f) => !landing?.covered.has(f)), changed, added, deleted, moved);
     if (!changed || [...changed].some((p) => p.startsWith('Harness/Trigger/'))) {
       this.bus.emit('triggers_changed', { workspace: ws.name });
     }
@@ -300,10 +321,41 @@ export class Guard {
   }
 
   /** The artifacts a run's summarization step is handed; once they land with the run, no summarization run follows for them */
-  handedToSummarization(runId: string, artifacts: string[]): void {
-    const set = this.summarized.get(runId) ?? new Set<string>();
-    for (const a of artifacts) set.add(a);
-    this.summarized.set(runId, set);
+  handedToSummarization(runId: string, artifacts: string[], keep: string[] = []): void {
+    const handed = this.summarized.get(runId) ?? { artifacts: new Set<string>(), pending: new Set<string>(), keep: new Set<string>() };
+    for (const a of artifacts) {
+      handed.artifacts.add(a);
+      handed.pending.add(a);
+    }
+    for (const k of keep) handed.keep.add(k);
+    this.summarized.set(runId, handed);
+  }
+
+  /** The run's summarization sub-agent finished: what it was handed so far, it has seen */
+  summarizationRan(runId: string): void {
+    this.summarized.get(runId)?.pending.clear();
+  }
+
+  /**
+   * What the run's summarization step covered of what it was handed. The step may leave a card as it is when a change
+   * leaves it true, so what it saw once it ran is trusted. What it never saw (the run ignored the hand-over, or the step
+   * failed) counts only where the run's own entities show it: an entity it wrote lists the artifact, or every entity
+   * over the artifact is one it rewrote, deleted or was told to leave as it stands.
+   */
+  private async summarizedBy(ws: Workspace, run: RunRef, written: { path: string; entity: ParsedEntity }[], deleted: string[]): Promise<Summarized> {
+    const handed = this.summarized.get(run.id) ?? { artifacts: new Set<string>(), pending: new Set<string>(), keep: new Set<string>() };
+    this.summarized.delete(run.id);
+    const touched = new Set([...written.map((w) => w.path), ...deleted, ...handed.keep]);
+    const covered = new Set([...handed.artifacts].filter((a) => !handed.pending.has(a)));
+    for (const artifact of handed.pending) {
+      if (written.some((w) => w.entity.frontmatter.artifacts.includes(artifact))) {
+        covered.add(artifact);
+        continue;
+      }
+      const over = await ws.index.byArtifact(artifact);
+      if (over.length > 0 && over.every((p) => touched.has(p))) covered.add(artifact);
+    }
+    return { handed: handed.artifacts, covered };
   }
 
   async markUpdating(ws: Workspace, path: string | null): Promise<void> {
@@ -333,12 +385,11 @@ export class Guard {
     if (!valid) await this.raiseIssue(ws, run, issues);
 
     const message = await this.message(run, written);
-    const handled = this.summarized.get(run.id) ?? new Set<string>();
-    this.summarized.delete(run.id);
+    const summarized = await this.summarizedBy(ws, run, written, deleted);
     // Landed and indexed in one go, so the artifacts the run summarized itself are never taken for the user's changes
     const landed = await this.exclusive(ws, async () => {
       const l = await this.land(ws, run, message);
-      await this.indexNow(ws, handled, true);
+      await this.indexNow(ws, summarized);
       return l;
     });
     // Entities the run was to change and left as they were stand where they did: the run found nothing to change

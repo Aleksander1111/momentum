@@ -128,6 +128,7 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
     move.say('Planned.'),
   ]);
   model.on('preparation summarizes its plan', { automation: 'preparation', kind: 'summarize' }, (t) => [
+    move.summarize(),
     move.entity(t, PLAN, {
       type: 'Harness/Plan',
       title: 'Plan: search by author',
@@ -172,6 +173,7 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
   ]);
   // Summarization, the sub-agent's work: the API card follows the code and implements the plan
   model.on('implementation summarizes', { automation: 'implementation', kind: 'summarize' }, (t) => [
+    move.summarize(),
     move.write(t, `knowledge-graph/${API}.md`, apiEntity('An empty title is refused with 400.')),
     move.say('Summarized.'),
   ]);

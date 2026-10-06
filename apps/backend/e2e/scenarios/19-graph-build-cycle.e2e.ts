@@ -67,6 +67,7 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
   model.on('summarizes what the build listed', { automation: 'graph-build', kind: 'summarize' }, (t) =>
     /README\.md \(to map\)/.test(t.input)
       ? [
+          move.summarize(),
           move.entity(t, 'Product/Product/todo-cli', { type: 'Product/Product', title: 'todo-cli', card: 'A to-do list kept from the terminal.', artifacts: ['README.md'] }),
           move.say('Summarized.'),
         ]

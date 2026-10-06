@@ -108,6 +108,11 @@ export const move = {
   }),
   interview: (v: { question: string; done: boolean; document: string }): Move => ({ tool: 'mcp__momentum-run__report_interview', input: v }),
   metric: (misalignments: number, recurring_issues: number): Move => ({ tool: 'mcp__momentum-kb__record_agent_metric', input: { misalignments, recurring_issues } }),
+  /** The summarization sub-agent started, as the harness asks a run to before it stops */
+  summarize: (): Move => ({
+    tool: 'Agent',
+    input: { subagent_type: 'momentum-summarization', description: 'Summarize the artifacts', prompt: 'Summarize the artifacts the harness handed over.' },
+  }),
   hang: (): Move => ({ hang: true }),
   gate: (open: Promise<unknown>): Move => ({ gate: open }),
   error: (status: number, message = 'Overloaded'): Move => ({ error: status, message }),
@@ -349,8 +354,9 @@ export class ScriptedModel {
 
   /**
    * What runs do: the first script registered whose `when` matches the turn and that returns moves decides it. Turns no
-   * script takes get the default: say "Done." to prompts and messages, write the commit message the harness asks for,
-   * and stop on anything else.
+   * script takes get the default: say "Done." to prompts and messages, start the summarization sub-agent the harness
+   * hands artifacts to (it answers at once, as every request without a run's context does), write the commit message
+   * the harness asks for, and stop on anything else.
    */
   on(name: string, when: Partial<Pick<Turn, 'automation' | 'kind' | 'run' | 'target'>> | ((t: Turn) => boolean), script: Script): void {
     const match =
@@ -378,6 +384,7 @@ export class ScriptedModel {
       const m = s.script(t);
       if (m) return m;
     }
+    if (t.kind === 'summarize') return [move.summarize(), { text: 'Summarized.' }];
     if (t.kind === 'commit-message') {
       const file = messageFileOf(t.input);
       const subject = this.subject(t);

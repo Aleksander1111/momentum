@@ -62,6 +62,7 @@ scenario('bug-lifecycle', { enabled: [WS], triggers: ['implementation'] }, async
       : [move.say('Done.')],
   );
   model.on('implementation summarizes', { automation: 'implementation', kind: 'summarize' }, (t) => [
+    move.summarize(),
     move.write(
       t,
       kg(API),

@@ -123,4 +123,25 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
     expect(env.show(WS, ARCHIVE)).toMatch(/superseded/i);
     expect(env.show(WS, 'docs/onboarding.md')).toMatch(/bring an ID/i);
   });
+
+  await step(5, async () => {
+    // A run that stops without its summarization step leaves the document it changed to be summarized after it lands
+    model.on('a chat that skips summarizing', (t) => t.automation === 'chat' && /calendar invite/.test(t.inputs[0] ?? ''), (t) => {
+      if (t.kind === 'prompt') {
+        const doc = readFileSync(t.file('docs/remote-work.md'), 'utf8');
+        return [move.write(t, 'docs/remote-work.md', `${doc}\n- A remote day needs a calendar invite.\n`), move.say('Edited.')];
+      }
+      return t.kind === 'summarize' ? [move.say('Done.')] : undefined;
+    });
+    const since = new Date();
+    const { runId } = await api.chat(WS, 'Add to docs/remote-work.md that a remote day needs a calendar invite.');
+    expect((await api.runEnded(runId, 10 * 60_000)).status).toBe('finished');
+    expect(env.show(WS, 'docs/remote-work.md')).toMatch(/calendar invite/);
+    const run = await api.automationRan(WS, 'summarization', since, 10 * 60_000);
+    expect(run.status).toBe('finished');
+    expect(model.turns(run.id)[0]!.input).toMatch(/^- Governance\/Policy\/remote-work: docs\/remote-work\.md/m);
+    await until('the policy synced', async () => (await sync(REMOTE)) === 'synced', 60_000);
+    const states = await env.sql<{ sync: string }[]>`select sync from ${env.sql('ws_handbook.entity_state')} where path = ${REMOTE} and at >= ${since} order by at`;
+    expect(states.map((s) => s.sync)).toEqual(expect.arrayContaining(['artifact_ahead', 'synced']));
+  });
 });
