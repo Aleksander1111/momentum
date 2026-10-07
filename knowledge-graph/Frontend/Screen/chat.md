@@ -23,9 +23,9 @@ artifacts:
 Chats per workspace, each a conversation on a run.
 
 - Grouped by workspace under its logo, polled every 15 s; rows: title, kind, status, age
-- With more than one project, a picker shared with Explorer and Metrics picks where a new chat goes
-- Composer: Enter sends, Shift+Enter breaks a line, on a phone the button sends; context parts wait as chips above it; a message not sent says why and stays
-- A mic beside send shows words as heard
-- Run head: automation, state, 5-hour usage, the entity the chat is about; Stop turns to Stopping until it ends
-- Bubbles polled every 3 s while active; tables and code take the full width; entities named open on a press
-- Wide: beside the list; narrow: a page
+- With more than one project, a picker shared with Explorer and Metrics picks a new chat's project
+- Composer: Enter sends, Shift+Enter breaks a line, on a phone the button sends; context waits as chips above; an unsent message says why and stays
+- A mic by send shows words as heard
+- Run head: automation, state, 5-hour usage, the entity the chat is about; Stop shows Stopping until it ends
+- Bubbles polled every 3 s while active; tables and code full width; named entities open on a press
+- Wide: beside the list, Android back closes it; narrow: a page

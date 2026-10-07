@@ -23,10 +23,10 @@ Ranked cards from included projects, one on top, two behind.
 
 - Breadcrumb: logo, type, folders; verification and sync counters
 - Changed since verified: a diff of words, marks, diagrams
-- A long card scrolls within itself; tables keep to its width
+- A long card scrolls in itself; tables keep its width
 - Linked entities open; selections go to chat
-- Swipe right approves; left sends back with a comment
-- Issue cards add severity, concerns, options, the recommended picked: right resolves with it; left takes a resolution or a reason not to
-- A reaction carries time on card; approve and resolve carry the card's version; polls every 15 s, queues offline
+- Swipe right approves; left opens a comment sheet, closed by Android back
+- Issue cards add severity, concerns, options, recommended picked: right resolves with it; left takes a resolution or a reason not to
+- A reaction carries time on card; approve and resolve the card's version; polls every 15 s, queues offline
 - The top card stays until reacted to
-- Empty says why: nothing to review, or no project yet
+- Empty says why: nothing to review or no project yet
