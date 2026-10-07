@@ -718,6 +718,14 @@ export const TimelineKind = z.enum([
 ]);
 export type TimelineKind = z.infer<typeof TimelineKind>;
 
+/** A state an entity stands in, by verification or by sync: what the feed counts */
+export const EntityState = z.enum([...Verification.options, ...Sync.options]);
+export type EntityState = z.infer<typeof EntityState>;
+
+/** How the count of entities in each state moved; a state that did not move is absent */
+export const EntityStates = z.partialRecord(EntityState, z.number().int());
+export type EntityStates = z.infer<typeof EntityStates>;
+
 /** What an event carries beyond its title, each where it applies */
 export const TimelineFacts = z
   .object({
@@ -744,6 +752,8 @@ export const TimelineFacts = z
     subject: z.string(),
     /** A run the user stopped */
     byUser: z.boolean(),
+    /** What the event did to the feed's counts of entities by state */
+    states: EntityStates,
   })
   .partial();
 export type TimelineFacts = z.infer<typeof TimelineFacts>;

@@ -29,7 +29,7 @@ import { graphBuildStatus } from './graph-build.ts';
 import { acceptPattern, detectPatterns, PATTERN_TYPE, workspaceMetrics } from './metrics.ts';
 import type { Orchestrator } from './orchestrator.ts';
 import type { Runner } from './runner.ts';
-import { automationLabel, type Timeline } from './timeline.ts';
+import { addStates, automationLabel, measured, stateCounts, type Timeline } from './timeline.ts';
 import { NotFound, type Workspaces } from './workspaces.ts';
 
 /** Settings as the timeline names them when the user changes them */
@@ -215,17 +215,30 @@ export class Momentum {
   }
 
   async createChat(workspace: string, text: string, targetPath?: string, context: ContextItem[] = []): Promise<{ runId: string }> {
-    await this.workspaces.get(workspace);
-    const runId = await this.runner.create({
+    const ws = await this.workspaces.get(workspace);
+    // A chat on an entity marks it updating
+    const [runId, states] = await measured(ws.index, () =>
+      this.runner.create({
+        workspace,
+        automation: 'chat',
+        trigger: 'on_demand',
+        prompt: text,
+        title: text.split('\n')[0]!.slice(0, 80),
+        targetPath: targetPath ?? null,
+        context,
+      }),
+    );
+    await this.timeline.record({
       workspace,
+      actor: 'user',
+      kind: 'chat_started',
+      title: 'Started a chat',
+      detail: text,
+      runId,
       automation: 'chat',
-      trigger: 'on_demand',
-      prompt: text,
-      title: text.split('\n')[0]!.slice(0, 80),
-      targetPath: targetPath ?? null,
-      context,
+      path: targetPath ?? null,
+      facts: Object.keys(states).length ? { states } : {},
     });
-    await this.timeline.record({ workspace, actor: 'user', kind: 'chat_started', title: 'Started a chat', detail: text, runId, automation: 'chat', path: targetPath ?? null });
     void this.orchestrator.tick();
     return { runId };
   }
@@ -314,8 +327,17 @@ export class Momentum {
 
   /** Removes every entity and database entry of a project, then builds its knowledge graph afresh */
   async resetProject(workspace: string): Promise<GraphBuildStatus> {
-    await this.orchestrator.reset(await this.workspaces.get(workspace));
-    await this.timeline.record({ workspace, actor: 'user', kind: 'project_reset', title: `Reset ${workspace}: its knowledge graph builds afresh` });
+    const ws = await this.workspaces.get(workspace);
+    const before = await stateCounts(ws.index);
+    await this.orchestrator.reset(ws);
+    const states = addStates(await stateCounts((await this.workspaces.get(workspace)).index), before, -1);
+    await this.timeline.record({
+      workspace,
+      actor: 'user',
+      kind: 'project_reset',
+      title: `Reset ${workspace}: its knowledge graph builds afresh`,
+      facts: Object.keys(states).length ? { states } : {},
+    });
     void this.orchestrator.tick();
     return graphBuildStatus(await this.workspaces.get(workspace), this.settings);
   }

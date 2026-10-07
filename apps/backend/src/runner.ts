@@ -14,7 +14,7 @@ import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { bookkeeping, guardHooks } from './hooks.ts';
-import { endKind, runEvent, type Timeline } from './timeline.ts';
+import { endKind, measured, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
 import { runLine, SAY, workspaceLine } from './protocol.ts';
@@ -644,11 +644,13 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     const ws = await this.workspaceOf(id);
     const r = await this.transition(ws, id, ['queued'], 'killed', { ended_at: new Date() });
     if (!r) return;
-    for (const path of new Set([r.target_path, ...(r.targets ?? [])])) {
-      const row = path ? await ws.index.row(path) : null;
-      if (row?.sync === 'updating') await ws.index.setSync(path!, r.automation === 'summarization' ? 'artifact_ahead' : await this.guard.syncOf(ws, path!, row.frontmatter));
-    }
-    await this.timeline.run(runEvent(ws.name, r, 'run_killed', { byUser, facts: { status: 'killed' } }));
+    const [, states] = await measured(ws.index, async () => {
+      for (const path of new Set([r.target_path, ...(r.targets ?? [])])) {
+        const row = path ? await ws.index.row(path) : null;
+        if (row?.sync === 'updating') await ws.index.setSync(path!, r.automation === 'summarization' ? 'artifact_ahead' : await this.guard.syncOf(ws, path!, row.frontmatter));
+      }
+    });
+    await this.timeline.run(runEvent(ws.name, r, 'run_killed', { byUser, facts: { status: 'killed', ...(Object.keys(states).length ? { states } : {}) } }));
     this.bus.emit('run_ended', { workspace: ws.name, runId: id });
   }
 
@@ -698,7 +700,9 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
         status = 'failed';
         error = 'The run ended without reporting its progress with report_graph_build';
       }
-      if (status !== 'finished') await this.stillBehind(ws, r, landed.paths);
+      // What landing did is on the event already; an entity left behind moves its state once more
+      const run = r;
+      const [, behind] = status !== 'finished' ? await measured(ws.index, () => this.stillBehind(ws, run, landed.paths)) : [null, {}];
       // The build's state moves before the run ends: once it has, a tick would otherwise queue the next build run
       if (r.automation === 'graph-build') await this.recordGraphBuild(ws, status, entry.graphBuild);
       if (r.automation === 'graph-build' && status === 'failed') await this.afterFailedBuild(ws, { id, error });
@@ -718,6 +722,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
             facts: {
               status,
               usage,
+              ...(Object.keys(behind).length ? { states: behind } : {}),
               ...(r.started_at ? { durationMs: endedAt.getTime() - r.started_at.getTime() } : {}),
             },
           }),

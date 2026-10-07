@@ -1,3 +1,4 @@
+import type { EntityStates } from '@momentum/contract';
 import { EventEmitter } from 'node:events';
 
 /** A file moved on the main line; unchanged when its content moved as it was */
@@ -23,6 +24,8 @@ export interface Events {
       valid: boolean;
       issues: number;
       conflicts: string[];
+      /** What the transaction did to the counts of entities by state */
+      states: EntityStates;
     },
   ];
   /** An implementable entity was approved with nothing implementing it */

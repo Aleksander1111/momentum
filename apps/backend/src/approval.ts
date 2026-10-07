@@ -7,7 +7,7 @@ import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import type { Runner } from './runner.ts';
 import { Serial } from './serial.ts';
-import { reactionEvent, type Timeline } from './timeline.ts';
+import { measured, reactionEvent, type Timeline } from './timeline.ts';
 import { Conflict, NotFound, type Workspace, type Workspaces } from './workspaces.ts';
 
 /** Approve, send back and resolve an issue */
@@ -116,11 +116,15 @@ export class Approval {
 
     const touched = (target: string) => files.some((f) => f.path === fileOf(target));
     const effects = implemented.filter(touched).map((t) => `Bring ${t} back in sync`);
-    await this.commit(ws, files, [`Approve ${entity.title}`, ...(effects.length ? ['', ...effects] : [])].join('\n'));
-    await ws.index.recordReaction(path, row.type, 'approved', timeSpentMs);
-    await this.timeline.record(reactionEvent(workspace, { path, type: row.type, title: entity.title }, 'approved', { detail: effects.join('\n') || null, timeSpentMs }));
-    await this.guard.indexMainLine(ws);
-    for (const target of implemented) await ws.index.setSync(target, 'synced');
+    const [, states] = await measured(ws.index, async () => {
+      await this.commit(ws, files, [`Approve ${entity.title}`, ...(effects.length ? ['', ...effects] : [])].join('\n'));
+      await ws.index.recordReaction(path, row.type, 'approved', timeSpentMs);
+      await this.guard.indexMainLine(ws);
+      for (const target of implemented) await ws.index.setSync(target, 'synced');
+    });
+    await this.timeline.record(
+      reactionEvent(workspace, { path, type: row.type, title: entity.title }, 'approved', { detail: effects.join('\n') || null, timeSpentMs, states }),
+    );
 
     if (entity.frontmatter.sync === 'entity_ahead') this.bus.emit('entity_ahead', { workspace, path });
     if (entity.frontmatter.type === TRIGGER_TYPE) this.bus.emit('triggers_changed', { workspace });
@@ -138,20 +142,22 @@ export class Approval {
     if (!row) throw new NotFound(`No entity ${path} in ${workspace}`);
     const open = await this.openChat(workspace, path, comment);
     if (open?.repeated) return open.id;
-    await ws.index.recordReaction(path, row.type, 'sent_back', timeSpentMs);
-    await ws.index.leaveFeed(path);
-    this.bus.emit('feed_changed');
-    if (open) await this.runner.send(open.id, comment);
-    const runId = open?.id ?? await this.runner.create({
-      workspace,
-      automation: 'chat',
-      trigger: 'on_demand',
-      title: row.title,
-      targetPath: path,
-      message: comment,
-      prompt: `The user sent back the entity ${path} ("${row.title}") from the attention feed with this comment:\n\n${comment}\n\nAct on the comment. It decides what happens to the entity: change it, split it, replace it, add entities alongside it, or retire it.`,
+    const [runId, states] = await measured(ws.index, async () => {
+      await ws.index.recordReaction(path, row.type, 'sent_back', timeSpentMs);
+      await ws.index.leaveFeed(path);
+      this.bus.emit('feed_changed');
+      if (open) await this.runner.send(open.id, comment);
+      return open?.id ?? await this.runner.create({
+        workspace,
+        automation: 'chat',
+        trigger: 'on_demand',
+        title: row.title,
+        targetPath: path,
+        message: comment,
+        prompt: `The user sent back the entity ${path} ("${row.title}") from the attention feed with this comment:\n\n${comment}\n\nAct on the comment. It decides what happens to the entity: change it, split it, replace it, add entities alongside it, or retire it.`,
+      });
     });
-    await this.timeline.record(reactionEvent(workspace, row, 'sent_back', { detail: comment, runId, timeSpentMs }));
+    await this.timeline.record(reactionEvent(workspace, row, 'sent_back', { detail: comment, runId, timeSpentMs, states }));
     return runId;
   }
 
@@ -184,29 +190,31 @@ export class Approval {
     if (open?.repeated) return open.id;
     await this.unchanged(ws, path, version);
 
-    await ws.index.recordReaction(path, row.type, option ? 'approved' : 'sent_back', timeSpentMs);
-    await ws.index.leaveFeed(path);
-    this.bus.emit('feed_changed');
-    if (open) await this.runner.send(open.id, resolution);
-    const runId = open?.id ?? await this.runner.create({
-      workspace,
-      automation: 'chat',
-      trigger: 'on_demand',
-      title: row.title,
-      targetPath: path,
-      message: resolution,
-      prompt: [
-        `The user resolved the issue ${path} ("${row.title}") from the attention feed with ${option ? 'this option' : 'their own resolution'}:`,
-        '',
-        resolution,
-        '',
-        'Apply it to the entities the issue concerns:',
-        ...concerns,
-        '',
-        'Then retire the issue: delete its entity file.',
-      ].join('\n'),
+    const [runId, states] = await measured(ws.index, async () => {
+      await ws.index.recordReaction(path, row.type, option ? 'approved' : 'sent_back', timeSpentMs);
+      await ws.index.leaveFeed(path);
+      this.bus.emit('feed_changed');
+      if (open) await this.runner.send(open.id, resolution);
+      return open?.id ?? await this.runner.create({
+        workspace,
+        automation: 'chat',
+        trigger: 'on_demand',
+        title: row.title,
+        targetPath: path,
+        message: resolution,
+        prompt: [
+          `The user resolved the issue ${path} ("${row.title}") from the attention feed with ${option ? 'this option' : 'their own resolution'}:`,
+          '',
+          resolution,
+          '',
+          'Apply it to the entities the issue concerns:',
+          ...concerns,
+          '',
+          'Then retire the issue: delete its entity file.',
+        ].join('\n'),
+      });
     });
-    await this.timeline.record(reactionEvent(workspace, row, 'resolved', { detail: resolution, runId, timeSpentMs }));
+    await this.timeline.record(reactionEvent(workspace, row, 'resolved', { detail: resolution, runId, timeSpentMs, states }));
     return runId;
   }
 
@@ -227,10 +235,12 @@ export class Approval {
     entity.frontmatter.verification = 'verified';
     entity.frontmatter.wont_resolve = reason;
 
-    await this.commit(ws, [{ path: fileOf(path), content: serializeEntity(entity) }], `Won't resolve ${entity.title}\n\n${reason}`);
-    await ws.index.recordReaction(path, row.type, 'rejected', timeSpentMs);
-    await this.timeline.record(reactionEvent(workspace, row, 'wont_resolve', { detail: reason, timeSpentMs }));
-    await this.guard.indexMainLine(ws);
+    const [, states] = await measured(ws.index, async () => {
+      await this.commit(ws, [{ path: fileOf(path), content: serializeEntity(entity) }], `Won't resolve ${entity.title}\n\n${reason}`);
+      await ws.index.recordReaction(path, row.type, 'rejected', timeSpentMs);
+      await this.guard.indexMainLine(ws);
+    });
+    await this.timeline.record(reactionEvent(workspace, row, 'wont_resolve', { detail: reason, timeSpentMs, states }));
     this.bus.emit('feed_changed');
   }
 }

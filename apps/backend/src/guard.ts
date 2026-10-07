@@ -25,6 +25,7 @@ import { dirname, join, posix, relative } from 'node:path';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { HarnessSettings } from './harness.ts';
+import { addStates, stateCounts } from './timeline.ts';
 import type { Workspace, Workspaces } from './workspaces.ts';
 
 interface Handoff {
@@ -379,6 +380,7 @@ export class Guard {
    */
   async transaction(run: RunRef): Promise<TransactionResult> {
     const ws = await this.workspaces.get(run.workspace);
+    const before = await stateCounts(ws.index);
     const refused = await this.confine(ws, run);
     const { written, deleted, issues: found } = await this.check(run);
     const issues = [...refused, ...found];
@@ -418,6 +420,7 @@ export class Guard {
       conflicts: landed?.conflicts ?? [],
     })}`;
     await this.recordMetrics(ws);
+    const states = addStates(await stateCounts(ws.index), before, -1);
     this.bus.emit('transaction', {
       workspace: ws.name,
       runId: run.id,
@@ -429,6 +432,7 @@ export class Guard {
       valid,
       issues: issues.length,
       conflicts: landed?.conflicts ?? [],
+      states,
     });
     return { valid, paths, issues, conflicts: landed?.conflicts ?? [], commit: landed?.commit ?? null };
   }

@@ -2,7 +2,7 @@ import { migrateHarness, migrateWorkspace, type Sql } from '@momentum/kb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { scratchDatabase } from '../../../packages/kb/test/database.ts';
 import { createBus } from '../src/events.ts';
-import { describeRun, reactionEvent, runEvent, Timeline } from '../src/timeline.ts';
+import { addStates, describeRun, reactionEvent, runEvent, Timeline } from '../src/timeline.ts';
 
 // A database of its own: the timeline is harness-wide, so the live one is never touched
 let db: Awaited<ReturnType<typeof scratchDatabase>>;
@@ -50,10 +50,10 @@ describe('timeline', () => {
     timeline.listen(bus);
     const run = { id: 'g1', automation: 'graph-build', title: 'Knowledge graph', trigger: 'event' as const, model: 'sonnet' };
     await timeline.record({ actor: 'user', kind: 'signed_in', title: 'Signed in' });
-    const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, conflicts: [], removed: [] };
+    const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, conflicts: [], removed: [], states: {} };
     // Landing and ending one right after the other, as a run does: neither is lost
-    bus.emit('transaction', { ...base, runId: 'g1', commit: 'def', paths: ['Architecture/Api/a', 'Architecture/Api/b'], issues: 1 });
-    await timeline.run(runEvent('shop', run, 'run_finished', { facts: { status: 'finished', durationMs: 5000 } }));
+    bus.emit('transaction', { ...base, runId: 'g1', commit: 'def', paths: ['Architecture/Api/a', 'Architecture/Api/b'], issues: 1, states: { unverified: 2, artifact_ahead: 2, updating: -2 } });
+    await timeline.run(runEvent('shop', run, 'run_finished', { facts: { status: 'finished', durationMs: 5000, states: { updating: -1, synced: 1 } } }));
 
     const { events } = await timeline.list({ workspace: 'shop', limit: 100 });
     expect(events.filter((e) => e.runId === 'g1')).toHaveLength(1);
@@ -62,7 +62,9 @@ describe('timeline', () => {
       kind: 'run_finished',
       title: 'Map the API · 1 issue',
       detail: 'Map the API\n\n- Books API',
-      facts: { trigger: 'event', model: 'sonnet', status: 'finished', durationMs: 5000, commit: 'def', issues: 1, paths: ['Architecture/Api/a', 'Architecture/Api/b'] },
+      facts: { trigger: 'event', model: 'sonnet', status: 'finished', durationMs: 5000, commit: 'def', issues: 1, paths: ['Architecture/Api/a', 'Architecture/Api/b'],
+        // What landing and ending did to the counts, summed
+        states: { unverified: 2, artifact_ahead: 2, updating: -3, synced: 1 } },
     });
   });
 
@@ -78,7 +80,7 @@ describe('timeline', () => {
   it('gives a chat an event only for what it lands, and skips a run that changed nothing', async () => {
     const bus = createBus();
     timeline.listen(bus);
-    const base = { workspace: 'shop', automation: 'chat', message: 'Rename the goal', valid: true, issues: 0, conflicts: [], removed: [] };
+    const base = { workspace: 'shop', automation: 'chat', message: 'Rename the goal', valid: true, issues: 0, conflicts: [], removed: [], states: {} };
     bus.emit('transaction', { ...base, runId: 'c0', commit: null, paths: [] });
     bus.emit('transaction', { ...base, runId: 'c3', commit: 'fed', paths: ['Product/Goal/a'] });
     await new Promise((r) => setTimeout(r, 200));
@@ -87,6 +89,14 @@ describe('timeline', () => {
     expect(events[0]).toMatchObject({ runId: 'c3', kind: 'changes_landed', title: 'Rename the goal' });
   });
 
+});
+
+describe('state moves', () => {
+  it('sum, subtract and keep only the states that moved', () => {
+    expect(addStates({ unverified: 1, verified: 3 }, { unverified: 1, verified: 2 }, -1)).toEqual({ verified: 1 });
+    expect(addStates(undefined, { synced: 2 })).toEqual({ synced: 2 });
+    expect(addStates({ updating: 1 }, { updating: -1 })).toEqual({});
+  });
 });
 
 describe('run titles', () => {

@@ -1,4 +1,6 @@
 import type {
+  EntityState,
+  EntityStates,
   Risk,
   RunStatus,
   RunTrigger,
@@ -41,6 +43,38 @@ interface Row {
   path: string | null;
   facts: TimelineFacts;
 }
+
+/** How many entities of a workspace stand in each state, as the feed counts them */
+export async function stateCounts(index: { sql: Sql; schema: string }): Promise<EntityStates> {
+  const rows = await index.sql.unsafe<{ verification: EntityState; sync: EntityState; n: number }[]>(
+    `select verification, sync, count(*)::int as n from ${index.schema}.entity group by verification, sync`,
+  );
+  const counts: EntityStates = {};
+  for (const r of rows) for (const s of [r.verification, r.sync]) counts[s] = (counts[s] ?? 0) + r.n;
+  return counts;
+}
+
+/** The sum of state moves, or of counts taken with a sign: only the states that moved */
+export function addStates(a: EntityStates | undefined, b: EntityStates | undefined, sign: 1 | -1 = 1): EntityStates {
+  const out: EntityStates = { ...a };
+  for (const [s, n] of Object.entries(b ?? {}) as [EntityState, number][]) out[s] = (out[s] ?? 0) + sign * n;
+  for (const s of Object.keys(out) as EntityState[]) if (!out[s]) delete out[s];
+  return out;
+}
+
+/** An action and what it did to the counts of a workspace's entities by state */
+export async function measured<T>(index: { sql: Sql; schema: string }, fn: () => Promise<T>): Promise<[T, EntityStates]> {
+  const before = await stateCounts(index);
+  const value = await fn();
+  return [value, addStates(await stateCounts(index), before, -1)];
+}
+
+/** Facts with the state moves of one more change summed in */
+const withStates = (facts: TimelineFacts, more: EntityStates | undefined): TimelineFacts => {
+  const { states: _, ...rest } = facts;
+  const states = addStates(facts.states, more);
+  return Object.keys(states).length ? { ...rest, states } : rest;
+};
 
 /** "consistency-check" → "Consistency check" */
 export function automationLabel(a: string): string {
@@ -130,7 +164,7 @@ export function reactionEvent(
   workspace: string,
   item: { path: string; type: string; title: string },
   reaction: 'approved' | 'sent_back' | 'resolved' | 'wont_resolve',
-  extra: { detail?: string | null; runId?: string | null; timeSpentMs?: number; at?: Date } = {},
+  extra: { detail?: string | null; runId?: string | null; timeSpentMs?: number; states?: EntityStates; at?: Date } = {},
 ): NewEvent {
   const verb = { approved: 'Approved', sent_back: 'Sent back', resolved: 'Resolved', wont_resolve: "Won't resolve" }[reaction];
   return {
@@ -142,7 +176,7 @@ export function reactionEvent(
     runId: extra.runId ?? null,
     automation: extra.runId ? 'chat' : null,
     path: item.path,
-    facts: extra.timeSpentMs ? { timeSpentMs: extra.timeSpentMs } : {},
+    facts: withStates(extra.timeSpentMs ? { timeSpentMs: extra.timeSpentMs } : {}, extra.states),
     at: extra.at,
   };
 }
@@ -157,6 +191,8 @@ interface Landed {
   removed?: { path: string; title: string }[];
   issues: number;
   conflicts: string[];
+  /** What landing did to the counts of entities by state */
+  states?: EntityStates;
   at?: Date;
 }
 
@@ -208,7 +244,7 @@ export class Timeline {
   /** The event of a run, as it came out: the first adds it, every later one replaces it and moves it to now */
   run(e: RunEvent): Promise<void> {
     return this.update(e.runId, (old) => {
-      const facts = { ...old?.facts, ...e.facts };
+      const facts = withStates({ ...old?.facts, ...e.facts, states: old?.facts.states }, e.facts?.states);
       const detail = e.detail ?? old?.detail ?? null;
       return { ...e, path: e.path ?? old?.path ?? null, facts, detail, title: describeRun(e.automation!, e.kind, facts, detail) };
     });
@@ -220,7 +256,7 @@ export class Timeline {
    */
   private landed(l: Landed): Promise<void> {
     return this.update(l.runId, (old) => {
-      const facts = { ...old?.facts, ...landedFacts(l) };
+      const facts = withStates({ ...old?.facts, ...landedFacts(l) }, l.states);
       const kind = old?.kind ?? 'changes_landed';
       const detail = old?.detail ?? l.message;
       return {

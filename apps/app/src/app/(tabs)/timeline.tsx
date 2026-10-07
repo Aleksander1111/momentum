@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import type { ActiveRun, AutomationName, TimelineActor, TimelineEvent } from '@momentum/contract';
+import type { ActiveRun, AutomationName, EntityState, TimelineActor, TimelineEvent } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { embedded } from '../../lib/embed';
 import { automationLabel, durationMs, usagePct } from '../../lib/format';
@@ -13,6 +13,7 @@ import { T } from '../../ui/Text';
 import { Icon, type PATHS } from '../../ui/icons';
 import { EntityRefs, useOpenEntity } from '../../ui/EntityRef';
 import { ProjectLogo, ProjectName } from '../../ui/ProjectLogo';
+import { STATE_LABEL, StateIcon, Tip } from '../../ui/StateBadge';
 import { useCornerRoom } from '../../ui/SettingsButton';
 import { Btn, List, Pick, Row, Sect, Segmented } from '../../ui/parts';
 
@@ -115,19 +116,25 @@ function glyph(e: TimelineEvent): keyof typeof PATHS {
   return 'timeline';
 }
 
-function facts(e: TimelineEvent): string[] {
-  const f = e.facts;
-  // The title says what a run did and the issues it raised; here, how many entities it touched
-  return [
-    f.paths?.length ? `${f.paths.length} ${f.paths.length === 1 ? 'entity' : 'entities'}` : null,
-    f.removed?.length ? `${f.removed.length} removed` : null,
-    f.durationMs !== undefined ? took(f.durationMs) : null,
-    f.usage?.fiveHour ? `${usagePct(f.usage.fiveHour)} of 5 h` : null,
-    f.model ?? null,
-    f.risk ? `${f.risk} risk` : null,
-    f.timeSpentMs ? `after ${took(f.timeSpentMs)}` : null,
-    f.commit ? f.commit.slice(0, 7) : null,
-  ].filter((x): x is string => x !== null);
+/** The feed's counters in their order */
+const STATES: EntityState[] = ['unverified', 'verified', 'synced', 'entity_ahead', 'artifact_ahead', 'updating'];
+
+/** What the event did to the feed's counts of entities by state: each state that moved, by how much */
+function Moves({ e }: { e: TimelineEvent }) {
+  const moved = STATES.flatMap((s) => (e.facts.states?.[s] ? [[s, e.facts.states[s]!] as const] : []));
+  if (moved.length === 0) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+      {moved.map(([s, n]) => (
+        <Tip key={s} text={`${n > 0 ? '+' : '−'}${Math.abs(n)} ${STATE_LABEL[s].toLowerCase()}`} side="left">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <StateIcon state={s} size={14} />
+            <T style={{ color: C.muted, fontSize: 12, fontWeight: '700' }}>{`${n > 0 ? '+' : '−'}${Math.abs(n)}`}</T>
+          </View>
+        </Tip>
+      ))}
+    </View>
+  );
 }
 
 const STARTED_BY: Record<string, string> = { schedule: 'Schedule', event: 'An event', on_demand: 'You' };
@@ -230,9 +237,6 @@ function Event({ e, first, showProject }: { e: TimelineEvent; first: boolean; sh
   const [open, setOpen] = useState(false);
   const at = new Date(e.at);
   const project = showProject ? e.workspace : null;
-  // The user's own events go without a name: everything not marked otherwise is theirs
-  const by = e.actor === 'user' ? null : who(e);
-  const after = [by, facts(e).join(' · ')].filter(Boolean).join(' · ');
   const fresh = Date.now() - at.getTime() < FRESH_MS;
   return (
     <Row
@@ -245,14 +249,13 @@ function Event({ e, first, showProject }: { e: TimelineEvent; first: boolean; sh
         <Icon name={glyph(e)} size={17} color={tone(e)} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        {open ? (
-          <T style={{ fontSize: 14, fontWeight: '700' }}>{headline(e)}</T>
-        ) : (
-          <T numberOfLines={1} style={{ fontSize: 14 }}>
+        {/* The title and what the event did to the entities by state; everything else is in the details */}
+        <View style={{ flexDirection: 'row', alignItems: open ? 'flex-start' : 'center', gap: 10 }}>
+          <T numberOfLines={open ? undefined : 1} style={{ fontSize: 14, fontWeight: open ? '700' : '400', flexShrink: 1 }}>
             {headline(e)}
-            {after ? <T style={{ color: C.muted, fontSize: 12.5 }}>{`  ${after}`}</T> : null}
           </T>
-        )}
+          <Moves e={e} />
+        </View>
         {open ? <Details e={e} /> : null}
       </View>
       {/* The project's logo alone, on the right edge; its name is in the details */}
