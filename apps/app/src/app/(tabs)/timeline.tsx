@@ -343,6 +343,8 @@ export default function Timeline() {
     refetchInterval: 4_000,
   });
   const activeRuns = active.data?.runs ?? [];
+  const runningCount = activeRuns.filter((r) => r.status === 'running').length;
+  const queuedCount = activeRuns.length - runningCount;
 
   const filter = { workspace: workspace ?? undefined, actor: actor === 'all' ? undefined : actor };
   // The newest page alone is polled: what happens shows at once, and a run's event changes in place as it lands and ends
@@ -389,12 +391,19 @@ export default function Timeline() {
           onChange={(v) => setWorkspace(v === ALL ? null : v)}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {underWay ? null : <Segmented value={actor} options={ACTORS} onChange={setActor} />}
-          <Btn
-            kind="ghost"
-            small
-            label={underWay ? 'Timeline' : `Queued & running · ${activeRuns.length}`}
-            onPress={() => setUnderWay((u) => !u)}
+          {/* One choice across both: an actor shows the timeline, the other pill what is under way */}
+          <Segmented
+            value={underWay ? ('' as ActorFilter) : actor}
+            options={ACTORS}
+            onChange={(a) => {
+              setActor(a);
+              setUnderWay(false);
+            }}
+          />
+          <Segmented
+            value={underWay ? 'under_way' : ''}
+            options={[{ value: 'under_way', label: `Queued ${queuedCount}, Running ${runningCount}` }]}
+            onChange={() => setUnderWay((u) => !u)}
           />
         </View>
       </View>
