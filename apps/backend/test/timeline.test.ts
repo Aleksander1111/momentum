@@ -45,15 +45,11 @@ describe('timeline', () => {
     expect([...first.events, ...second.events].map((e) => e.id)).toEqual(all.events.map((e) => e.id));
   });
 
-  it('keeps one event per run: queued, running, landed and ended, saying what it did', async () => {
+  it('keeps one event per run, for what came of it: landed and ended, saying what it did and how it ran', async () => {
     const bus = createBus();
     timeline.listen(bus);
-    const run = { id: 'g1', automation: 'graph-build', title: 'Knowledge graph' };
-    await timeline.run(runEvent('shop', run, 'run_queued', { facts: { trigger: 'event' } }));
-    expect((await timeline.list({ limit: 1 })).events[0]!.title).toBe('Queued by an event: Knowledge graph');
+    const run = { id: 'g1', automation: 'graph-build', title: 'Knowledge graph', trigger: 'event' as const, model: 'sonnet' };
     await timeline.record({ actor: 'user', kind: 'signed_in', title: 'Signed in' });
-    await timeline.run(runEvent('shop', run, 'run_started', { facts: { model: 'sonnet' } }));
-    expect((await timeline.list({ limit: 1 })).events[0]!.title).toBe('Running: Knowledge graph');
     const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, conflicts: [], removed: [] };
     // Landing and ending one right after the other, as a run does: neither is lost
     bus.emit('transaction', { ...base, runId: 'g1', commit: 'def', paths: ['Architecture/Api/a', 'Architecture/Api/b'], issues: 1 });
@@ -68,6 +64,15 @@ describe('timeline', () => {
       detail: 'Map the API\n\n- Books API',
       facts: { trigger: 'event', model: 'sonnet', status: 'finished', durationMs: 5000, commit: 'def', issues: 1, paths: ['Architecture/Api/a', 'Architecture/Api/b'] },
     });
+  });
+
+  it('drops the events of runs waiting or running, which the timeline no longer shows', async () => {
+    for (const kind of ['run_queued', 'run_requeued', 'run_started', 'run_resumed']) {
+      await sql`insert into harness.timeline_event (actor, kind, title, run_id, automation) values ('automation', ${kind}, 'Running', ${`old-${kind}`}, 'exploration')`;
+    }
+    await timeline.migrate();
+    const left = await sql`select 1 from harness.timeline_event where run_id like 'old-%'`;
+    expect(left).toHaveLength(0);
   });
 
   it('gives a chat an event only for what it lands, and skips a run that changed nothing', async () => {
@@ -86,9 +91,6 @@ describe('timeline', () => {
 
 describe('run titles', () => {
   it('say what a run did, why it failed or where it stands', () => {
-    expect(runEvent('shop', { id: 'x', automation: 'summarization', title: 'Main line changes (2)' }, 'run_queued', { facts: { trigger: 'event' } }).title).toBe(
-      'Queued by an event: Main line changes (2)',
-    );
     expect(describeRun('exploration', 'run_finished', {}, null)).toBe('No changes');
     expect(describeRun('summarization', 'run_finished', { paths: ['a', 'b'] }, null)).toBe('Updated 2 entities');
     expect(describeRun('implementation', 'run_failed', {}, 'Tests failed\nat step 3')).toBe('Failed: Tests failed');

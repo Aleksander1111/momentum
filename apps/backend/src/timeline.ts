@@ -1,4 +1,5 @@
 import type {
+  Risk,
   RunStatus,
   RunTrigger,
   TimelineActor,
@@ -55,9 +56,6 @@ export const conversational = (automation: string) => automation === 'chat' || a
 
 const RUN_KIND: Record<'finished' | 'failed' | 'killed', TimelineKind> = { finished: 'run_finished', failed: 'run_failed', killed: 'run_killed' };
 
-/** Why a run was queued, for its event */
-export const TRIGGER_LABEL: Record<RunTrigger, string> = { schedule: 'on schedule', event: 'by an event', on_demand: 'by you' };
-
 const firstLine = (s: string | null | undefined) => s?.split('\n').find((l) => l.trim())?.trim() ?? null;
 
 /** Commits from before runs described their work said only which run made them: nothing worth showing */
@@ -67,23 +65,13 @@ const subjectOf = (message: string | null | undefined) => {
   return line && !PLACEHOLDER.test(line) ? line : null;
 };
 
-/**
- * What a run did, in one line: what it landed (the subject of its commit) once it landed something, why it failed, or
- * where it stands while it waits or runs
- */
+/** What a run did, in one line: what it landed (the subject of its commit) once it landed something, or why it failed */
 export function describeRun(automation: string, kind: TimelineKind, facts: TimelineFacts, detail: string | null): string {
   // The automation is shown beside the title and the icon says what happened: the title is what the run did
   const own = facts.runTitle ? `: ${facts.runTitle}` : '';
   const counts = [facts.issues ? plural(facts.issues, 'issue') : '', facts.conflicts?.length ? plural(facts.conflicts.length, 'conflict') : ''].filter(Boolean);
   const did = facts.subject ? `${facts.subject}${counts.length ? ` · ${counts.join(', ')}` : ''}` : null;
   switch (kind) {
-    case 'run_queued':
-      return `Queued${facts.trigger ? ` ${TRIGGER_LABEL[facts.trigger]}` : ''}${own}`;
-    case 'run_requeued':
-      return `Queued again after a restart${own}`;
-    case 'run_started':
-    case 'run_resumed':
-      return `Running${own}`;
     case 'run_failed':
       return `Failed: ${firstLine(detail) ?? 'no reason given'}`;
     case 'run_killed':
@@ -95,15 +83,27 @@ export function describeRun(automation: string, kind: TimelineKind, facts: Timel
   return facts.runTitle ?? automationLabel(automation);
 }
 
-/** A run as it stands; its title says what it did */
+/** A run as it came out; its title says what it did, and its facts how it ran */
 export function runEvent(
   workspace: string,
-  run: { id: string; automation: string; title?: string; targetPath?: string | null; target_path?: string | null },
+  run: {
+    id: string;
+    automation: string;
+    title?: string;
+    targetPath?: string | null;
+    target_path?: string | null;
+    trigger?: RunTrigger;
+    model?: string | null;
+    risk?: Risk | null;
+  },
   kind: TimelineKind,
   extra: { detail?: string | null; facts?: TimelineFacts; at?: Date; byUser?: boolean } = {},
 ): RunEvent {
   const facts: TimelineFacts = {
     ...(run.title ? { runTitle: run.title } : {}),
+    ...(run.trigger ? { trigger: run.trigger } : {}),
+    ...(run.model ? { model: run.model } : {}),
+    ...(run.risk ? { risk: run.risk } : {}),
     ...(extra.byUser ? { byUser: true } : {}),
     ...extra.facts,
   };
@@ -172,9 +172,9 @@ const landedFacts = (l: Pick<Landed, 'paths' | 'removed' | 'issues' | 'conflicts
 
 
 /**
- * Everything that happened in the harness: one event per thing the user did, and one per automation run, kept up to date
- * as the run is queued, runs, lands its changes and ends, and moved to the time of its latest change. Kept across
- * project resets, so the history of a project outlives its index.
+ * Everything that happened in the harness: one event per thing the user did, and one per automation run for what came
+ * of it, added once the run lands its changes or ends and moved to the time of its latest change. Kept across project
+ * resets, so the history of a project outlives its index.
  */
 export class Timeline {
   constructor(private readonly sql: Sql) {}
@@ -196,6 +196,8 @@ export class Timeline {
     await this.sql`create index if not exists timeline_event_at on harness.timeline_event (at desc, id desc)`;
     await this.sql`create index if not exists timeline_event_workspace on harness.timeline_event (workspace, at desc, id desc)`;
     await this.sql`create unique index if not exists timeline_event_run on harness.timeline_event (run_id) where actor = 'automation'`;
+    // Runs were once shown while they waited and ran; only what came of them is shown now
+    await this.sql`delete from harness.timeline_event where kind in ('run_queued', 'run_requeued', 'run_started', 'run_resumed')`;
   }
 
   /** Recording never fails the action it records: a lost event is logged */
@@ -203,7 +205,7 @@ export class Timeline {
     await this.insert([e]).catch((err) => console.error(`timeline ${e.kind}:`, err));
   }
 
-  /** The event of a run, as it now stands: its first state adds it, every later one replaces it and moves it to now */
+  /** The event of a run, as it came out: the first adds it, every later one replaces it and moves it to now */
   run(e: RunEvent): Promise<void> {
     return this.update(e.runId, (old) => {
       const facts = { ...old?.facts, ...e.facts };

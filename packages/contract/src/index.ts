@@ -708,11 +708,7 @@ export const TimelineKind = z.enum([
   'project_reset',
   'logo_changed',
   'settings_changed',
-  // Automation runs
-  'run_queued',
-  'run_started',
-  'run_resumed',
-  'run_requeued',
+  // Automation runs, by what came of them
   'run_finished',
   'run_failed',
   'run_killed',
@@ -786,6 +782,30 @@ export const TimelineResponse = z.object({
   next: z.number().int().nullable(),
 });
 export type TimelineResponse = z.infer<typeof TimelineResponse>;
+
+/** An automation run that has not ended: waiting for a place, or running. The timeline shows runs once they end */
+export const ActiveRun = z.object({
+  id: z.string(),
+  workspace: z.string(),
+  automation: AutomationName,
+  title: z.string(),
+  status: z.enum(['queued', 'running']),
+  trigger: RunTrigger,
+  targetPath: z.string().nullable(),
+  model: z.string().nullable(),
+  risk: Risk.nullable(),
+  queuedAt: z.string(),
+  startedAt: z.string().nullable(),
+  usage: Usage,
+});
+export type ActiveRun = z.infer<typeof ActiveRun>;
+
+export const ActiveRunsQuery = z.object({ workspace: z.string().optional() });
+export type ActiveRunsQuery = z.infer<typeof ActiveRunsQuery>;
+
+/** Running runs first, longest running first; then queued ones in the order they start */
+export const ActiveRunsResponse = z.object({ runs: z.array(ActiveRun) });
+export type ActiveRunsResponse = z.infer<typeof ActiveRunsResponse>;
 
 // Session
 

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import type { AutomationName, TimelineActor, TimelineEvent } from '@momentum/contract';
+import type { ActiveRun, AutomationName, TimelineActor, TimelineEvent } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { embedded } from '../../lib/embed';
 import { automationLabel, durationMs, usagePct } from '../../lib/format';
+import { openRun } from '../../lib/runs';
 import { useWorkspaces } from '../../lib/workspace';
 import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
@@ -94,8 +95,6 @@ function glyph(e: TimelineEvent): keyof typeof PATHS {
     case 'interview_started':
       return 'mic';
     case 'graph_build_started':
-    case 'run_started':
-    case 'run_resumed':
       return 'play';
     case 'graph_build_stopped':
     case 'run_killed':
@@ -108,9 +107,6 @@ function glyph(e: TimelineEvent): keyof typeof PATHS {
     case 'logo_changed':
     case 'settings_changed':
       return 'settings';
-    case 'run_queued':
-    case 'run_requeued':
-      return 'clock';
     case 'run_finished':
       return e.facts.commit || e.facts.paths?.length ? 'commit' : 'check';
     case 'changes_landed':
@@ -265,7 +261,70 @@ function Event({ e, first, showProject }: { e: TimelineEvent; first: boolean; sh
   );
 }
 
-/** Everything that happened, newest first and by day: what the user did, every automation run, what the harness did */
+const QUEUED_BY: Record<ActiveRun['trigger'], string> = { schedule: 'on schedule', event: 'started by an event', on_demand: 'started by you' };
+
+/** A run that has not ended: what it is, how long it has waited or run, and why it was queued */
+function Pending({ r, first, showProject }: { r: ActiveRun; first: boolean; showProject: boolean }) {
+  const wide = useWide();
+  const running = r.status === 'running';
+  const since = Date.now() - new Date(running ? (r.startedAt ?? r.queuedAt) : r.queuedAt).getTime();
+  const name = automationLabel(r.automation);
+  const title = r.title || name;
+  const after = [
+    title === name ? null : name,
+    running ? `running for ${took(since)}` : `waiting for ${took(since)}`,
+    QUEUED_BY[r.trigger],
+    r.usage.fiveHour ? `${usagePct(r.usage.fiveHour)} of 5 h` : null,
+    r.model,
+    r.risk ? `${r.risk} risk` : null,
+  ].filter(Boolean);
+  return (
+    <Row
+      first={first}
+      onPress={embedded ? undefined : () => openRun(r.id, wide)}
+      style={{ alignItems: 'flex-start', paddingVertical: 7, borderTopWidth: 0 }}
+    >
+      <View style={{ marginTop: 1 }}>
+        <Icon name={running ? 'play' : 'clock'} size={17} color={C.stateArtifactAhead} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T numberOfLines={1} style={{ fontSize: 14 }}>
+          {title}
+          <T style={{ color: C.muted, fontSize: 12.5 }}>{`  ${after.join(' · ')}`}</T>
+        </T>
+      </View>
+      {showProject ? <ProjectLogo name={r.workspace} size={16} style={{ marginTop: 1 }} /> : null}
+    </Row>
+  );
+}
+
+/** Automation runs queued and running, which the timeline shows only once something comes of them */
+function UnderWay({ runs, showProject }: { runs: ActiveRun[]; showProject: boolean }) {
+  const running = runs.filter((r) => r.status === 'running');
+  const queued = runs.filter((r) => r.status === 'queued');
+  if (runs.length === 0) return <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 32 }}>Nothing is queued or running</T>;
+  return (
+    <>
+      {[
+        { label: 'Running', runs: running },
+        { label: 'Queued', runs: queued },
+      ]
+        .filter((s) => s.runs.length)
+        .map((s, i) => (
+          <View key={s.label}>
+            <Sect first={i === 0}>{s.label}</Sect>
+            <List style={{ paddingVertical: 4 }}>
+              {s.runs.map((r, k) => (
+                <Pending key={r.id} r={r} first={k === 0} showProject={showProject} />
+              ))}
+            </List>
+          </View>
+        ))}
+    </>
+  );
+}
+
+/** Everything that happened, newest first and by day: what the user did, what came of every automation run, what the harness did */
 export default function Timeline() {
   useTheme();
   const wide = useWide();
@@ -273,9 +332,17 @@ export default function Timeline() {
   const { data: workspaces } = useWorkspaces();
   const [workspace, setWorkspace] = useState<string | null>(null);
   const [actor, setActor] = useState<ActorFilter>('all');
+  // What is queued and running sits beside the timeline, a press away; its count shows on the way there
+  const [underWay, setUnderWay] = useState(false);
+  const active = useQuery({
+    queryKey: ['runs', 'active', workspace],
+    queryFn: () => api.activeRuns(workspace ?? undefined),
+    refetchInterval: 4_000,
+  });
+  const activeRuns = active.data?.runs ?? [];
 
   const filter = { workspace: workspace ?? undefined, actor: actor === 'all' ? undefined : actor };
-  // The newest page alone is polled: what happens shows at once, and the event of a run under way changes in place
+  // The newest page alone is polled: what happens shows at once, and a run's event changes in place as it lands and ends
   const newest = useQuery({
     queryKey: ['timeline', workspace, actor],
     queryFn: () => api.timeline({ ...filter, limit: PAGE }),
@@ -318,9 +385,18 @@ export default function Timeline() {
           icon={(o, size) => (o === ALL ? null : <ProjectLogo name={o} size={size} />)}
           onChange={(v) => setWorkspace(v === ALL ? null : v)}
         />
-        <Segmented value={actor} options={ACTORS} onChange={setActor} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {underWay ? null : <Segmented value={actor} options={ACTORS} onChange={setActor} />}
+          <Btn
+            kind="ghost"
+            small
+            label={underWay ? 'Timeline' : `Queued & running · ${activeRuns.length}`}
+            onPress={() => setUnderWay((u) => !u)}
+          />
+        </View>
       </View>
-      {days.map((d, i) => (
+      {underWay ? (active.isSuccess ? <UnderWay runs={activeRuns} showProject={workspace === null} /> : null) : null}
+      {underWay ? null : days.map((d, i) => (
         <View key={d.label}>
           <Sect first={i === 0}>{d.label}</Sect>
           <List style={{ paddingVertical: 4 }}>
@@ -330,10 +406,10 @@ export default function Timeline() {
           </List>
         </View>
       ))}
-      {newest.isSuccess && events.length === 0 ? (
+      {!underWay && newest.isSuccess && events.length === 0 ? (
         <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 32 }}>Nothing has happened yet</T>
       ) : null}
-      {more ? (
+      {!underWay && more ? (
         <Btn
           kind="ghost"
           small

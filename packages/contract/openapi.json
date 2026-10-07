@@ -3640,6 +3640,221 @@
         }
       }
     },
+    "/runs": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "workspace",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "workspace": {
+                            "type": "string"
+                          },
+                          "automation": {
+                            "type": "string",
+                            "enum": [
+                              "exploration",
+                              "preparation",
+                              "consistency-check",
+                              "retention",
+                              "implementation",
+                              "validation",
+                              "optimization",
+                              "summarization",
+                              "chat",
+                              "graph-build",
+                              "interview",
+                              "search"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "running"
+                            ]
+                          },
+                          "trigger": {
+                            "type": "string",
+                            "enum": [
+                              "schedule",
+                              "event",
+                              "on_demand"
+                            ]
+                          },
+                          "targetPath": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "model": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "risk": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high",
+                              null
+                            ]
+                          },
+                          "queuedAt": {
+                            "type": "string"
+                          },
+                          "startedAt": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "usage": {
+                            "type": "object",
+                            "properties": {
+                              "fiveHour": {
+                                "nullable": true,
+                                "type": "number"
+                              },
+                              "week": {
+                                "nullable": true,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "fiveHour",
+                              "week"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "workspace",
+                          "automation",
+                          "title",
+                          "status",
+                          "trigger",
+                          "targetPath",
+                          "model",
+                          "risk",
+                          "queuedAt",
+                          "startedAt",
+                          "usage"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "runs"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/runs/{id}": {
       "get": {
         "parameters": [
@@ -6755,10 +6970,6 @@
                               "project_reset",
                               "logo_changed",
                               "settings_changed",
-                              "run_queued",
-                              "run_started",
-                              "run_resumed",
-                              "run_requeued",
                               "run_finished",
                               "run_failed",
                               "run_killed",

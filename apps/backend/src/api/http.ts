@@ -3,6 +3,8 @@ import fastifyStatic from '@fastify/static';
 import fastifySwagger from '@fastify/swagger';
 import fastifyWebsocket from '@fastify/websocket';
 import {
+  ActiveRunsQuery,
+  ActiveRunsResponse,
   ApproveRequest,
   AskRequest,
   AskResponse,
@@ -221,6 +223,10 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     '/workspaces/:ws/chats',
     { schema: { params: ws, body: CreateChatRequest, response: { 200: z.object({ runId: z.string() }), ...errors } } },
     (req) => momentum.createChat(req.params.ws, req.body.text, req.body.targetPath, req.body.context),
+  );
+
+  app.get('/runs', { schema: { querystring: ActiveRunsQuery, response: { 200: ActiveRunsResponse, ...errors } } }, (req) =>
+    momentum.activeRuns(req.query),
   );
 
   app.get('/runs/:id', { schema: { params: z.object({ id: z.string() }), response: { 200: RunDetail, ...errors } } }, (req) =>

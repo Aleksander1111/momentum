@@ -1,5 +1,5 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
-import type { AutomationName, ContextItem, EntityFrontmatter, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
+import type { ActiveRun, AutomationName, ContextItem, EntityFrontmatter, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
 import { ask, ensureCheckout, head, removeWorktree, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
@@ -239,12 +239,7 @@ export class Runner {
     }
     if (spec.automation === 'interview') await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt);
     for (const path of new Set([spec.targetPath, ...(spec.targets ?? [])])) if (path) await this.guard.markUpdating(ws, path);
-    // A chat's or an interview's turns are the user's messages; their runs are recorded when they land, fail or stop
-    if (!conversational(spec.automation)) {
-      await this.timeline.run(
-        runEvent(ws.name, { id, automation: spec.automation, title: spec.title, targetPath: spec.targetPath }, 'run_queued', { facts: { trigger: spec.trigger } }),
-      );
-    }
+    // A run is on the timeline once something comes of it: it lands, ends, fails or stops
     return id;
   }
 
@@ -257,6 +252,34 @@ export class Runner {
       out.push(...rows.map((r) => ({ workspace: ws.name, ...r })));
     }
     return out;
+  }
+
+  /** Automation runs of the enabled workspaces that have not ended; chats and interviews are the user's conversations */
+  async underWay(workspace?: string): Promise<ActiveRun[]> {
+    const out: ActiveRun[] = [];
+    for (const ws of await this.workspaces.enabled()) {
+      if (workspace && ws.name !== workspace) continue;
+      const rows = await ws.index.sql<RunRow[]>`select * from ${this.t(ws, 'run')}
+        where status in ('queued', 'running') and automation not in ('chat', 'interview') order by created_at`;
+      out.push(
+        ...rows.map((r) => ({
+          id: r.id,
+          workspace: ws.name,
+          automation: r.automation,
+          title: r.title,
+          status: r.status as ActiveRun['status'],
+          trigger: r.trigger,
+          targetPath: r.target_path,
+          model: r.model,
+          risk: r.risk,
+          queuedAt: r.created_at.toISOString(),
+          startedAt: iso(r.started_at),
+          usage: { fiveHour: r.usage_five_hour, week: r.usage_week },
+        })),
+      );
+    }
+    const rank = (a: ActiveRun) => (a.status === 'running' ? a.startedAt ?? a.queuedAt : a.queuedAt);
+    return out.sort((a, b) => (a.status === b.status ? rank(a).localeCompare(rank(b)) : a.status === 'running' ? -1 : 1));
   }
 
   activeCount(workspace?: string): number {
@@ -338,7 +361,6 @@ export class Runner {
         if (this.active.has(r.id)) continue;
         if (!conversational(r.automation) && r.restarts < MAX_RESTARTS && existsSync(r.checkout)) {
           await this.setStatus(ws, r.id, 'queued', { restarts: r.restarts + 1 });
-          await this.timeline.run(runEvent(ws.name, r, 'run_requeued'));
           console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart and is queued again`);
           continue;
         }
@@ -408,13 +430,7 @@ export class Runner {
   private async launch(ws: Workspace, r: RunRow, ref: RunRef, prompt: string, resume: string | null): Promise<void> {
     const definition = await this.automations.definition(ws, r.automation);
     const { cards, lifetimes, models } = await this.settings.values();
-    const { model, risk } = r.model ? { model: r.model, risk: r.risk } : await this.chooseModel(ws, r, models);
-    // A chat's or an interview's turns are the user's messages; their runs are recorded when they fail
-    if (!conversational(r.automation)) {
-      await this.timeline.run(
-        runEvent(ws.name, r, resume ? 'run_resumed' : 'run_started', { facts: { model, trigger: r.trigger, ...(risk ? { risk } : {}) } }),
-      );
-    }
+    const { model } = r.model ? { model: r.model } : await this.chooseModel(ws, r, models);
     const entry: Active = {
       ref,
       ws,
@@ -702,7 +718,6 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
             facts: {
               status,
               usage,
-              ...(r.model ? { model: r.model } : {}),
               ...(r.started_at ? { durationMs: endedAt.getTime() - r.started_at.getTime() } : {}),
             },
           }),

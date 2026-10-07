@@ -86,9 +86,15 @@ function createServer(m: Momentum): McpServer {
   );
   t(
     'timeline',
-    'What happened in the harness, newest first: the user\'s actions, automation runs and what landed. Filter by workspace or actor; page with before.',
+    'What happened in the harness, newest first: the user\'s actions, what came of automation runs and what landed. Filter by workspace or actor; page with before.',
     { workspace: z.string().optional(), actor: TimelineActor.optional(), before: z.number().int().positive().optional(), limit: z.number().int().min(1).max(500).optional() },
     (a) => m.events({ ...a, limit: a.limit ?? 50 }),
+  );
+  t(
+    'active_runs',
+    'Automation runs queued and running, which the timeline shows only once they end: running ones first, then queued ones in the order they start.',
+    { workspace: z.string().optional() },
+    (a) => m.activeRuns(a),
   );
   t('settings', 'Read the harness settings.', {}, () => m.getSettings());
   t('update_settings', 'Change harness settings: enabled projects, feed size, cards, lifetimes, agents, models.', PutSettings.shape, (a) =>

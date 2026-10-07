@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { onlineManager } from '@tanstack/react-query';
 import {
+  ActiveRunsResponse,
   AskResponse,
   ChatsResponse,
   EntityDetail,
@@ -200,6 +201,7 @@ export const api = {
       .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`);
     return get(`/timeline${params.length ? `?${params.join('&')}` : ''}`, TimelineResponse);
   },
+  activeRuns: (workspace?: string) => get(`/runs${workspace ? `?workspace=${encodeURIComponent(workspace)}` : ''}`, ActiveRunsResponse),
   settings: () => get('/settings', Settings),
   async putSettings(req: PutSettings): Promise<Settings> {
     const res = await request('PUT', '/settings', req);

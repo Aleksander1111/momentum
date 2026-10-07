@@ -14,6 +14,8 @@ import type {
   Settings,
   TimelineQuery,
   TimelineResponse,
+  ActiveRunsQuery,
+  ActiveRunsResponse,
   TypesResponse,
   Workspace as WorkspaceView,
 } from '@momentum/contract';
@@ -61,6 +63,11 @@ export class Momentum {
   /** What happened in the harness, newest first */
   events(q: TimelineQuery): Promise<TimelineResponse> {
     return this.timeline.list(q);
+  }
+
+  /** What is queued and running, which the timeline shows only once it ends */
+  async activeRuns(q: ActiveRunsQuery): Promise<ActiveRunsResponse> {
+    return { runs: await this.runner.underWay(q.workspace) };
   }
 
   /** The automation and title of a run, for the events about it */
