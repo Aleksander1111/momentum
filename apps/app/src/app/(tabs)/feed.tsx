@@ -21,7 +21,7 @@ import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { CardView } from '../../ui/CardView';
 import { IssueHead, IssueOptions } from '../../ui/IssueOptions';
-import { Btn } from '../../ui/parts';
+import { Btn, useCloseOnBack } from '../../ui/parts';
 import { STATE_LABEL, StateIcon, Tip, type State } from '../../ui/StateBadge';
 import { useCornerRoom } from '../../ui/SettingsButton';
 import { useWorkspaces } from '../../lib/workspace';
@@ -226,6 +226,7 @@ function Sheet({
   onWontResolve: (reason: string) => void;
 }) {
   const [comment, setComment] = useState('');
+  useCloseOnBack(true, onCancel);
   return (
     <>
       <Pressable

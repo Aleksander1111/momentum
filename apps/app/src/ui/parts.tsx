@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
-import { Platform, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
-import { router, useNavigation, type Href } from 'expo-router';
+import { useCallback, useState, type ReactNode } from 'react';
+import { BackHandler, Platform, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { router, useFocusEffect, useNavigation, type Href } from 'expo-router';
 import { C } from './theme';
 import { H, T } from './Text';
 import { Chevron } from './icons';
@@ -97,6 +97,23 @@ export function useBack(label: string, home: Href): { label: string; onPress: ()
   return { label, onPress: () => router.replace(home) };
 }
 
+/**
+ * While `open`, Android's back button calls `close` instead of leaving the screen. Only on the screen in front: every
+ * tab stays mounted, and one behind must not take back from the tab shown.
+ */
+export function useCloseOnBack(open: boolean, close: () => void) {
+  useFocusEffect(
+    useCallback(() => {
+      if (!open || Platform.OS !== 'android') return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        close();
+        return true;
+      });
+      return () => sub.remove();
+    }, [open, close]),
+  );
+}
+
 export function Back({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
@@ -178,6 +195,7 @@ export function Pick({
   up?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  useCloseOnBack(open, () => setOpen(false));
   return (
     <View style={{ zIndex: 10, flexShrink: 1, minWidth: 0 }}>
       <Pressable onPress={() => setOpen((o) => !o)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

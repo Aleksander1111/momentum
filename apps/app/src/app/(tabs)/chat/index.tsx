@@ -8,7 +8,7 @@ import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { chatContext, useChatContext } from '../../../lib/context';
 import { relativeTime, runKind, runStatus } from '../../../lib/format';
 import { useTheme, useWide } from '../../../ui/theme';
-import { List, Pick, Row, RowText, Sect } from '../../../ui/parts';
+import { List, Pick, Row, RowText, Sect, useCloseOnBack } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { Composer } from '../../../ui/Composer';
 import { Conversation } from '../../../ui/Conversation';
@@ -37,6 +37,9 @@ export default function Chats() {
   }, [params.ws, params.compose]);
 
   const context = useChatContext(target);
+
+  // On a wide screen the chat open beside the list is a parameter, not a screen: back closes it
+  useCloseOnBack(wide && !!params.run, () => router.setParams({ run: undefined }));
 
   const openRun = (runId: string) => {
     if (wide) router.setParams({ run: runId, compose: undefined });
