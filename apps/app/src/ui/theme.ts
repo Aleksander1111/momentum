@@ -8,7 +8,7 @@ export type Appearance = 'system' | Scheme;
 const LIGHT = {
   ink: '#2F3E46',
   muted: '#52606A',
-  accent: '#B85042',
+  accent: '#5B5BD6',
   ok: '#3F6B52',
   no: '#A0402F',
   screen: '#F7F5F0',
@@ -29,7 +29,7 @@ const LIGHT = {
   washOk: '#DCE7DF',
   behind1: '#FBFAF7',
   behind2: '#F3F1EC',
-  commentBg: '#FBF4F2',
+  commentBg: '#F3F3FC',
   /** Backdrop of diagrams, which are drawn dark on light. */
   diagram: 'transparent',
   /** Solid sheet behind a diagram opened full size over the dimmed screen. */
@@ -43,7 +43,7 @@ const LIGHT = {
   insRow: 'rgba(63,107,82,.14)',
   delRow: 'rgba(160,64,47,.14)',
   /** The diagram shape the user picked */
-  pick: 'rgba(184,80,66,.9)',
+  pick: 'rgba(91,91,214,.9)',
 };
 
 type Palette = { readonly [K in keyof typeof LIGHT]: string };
@@ -51,7 +51,7 @@ type Palette = { readonly [K in keyof typeof LIGHT]: string };
 const DARK: Palette = {
   ink: '#E4E8E3',
   muted: '#9AA7AE',
-  accent: '#E07A66',
+  accent: '#9D9DE6',
   ok: '#7DB594',
   no: '#E8806B',
   screen: '#161C1F',
@@ -70,7 +70,7 @@ const DARK: Palette = {
   washOk: '#223A2D',
   behind1: '#1B2226',
   behind2: '#192024',
-  commentBg: '#2F2523',
+  commentBg: '#25263A',
   diagram: '#EEF1EC',
   diagramSheet: '#EEF1EC',
   dim: 'rgba(0,0,0,.6)',
@@ -79,7 +79,7 @@ const DARK: Palette = {
   del: 'rgba(232,128,107,.28)',
   insRow: 'rgba(125,181,148,.14)',
   delRow: 'rgba(232,128,107,.14)',
-  pick: 'rgba(224,122,102,.95)',
+  pick: 'rgba(157,157,230,.95)',
 };
 
 export const PALETTES: Record<Scheme, Palette> = { light: LIGHT, dark: DARK };
