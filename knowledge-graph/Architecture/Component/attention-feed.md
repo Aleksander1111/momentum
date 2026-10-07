@@ -30,4 +30,4 @@ One feed across enabled projects: all that needs the user, as entities.
 - Ten approvals in a row of one type propose a Harness/Pattern, checked at each approval
 - One reaction at a time per entity; the same one twice acts once
 - An entity a chat left unverified comes back
-- Each goes on the timeline
+- Each goes on the timeline with how it moved the entity state counts

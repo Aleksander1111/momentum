@@ -19,11 +19,11 @@ artifacts:
 ---
 # Consistency guard
 
-Lands each run's checked changes; keeps the index true to main.
+Lands each run's checked work; keeps the index true to main.
 
-- Hooks: PostToolUse checks writes; SubagentStop: summarization ran; Stop: summarize once, ≤2 fixes, then a commit message
-- Run end: one commit, all unverified; invalid → Harness/Issue, conflict → Harness/Conflict, removals → Harness/Report
+- Hooks: PostToolUse checks writes; SubagentStop: summarization ran; Stop: summarize once, ≤2 fixes, commit message
+- Run end: one commit, all unverified, state moves on the timeline; invalid → Harness/Issue, conflict → Harness/Conflict, removed → Harness/Report
 - Harness repo: lands only `HARNESS_SCOPE` and the graph; the rest put back, in the issue
-- Main line: one pass at a time; stops at a merge unless enabled; changed artifacts → artifact_ahead; moves followed
-- Metrics per 24h/7d/30d: usage, attention, understanding, agents, run histograms, entity states, implementation
+- Main line: one pass at a time; stops at a merge unless enabled; artifacts changed → artifact_ahead; moves followed
+- Metrics per 24h/7d/30d: usage, attention, understanding, agents, runs, entity states, implementation
 - 10 approvals in a row on a type → Harness/Pattern proposal

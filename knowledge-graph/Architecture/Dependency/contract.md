@@ -22,11 +22,11 @@ kind: internal library
 |---|---|
 | Entity | frontmatter, states, references, issues, links |
 | Card | blocks, PlantUML SVG, parts |
-| Card diff | marks, spans, prior diagram |
+| Card diff | marks, spans, diagram |
 | Feed | items, versions, diffs, issue options, counts; reactions |
 | Search | results; ask, sources |
 | Runs, chats | automations, status, usage, context, interview, runs under way |
-| Timeline | actor, kind, facts, page |
+| Timeline | actor, kind, facts, state moves, page |
 | Voice | screen, status, partials |
 | Build, metrics | completeness, estimate; series |
 | Settings | projects, logo, feed size, cards, lifetimes, models, concurrency, exclusions |
