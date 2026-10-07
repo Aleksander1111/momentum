@@ -1,7 +1,7 @@
 ---
 type: Governance/DesignDoc
 origin: automation
-verification: unverified
+verification: verified
 sync: synced
 product_impact: 5
 timeline_impact: 4
