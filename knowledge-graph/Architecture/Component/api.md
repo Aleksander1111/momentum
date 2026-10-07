@@ -18,17 +18,17 @@ artifacts:
 ---
 # API
 
-The backend's interface: Fastify routes typed by contract zod, documented at `/openapi.json`; voice sockets; MCP tools at `/mcp`.
+The backend's interface: Fastify routes typed by contract zod, at `/openapi.json`; voice sockets; MCP tools at `/mcp`.
 
 | Area | Routes |
 |---|---|
 | Session | `/session` |
 | Feed | `/feed`; approve, send back, (won't) resolve |
 | Workspaces | entities, artifacts, types, search, ask, chats, metrics, graph build, reset, logo |
-| Runs | `/runs/:id`, messages, kill |
+| Runs | `/runs` under way, `/runs/:id`, messages, kill |
 | Other | `/timeline`, `/settings`, `/voice`, `/voice/audio` |
 
 - Session (bearer or cookie) everywhere but sign-in, the document, web app files; judged by the matched route
 - Sign-ins, refusals, sign-outs: on the timeline
 - Refusals `{error}`: 400, 401, 404, 409
-- Pages get the web app, 503 mid-rebuild
+- Pages get the web app; 503 mid-rebuild

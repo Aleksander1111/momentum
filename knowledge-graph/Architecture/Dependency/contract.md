@@ -16,16 +16,16 @@ kind: internal library
 ---
 # Contract
 
-`@momentum/contract`: zod schemas and types for backend and app, jitless (CSP).
+`@momentum/contract`: zod schemas, types for backend and app, jitless (CSP).
 
 | Area | Schemas |
 |---|---|
 | Entity | frontmatter, states, references, issues, links |
-| Card | blocks, PlantUML SVG, pickable parts |
-| Card diff | marks, spans, prior diagram, counts |
+| Card | blocks, PlantUML SVG, parts |
+| Card diff | marks, spans, prior diagram |
 | Feed | items, versions, diffs, issue options, counts; reactions |
 | Search | results; ask, sources |
-| Runs, chats | automations, status, usage, context, interview |
+| Runs, chats | automations, status, usage, context, interview, runs under way |
 | Timeline | actor, kind, facts, page |
 | Voice | screen, status, partials |
 | Build, metrics | completeness, estimate; series |
