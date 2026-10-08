@@ -233,6 +233,11 @@ function useCatalog(m: MetricsResponse): MetricDef[] {
     single('Implementation', 'implementation.outstanding', 'Outstanding issues', 'count', 'line', m.implementation.outstandingIssues),
     single('Implementation', 'implementation.bugs', 'Bugs', 'count', 'line', m.implementation.bugs),
     single('Implementation', 'implementation.defects', 'Defects', 'count', 'line', m.implementation.defects),
+    single('Retrieval', 'retrieval.score', 'RAG score', 'ratio', 'line', m.retrieval.score),
+    single('Retrieval', 'retrieval.precision', 'Precision', 'ratio', 'line', m.retrieval.precision),
+    single('Retrieval', 'retrieval.coverage', 'Coverage', 'ratio', 'line', m.retrieval.coverage),
+    single('Retrieval', 'retrieval.parallel', 'Tools in parallel', 'ratio', 'line', m.retrieval.parallel),
+    single('Retrieval', 'retrieval.turns', 'Rated turns', 'count', 'bars', m.retrieval.turns),
   ];
 }
 
@@ -431,6 +436,53 @@ function RunHistogram({ h, range }: { h: RunHistograms; range: string }) {
   );
 }
 
+/** How well the chats' retrieval served the questions, and each retrieval tool against the others */
+function RetrievalPanel({ r, range }: { r: MetricsResponse['retrieval']; range: string }) {
+  const figure = (label: string, m: MetricValue) => (
+    <View key={label} style={{ flexGrow: 1, flexBasis: 90, backgroundColor: C.card, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 }}>
+      <T style={{ color: C.muted, fontSize: 11.5 }}>{label}</T>
+      <T style={{ fontSize: 18, fontFamily: F.head, fontWeight: '700' }}>{m.value === null ? '—' : `${Math.round(m.value * 100)}%`}</T>
+    </View>
+  );
+  return (
+    <Panel title="Retrieval">
+      {r.turns.value ? (
+        <View style={{ gap: 10, marginTop: 4 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {figure('RAG score', r.score)}
+            {figure('Precision', r.precision)}
+            {figure('Coverage', r.coverage)}
+            {figure('In parallel', r.parallel)}
+          </View>
+          <View>
+            <View style={{ flexDirection: 'row', paddingBottom: 4, gap: 8 }}>
+              <T style={{ flex: 1, color: C.muted, fontSize: 11.5 }}>{`${Math.round(r.turns.value)} rated turns, last ${range}`}</T>
+              <T style={{ width: 60, textAlign: 'right', color: C.muted, fontSize: 11.5 }}>Relevance</T>
+              <T style={{ width: 40, textAlign: 'right', color: C.muted, fontSize: 11.5 }}>Calls</T>
+            </View>
+            {r.tools.map((t) => (
+              <View key={t.tool} style={{ paddingVertical: 5, borderTopWidth: 1, borderTopColor: C.line, borderStyle: 'dashed', gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <T numberOfLines={1} style={{ flex: 1, fontSize: 13, fontFamily: F.mono }}>
+                    {t.tool}
+                  </T>
+                  <T style={{ width: 60, textAlign: 'right', fontSize: 13 }}>{`${t.relevance.toFixed(1)}/5`}</T>
+                  <T style={{ width: 40, textAlign: 'right', fontSize: 13 }}>{String(t.calls)}</T>
+                </View>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: C.card, overflow: 'hidden' }}>
+                  <View style={{ width: `${Math.round(t.relative * 100)}%`, height: 6, borderRadius: 3, backgroundColor: C.accent }} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : (
+        <T style={{ color: C.muted, fontSize: 13.5 }}>{`No chat retrieval rated in the last ${range}`}</T>
+      )}
+    </Panel>
+  );
+}
+
 export default function Metrics() {
   useTheme();
   const wide = useWide();
@@ -475,6 +527,7 @@ export default function Metrics() {
             <UsageLegend segments={legend} />
           </Panel>
           <MetricsChart m={m} unit={unit} />
+          <RetrievalPanel r={m.retrieval} range={label} />
           <RunHistogram h={m.agents.runHistograms} range={label} />
           <Panel title="Automations">
             {autos.length ? (

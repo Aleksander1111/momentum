@@ -402,7 +402,76 @@ export type RunMessage = z.infer<typeof RunMessage>;
 export const InterviewState = z.object({ question: z.string(), done: z.boolean(), document: z.string() });
 export type InterviewState = z.infer<typeof InterviewState>;
 
-export const RunDetail = Run.extend({ messages: z.array(RunMessage), interview: InterviewState.nullable().default(null) });
+/** A tool call of a run, as Claude Code shows it: what was called on what, how long it took, whether it failed */
+export const RunStep = z.object({
+  id: z.string(),
+  /** The sub-agent call it was made under */
+  parent: z.string().nullable(),
+  /** The tool, an MCP tool as "server · tool" */
+  name: z.string(),
+  /** What it was called on, in a line */
+  detail: z.string(),
+  /** Made after the answer, for the harness: summarizing the run's artifacts, writing the commit message */
+  bookkeeping: z.boolean(),
+  startedAt: z.string(),
+  endedAt: z.string().nullable(),
+  error: z.boolean(),
+  /** The length of what it returned */
+  resultChars: z.number().nullable(),
+});
+export type RunStep = z.infer<typeof RunStep>;
+
+/** One retrieval tool's share of what a turn retrieved, rated against the others */
+export const ToolRating = z.object({
+  tool: z.string(),
+  calls: z.number(),
+  /** 0–5: how relevant what it retrieved was to the question */
+  relevance: z.number(),
+  /** Its relevance relative to the best tool of the turn, 0–1 */
+  relative: z.number(),
+  note: z.string(),
+});
+export type ToolRating = z.infer<typeof ToolRating>;
+
+/** How well a turn's retrieval served the question, rated once the turn has ended */
+export const RetrievalRating = z.object({
+  /** 0–1: the retrieved information's relevance and how fully it covered what the answer needed */
+  score: z.number(),
+  /** 0–1: the share of retrieval calls that brought back something relevant */
+  precision: z.number(),
+  /** 0–1: how much of what the answer needed was retrieved */
+  coverage: z.number(),
+  /** Whether the retrieval tools were called side by side, in one response */
+  parallel: z.boolean(),
+  summary: z.string(),
+  tools: z.array(ToolRating),
+});
+export type RetrievalRating = z.infer<typeof RetrievalRating>;
+
+/** One turn of a conversational run: from the user's message to the end of the session that answered it */
+export const RunTurn = z.object({
+  turn: z.number(),
+  /** The last user message the turn answers */
+  afterSeq: z.number(),
+  startedAt: z.string(),
+  /** When its last text for the user arrived; what follows is the harness's bookkeeping */
+  answeredAt: z.string().nullable(),
+  endedAt: z.string().nullable(),
+  /** The context the model read last, and the tokens it wrote over the turn */
+  contextTokens: z.number(),
+  outputTokens: z.number(),
+  steps: z.array(RunStep),
+  /** Pending from the turn's end until it is rated; none when the turn retrieved nothing or could not be rated */
+  retrievalState: z.enum(['none', 'pending', 'rated']),
+  retrieval: RetrievalRating.nullable(),
+});
+export type RunTurn = z.infer<typeof RunTurn>;
+
+export const RunDetail = Run.extend({
+  messages: z.array(RunMessage),
+  interview: InterviewState.nullable().default(null),
+  turns: z.array(RunTurn).default([]),
+});
 export type RunDetail = z.infer<typeof RunDetail>;
 
 export const PostRunMessage = z.object({ text: z.string().min(1), context: z.array(ContextItem).default([]) });
@@ -604,6 +673,18 @@ export const MetricsResponse = z.object({
     outstandingIssues: MetricValue,
     bugs: MetricValue,
     defects: MetricValue,
+  }),
+  /** How well the chats' retrieval served the questions, from the rating of each turn that retrieved anything */
+  retrieval: z.object({
+    /** 0–1, the mean of precision and coverage; each a mean over the rated turns */
+    score: MetricValue,
+    precision: MetricValue,
+    coverage: MetricValue,
+    /** The share of rated turns whose retrieval tools were called side by side */
+    parallel: MetricValue,
+    turns: MetricValue,
+    /** Each retrieval tool over the range, the most relevant relative to the others first */
+    tools: z.array(z.object({ tool: z.string(), turns: z.number(), calls: z.number(), relevance: z.number(), relative: z.number() })),
   }),
 });
 export type MetricsResponse = z.infer<typeof MetricsResponse>;

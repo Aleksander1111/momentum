@@ -17,6 +17,29 @@ export interface Usage {
   week: number | null;
 }
 
+/** A tool the run called; `parent` is the sub-agent call it was made under */
+export interface ToolUse {
+  id: string;
+  name: string;
+  input: unknown;
+  parent: string | null;
+  /** The model response that made the call: calls of one response run side by side */
+  response: string;
+}
+
+/** What a tool call returned, as the model reads it */
+export interface ToolResult {
+  id: string;
+  error: boolean;
+  text: string;
+}
+
+/** The tokens of one model response: what it read, the context, and what it wrote */
+export interface Tokens {
+  input: number;
+  output: number;
+}
+
 export interface SessionSpec {
   cwd: string;
   prompt: string;
@@ -35,6 +58,10 @@ export interface SessionSpec {
   onAssistantText?: (text: string) => void;
   /** A hook's feedback, as the conversation carries it: what the run answers next answers it */
   onHookFeedback?: (text: string) => void;
+  onToolUse?: (use: ToolUse) => void;
+  onToolResult?: (result: ToolResult) => void;
+  /** The tokens of each model response as it streams: read once, written as it grows */
+  onTokens?: (id: string, tokens: Tokens) => void;
   onUsage?: (usage: Usage) => void;
   onPid?: (pid: number) => void;
 }
@@ -141,6 +168,37 @@ function hookFeedback(m: SDKMessage): string | null {
   return text?.text ?? null;
 }
 
+function toolUses(m: SDKMessage): ToolUse[] {
+  if (m.type !== 'assistant') return [];
+  return (m.message.content as { type: string; id?: string; name?: string; input?: unknown }[])
+    .filter((c) => c.type === 'tool_use' && c.id && c.name)
+    .map((c) => ({ id: c.id!, name: c.name!, input: c.input ?? {}, parent: m.parent_tool_use_id, response: m.message.id }));
+}
+
+function toolResults(m: SDKMessage): ToolResult[] {
+  if (m.type !== 'user' || typeof m.message.content === 'string') return [];
+  const blocks = m.message.content as { type: string; tool_use_id?: string; is_error?: boolean; content?: unknown }[];
+  return blocks
+    .filter((c) => c.type === 'tool_result' && c.tool_use_id)
+    .map((c) => ({
+      id: c.tool_use_id!,
+      error: c.is_error === true,
+      text:
+        typeof c.content === 'string'
+          ? c.content
+          : Array.isArray(c.content)
+            ? (c.content as { type: string; text?: string }[]).filter((b) => b.type === 'text' && b.text).map((b) => b.text!).join('\n')
+            : '',
+    }));
+}
+
+function tokensOf(m: SDKMessage): { id: string; tokens: Tokens } | null {
+  if (m.type !== 'assistant' || !m.message.usage) return null;
+  const u = m.message.usage;
+  const input = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+  return { id: m.message.id, tokens: { input, output: u.output_tokens ?? 0 } };
+}
+
 export interface AskSpec {
   cwd: string;
   system: string;
@@ -220,6 +278,10 @@ export function startSession(spec: SessionSpec): SessionHandle {
         }
         const feedback = hookFeedback(m);
         if (feedback) spec.onHookFeedback?.(feedback);
+        for (const use of toolUses(m)) spec.onToolUse?.(use);
+        for (const result of toolResults(m)) spec.onToolResult?.(result);
+        const tokens = tokensOf(m);
+        if (tokens) spec.onTokens?.(tokens.id, tokens.tokens);
         const text = assistantText(m);
         if (text) spec.onAssistantText?.(text);
         if (m.type === 'rate_limit_event') {

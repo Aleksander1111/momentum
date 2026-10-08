@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RunDetail, VoiceTarget } from '@momentum/contract';
@@ -13,8 +13,17 @@ import { chatContext, useChatContext } from '../lib/context';
 import { Btn } from './parts';
 import { EntityLinks, EntityRef } from './EntityRef';
 import { useEntity } from './EntityView';
+import { TurnActivity } from './Activity';
 
 const ACTIVE = new Set(['queued', 'running']);
+/** How long a chat waits for the rating of its last turn's retrieval */
+const RATING_WAIT_MS = 3 * 60_000;
+
+/** Whether the run still changes: it is under way, or a turn that ended moments ago is being rated */
+function changing(run: RunDetail): boolean {
+  if (ACTIVE.has(run.status)) return true;
+  return run.turns.some((t) => t.retrievalState === 'pending' && t.endedAt && Date.now() - new Date(t.endedAt).getTime() < RATING_WAIT_MS);
+}
 
 /** Automation, state, what the run has used so far, the card it is about, and Stop while it is active */
 function RunHead({ run, onStop }: { run: RunDetail; onStop: () => Promise<void> }) {
@@ -95,6 +104,20 @@ function InterviewDocument({ run }: { run: RunDetail }) {
   );
 }
 
+/** What the agent did for the turns answering the user message `at`; turns of a run with no message come first */
+function Turns({ run, at }: { run: RunDetail; at: number }) {
+  const userSeqs = new Set(run.messages.filter((m) => m.role === 'user').map((m) => m.seq));
+  const turns = run.turns.filter((t) => (at === 0 ? !userSeqs.has(t.afterSeq) : t.afterSeq === at));
+  const last = run.turns[run.turns.length - 1];
+  return (
+    <>
+      {turns.map((t) => (
+        <TurnActivity key={t.turn} turn={t} live={ACTIVE.has(run.status) && t === last && !t.endedAt} />
+      ))}
+    </>
+  );
+}
+
 /** Run header, messages and the message composer; polls the run while it is active. */
 export function Conversation({ runId }: { runId: string }) {
   const qc = useQueryClient();
@@ -103,7 +126,7 @@ export function Conversation({ runId }: { runId: string }) {
   const { data: run } = useQuery({
     queryKey: ['run', runId],
     queryFn: () => api.run(runId),
-    refetchInterval: (q) => (q.state.data && !ACTIVE.has(q.state.data.status) ? false : 3_000),
+    refetchInterval: (q) => (q.state.data && !changing(q.state.data) ? false : 2_000),
   });
   const context = useChatContext(run?.workspace ?? null);
   const interview = run?.automation === 'interview';
@@ -133,10 +156,11 @@ export function Conversation({ runId }: { runId: string }) {
         onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}
       >
         {run && interview ? <InterviewDocument run={run} /> : null}
+        {run ? <Turns run={run} at={0} /> : null}
         {(run?.messages ?? []).map((m) =>
           m.role === 'user' ? (
+            <Fragment key={m.seq}>
             <View
-              key={m.seq}
               style={{
                 alignSelf: 'flex-end',
                 maxWidth: '84%',
@@ -156,6 +180,8 @@ export function Conversation({ runId }: { runId: string }) {
               ) : null}
               <T style={[bubbleText, { color: C.surface }]}>{m.text}</T>
             </View>
+            <Turns run={run!} at={m.seq} />
+            </Fragment>
           ) : (
             <View
               key={m.seq}

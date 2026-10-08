@@ -14,7 +14,18 @@ const MISSING = 'Also say that a missing book answers 404 with the error "book n
 // Real Claude Code runs and harness; the model's side is scripted, or the real model's live
 scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step }) => {
 
-  model.on('answers questions', { automation: 'chat', kind: 'prompt' }, (t) => (/routes/i.test(t.input) ? [move.say(ANSWER)] : undefined));
+  // Retrieval with two tools side by side in one reply, then the answer from what they found
+  model.on('answers questions', { automation: 'chat', kind: 'prompt' }, (t) =>
+    /routes/i.test(t.input)
+      ? [
+          move.parallel(
+            { tool: 'mcp__momentum-kb__search', input: { query: 'books API routes' } },
+            { tool: 'Grep', input: { pattern: 'books', path: 'src' } },
+          ),
+          move.say(ANSWER),
+        ]
+      : undefined,
+  );
   model.on('answers follow-ups', { automation: 'chat', kind: 'message' }, (t) => (/creates/i.test(t.input) ? [move.say('POST /books.')] : undefined));
   // Summarization, as the sub-agent would: one chat entity over the transcript
   model.on('summarizes chats', { automation: 'chat', kind: 'summarize' }, (t) => {
@@ -50,6 +61,20 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     expect(first.input).toContain(`knowledge-graph/${API}.md >`);
     expect(first.input).toContain('An empty title still passes the check.');
     expect((await api.run(runId)).messages[0]!.context.map((c) => c.path)).toEqual([API]);
+
+    // What the agent did shows under the question; once the run ends its retrieval is rated, each tool against the other
+    const rated = await until('the retrieval rated', async () => (await api.run(runId)).turns.find((t) => t.retrievalState === 'rated') ?? null, 2 * 60_000);
+    expect(rated.endedAt).not.toBeNull();
+    if (!model.live) {
+      expect(rated.steps.filter((s) => !s.bookkeeping).map((s) => s.name)).toEqual(['momentum-kb · search', 'Grep']);
+      expect(rated.retrieval!.parallel).toBe(true);
+      expect(rated.retrieval!.tools.map((t) => [t.tool, t.relative])).toEqual([['momentum-kb · search', 1], ['Grep', 0.6]]);
+    }
+    const worked = app.text(/^Worked \d+:\d\d · /, false).first();
+    await expect(worked).toBeVisible({ timeout: 30_000 });
+    await expect(app.text(/RAG \d+%/, false).first()).toBeVisible({ timeout: 30_000 });
+    await worked.click();
+    await expect(app.text(/^Retrieval \d+% · precision/, false).first()).toBeVisible();
 
     // Asked in the Chat tab, as the user types it
     const typed = await app.chat(WS, 'And which routes read a single book?');

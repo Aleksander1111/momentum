@@ -51,6 +51,8 @@ export interface Turn {
 export type Move =
   | { text: string }
   | { tool: string; input: Record<string, unknown> }
+  /** Tools called side by side, in one reply */
+  | { parallel: { tool: string; input: Record<string, unknown> }[] }
   /** Accept the request and never answer: the run stays running */
   | { hang: true }
   /** Answer only once the scenario opens the gate: the run is busy until then */
@@ -114,6 +116,7 @@ export const move = {
     tool: 'Agent',
     input: { subagent_type: 'momentum-summarization', description: 'Summarize the artifacts', prompt: 'Summarize the artifacts the harness handed over.' },
   }),
+  parallel: (...calls: { tool: string; input: Record<string, unknown> }[]): Move => ({ parallel: calls }),
   hang: (): Move => ({ hang: true }),
   gate: (open: Promise<unknown>): Move => ({ gate: open }),
   error: (status: number, message = 'Overloaded'): Move => ({ error: status, message }),
@@ -180,6 +183,17 @@ function said(m: Message): string | null {
   if (m.role !== 'user' || isToolResult(m)) return null;
   const parts = textsOf(m).filter(own);
   return parts.length ? parts.join('\n\n') : null;
+}
+
+/** The stand-in rater: every call useful, the first one most, and everything the answer needed retrieved */
+function rating(prompt: string): string {
+  const calls = [...prompt.matchAll(/^## Call (\d+): /gm)].map((m) => Number(m[1]));
+  return JSON.stringify({
+    calls: calls.map((n) => ({ n, relevance: n === 1 ? 5 : 3 })),
+    coverage: 1,
+    tools: {},
+    summary: 'The calls found what the answer needed.',
+  });
 }
 
 /** What the harness asked of the run in a turn, by the words it asks in (src/protocol.ts) */
@@ -415,7 +429,7 @@ export class ScriptedModel {
       const prompt = body.messages.flatMap(textsOf).filter(own).join('\n');
       this.side.push({ system, prompt });
       if (this.live) return void (await this.forward(req, raw, res));
-      const answer = system.includes(SAY.riskEstimate) ? this.risk(prompt) : 'OK';
+      const answer = system.includes(SAY.riskEstimate) ? this.risk(prompt) : system.includes(SAY.rateRetrieval) ? rating(prompt) : 'OK';
       return this.reply(res, body, id, [{ text: answer }]);
     }
     const checkout = CHECKOUT.exec(system)?.[1] ?? '';
@@ -554,8 +568,13 @@ export class ScriptedModel {
       res.writeHead(failure.error, { 'content-type': 'application/json', 'x-should-retry': 'false', ...this.limitHeaders() });
       return void res.end(JSON.stringify({ type: 'error', error: { type: failure.error === 529 ? 'overloaded_error' : 'api_error', message: failure.message ?? 'Scripted failure' } }));
     }
-    const blocks = moves.map((m, i) =>
-      'text' in m ? { type: 'text', text: m.text } : { type: 'tool_use', id: `toolu_s${id}_${i}`, name: (m as { tool: string }).tool, input: (m as { input: unknown }).input },
+    type Block = { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: unknown };
+    const blocks = moves.flatMap((m, i): Block[] =>
+      'text' in m
+        ? [{ type: 'text', text: m.text }]
+        : 'parallel' in m
+          ? m.parallel.map((c, j) => ({ type: 'tool_use', id: `toolu_s${id}_${i}_${j}`, name: c.tool, input: c.input }))
+          : [{ type: 'tool_use', id: `toolu_s${id}_${i}`, name: (m as { tool: string }).tool, input: (m as { input: unknown }).input }],
     );
     const stop = blocks.some((b) => b.type === 'tool_use') ? 'tool_use' : 'end_turn';
     const usage = { input_tokens: 100, output_tokens: 10, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };

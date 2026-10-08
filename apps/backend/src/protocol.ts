@@ -16,6 +16,8 @@ export const SAY = {
   resume: 'The harness restarted while you were working',
   /** The risk estimator's instructions */
   riskEstimate: 'estimate the risk of an implementation',
+  /** The retrieval rater's instructions */
+  rateRetrieval: 'rate the retrieval of one turn of a chat',
 } as const;
 
 /** The commit message request: where the run writes it */

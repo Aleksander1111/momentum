@@ -307,6 +307,26 @@ export async function workspaceMetrics(ws: Workspace, automations: Automations, 
       bugs: metric(latest(bugs), bugs),
       defects: measuredBy(['validation'], metric(latest(defects), defects)),
     },
+    retrieval: await retrievalMetrics(ws, span),
+  };
+}
+
+/** The ratings of the chats' retrieval over the range: each turn's, and each tool's against the others */
+async function retrievalMetrics(ws: Workspace, span: Span): Promise<MetricsResponse['retrieval']> {
+  const rag = `${ws.index.schema}.rag_metric`;
+  const mean = async (column: string) => metric(await span.figure(rag, `avg(${column})`), await span.series(rag, column, 'avg'));
+  const tools = await ws.index.sql.unsafe<{ tool: string; turns: number; calls: number; relevance: number; relative: number }[]>(
+    `select tool, count(*)::int as turns, sum(calls)::int as calls, avg(relevance)::float8 as relevance, avg(relative)::float8 as relative
+     from ${ws.index.schema}.retrieval_metric where recorded_at >= ${span.start} group by tool order by 5 desc, 3 desc`,
+  );
+  const round = (v: number, d: number) => Math.round(v * 10 ** d) / 10 ** d;
+  return {
+    score: await mean('score'),
+    precision: await mean('precision'),
+    coverage: await mean('coverage'),
+    parallel: await mean('parallel::int'),
+    turns: summed(await span.series(rag, '1', 'count')),
+    tools: tools.map((t) => ({ ...t, relevance: round(t.relevance, 1), relative: round(t.relative, 2) })),
   };
 }
 

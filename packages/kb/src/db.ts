@@ -177,6 +177,68 @@ create table if not exists ${s}.run_message (
   at timestamptz not null default now(),
   primary key (run_id, seq)
 );
+-- A turn of a chat or an interview: one session, from the user's message to its end
+create table if not exists ${s}.run_turn (
+  run_id text not null references ${s}.run (id) on delete cascade,
+  turn int not null,
+  -- The last user message the turn answers
+  after_seq int not null,
+  started_at timestamptz not null default now(),
+  answered_at timestamptz,
+  ended_at timestamptz,
+  context_tokens int not null default 0,
+  output_tokens int not null default 0,
+  -- How well its retrieval served the question, rated once it has ended: pending until then, none when nothing was retrieved
+  retrieval_state text not null default 'none',
+  retrieval jsonb,
+  primary key (run_id, turn)
+);
+-- The tool calls of a turn, with the start of what each returned for rating the retrieval
+create table if not exists ${s}.run_step (
+  run_id text not null references ${s}.run (id) on delete cascade,
+  id text not null,
+  turn int not null,
+  seq int not null,
+  parent text,
+  -- The model response that made the call: calls of one response run side by side
+  response text,
+  name text not null,
+  detail text not null default '',
+  input jsonb,
+  bookkeeping boolean not null default false,
+  started_at timestamptz not null default now(),
+  ended_at timestamptz,
+  error boolean not null default false,
+  result_chars int,
+  result text,
+  primary key (run_id, id)
+);
+-- Each retrieval tool's rating in a turn, against the other tools of the turn
+create table if not exists ${s}.retrieval_metric (
+  id bigserial primary key,
+  run_id text not null,
+  turn int not null,
+  automation text not null,
+  tool text not null,
+  calls int not null,
+  relevance real not null,
+  relative real not null,
+  recorded_at timestamptz not null default now()
+);
+create index if not exists retrieval_metric_recorded on ${s}.retrieval_metric (recorded_at);
+-- A turn's retrieval as a whole
+create table if not exists ${s}.rag_metric (
+  run_id text not null,
+  turn int not null,
+  automation text not null,
+  score real not null,
+  precision real not null,
+  coverage real not null,
+  parallel boolean not null,
+  recorded_at timestamptz not null default now(),
+  primary key (run_id, turn)
+);
+create index if not exists rag_metric_recorded on ${s}.rag_metric (recorded_at);
 create table if not exists ${s}.chat (
   run_id text primary key references ${s}.run (id) on delete cascade,
   entity_path text

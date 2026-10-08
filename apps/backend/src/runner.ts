@@ -8,12 +8,14 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { z } from 'zod';
+import { Activity, turnsOf } from './activity.ts';
 import { HARNESS_ONLY, type Automations } from './automations.ts';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { bookkeeping, guardHooks } from './hooks.ts';
+import { awaitRating, rateRetrieval } from './retrieval.ts';
 import { endKind, measured, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
@@ -107,6 +109,8 @@ interface Active {
   stoppedByUser?: boolean;
   /** Sent on by the Stop hook to summarize or describe its changes: its text then is bookkeeping, kept out of the conversation */
   bookkeeping?: boolean;
+  /** The turn this session answers: its tool calls and tokens, as they happen */
+  activity: Activity;
 }
 
 /** Graph build runs failing in a row before the build stops instead of queueing the next */
@@ -181,7 +185,12 @@ export class Runner {
     const r = await this.row(ws, id);
     const messages = await ws.index.sql<{ seq: number; role: RunMessage['role']; text: string; context: ContextItem[]; at: Date }[]>`
       select seq, role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${id} order by seq`;
-    return { ...this.view(ws, r), messages: messages.map((m) => ({ ...m, at: m.at.toISOString() })), interview: r.interview ?? null };
+    return {
+      ...this.view(ws, r),
+      messages: messages.map((m) => ({ ...m, at: m.at.toISOString() })),
+      interview: r.interview ?? null,
+      turns: await turnsOf(ws, id),
+    };
   }
 
   private async setStatus(ws: Workspace, id: string, status: RunStatus, extra: Partial<RunRow> = {}) {
@@ -440,6 +449,7 @@ export class Runner {
       base: { fiveHour: r.usage_five_hour ?? 0, week: r.usage_week ?? 0 },
       usage: { fiveHour: 0, week: 0 },
       interview: r.interview,
+      activity: await Activity.begin(ws, r.id),
     };
     const kb = createKbServer({
       index: ws.index,
@@ -514,8 +524,12 @@ export class Runner {
       procgov: config.procgov,
       onSessionId: (sid) => void this.setStatus(ws, r.id, 'running', { session_id: sid }).catch((e) => console.error(`session of run ${r.id}:`, e)),
       onHookFeedback: (feedback) => (entry.bookkeeping = bookkeeping(feedback)),
+      onToolUse: (use) => entry.activity.use(use, !!entry.bookkeeping),
+      onToolResult: (result) => entry.activity.result(result),
+      onTokens: (id, tokens) => entry.activity.tokens(id, tokens),
       onAssistantText: (text) => {
         if (entry.bookkeeping) return;
+        entry.activity.answered();
         void this.addMessage(ws, r.id, 'assistant', text).catch((e) => console.error(`message of run ${r.id}:`, e));
       },
       onUsage: (u) => void this.onReading(u).catch((e) => console.error(`usage reading of run ${r.id}:`, e)),
@@ -688,7 +702,11 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   private async finish(ws: Workspace, id: string, entry: Active, result: SessionResult): Promise<void> {
     const log = (what: string) => (e: unknown) => console.error(`run ${id}: ${what}:`, e);
     let r: RunRow | null = null;
+    // A chat's turn that retrieved anything is rated once the run has ended; until then the chat waits for the rating
+    let rate = false;
     try {
+      await entry.activity.end().catch(log('activity'));
+      if (entry.ref.automation === 'chat') rate = await awaitRating(ws, id, entry.activity.turn).catch(() => false);
       r = await this.row(ws, id);
       if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
       const landed = await this.guard.transaction(entry.ref);
@@ -749,6 +767,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
       await this.guard.unwatch(id).catch(log('watcher'));
       await removeWorktree(ws.path, entry.ref.checkout).catch(log('checkout'));
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
+      if (rate) void rateRetrieval(ws, { id, automation: entry.ref.automation }, entry.activity.turn).catch(log('retrieval rating'));
     }
   }
 
