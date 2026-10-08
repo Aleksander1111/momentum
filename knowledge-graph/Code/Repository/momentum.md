@@ -28,4 +28,4 @@ pnpm 10 monorepo of the harness: TypeScript, Node 24.
 | knowledge-graph/ | This knowledge base |
 | examples/ | Projects the e2e scenarios run over |
 
-Scripts: `pnpm dev`, `backend`, `test` (vitest), `typecheck`, `momentum` (CLI), `e2e [args]` (only through the test runner), `e2e:runner` (127.0.0.1:7400), `deck` (builds the presentation), `video` (synthesises the score, renders the video).
+Scripts: `pnpm dev`, `backend`, `test` (vitest), `typecheck`, `momentum` (CLI), `e2e [args]` (via the test runner only), `e2e:runner` (127.0.0.1:7400), `deck` (builds the slides), `video` (records the voice, synthesises the score, renders).
