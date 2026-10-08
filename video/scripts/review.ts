@@ -8,7 +8,9 @@ import { FPS } from '../src/kit/motion.ts';
 
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) throw new Error('Set GEMINI_API_KEY to run the review');
-const MODEL = process.env.MOMENTUM_REVIEW_MODEL ?? 'gemini-pro-latest';
+// Tried in turn: a model out of quota or overloaded hands over to the next
+const MODELS = (process.env.MOMENTUM_REVIEW_MODEL ?? 'gemini-pro-latest,gemini-3.5-flash,gemini-flash-latest,gemini-2.5-flash').split(',');
+let MODEL = MODELS[0]!;
 const API = 'https://generativelanguage.googleapis.com';
 const video = process.argv[2] ?? fileURLToPath(new URL('../out/momentum.mp4', import.meta.url));
 const out = (name: string) => fileURLToPath(new URL(`../out/${name}`, import.meta.url));
@@ -60,16 +62,24 @@ most severe first.`;
 // The upload is not kept, whatever the review's outcome
 let count = 0;
 try {
-  const res = await fetch(`${API}/v1beta/models/${MODEL}:generateContent`, {
-    method: 'POST',
-    headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ file_data: { mime_type: 'video/mp4', file_uri: file.uri } }, { text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
-    }),
-  });
-  const body = (await res.json()) as { candidates?: { content: { parts: { text: string }[] } }[]; error?: { message: string } };
-  if (!body.candidates) throw new Error(`Review failed: ${body.error?.message ?? res.status}`);
+  type Reply = { candidates?: { content: { parts: { text: string }[] } }[]; error?: { message: string } };
+  let body: Reply = {};
+  for (const model of MODELS) {
+    MODEL = model;
+    const res = await fetch(`${API}/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ file_data: { mime_type: 'video/mp4', file_uri: file.uri } }, { text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+      }),
+    });
+    body = (await res.json()) as Reply;
+    if (body.candidates) break;
+    console.log(`${model}: ${body.error?.message.split('
+')[0] ?? res.status}`);
+  }
+  if (!body.candidates) throw new Error('No model could review the video');
   const notes = JSON.parse(body.candidates[0]!.content.parts.map((p) => p.text).join('')) as { time: number; scene: string; kind: string; severity: number; issue: string; fix: string }[];
   writeFileSync(out('review.json'), JSON.stringify(notes, null, 2) + '\n');
   writeFileSync(
