@@ -77,13 +77,21 @@ function split(take: Float32Array, rate: number, texts: string[]): Float32Array[
     cuts.push(best ? Math.round((best.p.from + best.p.to) / 2) : Math.round(expected));
   }
   const bounds = [0, ...cuts, take.length];
+  const fade = (part: Float32Array) => {
+    // In over 10 ms and out over 40 ms: a cut never clicks
+    const fin = Math.round(0.01 * rate);
+    const fout = Math.round(0.04 * rate);
+    for (let i = 0; i < fin && i < part.length; i++) part[i]! *= i / fin;
+    for (let i = 0; i < fout && i < part.length; i++) part[part.length - 1 - i]! *= i / fout;
+    return part;
+  };
   return texts.map((_, k) => {
     // Each line from just before its first sound to a breath after its last
     let a = bounds[k]!;
     let b = bounds[k + 1]!;
     while (a < b && Math.abs(take[a]!) < 0.01) a++;
     while (b > a && Math.abs(take[b - 1]!) < 0.01) b--;
-    return take.slice(Math.max(bounds[k]!, a - Math.round(0.04 * rate)), Math.min(bounds[k + 1]!, b + Math.round(0.15 * rate)));
+    return fade(take.slice(Math.max(bounds[k]!, a - Math.round(0.04 * rate)), Math.min(bounds[k + 1]!, b + Math.round(0.15 * rate))));
   });
 }
 

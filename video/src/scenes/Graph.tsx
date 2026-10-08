@@ -64,7 +64,7 @@ const rowHome = (k: number) => at(WINDOW.nav + 40, WINDOW.bar + 100 + k * ROW + 
 
 /** The narration: a line per beat */
 export const GRAPH_CUES: Cue[] = [
-  { at: 4, hold: 66, text: 'One project: dozens of files no one wants to read.' },
+  { at: 4, hold: 66, text: 'One project: dozens of files no one wants to read.', rest: 36 },
   { at: 76, hold: 146, text: 'Momentum turns them into short cards.' },
   { at: 152, hold: 296, text: 'Each card is a goal, a decision, a policy, a feature.' },
   { at: 340, hold: 446, text: 'Ask a question, and the answer comes from the cards.' },
@@ -186,7 +186,7 @@ function GraphLayer({ f, turn }: { f: number; turn: number }) {
             const B = NODES[b]!;
             const draw = ramp(f, BURST + FLY + 4 + i * 3, 16) * (1 - ramp(f, HOME - 10, 12));
             return (
-              <path key={i} d={`M${GRAPH_C.x + A.x} ${GRAPH_C.y + A.y} L${GRAPH_C.x + B.x} ${GRAPH_C.y + B.y}`} pathLength={1} stroke={C.warn} strokeOpacity={0.5} strokeWidth={4} strokeDasharray="1" strokeDashoffset={1 - draw} fill="none" />
+              <path key={i} d={`M${GRAPH_C.x + A.x} ${GRAPH_C.y + A.y} L${GRAPH_C.x + B.x} ${GRAPH_C.y + B.y}`} pathLength={1} stroke={C.warn} strokeOpacity={0.7} strokeWidth={6} strokeDasharray="1" strokeDashoffset={1 - draw} fill="none" />
             );
           })}
         </svg>
@@ -221,8 +221,8 @@ function GraphLayer({ f, turn }: { f: number; turn: number }) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                <DomainBadge type={n.type} size={44} />
-                <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 26, color: C.ink }}>{n.title}</span>
+                <DomainBadge type={n.type} size={52} />
+                <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 32, color: C.ink }}>{n.title}</span>
               </div>
               <div style={{ opacity: shown, transform: `translateY(${-8 * (1 - shown)}px)` }}>
                 <TypePill type={n.type} size={16} />

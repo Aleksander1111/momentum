@@ -162,6 +162,19 @@ for (const s of SECTIONS) {
   }
 }
 
+// Each act builds, peaks two thirds of the way in and settles into the next, so the music follows the story
+for (const s of SECTIONS) {
+  const a = Math.round(s.from * RATE);
+  const b = Math.min(N, Math.round(s.to * RATE));
+  for (let i = a; i < b; i++) {
+    const x = (i - a) / (b - a);
+    const u = x < 0.66 ? (0.5 * x) / 0.66 : 0.5 + (0.5 * (x - 0.66)) / 0.34;
+    const arc = 0.72 + 0.4 * Math.sin(Math.PI * u);
+    L[i]! *= arc;
+    R[i]! *= arc;
+  }
+}
+
 // Where an act begins, after the opening: a soft low swell, felt more than heard
 for (const s of SECTIONS.slice(1)) {
   add(s.from - 0.6, voice(3, 36.7, sine, (x) => Math.sin(Math.min(1, x / 3) * Math.PI) ** 2, 160), 0.22);

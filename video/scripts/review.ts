@@ -8,7 +8,7 @@ import { FPS } from '../src/kit/motion.ts';
 
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) throw new Error('Set GEMINI_API_KEY to run the review');
-const MODEL = process.env.MOMENTUM_REVIEW_MODEL ?? 'gemini-2.5-pro';
+const MODEL = process.env.MOMENTUM_REVIEW_MODEL ?? 'gemini-pro-latest';
 const API = 'https://generativelanguage.googleapis.com';
 const video = process.argv[2] ?? fileURLToPath(new URL('../out/momentum.mp4', import.meta.url));
 const out = (name: string) => fileURLToPath(new URL(`../out/${name}`, import.meta.url));
@@ -57,24 +57,29 @@ Be specific and critical; skip praise. Answer as JSON only: an array of
 { "time": seconds, "scene": name, "kind": "voice" | "music" | "motion" | "edit" | "text", "severity": 1-3, "issue": "...", "fix": "..." },
 most severe first.`;
 
-const res = await fetch(`${API}/v1beta/models/${MODEL}:generateContent`, {
-  method: 'POST',
-  headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    contents: [{ parts: [{ file_data: { mime_type: 'video/mp4', file_uri: file.uri } }, { text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
-  }),
-});
-const body = (await res.json()) as { candidates?: { content: { parts: { text: string }[] } }[]; error?: { message: string } };
-if (!body.candidates) throw new Error(`Review failed: ${body.error?.message ?? res.status}`);
-const notes = JSON.parse(body.candidates[0]!.content.parts.map((p) => p.text).join('')) as { time: number; scene: string; kind: string; severity: number; issue: string; fix: string }[];
-writeFileSync(out('review.json'), JSON.stringify(notes, null, 2) + '\n');
-writeFileSync(
-  out('review.md'),
-  `# Review by ${MODEL}\n\n| Time | Scene | Kind | Sev. | Issue | Fix |\n|---|---|---|---|---|---|\n` +
-    notes.map((n) => `| ${n.time.toFixed(1)} | ${n.scene} | ${n.kind} | ${n.severity} | ${n.issue} | ${n.fix} |`).join('\n') +
-    '\n',
-);
-// The upload is not kept
-await fetch(`${API}/v1beta/${file.name}`, { method: 'DELETE', headers: { 'x-goog-api-key': KEY } });
-console.log(`${notes.length} notes in out/review.md`);
+// The upload is not kept, whatever the review's outcome
+let count = 0;
+try {
+  const res = await fetch(`${API}/v1beta/models/${MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ file_data: { mime_type: 'video/mp4', file_uri: file.uri } }, { text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+    }),
+  });
+  const body = (await res.json()) as { candidates?: { content: { parts: { text: string }[] } }[]; error?: { message: string } };
+  if (!body.candidates) throw new Error(`Review failed: ${body.error?.message ?? res.status}`);
+  const notes = JSON.parse(body.candidates[0]!.content.parts.map((p) => p.text).join('')) as { time: number; scene: string; kind: string; severity: number; issue: string; fix: string }[];
+  writeFileSync(out('review.json'), JSON.stringify(notes, null, 2) + '\n');
+  writeFileSync(
+    out('review.md'),
+    `# Review by ${MODEL}\n\n| Time | Scene | Kind | Sev. | Issue | Fix |\n|---|---|---|---|---|---|\n` +
+      notes.map((n) => `| ${n.time.toFixed(1)} | ${n.scene} | ${n.kind} | ${n.severity} | ${n.issue} | ${n.fix} |`).join('\n') +
+      '\n',
+  );
+  count = notes.length;
+} finally {
+  await fetch(`${API}/v1beta/${file.name}`, { method: 'DELETE', headers: { 'x-goog-api-key': KEY } });
+}
+console.log(`${count} notes in out/review.md`);

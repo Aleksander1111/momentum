@@ -103,9 +103,10 @@ function Line({ f, from, to, top = 440, children }: { f: number; from: number; t
 
 /** The narration: a line per beat */
 export const HOOK_CUES: Cue[] = [
-  { at: 10, hold: 100, text: 'You run a dozen projects. Each one changes every day.' },
-  { at: 108, hold: 168, text: 'Nobody can keep up with all of it.' },
-  { at: 196, hold: 236, text: 'Momentum brings what matters to you, in one place.' },
+  { at: 10, hold: 50, text: 'You run a dozen projects.' },
+  { at: 56, hold: 100, text: 'Each one changes, every day.' },
+  { at: 108, hold: 168, text: 'Nobody keeps up with all of it.' },
+  { at: 196, hold: 236, text: 'So it all comes to you, in one place.' },
 ];
 const DWELLS = voiceDwells('Hook', HOOK_CUES, HOOK_FRAMES);
 export const HOOK_LENGTH = dwelt(HOOK_FRAMES, DWELLS);
@@ -139,7 +140,7 @@ export function Hook() {
       {/* Everything drawn into one point */}
       <div style={{ position: 'absolute', left: 960 - 30, top: 560 - 30, width: 60, height: 60, borderRadius: 30, background: C.accent, transform: `scale(${dot})`, boxShadow: `0 0 ${60 * dot}px ${C.accent}` }} />
       <Line f={f} from={ONE} to={HOOK_FRAMES + 40} top={680}>
-        So it comes to you, <span style={{ color: C.accent }}>in one place.</span>
+        So it all comes to you, <span style={{ color: C.accent }}>in one place.</span>
       </Line>
     </AbsoluteFill>
   );

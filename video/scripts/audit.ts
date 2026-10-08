@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CUTS, SCRIPT } from '../src/Momentum.tsx';
+import { HANDOVER } from '../src/kit/voice.tsx';
 
 const [step = 10, from = 0, to = Infinity] = process.argv.slice(2).map(Number);
 const serveUrl = await bundle({ entryPoint: fileURLToPath(new URL('../src/index.ts', import.meta.url)) });
@@ -16,7 +17,6 @@ const found = new Map<string, number[]>();
 const sceneOf = (frame: number) => SCRIPT[CUTS.findLastIndex((c) => c <= frame)]!.scene;
 
 /** Frames a transition is under way: scenes slide and zoom through the frame's edge there on purpose */
-const HANDOVER = 20;
 const handing = (frame: number) => CUTS.some((c) => c > 0 && frame >= c && frame < c + HANDOVER);
 
 for (let frame = from; frame < Math.min(to, composition.durationInFrames); frame += step) {

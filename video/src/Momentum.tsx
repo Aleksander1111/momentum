@@ -6,7 +6,7 @@ import { AbsoluteFill, Audio, staticFile, useCurrentFrame } from 'remotion';
 import { FPS } from './kit/motion.ts';
 import { C } from './kit/theme.ts';
 import { iris, push, zoomThrough } from './kit/transitions.tsx';
-import { lineKey, realFrame, TIMING, voiceDwells, type Cue } from './kit/voice.tsx';
+import { HANDOVER, lineKey, realFrame, TIMING, voiceDwells, type Cue } from './kit/voice.tsx';
 import { Graph, GRAPH_CUES, GRAPH_FRAMES, GRAPH_LENGTH } from './scenes/Graph.tsx';
 import { Hook, HOOK_CUES, HOOK_FRAMES, HOOK_LENGTH } from './scenes/Hook.tsx';
 import { Layers, LAYERS_CUES, LAYERS_FRAMES, LAYERS_LENGTH } from './scenes/Layers.tsx';
@@ -18,7 +18,6 @@ import { Resolve, RESOLVE_CUES, RESOLVE_FRAMES, RESOLVE_LENGTH } from './scenes/
 import { Schedule, SCHEDULE_CUES, SCHEDULE_FRAMES, SCHEDULE_LENGTH } from './scenes/Schedule.tsx';
 import { Swipe, SWIPE_CUES, SWIPE_FRAMES, SWIPE_LENGTH } from './scenes/Swipe.tsx';
 
-const HANDOVER = 20;
 
 // Each scene, and how the next one takes over from it
 const CUT: [ComponentType, number, TransitionPresentation<any> | null][] = [

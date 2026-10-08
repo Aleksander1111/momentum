@@ -76,7 +76,7 @@ const DELIVERED: Entity = {
 const LAND = (i: number) => 22 + i * 14;
 const FLY = 20;
 const APPROVE = { show: 100, press: 126, drag: 130, release: 158 };
-const TILT = 186;
+const TILT = 172;
 const UNDERSTAND = 206;
 const IMPLEMENT = 290;
 const RISE = 384;
@@ -451,14 +451,14 @@ export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
 
 export function Layers() {
   const frame = dwell(useCurrentFrame(), DWELLS);
-  const tilt = ramp(frame, TILT, 40, Easing.inOut(Easing.cubic));
+  const tilt = ramp(frame, TILT, 56, Easing.bezier(0.45, 0, 0.2, 1));
   const drift = ramp(frame, TILT, LAYERS_FRAMES - TILT, Easing.linear);
   const rx = 58 * tilt;
   const rz = -26 * tilt + 7 * drift;
   // The camera: the whole stack, then close on each layer as it is told, then the whole stack again for the work
   // rising through it; `level` is the layer at the centre of the frame, 0 the top
   const camera = (values: number[]) =>
-    interpolate(frame, [TILT, TILT + 40, UNDERSTAND + 26, UNDERSTAND + 56, IMPLEMENT - 4, IMPLEMENT + 26, RISE - 14, RISE + 16], values, {
+    interpolate(frame, [TILT, TILT + 56, UNDERSTAND + 26, UNDERSTAND + 56, IMPLEMENT - 4, IMPLEMENT + 26, RISE - 14, RISE + 16], values, {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
       easing: Easing.inOut(Easing.cubic),
@@ -473,7 +473,7 @@ export function Layers() {
 
   // The finger approving the top card, while the stack is still flat
   const fx = STAGE.x + 20 + ramp(frame, APPROVE.drag, APPROVE.release - APPROVE.drag, Easing.inOut(Easing.quad)) * 330;
-  const fy = STAGE.y + 40;
+  const fy = STAGE.y + 40 - 46 * Math.sin((Math.PI * (fx - STAGE.x - 20)) / 330);
   const fingerIn = ramp(frame, APPROVE.show + 14, 10) * (1 - ramp(frame, APPROVE.release + 2, 10));
   const pressed = ramp(frame, APPROVE.press, 4) * (1 - ramp(frame, APPROVE.release, 4));
 

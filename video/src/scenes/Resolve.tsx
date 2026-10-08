@@ -55,7 +55,7 @@ function Half({ f, side }: { f: number; side: 'left' | 'right' }) {
   const left = side === 'left';
   const enter = ramp(f, 0, IN, Easing.out(Easing.cubic));
   const open = ramp(f, OPEN.from, OPEN.to - OPEN.from, Easing.inOut(Easing.cubic)) * (1 - ramp(f, CLOSE.from, CLOSE.to - CLOSE.from, Easing.inOut(Easing.cubic)));
-  const shake = f >= HIT && f < HIT + 16 ? Math.sin(f * 2.7) * 14 * (1 - (f - HIT) / 16) : 0;
+  const shake = f >= HIT && f < HIT + 16 ? Math.sin(f * 2.2) * 7 * (1 - (f - HIT) / 16) : 0;
   const agreed = f >= ZIP;
   const fixed = ramp(f, ZIP + 4, 18);
   const layer = left ? LAYERS.attention : LAYERS.understanding;
@@ -95,7 +95,7 @@ function Half({ f, side }: { f: number; side: 'left' | 'right' }) {
 /** The crack along the seam: drawn as the cards hit, glowing red, then zipped shut in green */
 function Crack({ f }: { f: number }) {
   if (f < HIT) return null;
-  const drawn = ramp(f, HIT, 12, Easing.out(Easing.cubic));
+  const drawn = ramp(f, HIT, 22, Easing.out(Easing.cubic));
   const open = ramp(f, OPEN.from, 12) * (1 - ramp(f, CLOSE.to - 6, 6));
   const zip = ramp(f, ZIP, 26, Easing.inOut(Easing.cubic));
   const gone = ramp(f, ZIP + 40, 20);
@@ -154,8 +154,7 @@ function Banner({ f, from, to, text, color }: { f: number; from: number; to: num
 export const RESOLVE_CUES: Cue[] = [
   { at: 30, hold: 112, text: 'When two documents disagree, Momentum notices.' },
   { at: 150, hold: 200, text: 'It suggests a fix, best option first.' },
-  { at: 204, hold: 240, text: 'One swipe,' },
-  { at: 296, hold: 440, text: 'and they agree again.' },
+  { at: 204, hold: 300, text: 'One swipe, and they agree again.' },
 ];
 const DWELLS = voiceDwells('Resolve', RESOLVE_CUES, RESOLVE_FRAMES);
 export const RESOLVE_LENGTH = dwelt(RESOLVE_FRAMES, DWELLS);
@@ -192,7 +191,7 @@ export function Resolve() {
       <Half f={f} side="left" />
       <Half f={f} side="right" />
       <Crack f={f} />
-      <AbsoluteFill style={{ background: '#fff', opacity: 0.7 * hitFlash, pointerEvents: 'none' }} />
+      <AbsoluteFill style={{ background: '#fff', opacity: 0.3 * hitFlash, pointerEvents: 'none' }} />
       {stamp > 0 ? (
         <div style={{ position: 'absolute', left: 960, top: 300, transform: `translate(-50%, -50%) rotate(-8deg) scale(${stamp})`, border: `6px solid ${C.no}`, borderRadius: 12, background: C.surface, padding: '14px 30px', fontFamily: F.body, fontWeight: 700, fontSize: 44, letterSpacing: 6, color: C.no, boxShadow: '0 20px 40px rgba(30,41,59,.25)' }}>
           CONTRADICTION

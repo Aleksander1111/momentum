@@ -100,7 +100,8 @@ const BLOCKS: Block[] = [
   { area: 'root', x: 800, y: 560, w: 120, d: 220, h: 50, at: 50 },
 ];
 const GROUND = 920;
-const riseOf = (b: Block, f: number) => ramp(f, CITY + 30 + b.at, 22, Easing.out(Easing.back(1.3)));
+// The phone's score settles first; the blocks rise after, as its confirmation
+const riseOf = (b: Block, f: number) => ramp(f, CITY + 70 + b.at * 0.8, 24, Easing.out(Easing.back(1.3)));
 
 function territory(f: number) {
   const all = BLOCKS.reduce((s, b) => s + b.w * b.d, 0);
@@ -229,8 +230,7 @@ function Giant({ f, from, to, text, color, top = 420 }: { f: number; from: numbe
 
 /** The narration: a line per beat */
 export const MEASURE_CUES: Cue[] = [
-  { at: 8, hold: 120, text: 'When work is finished,' },
-  { at: 128, hold: 210, text: 'you read one card, not a pile of changes.' },
+  { at: 8, hold: 210, text: 'When work is finished, you read one card, not a pile of changes.' },
   { at: 236, hold: 460, text: 'And you see how well each project is understood.' },
 ];
 const DWELLS = voiceDwells('Measure', MEASURE_CUES, MEASURE_FRAMES);

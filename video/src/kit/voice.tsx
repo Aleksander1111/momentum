@@ -9,6 +9,8 @@ export interface Cue {
   at: number;
   hold: number;
   text: string;
+  /** Frames the beat stays after its line, beyond the usual pause: for a picture that needs looking at */
+  rest?: number;
 }
 
 /** Each line's recording and its length in frames, written by scripts/voice.ts */
@@ -24,7 +26,7 @@ const framesOf = (scene: string, i: number, cue: Cue) => {
 const PAUSE = 21;
 const LEAST = 24;
 /** Frames the next scene takes over in */
-const HANDOVER = 20;
+export const HANDOVER = 28;
 
 /** The holds a scene of `frames` frames needs for its lines */
 export function voiceDwells(scene: string, cues: Cue[], frames: number): Dwell[] {
@@ -32,7 +34,7 @@ export function voiceDwells(scene: string, cues: Cue[], frames: number): Dwell[]
   cues.forEach((cue, i) => {
     const next = i + 1 < cues.length ? cues[i + 1]!.at : frames - HANDOVER;
     const gap = next - cue.at;
-    const need = framesOf(scene, i, cue) + PAUSE - gap;
+    const need = framesOf(scene, i, cue) + PAUSE + (cue.rest ?? 0) - gap;
     const len = Math.max(LEAST, dwellFor(need));
     // Held early enough that the hold is over before the next line's beat starts
     const hold = Math.max(cue.at, Math.min(cue.hold, next - dwellSpan(len) - 2));

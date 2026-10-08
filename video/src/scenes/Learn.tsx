@@ -25,7 +25,7 @@ const CHATS: { project: Project; title: string; before: string; said: string; af
 ];
 
 // Beats
-const SEEN = (i: number) => 38 + i * 30;
+const SEEN = (i: number) => 30 + i * 34;
 const LIFT = 140;
 const MERGE = 178;
 const INTO = 246;
@@ -37,10 +37,10 @@ const PHONES = [
   { x: 960, ry: 0 },
   { x: 1400, ry: -22 },
 ];
-const SCALE = 0.72;
+const SCALE = 0.84;
 const Y = 470;
 /** Where the highlighted sentence sits on the frame, roughly, in each phone */
-const SAID_AT = (i: number) => ({ x: PHONES[i]!.x + 30, y: Y - 116 });
+const SAID_AT = (i: number) => ({ x: PHONES[i]!.x + 35, y: Y - 135 });
 const PATTERN = { x: 960, y: 400 };
 
 function ChatScreen({ f, i }: { f: number; i: number }) {
@@ -216,8 +216,7 @@ function Tiles({ f }: { f: number }) {
 
 /** The narration: a line per beat */
 export const LEARN_CUES: Cue[] = [
-  { at: 10, hold: 130, text: 'Ask for the same thing again and again,' },
-  { at: 142, hold: 240, text: 'and Momentum proposes making it the rule.' },
+  { at: 10, hold: 138, text: 'Ask for the same thing again and again, and Momentum proposes making it the rule.' },
   { at: 250, hold: 440, text: 'It applies everywhere. You still have the last word.' },
 ];
 const DWELLS = voiceDwells('Learn', LEARN_CUES, LEARN_FRAMES);
@@ -244,7 +243,7 @@ export function Learn() {
       <AbsoluteFill style={{ perspective: 2200, perspectiveOrigin: `960px ${Y}px` }}>
         {PHONES.map((p, i) => {
           const centre = i === 1;
-          const enter = pop(f, i * 5);
+          const enter = pop(f, i * 12);
           const scale = centre ? centreScale : mix(recede, SCALE, 0.6);
           const x = centre ? p.x : mix(sides, mix(recede, p.x, p.x + (i === 0 ? -60 : 60)), p.x + (i === 0 ? -900 : 900));
           const feed = centre && f >= INTO;

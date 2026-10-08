@@ -31,7 +31,6 @@ const PHONE_AT = { x: 960, y: 470, scale: 0.6 };
 // Beats: one part at the front every BEAT frames, then every project at once
 const START = 18;
 const BEAT = 60;
-const MOVE = 20;
 const SPIN = START + N * BEAT;
 
 const CARD: Entity = {
@@ -61,9 +60,9 @@ const PROJECT_COLORS = ['#1D6FD6', '#7C3AED', '#C2410C', '#0F766E'];
 function front(f: number): number {
   if (f < START) return 0;
   if (f < SPIN) {
+    // Turning without ever stopping: slower as each part comes to the front, quicker between
     const p = (f - START) / BEAT;
-    const k = Math.floor(p);
-    return k + ramp((p - k) * BEAT, BEAT - MOVE, MOVE, Easing.inOut(Easing.cubic));
+    return p - (0.8 * Math.sin(2 * Math.PI * p)) / (2 * Math.PI);
   }
   // Every project's loop: spinning faster and faster
   const t = f - SPIN;
@@ -145,7 +144,7 @@ function Tokens({ f }: { f: number }) {
   return (
     <>
       {PROJECT_COLORS.map((color, i) => {
-        const a = ((90 + i * 90 - t * (4 + t * 0.06)) * Math.PI) / 180;
+        const a = ((90 + i * 90 - t * (4 + t * 0.06) - 14 * Math.sin(t / 11 + i)) * Math.PI) / 180;
         const depth = (Math.sin(a) + 1) / 2;
         return (
           <div

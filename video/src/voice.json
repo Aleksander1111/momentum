@@ -1,20 +1,26 @@
 {
   "Hook-0": {
     "file": "Hook-0.wav",
-    "frames": 110,
-    "text": "You run a dozen projects. Each one changes every day.",
+    "frames": 50,
+    "text": "You run a dozen projects.",
     "voice": "af_heart@0.95/take"
   },
   "Hook-1": {
     "file": "Hook-1.wav",
-    "frames": 50,
-    "text": "Nobody can keep up with all of it.",
+    "frames": 52,
+    "text": "Each one changes, every day.",
     "voice": "af_heart@0.95/take"
   },
   "Hook-2": {
     "file": "Hook-2.wav",
-    "frames": 85,
-    "text": "Momentum brings what matters to you, in one place.",
+    "frames": 45,
+    "text": "Nobody keeps up with all of it.",
+    "voice": "af_heart@0.95/take"
+  },
+  "Hook-3": {
+    "file": "Hook-3.wav",
+    "frames": 58,
+    "text": "So it all comes to you, in one place.",
     "voice": "af_heart@0.95/take"
   },
   "Layers-0": {
@@ -109,7 +115,7 @@
   },
   "Graph-1": {
     "file": "Graph-1.wav",
-    "frames": 53,
+    "frames": 52,
     "text": "Momentum turns them into short cards.",
     "voice": "af_heart@0.95/take"
   },
@@ -139,18 +145,12 @@
   },
   "Measure-0": {
     "file": "Measure-0.wav",
-    "frames": 33,
-    "text": "When work is finished,",
+    "frames": 121,
+    "text": "When work is finished, you read one card, not a pile of changes.",
     "voice": "af_heart@0.95/take"
   },
   "Measure-1": {
     "file": "Measure-1.wav",
-    "frames": 83,
-    "text": "you read one card, not a pile of changes.",
-    "voice": "af_heart@0.95/take"
-  },
-  "Measure-2": {
-    "file": "Measure-2.wav",
     "frames": 72,
     "text": "And you see how well each project is understood.",
     "voice": "af_heart@0.95/take"
@@ -169,14 +169,8 @@
   },
   "Resolve-2": {
     "file": "Resolve-2.wav",
-    "frames": 21,
-    "text": "One swipe,",
-    "voice": "af_heart@0.95/take"
-  },
-  "Resolve-3": {
-    "file": "Resolve-3.wav",
-    "frames": 33,
-    "text": "and they agree again.",
+    "frames": 53,
+    "text": "One swipe, and they agree again.",
     "voice": "af_heart@0.95/take"
   },
   "Schedule-0": {
@@ -199,18 +193,12 @@
   },
   "Learn-0": {
     "file": "Learn-0.wav",
-    "frames": 66,
-    "text": "Ask for the same thing again and again,",
+    "frames": 137,
+    "text": "Ask for the same thing again and again, and Momentum proposes making it the rule.",
     "voice": "af_heart@0.95/take"
   },
   "Learn-1": {
     "file": "Learn-1.wav",
-    "frames": 66,
-    "text": "and Momentum proposes making it the rule.",
-    "voice": "af_heart@0.95/take"
-  },
-  "Learn-2": {
-    "file": "Learn-2.wav",
     "frames": 91,
     "text": "It applies everywhere. You still have the last word.",
     "voice": "af_heart@0.95/take"

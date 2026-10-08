@@ -76,14 +76,16 @@ export function Swipe() {
   // The finger: one gesture per beat
   const finger = (() => {
     if (f < 160) {
-      return { x: CARD_C.x + 30 + aDrag, y: CARD_C.y + 30, o: ramp(f, APPROVE.finger, 10) * (1 - ramp(f, APPROVE.release + 2, 8)), p: ramp(f, APPROVE.press, 4) * (1 - ramp(f, APPROVE.release, 4)) };
+      // A thumb's arc, not a ruler's line
+      const come = 1 - ramp(f, APPROVE.finger, 14);
+      return { x: CARD_C.x + 30 + aDrag + 90 * come, y: CARD_C.y + 30 - 46 * Math.sin((Math.PI * aDrag) / 330) + 160 * come, o: ramp(f, APPROVE.finger, 10) * (1 - ramp(f, APPROVE.release + 2, 8)), p: ramp(f, APPROVE.press, 4) * (1 - ramp(f, APPROVE.release, 4)) };
     }
     if (f < 360) {
       const onSend = f >= REWORK.send - 20;
       const sendAt = { x: CARD_C.x + 90, y: SCREEN0.y + 760 };
       return onSend
         ? { x: sendAt.x, y: sendAt.y, o: ramp(f, REWORK.send - 20, 8) * (1 - ramp(f, REWORK.send + 8, 8)), p: ramp(f, REWORK.send, 3) * (1 - ramp(f, REWORK.send + 5, 3)) }
-        : { x: CARD_C.x + 60 + rDrag, y: CARD_C.y + 60, o: ramp(f, REWORK.finger, 10) * (1 - ramp(f, REWORK.release + 2, 8)), p: ramp(f, REWORK.press, 4) * (1 - ramp(f, REWORK.release, 4)) };
+        : { x: CARD_C.x + 60 + rDrag + 90 * (1 - ramp(f, REWORK.finger, 14)), y: CARD_C.y + 60 - 40 * Math.sin((Math.PI * -rDrag) / 210) + 160 * (1 - ramp(f, REWORK.finger, 14)), o: ramp(f, REWORK.finger, 10) * (1 - ramp(f, REWORK.release + 2, 8)), p: ramp(f, REWORK.press, 4) * (1 - ramp(f, REWORK.release, 4)) };
     }
     return { x: CARD_C.x, y: CARD_C.y + 140 + qDrag, o: ramp(f, ASK.finger, 10) * (1 - ramp(f, ASK.release + 2, 8)), p: ramp(f, ASK.press, 4) * (1 - ramp(f, ASK.release, 4)) };
   })();
