@@ -2,7 +2,7 @@
 // settled point, until its line has been said and a pause has passed, so nothing moves on while it is still being told.
 import { Audio, Sequence, staticFile } from 'remotion';
 import timing from '../voice.json';
-import { dwell, type Dwell } from './motion.ts';
+import { dwell, dwellFor, dwellSpan, type Dwell } from './motion.ts';
 
 /** A line, said from scene frame `at`; the scene holds at `hold` until it is over */
 export interface Cue {
@@ -25,7 +25,6 @@ const PAUSE = 21;
 const LEAST = 24;
 /** Frames the next scene takes over in */
 const HANDOVER = 20;
-const RATE = 0.2;
 
 /** The holds a scene of `frames` frames needs for its lines */
 export function voiceDwells(scene: string, cues: Cue[], frames: number): Dwell[] {
@@ -34,9 +33,9 @@ export function voiceDwells(scene: string, cues: Cue[], frames: number): Dwell[]
     const next = i + 1 < cues.length ? cues[i + 1]!.at : frames - HANDOVER;
     const gap = next - cue.at;
     const need = framesOf(scene, i, cue) + PAUSE - gap;
-    const len = Math.max(LEAST, need / (1 - RATE));
-    // Held early enough that the slowed beat is over before the next line's beat starts
-    const hold = Math.max(cue.at, Math.min(cue.hold, next - len * RATE - 2));
+    const len = Math.max(LEAST, dwellFor(need));
+    // Held early enough that the hold is over before the next line's beat starts
+    const hold = Math.max(cue.at, Math.min(cue.hold, next - dwellSpan(len) - 2));
     dwells.push([Math.round(hold), Math.round(len)]);
   });
   return dwells;

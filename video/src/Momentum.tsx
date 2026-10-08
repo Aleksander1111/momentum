@@ -1,7 +1,8 @@
 // The whole video: the problem, then the three layers in turn, each scene handing over to the next with its own transition
 import { linearTiming, TransitionSeries, type TransitionPresentation } from '@remotion/transitions';
 import type { ComponentType } from 'react';
-import { AbsoluteFill, Audio, staticFile } from 'remotion';
+import type { ReactNode } from 'react';
+import { AbsoluteFill, Audio, staticFile, useCurrentFrame } from 'remotion';
 import { FPS } from './kit/motion.ts';
 import { C } from './kit/theme.ts';
 import { iris, push, zoomThrough } from './kit/transitions.tsx';
@@ -66,6 +67,18 @@ export const SPOKEN = SCRIPT.flatMap(({ scene, cues, frames }, i) => {
 
 export const MOMENTUM_FRAMES = CUT.reduce((sum, [, frames]) => sum + frames, 0) - (CUT.length - 1) * HANDOVER;
 
+/**
+ * A slow drift of the whole frame, like a camera held by hand on a tripod: never still, even while a scene holds for
+ * its line
+ */
+function Breathe({ children }: { children: ReactNode }) {
+  const f = useCurrentFrame();
+  const scale = 1.012 + 0.012 * Math.sin(f / 97);
+  const x = 6 * Math.sin(f / 131);
+  const y = 4 * Math.sin(f / 113 + 1);
+  return <AbsoluteFill style={{ transform: `translate(${x}px, ${y}px) scale(${scale})` }}>{children}</AbsoluteFill>;
+}
+
 export function Momentum() {
   return (
     // A light ground under every transition: a scene fading out shows the page, never black
@@ -75,7 +88,9 @@ export function Momentum() {
       <TransitionSeries>
         {CUT.flatMap(([Scene, frames, next], i) => [
           <TransitionSeries.Sequence key={`s${i}`} durationInFrames={frames}>
-            <Scene />
+            <Breathe>
+              <Scene />
+            </Breathe>
           </TransitionSeries.Sequence>,
           ...(next ? [<TransitionSeries.Transition key={`t${i}`} presentation={next} timing={linearTiming({ durationInFrames: HANDOVER })} />] : []),
         ])}
