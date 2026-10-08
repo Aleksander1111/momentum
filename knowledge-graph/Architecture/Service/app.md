@@ -21,8 +21,8 @@ artifacts:
 
 One Expo (React Native) app, `apps/app`, for web and mobile.
 
-- Six tabs: Feed, Explorer, Chat, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone
-- The Chat tab badges waiting context parts
+- Six tabs: Feed, Explorer, Sessions, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone
+- The Sessions tab badges waiting context parts
 - Tabs stay mounted; Back walks the history
 - Light or dark as chosen in Settings, kept on the device; System follows it
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
