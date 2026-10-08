@@ -4,7 +4,7 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2023", "DOM"]
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
   "include": ["src", "remotion.config.ts"]
 }

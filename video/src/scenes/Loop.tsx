@@ -6,9 +6,10 @@ import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, LAYERS, PARTS, type Layer } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const LOOP_FRAMES = 450;
+export const LOOP_FRAMES = 650;
 
 const STATIONS: { name: string; sub: string; layer: Layer; glyph: string; filled?: boolean }[] = [
   { name: 'Triggers', sub: 'schedule · event · on demand', layer: 'implementation', glyph: ICONS.clock, filled: true },
@@ -29,8 +30,8 @@ const PHONE_AT = { x: 960, y: 470, scale: 0.6 };
 
 // Beats: one part at the front every BEAT frames, then every project at once
 const START = 18;
-const BEAT = 36;
-const MOVE = 14;
+const BEAT = 60;
+const MOVE = 20;
 const SPIN = START + N * BEAT;
 
 const CARD: Entity = {
@@ -169,8 +170,15 @@ function Tokens({ f }: { f: number }) {
   );
 }
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [...Array.from({ length: N }, (_, k): Dwell => [START + k * BEAT + 4, 22]), [400, 30]];
+/** The narration: a line per beat */
+export const LOOP_CUES: Cue[] = [
+  { at: START, hold: START + BEAT + 20, text: 'A trigger starts a run, in its own checkout of the project.' },
+  { at: START + 2 * BEAT, hold: START + 3 * BEAT + 20, text: 'The run does the work, and summarization turns it into cards.' },
+  { at: START + 4 * BEAT, hold: START + 5 * BEAT + 20, text: 'The guard checks every change before it lands on the main line.' },
+  { at: START + 6 * BEAT, hold: START + 7 * BEAT + 20, text: 'Then it reaches your feed, and you decide.' },
+  { at: SPIN, hold: LOOP_FRAMES - 30, text: 'Every project runs its own loop, all at once.' },
+];
+const DWELLS = voiceDwells('Loop', LOOP_CUES, LOOP_FRAMES);
 export const LOOP_LENGTH = dwelt(LOOP_FRAMES, DWELLS);
 
 export function Loop() {
@@ -188,6 +196,7 @@ export function Loop() {
 
   return (
     <AbsoluteFill>
+      <Voice scene="Loop" cues={LOOP_CUES} dwells={DWELLS} />
       <Backdrop />
       <Floor f={f} />
       <Beam f={f} at={at} />

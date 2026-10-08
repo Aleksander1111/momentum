@@ -6,7 +6,8 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, Finger, Headline, Logo } from '../kit/stage.tsx';
 import { C, F, LAYERS, PARTS, domainOf, type Layer } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LAYERS_FRAMES = 490;
 
@@ -87,7 +88,7 @@ const STAGE = { x: 1270, y: 540 };
 const P = 940;
 const GAP = 480;
 
-function Plane({ layer, z, opacity, glow, children }: { layer: Layer; z: number; opacity: number; glow: number; children?: ReactNode }) {
+function Plane({ layer, z, opacity, glow, label = 1, children }: { layer: Layer; z: number; opacity: number; glow: number; label?: number; children?: ReactNode }) {
   const l = LAYERS[layer];
   const face: CSSProperties = { position: 'absolute', inset: 0, borderRadius: 56 };
   return (
@@ -117,6 +118,7 @@ function Plane({ layer, z, opacity, glow, children }: { layer: Layer; z: number;
             letterSpacing: 10,
             color: l.ink,
             whiteSpace: 'nowrap',
+            opacity: label,
           }}
         >
           {l.name.toUpperCase()}
@@ -435,8 +437,16 @@ function Chips({ frame }: { frame: number }) {
   );
 }
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[86, 40], [176, 30], [282, 45], [362, 30], [433, 30], [486, 40]];
+/** The narration: a line per beat */
+export const LAYERS_CUES: Cue[] = [
+  { at: 4, hold: 88, text: 'Momentum gathers what needs you, from every project, into one ranked feed.' },
+  { at: 100, hold: 180, text: 'Only what you approve counts.' },
+  { at: 196, hold: 284, text: 'Beneath it, each project becomes a knowledge graph, checked on every change.' },
+  { at: 296, hold: 368, text: 'Beneath that, Claude Code does the work: planned, built, validated.' },
+  { at: 384, hold: 440, text: 'The result rises through the graph and lands in your feed, as one card.' },
+  { at: 455, hold: 486, text: 'Your attention, where it pays.' },
+];
+const DWELLS = voiceDwells('Layers', LAYERS_CUES, LAYERS_FRAMES);
 export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
 
 export function Layers() {
@@ -469,6 +479,7 @@ export function Layers() {
 
   return (
     <AbsoluteFill>
+      <Voice scene="Layers" cues={LAYERS_CUES} dwells={DWELLS} />
       <Backdrop />
       <AbsoluteFill style={{ perspective: 2600, perspectiveOrigin: `${STAGE.x}px ${STAGE.y}px` }}>
         <div
@@ -488,7 +499,8 @@ export function Layers() {
           <Plane layer="understanding" z={-GAP - 140 * (1 - ramp(frame, UNDERSTAND, 26, Easing.out(Easing.cubic)))} opacity={ramp(frame, UNDERSTAND, 16)} glow={glow}>
             <Graph frame={frame} pulse={frame >= RISE ? guardHit : Math.max(0, pulse)} />
           </Plane>
-          <Plane layer="attention" z={0} opacity={ramp(frame, APPROVE.show, 18)} glow={glow} />
+          {/* Its name leaves before the camera, down on the runs, pushes it past the frame's top */}
+          <Plane layer="attention" z={0} opacity={ramp(frame, APPROVE.show, 18)} glow={glow} label={1 - Math.min(1, Math.max(0, (level - 1.2) * 3))} />
           <Rising frame={frame} />
           <Phone style={{ left: (P - PHONE.w) / 2, top: (P - PHONE.h) / 2, transform: 'translateZ(8px)', boxShadow: tilt > 0 ? `0 ${40 * (1 - tilt)}px ${80 * (1 - tilt) + 20}px rgba(30,41,59,.3)` : undefined }}>
             <Feed frame={frame} />

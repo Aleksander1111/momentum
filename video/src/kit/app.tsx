@@ -222,7 +222,7 @@ function TabBar({ active }: { active: Tab | null }) {
 }
 
 /** The phone with the app on one of its tabs: the screen's own layers under whatever the scene puts on it */
-export function Phone({ children, style, tab = 'feed', screen }: { children?: ReactNode; style?: CSSProperties; tab?: Tab | null; screen?: ReactNode }) {
+export function Phone({ children, style, tab = 'feed', screen, bar = 1 }: { children?: ReactNode; style?: CSSProperties; tab?: Tab | null; screen?: ReactNode; bar?: number }) {
   return (
     <div
       style={{
@@ -241,7 +241,11 @@ export function Phone({ children, style, tab = 'feed', screen }: { children?: Re
         <div style={{ position: 'absolute', right: 18, top: 54, opacity: 0.9 }}>
           <Glyph path={ICONS.settings} size={22} color={C.muted} />
         </div>
-        <TabBar active={tab} />
+        {bar > 0 ? (
+          <div style={{ opacity: bar }}>
+            <TabBar active={tab} />
+          </div>
+        ) : null}
       </div>
       {/* Cards live outside the screen's clip, so they can fly in and away */}
       <div style={{ position: 'absolute', left: BEZEL, top: BEZEL, width: SCREEN.w, height: SCREEN.h }}>{children}</div>

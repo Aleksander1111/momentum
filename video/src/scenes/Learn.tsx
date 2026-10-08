@@ -6,7 +6,8 @@ import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, TypePill, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, BottomHeadline, Finger } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LEARN_FRAMES = 450;
 
@@ -213,8 +214,13 @@ function Tiles({ f }: { f: number }) {
   );
 }
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[112, 30], [205, 40], [335, 30], [420, 30]];
+/** The narration: a line per beat */
+export const LEARN_CUES: Cue[] = [
+  { at: 10, hold: 130, text: 'When you ask for the same thing in three different chats,' },
+  { at: 142, hold: 240, text: 'Momentum notices, and proposes the change once.' },
+  { at: 250, hold: 440, text: 'It takes effect on every project at once, and still waits for your review.' },
+];
+const DWELLS = voiceDwells('Learn', LEARN_CUES, LEARN_FRAMES);
 export const LEARN_LENGTH = dwelt(LEARN_FRAMES, DWELLS);
 
 export function Learn() {
@@ -233,6 +239,7 @@ export function Learn() {
 
   return (
     <AbsoluteFill>
+      <Voice scene="Learn" cues={LEARN_CUES} dwells={DWELLS} />
       <Backdrop />
       <AbsoluteFill style={{ perspective: 2200, perspectiveOrigin: `960px ${Y}px` }}>
         {PHONES.map((p, i) => {

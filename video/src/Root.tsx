@@ -1,6 +1,7 @@
 import { Composition } from 'remotion';
 import { FPS } from './kit/motion.ts';
 import { Momentum, MOMENTUM_FRAMES } from './Momentum.tsx';
+import { LayoutAudit } from './kit/audit.tsx';
 import { Hook, HOOK_LENGTH } from './scenes/Hook.tsx';
 import { Layers, LAYERS_LENGTH } from './scenes/Layers.tsx';
 import { Swipe, SWIPE_LENGTH } from './scenes/Swipe.tsx';
@@ -12,7 +13,18 @@ import { Measure, MEASURE_LENGTH } from './scenes/Measure.tsx';
 import { Resolve, RESOLVE_LENGTH } from './scenes/Resolve.tsx';
 import { Line, LINE_LENGTH } from './scenes/Line.tsx';
 
+/** The whole cut, measured frame by frame by scripts/audit.ts */
+function Audited() {
+  return (
+    <>
+      <Momentum />
+      <LayoutAudit />
+    </>
+  );
+}
+
 const SCENES = [
+  { id: 'Audit', component: Audited, frames: MOMENTUM_FRAMES },
   { id: 'Momentum', component: Momentum, frames: MOMENTUM_FRAMES },
   { id: 'Hook', component: Hook, frames: HOOK_LENGTH },
   { id: 'Layers', component: Layers, frames: LAYERS_LENGTH },

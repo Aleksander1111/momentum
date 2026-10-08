@@ -7,7 +7,8 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { CornerHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const SCHEDULE_FRAMES = 480;
 
@@ -169,19 +170,17 @@ function Pile({ f, rz }: { f: number; rz: number }) {
             </div>
           ))
         : null}
-      <Upright x={PILE.x} y={PILE.y - 130} rz={rz} lift={LIMIT * SHEET}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: full ? C.no : C.surface, color: full ? '#fff' : C.ink, borderRadius: 999, padding: '10px 22px', fontFamily: F.mono, fontWeight: 700, fontSize: 34, boxShadow: '0 10px 24px rgba(30,41,59,.2)', whiteSpace: 'nowrap' }}>
-          <Glyph path={ICONS.feed} size={32} color={full ? '#fff' : C.accent} />
-          {n} / {LIMIT}
-          {full ? <span style={{ fontFamily: F.body, fontSize: 24 }}>full</span> : null}
-        </div>
-      </Upright>
     </>
   );
 }
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[frameAt(PAUSE_AT) + 20, 60], [frameAt(APPROVE_AT) + 16, 30]];
+/** The narration: a line per beat */
+export const SCHEDULE_CUES: Cue[] = [
+  { at: 8, hold: frameAt(PAUSE_AT) - 10, text: 'Meanwhile, each automation runs on its schedule, or on an event.' },
+  { at: frameAt(PAUSE_AT) + 2, hold: SWEEP(0) - 6, text: 'When your feed is full, the loops wait.' },
+  { at: SWEEP(0), hold: SCHEDULE_FRAMES - 30, text: 'Make room, and they go on. Never more work than you can review.' },
+];
+const DWELLS = voiceDwells('Schedule', SCHEDULE_CUES, SCHEDULE_FRAMES);
 export const SCHEDULE_LENGTH = dwelt(SCHEDULE_FRAMES, DWELLS);
 
 export function Schedule() {
@@ -205,6 +204,7 @@ export function Schedule() {
 
   return (
     <AbsoluteFill style={{ background: '#E6DFD2', overflow: 'hidden' }}>
+      <Voice scene="Schedule" cues={SCHEDULE_CUES} dwells={DWELLS} />
       <AbsoluteFill style={{ perspective: 2000, perspectiveOrigin: '1010px 340px' }}>
         <div
           style={{
@@ -241,6 +241,7 @@ export function Schedule() {
       </AbsoluteFill>
       <AbsoluteFill style={{ background: 'rgb(40,52,90)', opacity: 0.16 * night, pointerEvents: 'none' }} />
       <Clock h={h} still={still} />
+      <FeedGauge n={n} />
       <CornerHeadline frame={f} from={4} to={frameAt(PAUSE_AT) - 4} tag="Automations" color={C.ok} text="Your projects keep moving." sub="Each automation on its schedule, or on an event." />
       <CornerHeadline frame={f} from={frameAt(PAUSE_AT)} to={frameAt(APPROVE_AT) + 4} tag="Triggers" color={C.no} text="Your feed is full. The loops wait." sub="An event still starts its run." />
       <CornerHeadline frame={f} from={frameAt(APPROVE_AT) + 8} to={SCHEDULE_FRAMES} tag="Paced by you" color={C.ok} text="Make room, and they go on." sub="Never more work than you can review." />
@@ -260,6 +261,18 @@ function Clock({ h, still }: { h: number; still: number }) {
       />
       <span style={{ fontFamily: F.mono, fontWeight: 700, fontSize: 64, color: C.ink, letterSpacing: 2 }}>{clock(h)}</span>
       {still > 0.5 ? <Glyph path={PARTS.pause} size={40} color={C.no} stroke /> : null}
+    </div>
+  );
+}
+
+/** How full the feed is, beside the clock where nothing on the desk passes over it */
+function FeedGauge({ n }: { n: number }) {
+  const full = n >= LIMIT;
+  return (
+    <div style={{ position: 'absolute', right: 90, top: 186, display: 'flex', alignItems: 'center', gap: 14, background: full ? C.no : 'rgba(255,255,255,.92)', color: full ? '#fff' : C.ink, borderRadius: 999, padding: '12px 26px', boxShadow: '0 16px 40px rgba(30,41,59,.15)', fontFamily: F.mono, fontWeight: 700, fontSize: 40, whiteSpace: 'nowrap' }}>
+      <Glyph path={ICONS.feed} size={36} color={full ? '#fff' : C.accent} />
+      {n} / {LIMIT}
+      <span style={{ fontFamily: F.body, fontSize: 26, fontWeight: 400 }}>{full ? 'feed full' : 'in your feed'}</span>
     </div>
   );
 }

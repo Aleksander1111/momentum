@@ -8,7 +8,8 @@ import { Behind, Counters, FeedCard, PHONE, Phone, SLOT, Stamp, type Entity } fr
 import { DomainBadge } from '../kit/desktop.tsx';
 import { Backdrop, Finger } from '../kit/stage.tsx';
 import { C, F, LAYERS } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const RESOLVE_FRAMES = 450;
 
@@ -33,7 +34,7 @@ const CRACK = (() => {
   return pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join(' ');
 })();
 
-const PHONE_AT = { x: 960, y: 600, scale: 1.3, rz: -4 };
+const PHONE_AT = { x: 960, y: 540, scale: 1.02, rz: -3 };
 
 const ISSUE: Entity = {
   project: { name: 'handbook', color: '#7C3AED' },
@@ -65,7 +66,7 @@ function Half({ f, side }: { f: number; side: 'left' | 'right' }) {
   return (
     <AbsoluteFill style={style}>
       <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at ${left ? 30 : 70}% 50%, rgba(255,255,255,.55), transparent 60%)` }} />
-      <div style={{ position: 'absolute', left: card.x, top: 540, width: 640, transform: `translate(-50%, -50%) rotate(${left ? -2 : 2}deg) scale(${mix(pop(f, IN - 6, true), 0.9, 1)})` }}>
+      <div style={{ position: 'absolute', left: card.x, top: 540, width: 640, opacity: 1 - Math.min(1, open * 2.5), transform: `translate(-50%, -50%) rotate(${left ? -2 : 2}deg) scale(${mix(pop(f, IN - 6, true), 0.9, 1)})` }}>
         <div style={{ background: C.surface, borderRadius: 28, padding: '30px 34px', boxShadow: `0 40px 80px rgba(30,41,59,.2), 0 0 ${agreed ? 50 * fixed : 0}px ${C.ok}`, border: `4px solid ${agreed ? C.ok : f >= HIT ? C.no : C.line}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
             <DomainBadge type={left ? 'Governance/Policy' : 'Knowledge/HowToGuide'} size={54} />
@@ -149,8 +150,14 @@ function Banner({ f, from, to, text, color }: { f: number; from: number; to: num
   );
 }
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[80, 40], [160, 30], [330, 40]];
+/** The narration: a line per beat */
+export const RESOLVE_CUES: Cue[] = [
+  { at: 30, hold: 112, text: 'The consistency check finds where two cards disagree.' },
+  { at: 150, hold: 200, text: 'Each issue comes with options, the best one already picked.' },
+  { at: 204, hold: 240, text: 'One swipe resolves it,' },
+  { at: 296, hold: 440, text: 'and both cards agree again.' },
+];
+const DWELLS = voiceDwells('Resolve', RESOLVE_CUES, RESOLVE_FRAMES);
 export const RESOLVE_LENGTH = dwelt(RESOLVE_FRAMES, DWELLS);
 
 export function Resolve() {
@@ -167,6 +174,7 @@ export function Resolve() {
   const stamp = pop(f, HIT + 4, true) * (1 - ramp(f, OPEN.from - 6, 8));
   return (
     <AbsoluteFill>
+      <Voice scene="Resolve" cues={RESOLVE_CUES} dwells={DWELLS} />
       <Backdrop />
       {/* The phone, close up, waiting behind the seam */}
       <Phone style={{ left: PHONE_AT.x - PHONE.w / 2, top: PHONE_AT.y - PHONE.h / 2, transform: `rotate(${PHONE_AT.rz}deg) scale(${s * mix(ramp(f, OPEN.from, 40), 0.92, 1)})` }}>

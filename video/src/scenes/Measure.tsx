@@ -7,7 +7,8 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } from '../kit/app.tsx';
 import { Backdrop, CornerHeadline } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const MEASURE_FRAMES = 472;
 
@@ -31,9 +32,9 @@ const SUMMARY: Entity = {
 /** A run's diff: three files, mostly added lines */
 const DIFF: { file?: string; mark?: '+' | '-'; text: string }[] = (() => {
   const files: [string, string[]][] = [
-    ['src/routes/books.js', ['export async function books(req, res, store) {', '  const url = new URL(req.url, BASE);', '  const q = url.searchParams.get("q");', '  if (q) return send(res, 200, store.search(q));', '  if (req.method === "GET") return list(res, store);', '  if (req.method === "POST") return add(req, res, store);', '  return send(res, 405, { error: "method" });', '}']],
-    ['src/store.js', ['search(q) {', '  const needle = q.trim().toLowerCase();', '  return this.all().filter((b) =>', '    b.title.toLowerCase().includes(needle) ||', '    b.author.toLowerCase().includes(needle));', '}']],
-    ['test/books.test.js', ['test("finds a book by author", async () => {', '  const res = await get("/books?q=le guin");', '  assert.equal(res.status, 200);', '  assert.equal(res.body[0].title, "The Dispossessed");', '});', 'test("finds a book by title", async () => {', '  const res = await get("/books?q=dune");', '  assert.equal(res.body.length, 1);', '});', 'test("an empty query lists every book", async () => {', '  const res = await get("/books?q=");', '  assert.equal(res.body.length, 12);', '});']],
+    ['src/routes/books.js', ['export async function books(req, res) {', '  const url = new URL(req.url, BASE);', '  const q = url.searchParams.get("q");', '  if (q) return send(res, 200, find(q));', '  if (req.method === "GET") return list(res);', '  if (req.method === "POST") return add(req, res);', '  return send(res, 405);', '}']],
+    ['src/store.js', ['search(q) {', '  const needle = q.trim().toLowerCase();', '  return this.all().filter((b) =>', '    has(b.title, needle) ||', '    has(b.author, needle));', '}']],
+    ['test/books.test.js', ['test("finds a book by author", async () => {', '  const res = await get("/books?q=le guin");', '  assert.equal(res.status, 200);', '  assert.equal(res.body[0].year, 1974);', '});', 'test("finds a book by title", async () => {', '  const res = await get("/books?q=dune");', '  assert.equal(res.body.length, 1);', '});', 'test("an empty query lists all", async () => {', '  assert.equal((await get("/books?q=")).body.length, 12);', '});']],
   ];
   return files.flatMap(([file, lines]) => [{ file, text: file }, ...lines.map((text, i) => ({ mark: (i === 4 && file === 'src/routes/books.js' ? '-' : '+') as '+' | '-', text }))]);
 })();
@@ -62,7 +63,7 @@ function DiffScreen({ f }: { f: number }) {
               );
             }
             return (
-              <div key={i} style={{ display: 'flex', gap: 6, fontFamily: F.mono, fontSize: 11.5, lineHeight: '19px', color: C.ink, background: l.mark === '+' ? 'rgba(63,107,82,.16)' : 'rgba(160,64,47,.16)', padding: '0 12px', opacity: written ? 1 : 0, whiteSpace: 'pre' }}>
+              <div key={i} style={{ display: 'flex', gap: 6, fontFamily: F.mono, fontSize: 11, lineHeight: '15px', color: C.ink, background: l.mark === '+' ? 'rgba(63,107,82,.16)' : 'rgba(160,64,47,.16)', padding: '0 12px', opacity: written ? 1 : 0, whiteSpace: 'pre' }}>
                 <span style={{ color: l.mark === '+' ? C.ok : C.no, width: 8 }}>{l.mark}</span>
                 {l.text}
               </div>
@@ -226,8 +227,13 @@ function Giant({ f, from, to, text, color, top = 420 }: { f: number; from: numbe
   );
 }
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[90, 30], [196, 40], [455, 45]];
+/** The narration: a line per beat */
+export const MEASURE_CUES: Cue[] = [
+  { at: 8, hold: 120, text: 'When a run finishes, everything it changed is summarized' },
+  { at: 128, hold: 210, text: 'into one card you can read.' },
+  { at: 236, hold: 460, text: "And completeness is measured, not guessed: every area, every question." },
+];
+const DWELLS = voiceDwells('Measure', MEASURE_CUES, MEASURE_FRAMES);
 export const MEASURE_LENGTH = dwelt(MEASURE_FRAMES, DWELLS);
 
 export function Measure() {
@@ -237,18 +243,22 @@ export function Measure() {
   const dive = ramp(f, DIVE.from, DIVE.to - DIVE.from, Easing.inOut(Easing.cubic)) * (1 - ramp(f, OUT.from, OUT.to - OUT.from, Easing.inOut(Easing.cubic)));
   const aside = ramp(f, CITY - 20, 30, Easing.inOut(Easing.cubic));
   // Larger once aside, so its Settings read beside the city
-  const scale = mix(dive, 0.66, 3.4) * mix(aside, 1, 1.22);
+  // Close enough to read the diff, never so close that its header or last lines leave the frame
+  const scale = mix(dive, 0.66, 1.45) * mix(aside, 1, 1.22);
   const x = mix(aside, 960, 470);
   const settings = f >= CITY - 10;
   const landed = pop(f, FOLD.to - 6, true);
   return (
     <AbsoluteFill>
+      <Voice scene="Measure" cues={MEASURE_CUES} dwells={DWELLS} />
       <Backdrop />
       <City f={f} />
       <Phone
         tab={settings ? null : f < OUT.from ? 'chat' : 'feed'}
+        // Out of the frame at the bottom while the camera is close: gone until it pulls back
+        bar={1 - Math.min(1, Math.max(0, (dive - 0.3) / 0.3))}
         screen={settings ? <SettingsScreen f={f} /> : f < FOLD.to ? <DiffScreen f={f} /> : null}
-        style={{ left: x - PHONE.w / 2, top: 540 - PHONE.h / 2, opacity: enter, transform: `translateY(${40 * (1 - enter)}px) perspective(2000px) rotateY(${12 * aside}deg) scale(${scale})` }}
+        style={{ left: x - PHONE.w / 2, top: 540 + 16 * dive - PHONE.h / 2, opacity: enter, transform: `translateY(${40 * (1 - enter)}px) perspective(2000px) rotateY(${12 * aside}deg) scale(${scale})` }}
       >
         {!settings && f >= FOLD.to ? (
           <>

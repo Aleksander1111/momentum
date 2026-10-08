@@ -7,7 +7,8 @@ import { Glyph, TypePill } from '../kit/app.tsx';
 import { Desktop, DomainBadge, StateBadge, WINDOW } from '../kit/desktop.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, F, ICONS, domainOf } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const GRAPH_FRAMES = 600;
 
@@ -61,8 +62,16 @@ function fileHome(i: number) {
 /** Where the k-th card's row sits in the window's tree */
 const rowHome = (k: number) => at(WINDOW.nav + 40, WINDOW.bar + 100 + k * ROW + ROW / 2);
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[40, 30], [126, 40], [200, 40], [430, 50], [508, 30], [575, 40]];
+/** The narration: a line per beat */
+export const GRAPH_CUES: Cue[] = [
+  { at: 4, hold: 66, text: 'Take one small repository: thirty-eight files.' },
+  { at: 76, hold: 146, text: 'Momentum reads it into cards. Each card claims the files it accounts for.' },
+  { at: 152, hold: 296, text: 'Every card has a type, with its own colour and glyph.' },
+  { at: 340, hold: 446, text: 'Ask it anything. The answer comes from the cards, and links to each of them.' },
+  { at: 452, hold: 520, text: 'You verify a card by approving it.' },
+  { at: 532, hold: 590, text: 'When a run rewrites it, it comes back to you.' },
+];
+const DWELLS = voiceDwells('Graph', GRAPH_CUES, GRAPH_FRAMES);
 export const GRAPH_LENGTH = dwelt(GRAPH_FRAMES, DWELLS);
 
 export function Graph() {
@@ -75,6 +84,7 @@ export function Graph() {
   const turn = Math.sin(Math.PI * ramp(f, TURN.from, TURN.to - TURN.from, Easing.inOut(Easing.sin)));
   return (
     <AbsoluteFill>
+      <Voice scene="Graph" cues={GRAPH_CUES} dwells={DWELLS} />
       <Backdrop />
       <AbsoluteFill style={{ perspective: 1800, perspectiveOrigin: '960px 300px' }}>
         <Desktop
@@ -89,8 +99,8 @@ export function Graph() {
             transform: `translateY(${60 * (1 - enter) + 200 * lean}px) scale(${S}) rotateX(${38 * lean}deg)`,
           }}
         >
-          <div style={{ position: 'absolute', inset: 0, transformOrigin: `${PANE + 300}px 140px`, transform: `translate(${-40 * dive}px, ${120 * dive}px) scale(${mix(dive, 1, 1.6)})` }}>
-            <div style={{ opacity: 1 - 0.75 * dive }}>
+          <div style={{ position: 'absolute', inset: 0, transformOrigin: `${PANE + 48}px 40px`, transform: `translate(${-(PANE + 8) * dive}px, ${60 * dive}px) scale(${mix(dive, 1, 1.4)})` }}>
+            <div style={{ opacity: 1 - Math.min(1, dive * 4) }}>
               <Tree f={f} />
             </div>
             <Answer f={f} />
@@ -322,7 +332,7 @@ const CITED: [string, string][] = [
 function Answer({ f }: { f: number }) {
   if (f < ANSWER || f > SELECT + 10) return null;
   const shown = pop(f, ANSWER);
-  const out = ramp(f, SELECT, 10);
+  const out = ramp(f, SELECT - 10, 10);
   const text = typed('By listing every book and reading its title: the API has no search yet. Search by author or title is planned as a query on the books route.', f, ANSWER + 6, 70);
   const press = f >= SELECT - 10 && f < SELECT ? Math.sin((Math.PI * (f - (SELECT - 10))) / 10) : 0;
   return (

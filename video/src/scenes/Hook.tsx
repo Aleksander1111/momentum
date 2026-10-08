@@ -6,7 +6,8 @@ import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Glyph, ProjectMark, type Project } from '../kit/app.tsx';
 import { Backdrop } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp, type Dwell } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const HOOK_FRAMES = 240;
 
@@ -41,7 +42,7 @@ const rand = (i: number, k: number) => {
 };
 const ITEMS = Array.from({ length: N }, (_, i) => ({
   at: 10 + 140 * (i / N) ** 0.55,
-  x: 80 + rand(i, 1) * 1560,
+  x: 60 + rand(i, 1) * 1500,
   y: 150 + rand(i, 2) * 820,
   rot: (rand(i, 3) - 0.5) * 10,
   project: PROJECTS[Math.floor(rand(i, 4) * PROJECTS.length)]!,
@@ -100,10 +101,13 @@ function Line({ f, from, to, top = 440, children }: { f: number; from: number; t
   );
 }
 
-const DWELLS: Dwell[] = [
-  [70, 30],
-  [ONE + 14, 40],
+/** The narration: a line per beat */
+export const HOOK_CUES: Cue[] = [
+  { at: 10, hold: 100, text: 'Your projects never stop: commits, pull requests, docs, failing tests.' },
+  { at: 108, hold: 168, text: 'Nobody can read it all.' },
+  { at: 196, hold: 236, text: 'So Momentum brings what matters to you, in one place.' },
 ];
+const DWELLS = voiceDwells('Hook', HOOK_CUES, HOOK_FRAMES);
 export const HOOK_LENGTH = dwelt(HOOK_FRAMES, DWELLS);
 
 export function Hook() {
@@ -114,6 +118,7 @@ export function Hook() {
   const dot = pop(f, PULL + 24, true);
   return (
     <AbsoluteFill>
+      <Voice scene="Hook" cues={HOOK_CUES} dwells={DWELLS} />
       <Backdrop />
       {ITEMS.map((_, i) => (
         <Item key={i} f={f} i={i} />

@@ -1,0 +1,202 @@
+{
+  "Hook-0": {
+    "file": "Hook-0.wav",
+    "frames": 212,
+    "text": "Your projects never stop: commits, pull requests, docs, failing tests."
+  },
+  "Hook-1": {
+    "file": "Hook-1.wav",
+    "frames": 53,
+    "text": "Nobody can read it all."
+  },
+  "Hook-2": {
+    "file": "Hook-2.wav",
+    "frames": 126,
+    "text": "So Momentum brings what matters to you, in one place."
+  },
+  "Layers-0": {
+    "file": "Layers-0.wav",
+    "frames": 173,
+    "text": "Momentum gathers what needs you, from every project, into one ranked feed."
+  },
+  "Layers-1": {
+    "file": "Layers-1.wav",
+    "frames": 66,
+    "text": "Only what you approve counts."
+  },
+  "Layers-2": {
+    "file": "Layers-2.wav",
+    "frames": 174,
+    "text": "Beneath it, each project becomes a knowledge graph, checked on every change."
+  },
+  "Layers-3": {
+    "file": "Layers-3.wav",
+    "frames": 184,
+    "text": "Beneath that, Claude Code does the work: planned, built, validated."
+  },
+  "Layers-4": {
+    "file": "Layers-4.wav",
+    "frames": 158,
+    "text": "The result rises through the graph and lands in your feed, as one card."
+  },
+  "Layers-5": {
+    "file": "Layers-5.wav",
+    "frames": 71,
+    "text": "Your attention, where it pays."
+  },
+  "Swipe-0": {
+    "file": "Swipe-0.wav",
+    "frames": 150,
+    "text": "Swipe right to approve. The work starts by itself."
+  },
+  "Swipe-1": {
+    "file": "Swipe-1.wav",
+    "frames": 119,
+    "text": "Swipe left to send it back, with what should change."
+  },
+  "Swipe-2": {
+    "file": "Swipe-2.wav",
+    "frames": 121,
+    "text": "Or pull up, and ask about the card, right below it."
+  },
+  "Loop-0": {
+    "file": "Loop-0.wav",
+    "frames": 128,
+    "text": "A trigger starts a run, in its own checkout of the project."
+  },
+  "Loop-1": {
+    "file": "Loop-1.wav",
+    "frames": 150,
+    "text": "The run does the work, and summarization turns it into cards."
+  },
+  "Loop-2": {
+    "file": "Loop-2.wav",
+    "frames": 129,
+    "text": "The guard checks every change before it lands on the main line."
+  },
+  "Loop-3": {
+    "file": "Loop-3.wav",
+    "frames": 92,
+    "text": "Then it reaches your feed, and you decide."
+  },
+  "Loop-4": {
+    "file": "Loop-4.wav",
+    "frames": 112,
+    "text": "Every project runs its own loop, all at once."
+  },
+  "Graph-0": {
+    "file": "Graph-0.wav",
+    "frames": 122,
+    "text": "Take one small repository: thirty-eight files."
+  },
+  "Graph-1": {
+    "file": "Graph-1.wav",
+    "frames": 192,
+    "text": "Momentum reads it into cards. Each card claims the files it accounts for."
+  },
+  "Graph-2": {
+    "file": "Graph-2.wav",
+    "frames": 143,
+    "text": "Every card has a type, with its own colour and glyph."
+  },
+  "Graph-3": {
+    "file": "Graph-3.wav",
+    "frames": 192,
+    "text": "Ask it anything. The answer comes from the cards, and links to each of them."
+  },
+  "Graph-4": {
+    "file": "Graph-4.wav",
+    "frames": 82,
+    "text": "You verify a card by approving it."
+  },
+  "Graph-5": {
+    "file": "Graph-5.wav",
+    "frames": 107,
+    "text": "When a run rewrites it, it comes back to you."
+  },
+  "Measure-0": {
+    "file": "Measure-0.wav",
+    "frames": 132,
+    "text": "When a run finishes, everything it changed is summarized"
+  },
+  "Measure-1": {
+    "file": "Measure-1.wav",
+    "frames": 60,
+    "text": "into one card you can read."
+  },
+  "Measure-2": {
+    "file": "Measure-2.wav",
+    "frames": 170,
+    "text": "And completeness is measured, not guessed: every area, every question."
+  },
+  "Resolve-0": {
+    "file": "Resolve-0.wav",
+    "frames": 127,
+    "text": "The consistency check finds where two cards disagree."
+  },
+  "Resolve-1": {
+    "file": "Resolve-1.wav",
+    "frames": 131,
+    "text": "Each issue comes with options, the best one already picked."
+  },
+  "Resolve-2": {
+    "file": "Resolve-2.wav",
+    "frames": 61,
+    "text": "One swipe resolves it,"
+  },
+  "Resolve-3": {
+    "file": "Resolve-3.wav",
+    "frames": 64,
+    "text": "and both cards agree again."
+  },
+  "Schedule-0": {
+    "file": "Schedule-0.wav",
+    "frames": 158,
+    "text": "Meanwhile, each automation runs on its schedule, or on an event."
+  },
+  "Schedule-1": {
+    "file": "Schedule-1.wav",
+    "frames": 95,
+    "text": "When your feed is full, the loops wait."
+  },
+  "Schedule-2": {
+    "file": "Schedule-2.wav",
+    "frames": 160,
+    "text": "Make room, and they go on. Never more work than you can review."
+  },
+  "Learn-0": {
+    "file": "Learn-0.wav",
+    "frames": 120,
+    "text": "When you ask for the same thing in three different chats,"
+  },
+  "Learn-1": {
+    "file": "Learn-1.wav",
+    "frames": 124,
+    "text": "Momentum notices, and proposes the change once."
+  },
+  "Learn-2": {
+    "file": "Learn-2.wav",
+    "frames": 167,
+    "text": "It takes effect on every project at once, and still waits for your review."
+  },
+  "Line-0": {
+    "file": "Line-0.wav",
+    "frames": 143,
+    "text": "Every run and every approval is one commit, on one straight line."
+  },
+  "Line-1": {
+    "file": "Line-1.wav",
+    "frames": 188,
+    "text": "Feed size, concurrent runs, models by risk: tuned to how you work."
+  },
+  "Line-2": {
+    "file": "Line-2.wav",
+    "frames": 78,
+    "text": "Every project, in one place."
+  },
+  "Line-3": {
+    "file": "Line-3.wav",
+    "frames": 224,
+    "text": "Momentum. Self-hosted, open source. Your attention, where it pays."
+  }
+}

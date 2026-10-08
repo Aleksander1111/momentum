@@ -8,7 +8,8 @@ import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } 
 import { Desktop, DomainBadge, StateBadge } from '../kit/desktop.tsx';
 import { Backdrop, Logo } from '../kit/stage.tsx';
 import { C, F, ICONS, PARTS } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LINE_FRAMES = 510;
 
@@ -70,7 +71,8 @@ function Road({ f }: { f: number }) {
             ['NO BRANCHES', 2300],
             ['NO MERGES', 3420],
           ].map(([text, d]) => (
-            <div key={text} style={{ position: 'absolute', left: ROAD.w / 2 + 90, top: ROAD.len - (d as number), fontFamily: F.head, fontWeight: 700, fontSize: 120, color: C.accent, opacity: 0.85, letterSpacing: 4, whiteSpace: 'nowrap' }}>
+            // Gone before it reaches the bottom of the frame, like the posts
+            <div key={text} style={{ position: 'absolute', left: ROAD.w / 2 + 90, top: ROAD.len - (d as number), fontFamily: F.head, fontWeight: 700, fontSize: 120, color: C.accent, opacity: 0.85 * Math.min(1, Math.max(0, ((d as number) - travel - 300) / 500)), letterSpacing: 4, whiteSpace: 'nowrap' }}>
               {text}
             </div>
           ))}
@@ -311,8 +313,14 @@ function Closing({ f }: { f: number }) {
   );
 }
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[300, 40], [380, 30], [490, 60]];
+/** The narration: a line per beat */
+export const LINE_CUES: Cue[] = [
+  { at: 8, hold: 160, text: 'Every run and every approval is one commit, on one straight line.' },
+  { at: 172, hold: 318, text: 'Feed size, concurrent runs, models by risk: tuned to how you work.' },
+  { at: 330, hold: 410, text: 'Every project, in one place.' },
+  { at: 424, hold: 500, text: 'Momentum. Self-hosted, open source. Your attention, where it pays.' },
+];
+const DWELLS = voiceDwells('Line', LINE_CUES, LINE_FRAMES);
 export const LINE_LENGTH = dwelt(LINE_FRAMES, DWELLS);
 
 export function Line() {
@@ -326,6 +334,7 @@ export function Line() {
   const scale = mix(close, 0.62, 1) * mix(away, 1, 0.3);
   return (
     <AbsoluteFill>
+      <Voice scene="Line" cues={LINE_CUES} dwells={DWELLS} />
       <Backdrop />
       <Road f={f} />
       <Giant f={f} from={SETTINGS} to={WALL} text="Tuned to you." />

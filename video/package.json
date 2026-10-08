@@ -9,7 +9,9 @@
     "render": "remotion render src/index.ts",
     "still": "remotion still src/index.ts",
     "typecheck": "tsc --noEmit",
-    "music": "tsx scripts/music.ts"
+    "music": "tsx scripts/music.ts",
+    "voice": "tsx scripts/voice.ts",
+    "audit": "tsx scripts/audit.ts"
   },
   "dependencies": {
     "@remotion/cli": "4.0.534",

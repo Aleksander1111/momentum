@@ -4,7 +4,8 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Bubble, Button, Counters, FeedCard, Glyph, PHONE, Phone, SLOT, Sheet, Stamp, StateIcon, type Entity } from '../kit/app.tsx';
 import { Backdrop, Finger } from '../kit/stage.tsx';
 import { C, F, ICONS, LAYERS } from '../kit/theme.ts';
-import { type Dwell, dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const SWIPE_FRAMES = 540;
 
@@ -38,8 +39,13 @@ const ASK = { finger: 368, press: 378, drag: 382, release: 404, type: 426, answe
 const QUESTION = 'Why half days and not hours?';
 const ANSWER = 'Payroll counts leave in half days; hours would need a new export.';
 
-/** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[130, 40], [350, 30], [505, 45]];
+/** The narration: a line per beat */
+export const SWIPE_CUES: Cue[] = [
+  { at: 8, hold: 150, text: 'Swipe right to approve. The work starts by itself.' },
+  { at: 176, hold: 350, text: 'Swipe left to send it back, with what should change.' },
+  { at: 372, hold: 520, text: 'Or pull up, and ask about the card, right below it.' },
+];
+const DWELLS = voiceDwells('Swipe', SWIPE_CUES, SWIPE_FRAMES);
 export const SWIPE_LENGTH = dwelt(SWIPE_FRAMES, DWELLS);
 
 export function Swipe() {
@@ -93,10 +99,13 @@ export function Swipe() {
   const zoom = 1 + 0.2 * zoomSheet + 0.16 * zoomChat;
   const focus = f < 360 ? { x: AT.x, y: 880 } : { x: AT.x, y: 640 };
   // The whole stage a little smaller, so the caption below the phone has room
-  const camera = `translate(${AT.x}px, ${AT.y}px) scale(0.84) translate(${-AT.x}px, ${-AT.y}px) translate(${focus.x}px, ${focus.y}px) scale(${zoom}) translate(${-focus.x}px, ${-focus.y}px) translate(${AT.x}px, ${AT.y}px) rotateY(${ry}deg) translate(${-AT.x}px, ${-AT.y}px)`;
+  // The phone steps aside for each gesture's word: left of it while approving and asking, right of it for rework
+  const pan = interpolate(f, [0, 160, 190, 350, 380], [-330, -330, 330, 330, -330], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic) });
+  const camera = `translateX(${pan}px) translate(${AT.x}px, ${AT.y}px) scale(0.84) translate(${-AT.x}px, ${-AT.y}px) translate(${focus.x}px, ${focus.y}px) scale(${zoom}) translate(${-focus.x}px, ${-focus.y}px) translate(${AT.x}px, ${AT.y}px) rotateY(${ry}deg) translate(${-AT.x}px, ${-AT.y}px)`;
 
   return (
     <AbsoluteFill>
+      <Voice scene="Swipe" cues={SWIPE_CUES} dwells={DWELLS} />
       <Backdrop />
       {/* Each gesture's word, giant behind the phone, sweeping the way the finger goes */}
       <Gesture f={f} from={0} to={170} word="APPROVE" color={C.ok} dir="right" at={APPROVE.drag} />
@@ -246,7 +255,7 @@ function ChatRun({ f }: { f: number }) {
     <div
       style={{
         position: 'absolute',
-        left: 1440,
+        left: 1230,
         top: 440,
         transform: `scale(${t})`,
         transformOrigin: 'left center',
@@ -316,24 +325,25 @@ function Gesture({ f, from, to, word, color, dir, at }: { f: number; from: numbe
   if (f < from || f > to) return null;
   const t = ramp(f, from, 16, Easing.out(Easing.cubic)) * (1 - ramp(f, to - 14, 14));
   const sweep = ramp(f, at, 40, Easing.inOut(Easing.cubic));
-  const d = (dir === 'left' ? -1 : 1) * 260 * (sweep - 0.5);
   const arrow = dir === 'right' ? '→' : dir === 'left' ? '←' : '↑';
+  // In the half of the frame the phone has left free
+  const half = dir === 'left' ? { left: 60, right: 1000 } : { left: 920, right: 80 };
+  const move = dir === 'up' ? `translateY(${-60 * sweep}px)` : `translateX(${(dir === 'left' ? -1 : 1) * 60 * sweep}px)`;
   return (
     <div
       style={{
         position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 300,
+        ...half,
+        top: dir === 'right' ? 120 : 330,
         textAlign: 'center',
         whiteSpace: 'nowrap',
         fontFamily: F.head,
         fontWeight: 700,
-        fontSize: 330,
-        letterSpacing: -6,
+        fontSize: 150,
+        letterSpacing: -3,
         color,
-        opacity: 0.2 * t,
-        transform: dir === 'up' ? `translateY(${-200 * (sweep - 0.5)}px)` : `translateX(${d}px)`,
+        opacity: 0.85 * t,
+        transform: `${move} translateY(${30 * (1 - t)}px)`,
       }}
     >
       {dir === 'left' ? `${arrow} ${word}` : `${word} ${arrow}`}
