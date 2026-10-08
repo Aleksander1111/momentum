@@ -15,7 +15,7 @@ import { SettingsButton } from '../../ui/SettingsButton';
 const TABS = [
   { name: 'feed', label: 'Feed' },
   { name: 'explorer', label: 'Explorer' },
-  { name: 'chat', label: 'Chat' },
+  { name: 'chat', label: 'Sessions' },
   { name: 'timeline', label: 'Timeline' },
   { name: 'metrics', label: 'Metrics' },
   { name: 'settings', label: 'Settings' },

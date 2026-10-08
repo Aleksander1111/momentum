@@ -6,9 +6,12 @@ export function automationLabel(a: AutomationName): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Chat list sub-line kind: "Chat" for chats, "<Automation> run" otherwise. */
+/** The sessions the user holds: chats and interviews, each a conversation they started */
+export const yours = (a: AutomationName): boolean => a === 'chat' || a === 'interview';
+
+/** Session list sub-line kind: "Chat" or "Interview" for the user's, "<Automation> run" otherwise. */
 export function runKind(a: AutomationName): string {
-  return a === 'chat' ? 'Chat' : `${automationLabel(a)} run`;
+  return yours(a) ? automationLabel(a) : `${automationLabel(a)} run`;
 }
 
 /** A run's status as the user reads it: a killed run is one somebody stopped. */

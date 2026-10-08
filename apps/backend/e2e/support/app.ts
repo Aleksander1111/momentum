@@ -87,14 +87,15 @@ export class App {
     await expect(this.frame().getByPlaceholder('Password')).toHaveCount(0, { timeout: 30_000 });
   }
 
-  async tab(name: 'Feed' | 'Explorer' | 'Chat' | 'Timeline' | 'Metrics' | 'Settings'): Promise<void> {
+  async tab(name: 'Feed' | 'Explorer' | 'Sessions' | 'Timeline' | 'Metrics' | 'Settings'): Promise<void> {
     await pace('action', `Open the ${name} tab`);
     // On a phone Settings has no button on Settings itself: there already, nothing is to press
     if (name === 'Settings' && new URL(this.frame().url()).pathname.startsWith('/settings')) return;
     // On a phone Settings is the icon in the top-right corner
     const target = name === 'Settings' ? this.frame().getByLabel('Settings', { exact: true }).or(this.text(name)).first() : this.text(name);
     await target.click();
-    await this.frame().waitForURL(new RegExp(`/${name.toLowerCase()}`));
+    // The Sessions tab keeps the route it had as Chat
+    await this.frame().waitForURL(new RegExp(`/${name === 'Sessions' ? 'chat' : name.toLowerCase()}`));
   }
 
   /** Opens a page of the app by its route, as a link would */
@@ -267,7 +268,7 @@ export class App {
 
   // Chat
 
-  /** Starts a chat from the Chat tab; the run it started */
+  /** Starts a chat from the Sessions tab; the run it started */
   async chat(ws: string, text: string): Promise<string> {
     await this.go(`/chat?ws=${encodeURIComponent(ws)}&compose=1`);
     const since = new Date();

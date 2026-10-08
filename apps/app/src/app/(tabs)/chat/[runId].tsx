@@ -7,7 +7,7 @@ import { useTheme } from '../../../ui/theme';
 export default function Chat() {
   useTheme();
   const { runId } = useLocalSearchParams<{ runId: string }>();
-  const back = useBack('Chats', '/chat');
+  const back = useBack('Sessions', '/chat');
   return (
     <View style={{ flex: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }}>
       <Back {...back} />

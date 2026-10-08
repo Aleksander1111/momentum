@@ -69,7 +69,7 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
   });
 
   await step(3, async () => {
-    for (const tab of ['Explorer', 'Chat', 'Metrics', 'Settings', 'Feed'] as const) await app.tab(tab);
+    for (const tab of ['Explorer', 'Sessions', 'Metrics', 'Settings', 'Feed'] as const) await app.tab(tab);
     await app.tab('Metrics');
     await expect(app.text('Rolling 5 hours')).toBeVisible();
     await expect(app.frame().getByText('$')).toHaveCount(0);

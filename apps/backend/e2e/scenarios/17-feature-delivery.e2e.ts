@@ -180,6 +180,14 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
     const panel = app.frame().getByText('Retrieval', { exact: true }).last().locator('..');
     await panel.scrollIntoViewIfNeeded();
     await panel.screenshot({ path: join(REPO, 'test-results', 'retrieval-by-automation.png') });
+    // The automations' runs are listed among the sessions, marked as theirs
+    await app.tab('Sessions');
+    await app.text('Automations').click();
+    await expect(app.text(/^Preparation run · /, false).first()).toBeVisible({ timeout: 30_000 });
+    await expect(app.frame().getByLabel('Yours', { exact: true })).toHaveCount(0);
+    await expect(app.frame().getByLabel('Automation', { exact: true }).first()).toBeVisible();
+    await app.frame().locator('body').screenshot({ path: join(REPO, 'test-results', 'sessions-automations.png') });
+    await app.text('All').click();
     return plans[0]!.path;
   });
 

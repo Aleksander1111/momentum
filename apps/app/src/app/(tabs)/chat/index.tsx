@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KeyboardAvoidingView, Platform, ScrollView, View, type TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
@@ -6,14 +7,44 @@ import { api } from '../../../lib/api';
 import { useCurrentWorkspace } from '../../../lib/workspace';
 import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { chatContext, useChatContext } from '../../../lib/context';
-import { relativeTime, runKind, runStatus } from '../../../lib/format';
-import { useTheme, useWide } from '../../../ui/theme';
-import { List, Pick, Row, RowText, Sect, useCloseOnBack } from '../../../ui/parts';
+import { relativeTime, runKind, runStatus, yours } from '../../../lib/format';
+import { C, useTheme, useWide } from '../../../ui/theme';
+import { T } from '../../../ui/Text';
+import { Icon } from '../../../ui/icons';
+import { List, Pick, Row, RowText, Sect, Segmented, useCloseOnBack } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { Composer } from '../../../ui/Composer';
 import { Conversation } from '../../../ui/Conversation';
 
-export default function Chats() {
+type Filter = 'all' | 'yours' | 'automations';
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'yours', label: 'Yours' },
+  { value: 'automations', label: 'Automations' },
+];
+const FILTER_STORE = 'momentum.sessions.filter';
+
+/** Which sessions the list shows, remembered on this device */
+function useFilter(): [Filter, (f: Filter) => void] {
+  const [filter, setFilter] = useState<Filter>('all');
+  useEffect(() => {
+    AsyncStorage.getItem(FILTER_STORE)
+      .then((v) => {
+        if (v && FILTERS.some((f) => f.value === v)) setFilter(v as Filter);
+      })
+      .catch(() => {});
+  }, []);
+  return [
+    filter,
+    (f) => {
+      setFilter(f);
+      void AsyncStorage.setItem(FILTER_STORE, f).catch(() => {});
+    },
+  ];
+}
+
+/** Your sessions and the automations' runs, told apart by who started them */
+export default function Sessions() {
   useTheme();
   const wide = useWide();
   const qc = useQueryClient();
@@ -37,6 +68,10 @@ export default function Chats() {
   }, [params.ws, params.compose]);
 
   const context = useChatContext(target);
+  const [filter, setFilter] = useFilter();
+  const shown = (automation: Parameters<typeof yours>[0]) => filter === 'all' || (filter === 'yours') === yours(automation);
+  const lists = names.map((ws, i) => (chats[i]?.data?.chats ?? []).filter((c) => shown(c.automation)));
+  const loaded = chats.some((q) => q.data);
 
   // On a wide screen the chat open beside the list is a parameter, not a screen: back closes it
   useCloseOnBack(wide && !!params.run, () => router.setParams({ run: undefined }));
@@ -55,13 +90,21 @@ export default function Chats() {
           : { flex: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }
       }
     >
+      <View style={{ marginBottom: 6 }}>
+        <Segmented value={filter} options={FILTERS} onChange={setFilter} />
+      </View>
       <ScrollView style={{ flex: 1 }}>
+        {loaded && lists.every((l) => l.length === 0) ? (
+          <T style={{ color: C.muted, fontSize: 13.5, marginTop: 16 }}>
+            {filter === 'yours' ? 'No chats or interviews yet' : filter === 'automations' ? 'No automation runs yet' : 'No sessions yet'}
+          </T>
+        ) : null}
         {names.map((ws, i) => {
-          const items = chats[i]?.data?.chats ?? [];
+          const items = lists[i]!;
           if (!items.length) return null;
           return (
             <View key={ws}>
-              <Sect first={names.findIndex((n, j) => (chats[j]?.data?.chats.length ?? 0) > 0) === i} icon={<ProjectLogo name={ws} size={22} />}>
+              <Sect first={lists.findIndex((l) => l.length > 0) === i} icon={<ProjectLogo name={ws} size={22} />}>
                 {ws}
               </Sect>
               <List>
@@ -75,6 +118,9 @@ export default function Chats() {
                       openRun(c.runId);
                     }}
                   >
+                    <View accessibilityLabel={yours(c.automation) ? 'Yours' : 'Automation'} style={{ width: 20, alignItems: 'center' }}>
+                      <Icon name={yours(c.automation) ? 'user' : 'agent'} size={18} color={yours(c.automation) ? C.accent : C.muted} />
+                    </View>
                     <RowText
                       title={c.title}
                       sub={`${runKind(c.automation)} · ${runStatus(c.status)} · ${relativeTime(c.updatedAt)}`}

@@ -96,8 +96,17 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     await until('the transcript on the main line', async () => env.show(WS, `chats/${runId}.jsonl`) !== null, 2 * 60_000);
     expect(model.turns(runId).some((t) => t.kind === 'summarize')).toBe(false);
     expect(await api.entities(WS, 'Harness/Chat')).toEqual([]);
-    await app.tab('Chat');
+    await app.tab('Sessions');
     await expect(app.text('Which routes does this API have?', false)).toBeVisible();
+    // Your sessions are marked as yours, and the filter leaves out the automations' runs or yours
+    await expect(app.frame().getByLabel('Yours', { exact: true }).first()).toBeVisible();
+    await app.text('Automations').click();
+    await expect(app.text('Which routes does this API have?', false)).toHaveCount(0);
+    await app.text('Yours').click();
+    await expect(app.text('Which routes does this API have?', false)).toBeVisible();
+    await expect(app.frame().getByLabel('Automation', { exact: true })).toHaveCount(0);
+    await app.text('All').click();
+    await app.frame().locator('body').screenshot({ path: join(REPO, 'test-results', 'sessions-filter.png') });
     // No summarization run follows for the transcript either, and nothing is left updating
     await new Promise((r) => setTimeout(r, 8000));
     expect(await api.runs(WS, 'summarization')).toEqual([]);

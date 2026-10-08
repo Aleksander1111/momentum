@@ -79,6 +79,6 @@ scenario('busy-chat-day', { enabled: [WS], settings: { agents: { concurrentTotal
     await new Promise((r) => setTimeout(r, 6000));
     expect(await status(waiting.runId)).toBe('killed');
     expect(model.turns(waiting.runId)).toEqual([]);
-    await app.tab('Chat');
+    await app.tab('Sessions');
   });
 });
