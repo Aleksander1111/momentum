@@ -1,7 +1,7 @@
 // The whole video: the problem, then the three layers in turn, each scene handing over to the next with its own transition
 import { linearTiming, TransitionSeries, type TransitionPresentation } from '@remotion/transitions';
 import type { ComponentType } from 'react';
-import { AbsoluteFill } from 'remotion';
+import { AbsoluteFill, Audio, staticFile } from 'remotion';
 import { C } from './kit/theme.ts';
 import { iris, push, zoomThrough } from './kit/transitions.tsx';
 import { Graph, GRAPH_LENGTH } from './scenes/Graph.tsx';
@@ -36,12 +36,17 @@ const CUT: [ComponentType, number, TransitionPresentation<any> | null][] = [
   [Line, LINE_LENGTH, null],
 ];
 
+/** The frame each scene starts at in the cut: the music swells into each one */
+export const CUTS = CUT.map((_, i) => CUT.slice(0, i).reduce((sum, [, frames]) => sum + frames - HANDOVER, 0));
+
 export const MOMENTUM_FRAMES = CUT.reduce((sum, [, frames]) => sum + frames, 0) - (CUT.length - 1) * HANDOVER;
 
 export function Momentum() {
   return (
     // A light ground under every transition: a scene fading out shows the page, never black
     <AbsoluteFill style={{ background: C.behind1 }}>
+      {/* Written by scripts/music.ts, timed to CUTS */}
+      <Audio src={staticFile('music.wav')} />
       <TransitionSeries>
         {CUT.flatMap(([Scene, frames, next], i) => [
           <TransitionSeries.Sequence key={`s${i}`} durationInFrames={frames}>

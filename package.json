@@ -15,7 +15,7 @@
     "e2e": "pnpm --filter @momentum/backend e2e",
     "e2e:runner": "pnpm --filter @momentum/backend e2e:runner",
     "deck": "pnpm --filter @momentum/docs deck",
-    "video": "pnpm --filter @momentum/video render Momentum out/momentum.mp4"
+    "video": "pnpm --filter @momentum/video music && pnpm --filter @momentum/video render Momentum out/momentum.mp4"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
