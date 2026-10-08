@@ -190,7 +190,7 @@ export const TABS = [
 
 export type Tab = (typeof TABS)[number][0];
 
-function TabBar({ active }: { active: Tab }) {
+function TabBar({ active }: { active: Tab | null }) {
   return (
     <div
       style={{
@@ -222,7 +222,7 @@ function TabBar({ active }: { active: Tab }) {
 }
 
 /** The phone with the app on one of its tabs: the screen's own layers under whatever the scene puts on it */
-export function Phone({ children, style, tab = 'feed', screen }: { children?: ReactNode; style?: CSSProperties; tab?: Tab; screen?: ReactNode }) {
+export function Phone({ children, style, tab = 'feed', screen }: { children?: ReactNode; style?: CSSProperties; tab?: Tab | null; screen?: ReactNode }) {
   return (
     <div
       style={{
@@ -236,11 +236,11 @@ export function Phone({ children, style, tab = 'feed', screen }: { children?: Re
       }}
     >
       <div style={{ position: 'absolute', left: BEZEL, top: BEZEL, width: SCREEN.w, height: SCREEN.h, borderRadius: 44, background: C.screen, overflow: 'hidden' }}>
+        {screen}
         <div style={{ position: 'absolute', left: SCREEN.w / 2 - 60, top: 12, width: 120, height: 32, borderRadius: 16, background: C.ink }} />
         <div style={{ position: 'absolute', right: 18, top: 54, opacity: 0.9 }}>
           <Glyph path={ICONS.settings} size={22} color={C.muted} />
         </div>
-        {screen}
         <TabBar active={tab} />
       </div>
       {/* Cards live outside the screen's clip, so they can fly in and away */}
