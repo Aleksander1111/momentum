@@ -1,31 +1,23 @@
-// Scene 7, after the deck's "Summarization" and "Graph completeness": a run stops and the files it touched become
-// one card in the feed; then the phone's Settings measure how complete the project's graph is, question by question
-// and area by area, until nothing is missing.
+// Scene 7, after the deck's "Summarization" and "Graph completeness". The camera dives into the phone, into a run's
+// diff scrolling past full screen; the run stops, the lines fold up into one card and the camera pulls back out to
+// find it in the feed. Then the repository rises beside the phone as a city of its areas, each block standing up as
+// the graph accounts for it, while the phone's Settings measure the graph to 100%.
+import type { CSSProperties } from 'react';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
-import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, SLOT, StateIcon, type Entity } from '../kit/app.tsx';
-import { Backdrop, Headline } from '../kit/stage.tsx';
+import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } from '../kit/app.tsx';
+import { Backdrop, CornerHeadline } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
 import { mix, pop, ramp } from '../kit/motion.ts';
 
-export const MEASURE_FRAMES = 420;
-
-const PHONE_AT = { x: 1130, y: 540 };
-const SCREEN0 = { x: PHONE_AT.x - PHONE.w / 2 + 14, y: PHONE_AT.y - PHONE.h / 2 + 14 };
-const RIGHT = 1640;
+export const MEASURE_FRAMES = 450;
 
 // Beats
-const STOP = 30;
-const FILES = (i: number) => STOP + 14 + i * 8;
-const INTO = (i: number) => 96 + i * 6;
-const CARD = 132;
-const SETTINGS = 196;
-const QUESTION = (i: number) => SETTINGS + 30 + i * 18;
-
-const ARTIFACTS: [string, string][] = [
-  ['src/routes/books.js', '+42'],
-  ['src/store.js', '+18'],
-  ['test/books.test.js', '+88'],
-];
+const DIVE = { from: 14, to: 54 };
+const STOP = 124;
+const FOLD = { from: 136, to: 160 };
+const OUT = { from: 156, to: 196 };
+const CITY = 214;
+const QUESTION = (i: number) => CITY + 40 + i * 20;
 
 const SUMMARY: Entity = {
   project: { name: 'bookshelf-api', color: '#1D6FD6' },
@@ -36,136 +28,143 @@ const SUMMARY: Entity = {
   state: 'unverified',
 };
 
-const WAITING: Entity = {
-  project: { name: 'handbook', color: '#7C3AED' },
-  type: 'Governance/Policy',
-  title: 'Remote work policy',
-  desc: 'Up to three remote days a week; Tuesday is a studio day for all.',
-  bullets: ['Core hours 10:00 to 16:00', 'Messages answered within two hours'],
-  state: 'unverified',
-};
+/** A run's diff: three files, mostly added lines */
+const DIFF: { file?: string; mark?: '+' | '-'; text: string }[] = (() => {
+  const files: [string, string[]][] = [
+    ['src/routes/books.js', ['export async function books(req, res, store) {', '  const url = new URL(req.url, BASE);', '  const q = url.searchParams.get("q");', '  if (q) return send(res, 200, store.search(q));', '  if (req.method === "GET") return list(res, store);', '  if (req.method === "POST") return add(req, res, store);', '  return send(res, 405, { error: "method" });', '}']],
+    ['src/store.js', ['search(q) {', '  const needle = q.trim().toLowerCase();', '  return this.all().filter((b) =>', '    b.title.toLowerCase().includes(needle) ||', '    b.author.toLowerCase().includes(needle));', '}']],
+    ['test/books.test.js', ['test("finds a book by author", async () => {', '  const res = await get("/books?q=le guin");', '  assert.equal(res.status, 200);', '  assert.equal(res.body[0].title, "The Dispossessed");', '});', 'test("finds a book by title", async () => {', '  const res = await get("/books?q=dune");', '  assert.equal(res.body.length, 1);', '});', 'test("an empty query lists every book", async () => {', '  const res = await get("/books?q=");', '  assert.equal(res.body.length, 12);', '});']],
+  ];
+  return files.flatMap(([file, lines]) => [{ file, text: file }, ...lines.map((text, i) => ({ mark: (i === 4 && file === 'src/routes/books.js' ? '-' : '+') as '+' | '-', text }))]);
+})();
 
-/** The run stopping, its files handed to summarization, one card out */
-function Pipeline({ f }: { f: number }) {
-  const out = ramp(f, SETTINGS - 10, 14);
-  if (out >= 1) return null;
-  const run = pop(f, 4);
-  const done = f >= STOP;
-  const node = pop(f, 70, true);
-  const glow = f >= INTO(0) && f < CARD ? 0.5 + 0.5 * Math.sin((f - INTO(0)) / 3) : 0;
+/** The phone's screen during the run: the diff, scrolling as it is written, then folding into one card */
+function DiffScreen({ f }: { f: number }) {
+  const fold = ramp(f, FOLD.from, FOLD.to - FOLD.from, Easing.inOut(Easing.cubic));
+  const stopped = f >= STOP;
   return (
-    <div style={{ position: 'absolute', inset: 0, opacity: 1 - out }}>
-      <div
-        style={{
-          position: 'absolute',
-          left: RIGHT,
-          top: 240,
-          transform: `translate(-50%, -50%) scale(${run})`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          background: C.surface,
-          border: `3px solid ${C.ok}`,
-          borderRadius: 999,
-          padding: '12px 26px 12px 16px',
-          fontFamily: F.body,
-          fontWeight: 700,
-          fontSize: 24,
-          color: C.ink,
-          whiteSpace: 'nowrap',
-          boxShadow: '0 10px 24px rgba(30,41,59,.12)',
-        }}
-      >
-        <Glyph path={PARTS.terminal} size={28} color={C.ok} stroke />
-        Implementation run
-        <div style={{ transform: `rotate(${done ? 0 : f * 9}deg)`, display: 'flex' }}>
-          {done ? <Glyph path="M5 12l5 5L20 7" size={26} color={C.ok} stroke /> : <StateIcon state="updating" size={26} />}
+    <div style={{ position: 'absolute', inset: 0, background: C.surface, padding: '60px 0 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 8px', fontFamily: F.body, fontWeight: 700, fontSize: 13, color: C.ink, borderBottom: `1px solid ${C.line}` }}>
+        <Glyph path={PARTS.terminal} size={16} color={C.ok} stroke />
+        Implementation run · bookshelf-api
+        <span style={{ flex: 1 }} />
+        <span style={{ color: stopped ? C.ok : C.stateUpdating }}>{stopped ? 'stopped' : 'running'}</span>
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 90, bottom: 82, overflow: 'hidden' }}>
+        <div style={{ transform: `scaleY(${1 - 0.92 * fold})`, transformOrigin: '50% 45%', opacity: 1 - ramp(f, FOLD.to - 6, 8) }}>
+          {DIFF.map((l, i) => {
+            const written = f >= DIVE.from + i * 2.4;
+            if (l.file) {
+              return (
+                <div key={i} style={{ fontFamily: F.mono, fontSize: 11.5, fontWeight: 700, color: C.ink, background: C.card, padding: '5px 12px', marginTop: 6, opacity: written ? 1 : 0 }}>
+                  {l.text}
+                </div>
+              );
+            }
+            return (
+              <div key={i} style={{ display: 'flex', gap: 6, fontFamily: F.mono, fontSize: 11.5, lineHeight: '19px', color: C.ink, background: l.mark === '+' ? 'rgba(63,107,82,.16)' : 'rgba(160,64,47,.16)', padding: '0 12px', opacity: written ? 1 : 0, whiteSpace: 'pre' }}>
+                <span style={{ color: l.mark === '+' ? C.ok : C.no, width: 8 }}>{l.mark}</span>
+                {l.text}
+              </div>
+            );
+          })}
         </div>
       </div>
-      {done ? (
-        <div style={{ position: 'absolute', left: RIGHT, top: 300, transform: 'translateX(-50%)', fontFamily: F.body, fontSize: 18, color: C.muted, opacity: ramp(f, STOP, 10) }}>
-          Stop hook: hand over what changed
+      {stopped ? (
+        <div style={{ position: 'absolute', left: '50%', top: 360, transform: `translate(-50%, -50%) scale(${pop(f, STOP, true)})`, opacity: 1 - ramp(f, FOLD.to, 8), background: C.warn, color: '#fff', borderRadius: 999, padding: '6px 14px', fontFamily: F.body, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', boxShadow: `0 0 20px ${C.warn}` }}>
+          <Glyph path={PARTS.sparkles} size={14} color="#fff" stroke />
+          Stop hook: summarize
         </div>
       ) : null}
-      {ARTIFACTS.map(([path, delta], i) => {
-        const t = pop(f, FILES(i), true);
-        const into = ramp(f, INTO(i), 18, Easing.in(Easing.cubic));
-        const y = mix(into, 380 + i * 64, 700);
-        return (
-          <div
-            key={path}
-            style={{
-              position: 'absolute',
-              left: RIGHT,
-              top: y,
-              transform: `translate(-50%, -50%) scale(${t * mix(into, 1, 0.3)})`,
-              opacity: 1 - ramp(f, INTO(i) + 12, 6),
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: C.surface,
-              border: `1px solid ${C.line}`,
-              borderRadius: 10,
-              padding: '8px 14px',
-              fontFamily: F.mono,
-              fontSize: 18,
-              color: C.ink,
-              whiteSpace: 'nowrap',
-              boxShadow: '0 6px 14px rgba(30,41,59,.1)',
-            }}
-          >
-            <Glyph path="M6 2h8l6 6v14H6zM14 2v6h6" size={18} color={C.muted} stroke />
-            {path}
-            <span style={{ color: C.ok, fontWeight: 700 }}>{delta}</span>
-          </div>
-        );
-      })}
-      <div
-        style={{
-          position: 'absolute',
-          left: RIGHT,
-          top: 720,
-          transform: `translate(-50%, -50%) scale(${node * (1 + 0.08 * glow)})`,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-        <div style={{ width: 104, height: 104, borderRadius: 52, background: C.warn, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 ${20 + 50 * glow}px ${C.warn}` }}>
-          <Glyph path={PARTS.sparkles} size={54} color="#fff" stroke />
-        </div>
-        <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 26, color: C.ink }}>Summarization</span>
-      </div>
     </div>
   );
 }
 
 const QUESTIONS = ['What it is', 'What it is for', 'What it does', 'How it is built', 'Where the code is', 'Where it runs', 'How it is tested', 'Rules and decisions'];
 const KNOWN = 5;
-const AREAS: [string, number, number][] = [
-  // name, share of the repository's weight, frame its last part is accounted for
-  ['src', 0.38, QUESTION(4)],
-  ['test', 0.24, QUESTION(6)],
-  ['docs', 0.16, QUESTION(3)],
-  ['examples', 0.14, QUESTION(7) + 6],
-  ['root files', 0.08, QUESTION(2)],
+
+// The repository's areas on the ground, each split into its parts: a part rises once the graph accounts for it
+type Block = { area: string; x: number; y: number; w: number; d: number; h: number; at: number };
+const BLOCKS: Block[] = [
+  { area: 'src', x: 0, y: 0, w: 250, d: 250, h: 170, at: 0 },
+  { area: 'src', x: 270, y: 0, w: 250, d: 250, h: 130, at: 30 },
+  { area: 'src', x: 0, y: 270, w: 250, d: 250, h: 150, at: 70 },
+  { area: 'src', x: 270, y: 270, w: 250, d: 250, h: 110, at: 140 },
+  { area: 'test', x: 560, y: 0, w: 170, d: 250, h: 120, at: 10 },
+  { area: 'test', x: 750, y: 0, w: 170, d: 250, h: 100, at: 110 },
+  { area: 'test', x: 560, y: 270, w: 360, d: 250, h: 90, at: 165 },
+  { area: 'docs', x: 0, y: 560, w: 340, d: 220, h: 80, at: 20 },
+  { area: 'docs', x: 360, y: 560, w: 160, d: 220, h: 70, at: 95 },
+  { area: 'examples', x: 560, y: 560, w: 220, d: 220, h: 60, at: 180 },
+  { area: 'root', x: 800, y: 560, w: 120, d: 220, h: 50, at: 50 },
 ];
+const GROUND = 920;
+const riseOf = (b: Block, f: number) => ramp(f, CITY + 30 + b.at, 22, Easing.out(Easing.back(1.3)));
 
 function territory(f: number) {
-  return AREAS.reduce((sum, [, w, at]) => sum + w * interpolate(f, [SETTINGS + 20, at], [0.35, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }), 0);
+  const all = BLOCKS.reduce((s, b) => s + b.w * b.d, 0);
+  return BLOCKS.reduce((s, b) => s + (riseOf(b, f) >= 0.99 ? b.w * b.d : 0.3 * b.w * b.d), 0) / all;
 }
-function answered(f: number) {
-  return QUESTIONS.filter((_, i) => i < KNOWN || f >= QUESTION(i)).length;
+const answered = (f: number) => QUESTIONS.filter((_, i) => i < KNOWN || f >= QUESTION(i)).length;
+const score = (f: number) => (answered(f) / QUESTIONS.length + territory(f)) / 2;
+
+/** One part of the repository: a box standing on the ground, hollow until accounted for */
+function Box({ b, f }: { b: Block; f: number }) {
+  const rise = riseOf(b, f);
+  const h = 14 + (b.h - 14) * rise;
+  const done = rise >= 0.99;
+  const top = done ? '#E6F0E8' : 'rgba(255,255,255,.6)';
+  const side = done ? '#A9C4B0' : 'rgba(213,217,211,.5)';
+  const front = done ? '#7FA68B' : 'rgba(190,196,188,.5)';
+  const edge = done ? C.ok : C.muted;
+  const face: CSSProperties = { position: 'absolute', border: `2px ${done ? 'solid' : 'dashed'} ${edge}`, boxSizing: 'border-box' };
+  return (
+    <>
+      <div style={{ ...face, left: b.x, top: b.y - h, width: b.w, height: h, background: front, transformOrigin: 'bottom', transform: 'rotateX(-90deg)' }} />
+      <div style={{ ...face, left: b.x - h, top: b.y, width: h, height: b.d, background: side, transformOrigin: 'right', transform: 'rotateY(90deg)' }} />
+      <div style={{ ...face, left: b.x, top: b.y + b.d, width: b.w, height: h, background: front, transformOrigin: 'top', transform: 'rotateX(90deg)' }} />
+      <div style={{ ...face, left: b.x + b.w, top: b.y, width: h, height: b.d, background: side, transformOrigin: 'left', transform: 'rotateY(-90deg)' }} />
+      <div style={{ ...face, left: b.x, top: b.y, width: b.w, height: b.d, background: top, transform: `translateZ(${h}px)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {done ? <Glyph path="M5 12l5 5L20 7" size={60} color={C.ok} stroke /> : null}
+      </div>
+    </>
+  );
+}
+
+function City({ f }: { f: number }) {
+  const shown = ramp(f, CITY, 24, Easing.out(Easing.cubic));
+  if (shown <= 0) return null;
+  const rz = interpolate(f, [CITY, MEASURE_FRAMES], [-48, -36]);
+  const labels: [string, number, number][] = [
+    ['src', 260, 400],
+    ['test', 740, 400],
+    ['docs', 260, 670],
+    ['examples', 670, 670],
+  ];
+  return (
+    <AbsoluteFill style={{ perspective: 2400, perspectiveOrigin: '1300px 360px', opacity: shown }}>
+      <div style={{ position: 'absolute', left: 1300 - GROUND / 2, top: 640 - GROUND / 2, width: GROUND, height: GROUND, transformStyle: 'preserve-3d', transform: `translateY(${80 * (1 - shown)}px) rotateX(58deg) rotateZ(${rz}deg) scale(0.8)` }}>
+        <div style={{ position: 'absolute', inset: -40, borderRadius: 30, background: C.card, border: `2px solid ${C.line}`, boxShadow: '0 60px 80px rgba(30,41,59,.15)' }} />
+        {BLOCKS.map((b, i) => (
+          <Box key={i} b={b} f={f} />
+        ))}
+        {labels.map(([name, x, y]) => (
+          <div key={name} style={{ position: 'absolute', left: x, top: y, transformStyle: 'preserve-3d', transform: `translateZ(190px) rotateZ(${-rz}deg) rotateX(-58deg)` }}>
+            <div style={{ transform: 'translate(-50%, -50%)', fontFamily: F.mono, fontWeight: 700, fontSize: 34, color: C.ink, background: 'rgba(255,255,255,.9)', borderRadius: 10, padding: '4px 14px', whiteSpace: 'nowrap' }}>{name}/</div>
+          </div>
+        ))}
+      </div>
+    </AbsoluteFill>
+  );
 }
 
 /** The phone's Settings: the graph's completeness, its questions and what is missing */
 function SettingsScreen({ f }: { f: number }) {
-  const shown = ramp(f, SETTINGS, 14);
+  const shown = ramp(f, CITY - 10, 14);
   const u = answered(f) / QUESTIONS.length;
   const t = territory(f);
-  const score = (u + t) / 2;
-  const full = score >= 0.999;
+  const s = score(f);
+  const full = s >= 0.999;
   const R = 62;
   return (
     <div style={{ position: 'absolute', inset: 0, padding: '64px 18px 0', background: C.screen, opacity: shown }}>
@@ -174,23 +173,25 @@ function SettingsScreen({ f }: { f: number }) {
       <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
         <svg width={150} height={150} viewBox="0 0 150 150">
           <circle cx={75} cy={75} r={R} stroke={C.card} strokeWidth={16} fill="none" />
-          <circle cx={75} cy={75} r={R} stroke={full ? C.ok : C.accent} strokeWidth={16} fill="none" strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset={1 - score} transform="rotate(-90 75 75)" />
+          <circle cx={75} cy={75} r={R} stroke={full ? C.ok : C.accent} strokeWidth={16} fill="none" strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset={1 - s} transform="rotate(-90 75 75)" />
           <text x={75} y={84} textAnchor="middle" fontFamily={F.head} fontWeight={700} fontSize={34} fill={C.ink}>
-            {Math.round(score * 100)}%
+            {Math.round(s * 100)}%
           </text>
         </svg>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[
-            ['Questions', `${answered(f)}/8`, u],
-            ['Repository', `${Math.round(t * 100)}%`, t],
-          ].map(([name, value, share]) => (
-            <div key={name as string}>
+          {(
+            [
+              ['Questions', `${answered(f)}/8`, u],
+              ['Repository', `${Math.round(t * 100)}%`, t],
+            ] as const
+          ).map(([name, value, share]) => (
+            <div key={name}>
               <div style={{ display: 'flex', fontFamily: F.body, fontSize: 13.5, color: C.ink, marginBottom: 4 }}>
                 <span style={{ fontWeight: 700, flex: 1 }}>{name}</span>
                 <span style={{ color: C.muted }}>{value}</span>
               </div>
               <div style={{ height: 8, borderRadius: 4, background: C.card }}>
-                <div style={{ height: 8, borderRadius: 4, width: `${(share as number) * 100}%`, background: full ? C.ok : C.accent }} />
+                <div style={{ height: 8, borderRadius: 4, width: `${share * 100}%`, background: full ? C.ok : C.accent }} />
               </div>
             </div>
           ))}
@@ -199,10 +200,9 @@ function SettingsScreen({ f }: { f: number }) {
       <div style={{ marginTop: 14, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, padding: '8px 16px' }}>
         {QUESTIONS.map((q, i) => {
           const ok = i < KNOWN || f >= QUESTION(i);
-          const tick = i < KNOWN ? 1 : pop(f, QUESTION(i), true);
           return (
             <div key={q} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < QUESTIONS.length - 1 ? `1px solid ${C.card}` : 'none' }}>
-              <div style={{ width: 22, height: 22, borderRadius: 11, background: ok ? C.ok : 'transparent', border: `2px solid ${ok ? C.ok : C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `scale(${ok ? tick : 1})` }}>
+              <div style={{ width: 22, height: 22, borderRadius: 11, background: ok ? C.ok : 'transparent', border: `2px solid ${ok ? C.ok : C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `scale(${i < KNOWN || !ok ? 1 : pop(f, QUESTION(i), true)})` }}>
                 {ok ? <Glyph path="M5 12l5 5L20 7" size={14} color="#fff" stroke /> : null}
               </div>
               <span style={{ flex: 1, fontFamily: F.body, fontSize: 15, color: ok ? C.ink : C.muted }}>{q}</span>
@@ -215,32 +215,13 @@ function SettingsScreen({ f }: { f: number }) {
   );
 }
 
-/** The repository's areas, each filling as the graph accounts for its parts */
-function Territory({ f }: { f: number }) {
-  const shown = pop(f, SETTINGS + 6);
-  if (f < SETTINGS) return null;
-  let y = 0;
-  const H = 520;
+/** Giant words over the dive */
+function Giant({ f, from, to, text, color }: { f: number; from: number; to: number; text: string; color: string }) {
+  if (f < from || f > to) return null;
+  const t = ramp(f, from, 12, Easing.out(Easing.cubic)) * (1 - ramp(f, to - 10, 10));
   return (
-    <div style={{ position: 'absolute', left: RIGHT - 200, top: 250, width: 400, opacity: shown, transform: `translateX(${60 * (1 - shown)}px)` }}>
-      <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 28, color: C.ink, marginBottom: 14 }}>Repository, by area</div>
-      {AREAS.map(([name, w, at]) => {
-        const h = H * w;
-        const top = y;
-        y += h + 8;
-        const fill = interpolate(f, [SETTINGS + 20, at], [0.35, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-        const done = fill >= 1;
-        return (
-          <div key={name} style={{ position: 'absolute', top: top + 50, left: 0, width: 400, height: h, borderRadius: 14, background: C.card, overflow: 'hidden', border: `2px solid ${done ? C.ok : C.line}` }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${fill * 100}%`, background: done ? C.washOk : C.accent + '33' }} />
-            <div style={{ position: 'absolute', left: 16, top: 0, bottom: 0, display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.mono, fontSize: 20, color: C.ink }}>
-              {name}
-              {done ? <Glyph path="M5 12l5 5L20 7" size={22} color={C.ok} stroke /> : null}
-            </div>
-            <div style={{ position: 'absolute', right: 16, top: 0, bottom: 0, display: 'flex', alignItems: 'center', fontFamily: F.mono, fontSize: 18, color: C.muted }}>{Math.round(fill * 100)}%</div>
-          </div>
-        );
-      })}
+    <div style={{ position: 'absolute', left: 0, right: 0, top: 420, padding: '20px 0 34px', background: `linear-gradient(transparent, rgba(255,255,255,${0.85 * t}) 25%, rgba(255,255,255,${0.85 * t}) 75%, transparent)`, textAlign: 'center', fontFamily: F.head, fontWeight: 700, fontSize: 150, color, opacity: t, transform: `scale(${mix(t, 0.9, 1)})`, textShadow: '0 6px 40px rgba(255,255,255,.95), 0 0 80px rgba(255,255,255,.9)', letterSpacing: -2 }}>
+      {text}
     </div>
   );
 }
@@ -248,41 +229,34 @@ function Territory({ f }: { f: number }) {
 export function Measure() {
   const f = useCurrentFrame();
   const enter = pop(f, 0);
-  const card = pop(f, CARD, true);
-  const settings = f >= SETTINGS;
-  const from = { x: RIGHT - (SCREEN0.x + SLOT.x + SLOT.w / 2), y: 720 - (SCREEN0.y + SLOT.y + SLOT.h / 2) };
-  const fly = ramp(f, CARD - 18, 22, Easing.inOut(Easing.cubic));
+  // The camera: into the phone's screen, then back out, then the phone steps aside for the city
+  const dive = ramp(f, DIVE.from, DIVE.to - DIVE.from, Easing.inOut(Easing.cubic)) * (1 - ramp(f, OUT.from, OUT.to - OUT.from, Easing.inOut(Easing.cubic)));
+  const aside = ramp(f, CITY - 20, 30, Easing.inOut(Easing.cubic));
+  const scale = mix(dive, 0.66, 3.4) * mix(aside, 1, 0.92);
+  const x = mix(aside, 960, 470);
+  const settings = f >= CITY - 10;
+  const landed = pop(f, FOLD.to - 6, true);
   return (
     <AbsoluteFill>
       <Backdrop />
-      <Pipeline f={f} />
-      <Territory f={f} />
+      <City f={f} />
       <Phone
-        tab={settings ? null : 'feed'}
-        screen={settings ? <SettingsScreen f={f} /> : null}
-        style={{ left: PHONE_AT.x - PHONE.w / 2, top: PHONE_AT.y - PHONE.h / 2, opacity: enter, transform: `translateY(${40 * (1 - enter)}px) perspective(2000px) rotateY(${settings ? 8 : -8}deg)` }}
+        tab={settings ? null : f < OUT.from ? 'chat' : 'feed'}
+        screen={settings ? <SettingsScreen f={f} /> : f < FOLD.to ? <DiffScreen f={f} /> : null}
+        style={{ left: x - PHONE.w / 2, top: 540 - PHONE.h / 2, opacity: enter, transform: `translateY(${40 * (1 - enter)}px) perspective(2000px) rotateY(${12 * aside}deg) scale(${scale})` }}
       >
-        {settings ? null : (
+        {!settings && f >= FOLD.to ? (
           <>
-            <Counters unverified={21 + (f >= CARD ? 1 : 0)} verified={40} />
+            <Counters unverified={22} verified={40} />
             <Behind depth={2} />
             <Behind depth={1} />
-            <FeedCard e={WAITING} style={{ opacity: 1 - ramp(f, CARD - 4, 6) }} />
-            {f >= CARD - 18 ? (
-              <FeedCard
-                e={SUMMARY}
-                style={{
-                  transform: `translate(${from.x * (1 - fly)}px, ${from.y * (1 - fly)}px) scale(${mix(fly, 0.25, 1) * mix(card, 1.04, 1)})`,
-                  opacity: Math.min(1, fly * 3),
-                  boxShadow: f >= CARD ? `0 0 ${40 * (1 - ramp(f, CARD, 30))}px ${C.warn}` : undefined,
-                }}
-              />
-            ) : null}
+            <FeedCard e={SUMMARY} style={{ transform: `scale(${mix(landed, 0.3, 1)})`, opacity: Math.min(1, landed * 2), boxShadow: `0 0 ${50 * (1 - ramp(f, FOLD.to, 40))}px ${C.warn}` }} />
           </>
-        )}
+        ) : null}
       </Phone>
-      <Headline frame={f} from={2} to={SETTINGS - 4} tag="Summarization" color={C.warn} text="Every run, summarized." sub="What changed arrives as cards you can read." />
-      <Headline frame={f} from={SETTINGS} to={MEASURE_FRAMES} tag="Graph build" color={C.ok} text="Completeness, measured." sub="Never guessed: the build runs until nothing is missing." />
+      <Giant f={f} from={DIVE.to - 4} to={STOP + 4} text="Three files changed." color={C.ok} />
+      <Giant f={f} from={FOLD.from} to={OUT.to + 6} text="One card to read." color={C.warn} />
+      <CornerHeadline frame={f} from={CITY + 10} to={MEASURE_FRAMES} side="right" tag="Graph build" color={C.ok} text="Completeness, measured." sub="Every area accounted for, every question answered." />
     </AbsoluteFill>
   );
 }
