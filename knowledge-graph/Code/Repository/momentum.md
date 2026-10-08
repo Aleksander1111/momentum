@@ -20,11 +20,12 @@ pnpm 10 monorepo of the harness: TypeScript, Node 24.
 | Path | Holds |
 |---|---|
 | apps/backend | API, orchestrator, guard |
-| apps/app | Expo app for web and mobile |
+| apps/app | Expo app, web and mobile |
 | packages/ | contract, entity, kb, runs |
-| docs/ | Deck package (@momentum/docs), entity-types.tsv |
+| docs/ | Deck (@momentum/docs), entity-types.tsv |
+| video/ | Harness video (@momentum/video, Remotion) |
 | automations/ | Automation definitions |
 | knowledge-graph/ | This knowledge base |
 | examples/ | Projects the e2e scenarios run over |
 
-Scripts: `pnpm dev`, `pnpm backend`, `pnpm test` (vitest), `pnpm typecheck`, `pnpm momentum` (CLI), `pnpm e2e [args]` (scenarios, only through the test runner), `pnpm e2e:runner` (runner page at 127.0.0.1:7400), `pnpm deck` (builds the presentation).
+Scripts: `pnpm dev`, `backend`, `test` (vitest), `typecheck`, `momentum` (CLI), `e2e [args]` (only through the test runner), `e2e:runner` (127.0.0.1:7400), `deck` (builds the presentation), `video` (renders the video).
