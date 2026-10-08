@@ -24,8 +24,8 @@ Ranked cards from included projects, one on top, two behind.
 - Breadcrumb: logo, type, folders; verification and sync counters
 - Changed since verified: a diff of words, marks, diagrams
 - A long card scrolls in itself; tables keep its width
-- Linked entities open; selections go to chat
-- Swipe right approves; left opens a comment sheet, closed by Android back
+- Links open; selections go to chat
+- Swipe right approves; left asks rework in a comment sheet, closed by Android back
 - Issue cards add severity, concerns, options, recommended picked: right resolves with it; left takes a resolution or a reason not to
 - A reaction carries time on card; approve and resolve the card's version; polls every 15 s, queues offline
 - The top card stays until reacted to

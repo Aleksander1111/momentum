@@ -24,8 +24,8 @@ kind: page
 
 Browse a workspace's entities by domain and type, search or ask them, or hand the exploration to an agent.
 
-- Project picker with logos, entity total; a domain/type tree with counts; rows: domain, title, states
-- A project not included says nothing maps it, links to Settings
+- Picker of included projects, logos, entity total; a domain/type tree with counts; rows: domain, title, states
+- No project included: says there is no graph, links to Settings
 - Search, by words and meaning, replaces the tree; no match offers Enter to ask
 - A question, or Enter, is answered by [the search automation](Harness/Automation/search), linking its sources
 - A mic: spoken words search, a question is asked
