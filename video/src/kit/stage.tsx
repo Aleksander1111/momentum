@@ -200,3 +200,30 @@ export function CornerHeadline({ frame, from, to, tag, color, text, sub }: { fra
     </div>
   );
 }
+
+/** A headline centred at the bottom of the frame, over a soft wash rising from the bottom edge */
+export function BottomHeadline({ frame, from, to, tag, color, text, sub }: { frame: number; from: number; to: number; tag: string; color: string; text: string; sub?: string }) {
+  if (frame < from || frame > to) return null;
+  const out = ramp(frame, to - 10, 10, Easing.in(Easing.cubic));
+  const tagIn = ramp(frame, from, 10, Easing.out(Easing.cubic));
+  const words = text.split(' ');
+  return (
+    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 290, opacity: 1 - out, transform: `translateY(${24 * out}px)`, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(transparent 0%, ${C.behind1}D9 45%, ${C.behind1}F5 100%)` }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 52, textAlign: 'center' }}>
+        <div style={{ fontFamily: F.body, fontWeight: 700, fontSize: 20, letterSpacing: 6, color, opacity: tagIn, marginBottom: 8 }}>{tag.toUpperCase()}</div>
+        <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 64, lineHeight: 1.05, color: C.ink }}>
+          {words.map((w, i) => {
+            const t = ramp(frame, from + 3 + i * 3, 14, Easing.out(Easing.cubic));
+            return (
+              <span key={i} style={{ display: 'inline-block', opacity: t, transform: `translateY(${28 * (1 - t)}px)`, margin: '0 0.12em' }}>
+                {w}
+              </span>
+            );
+          })}
+        </div>
+        {sub ? <div style={{ fontFamily: F.body, fontSize: 26, color: C.muted, marginTop: 8, opacity: ramp(frame, from + 10 + words.length * 3, 12) }}>{sub}</div> : null}
+      </div>
+    </div>
+  );
+}
