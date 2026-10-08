@@ -13,3 +13,8 @@ export function pop(frame: number, start: number, bouncy = false): number {
 }
 
 export const mix = (t: number, a: number, b: number) => a + (b - a) * t;
+
+/** Text as typed so far: `cps` characters a second from `start` */
+export function typed(text: string, frame: number, start: number, cps = 28): string {
+  return text.slice(0, Math.max(0, Math.floor(((frame - start) * cps) / FPS)));
+}

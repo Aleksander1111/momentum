@@ -74,7 +74,7 @@ export interface Entity {
 }
 
 /** The feed's top card */
-export function FeedCard({ e, style, children }: { e: Entity; style?: CSSProperties; children?: ReactNode }) {
+export function FeedCard({ e, style, spin = 0, children }: { e: Entity; style?: CSSProperties; spin?: number; children?: ReactNode }) {
   return (
     <div
       style={{
@@ -95,7 +95,9 @@ export function FeedCard({ e, style, children }: { e: Entity; style?: CSSPropert
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <TypePill type={e.type} />
         <div style={{ flex: 1 }} />
-        <StateIcon state={e.state} size={18} />
+        <div style={{ transform: `rotate(${spin}deg)` }}>
+          <StateIcon state={e.state} size={18} />
+        </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <ProjectMark project={e.project} />
@@ -178,7 +180,7 @@ export function Counters({ unverified, verified, bump = 0 }: { unverified: numbe
   );
 }
 
-const TABS = [
+export const TABS = [
   ['feed', 'Feed'],
   ['explorer', 'Explorer'],
   ['chat', 'Sessions'],
@@ -186,7 +188,9 @@ const TABS = [
   ['metrics', 'Metrics'],
 ] as const;
 
-function TabBar({ active }: { active: (typeof TABS)[number][0] }) {
+export type Tab = (typeof TABS)[number][0];
+
+function TabBar({ active }: { active: Tab }) {
   return (
     <div
       style={{
@@ -217,8 +221,8 @@ function TabBar({ active }: { active: (typeof TABS)[number][0] }) {
   );
 }
 
-/** The phone with the app's feed: the screen's own layers under whatever the scene puts on it */
-export function Phone({ children, style }: { children?: ReactNode; style?: CSSProperties }) {
+/** The phone with the app on one of its tabs: the screen's own layers under whatever the scene puts on it */
+export function Phone({ children, style, tab = 'feed', screen }: { children?: ReactNode; style?: CSSProperties; tab?: Tab; screen?: ReactNode }) {
   return (
     <div
       style={{
@@ -236,10 +240,81 @@ export function Phone({ children, style }: { children?: ReactNode; style?: CSSPr
         <div style={{ position: 'absolute', right: 18, top: 54, opacity: 0.9 }}>
           <Glyph path={ICONS.settings} size={22} color={C.muted} />
         </div>
-        <TabBar active="feed" />
+        {screen}
+        <TabBar active={tab} />
       </div>
       {/* Cards live outside the screen's clip, so they can fly in and away */}
       <div style={{ position: 'absolute', left: BEZEL, top: BEZEL, width: SCREEN.w, height: SCREEN.h }}>{children}</div>
+    </div>
+  );
+}
+
+/** A chat message: the user's on the right in ink, the harness's on the left on a card */
+export function Bubble({ mine, children, style }: { mine?: boolean; children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div
+      style={{
+        alignSelf: mine ? 'flex-end' : 'flex-start',
+        maxWidth: '82%',
+        background: mine ? C.ink : C.surface,
+        color: mine ? '#fff' : C.ink,
+        border: mine ? 'none' : `1px solid ${C.line}`,
+        borderRadius: 16,
+        padding: '9px 13px',
+        fontFamily: F.body,
+        fontSize: 14.5,
+        lineHeight: '20px',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** A sheet risen from the bottom of the screen, over the dimmed feed */
+export function Sheet({ rise, children }: { rise: number; children: ReactNode }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 44, overflow: 'hidden', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(30,41,59,.55)', opacity: rise }} />
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: C.surface,
+          borderRadius: '22px 22px 0 0',
+          padding: '12px 20px 34px',
+          transform: `translateY(${(1 - rise) * 105}%)`,
+        }}
+      >
+        <div style={{ width: 40, height: 5, borderRadius: 3, background: C.line, margin: '0 auto 16px' }} />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Button({ label, kind, pressed = 0 }: { label: string; kind: 'ghost' | 'no' | 'ok'; pressed?: number }) {
+  const fill = kind === 'ghost' ? C.surface : kind === 'no' ? C.no : C.ok;
+  return (
+    <div
+      style={{
+        flex: 1,
+        textAlign: 'center',
+        padding: '12px 0',
+        borderRadius: 12,
+        background: fill,
+        border: kind === 'ghost' ? `1px solid ${C.line}` : 'none',
+        color: kind === 'ghost' ? C.ink : '#fff',
+        fontFamily: F.body,
+        fontWeight: 700,
+        fontSize: 16,
+        transform: `scale(${1 - 0.06 * pressed})`,
+      }}
+    >
+      {label}
     </div>
   );
 }
