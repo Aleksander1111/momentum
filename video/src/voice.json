@@ -1,230 +1,230 @@
 {
   "Hook-0": {
     "file": "Hook-0.wav",
-    "frames": 50,
+    "frames": 73,
     "text": "You run a dozen projects.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Hook-1": {
     "file": "Hook-1.wav",
-    "frames": 52,
+    "frames": 77,
     "text": "Each one changes, every day.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Hook-2": {
     "file": "Hook-2.wav",
-    "frames": 45,
+    "frames": 58,
     "text": "Nobody keeps up with all of it.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Hook-3": {
     "file": "Hook-3.wav",
-    "frames": 58,
+    "frames": 96,
     "text": "So it all comes to you, in one place.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Layers-0": {
     "file": "Layers-0.wav",
-    "frames": 147,
+    "frames": 198,
     "text": "Everything that needs your decision, from every project, in one feed, most important first.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Layers-1": {
     "file": "Layers-1.wav",
-    "frames": 88,
+    "frames": 75,
     "text": "Nothing moves forward without your yes.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Layers-2": {
     "file": "Layers-2.wav",
-    "frames": 104,
+    "frames": 159,
     "text": "Behind it, Momentum understands each project, and keeps it consistent.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Layers-3": {
     "file": "Layers-3.wav",
-    "frames": 87,
+    "frames": 111,
     "text": "AI does the work: planned, done and checked.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Layers-4": {
     "file": "Layers-4.wav",
-    "frames": 76,
+    "frames": 95,
     "text": "What it finishes comes back to you, ready to read.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Layers-5": {
     "file": "Layers-5.wav",
-    "frames": 51,
+    "frames": 66,
     "text": "Your attention, where it pays.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Swipe-0": {
     "file": "Swipe-0.wav",
-    "frames": 75,
+    "frames": 93,
     "text": "Swipe right to approve, and the work goes ahead.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Swipe-1": {
     "file": "Swipe-1.wav",
-    "frames": 78,
+    "frames": 104,
     "text": "Swipe left to send it back, with what should change.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Swipe-2": {
     "file": "Swipe-2.wav",
-    "frames": 46,
+    "frames": 63,
     "text": "Or pull up, and ask about it.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Loop-0": {
     "file": "Loop-0.wav",
-    "frames": 106,
+    "frames": 145,
     "text": "Work starts on its own, on a schedule, or when something happens.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Loop-1": {
     "file": "Loop-1.wav",
-    "frames": 57,
+    "frames": 75,
     "text": "It gets done, and written up for you.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Loop-2": {
     "file": "Loop-2.wav",
-    "frames": 64,
+    "frames": 81,
     "text": "Every change is checked before it counts.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Loop-3": {
     "file": "Loop-3.wav",
-    "frames": 53,
+    "frames": 74,
     "text": "Then it reaches you, and you decide.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Loop-4": {
     "file": "Loop-4.wav",
-    "frames": 57,
+    "frames": 73,
     "text": "For every project, all at once.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Graph-0": {
     "file": "Graph-0.wav",
-    "frames": 101,
+    "frames": 115,
     "text": "One project: dozens of files no one wants to read.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Graph-1": {
     "file": "Graph-1.wav",
-    "frames": 52,
+    "frames": 79,
     "text": "Momentum turns them into short cards.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Graph-2": {
     "file": "Graph-2.wav",
-    "frames": 126,
+    "frames": 140,
     "text": "Each card is a goal, a decision, a policy, a feature.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Graph-3": {
     "file": "Graph-3.wav",
-    "frames": 80,
+    "frames": 98,
     "text": "Ask a question, and the answer comes from the cards.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Graph-4": {
     "file": "Graph-4.wav",
-    "frames": 60,
+    "frames": 69,
     "text": "Approve a card, and it is verified.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Graph-5": {
     "file": "Graph-5.wav",
-    "frames": 69,
+    "frames": 76,
     "text": "If anything changes it, it comes back to you.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Measure-0": {
     "file": "Measure-0.wav",
-    "frames": 121,
+    "frames": 138,
     "text": "When work is finished, you read one card, not a pile of changes.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Measure-1": {
     "file": "Measure-1.wav",
-    "frames": 72,
+    "frames": 86,
     "text": "And you see how well each project is understood.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Resolve-0": {
     "file": "Resolve-0.wav",
-    "frames": 87,
+    "frames": 107,
     "text": "When two documents disagree, Momentum notices.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Resolve-1": {
     "file": "Resolve-1.wav",
-    "frames": 70,
+    "frames": 86,
     "text": "It suggests a fix, best option first.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Resolve-2": {
     "file": "Resolve-2.wav",
-    "frames": 53,
+    "frames": 63,
     "text": "One swipe, and they agree again.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Schedule-0": {
     "file": "Schedule-0.wav",
-    "frames": 66,
+    "frames": 76,
     "text": "Day and night, your projects keep moving.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Schedule-1": {
     "file": "Schedule-1.wav",
-    "frames": 73,
+    "frames": 84,
     "text": "When your feed is full, everything waits for you.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Schedule-2": {
     "file": "Schedule-2.wav",
-    "frames": 51,
+    "frames": 63,
     "text": "Never more work than you can review.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Learn-0": {
     "file": "Learn-0.wav",
-    "frames": 67,
+    "frames": 75,
     "text": "You ask for the same thing again and again.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Learn-1": {
     "file": "Learn-1.wav",
-    "frames": 87,
+    "frames": 96,
     "text": "Momentum notices, and proposes making it the rule.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Learn-2": {
     "file": "Learn-2.wav",
-    "frames": 91,
+    "frames": 90,
     "text": "It applies everywhere. You still have the last word.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Line-0": {
     "file": "Line-0.wav",
-    "frames": 96,
+    "frames": 108,
     "text": "Decide how much reaches you, and how much runs at once.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Line-1": {
     "file": "Line-1.wav",
-    "frames": 49,
+    "frames": 65,
     "text": "Every project, in one place.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   },
   "Line-2": {
     "file": "Line-2.wav",
-    "frames": 149,
+    "frames": 159,
     "text": "Momentum. Open source, on your own machine. Your attention, where it pays.",
-    "voice": "af_heart@0.95/take"
+    "voice": "gemini:Sulafat:gemini-2.5-flash-preview-tts"
   }
 }

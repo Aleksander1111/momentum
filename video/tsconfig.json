@@ -6,5 +6,5 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
-  "include": ["src", "remotion.config.ts"]
+  "include": ["src", "scripts", "remotion.config.ts"]
 }
