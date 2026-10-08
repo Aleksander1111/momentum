@@ -2,13 +2,13 @@
 // sends a card back for rework with a comment, a pull up opens a chat on the card.
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Bubble, Button, Counters, FeedCard, Glyph, PHONE, Phone, SLOT, Sheet, Stamp, StateIcon, type Entity } from '../kit/app.tsx';
-import { Backdrop, Finger, Headline } from '../kit/stage.tsx';
+import { Backdrop, Finger } from '../kit/stage.tsx';
 import { C, F, ICONS, LAYERS } from '../kit/theme.ts';
 import { type Dwell, dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
 
 export const SWIPE_FRAMES = 540;
 
-const AT = { x: 1150, y: 540 };
+const AT = { x: 960, y: 505 };
 const SCREEN0 = { x: AT.x - PHONE.w / 2 + 14, y: AT.y - PHONE.h / 2 + 14 };
 const CARD_C = { x: SCREEN0.x + SLOT.x + SLOT.w / 2, y: SCREEN0.y + SLOT.y + SLOT.h / 2 };
 
@@ -92,11 +92,16 @@ export function Swipe() {
   const zoomChat = ramp(f, ASK.release + 10, 30);
   const zoom = 1 + 0.2 * zoomSheet + 0.16 * zoomChat;
   const focus = f < 360 ? { x: AT.x, y: 880 } : { x: AT.x, y: 640 };
-  const camera = `translate(${focus.x}px, ${focus.y}px) scale(${zoom}) translate(${-focus.x}px, ${-focus.y}px) translate(${AT.x}px, ${AT.y}px) rotateY(${ry}deg) translate(${-AT.x}px, ${-AT.y}px)`;
+  // The whole stage a little smaller, so the caption below the phone has room
+  const camera = `translate(${AT.x}px, ${AT.y}px) scale(0.84) translate(${-AT.x}px, ${-AT.y}px) translate(${focus.x}px, ${focus.y}px) scale(${zoom}) translate(${-focus.x}px, ${-focus.y}px) translate(${AT.x}px, ${AT.y}px) rotateY(${ry}deg) translate(${-AT.x}px, ${-AT.y}px)`;
 
   return (
     <AbsoluteFill>
       <Backdrop />
+      {/* Each gesture's word, giant behind the phone, sweeping the way the finger goes */}
+      <Gesture f={f} from={0} to={170} word="APPROVE" color={C.ok} dir="right" at={APPROVE.drag} />
+      <Gesture f={f} from={170} to={368} word="REWORK" color={C.no} dir="left" at={REWORK.drag} />
+      <Gesture f={f} from={368} to={SWIPE_FRAMES} word="ASK" color={C.accent} dir="up" at={ASK.drag} />
       <AbsoluteFill style={{ perspective: 2600, perspectiveOrigin: `${AT.x}px ${AT.y}px` }}>
       <AbsoluteFill style={{ transformOrigin: '0 0', transform: camera, transformStyle: 'preserve-3d' }}>
       <MainLine f={f} />
@@ -171,9 +176,9 @@ export function Swipe() {
       </AbsoluteFill>
       </AbsoluteFill>
 
-      <Headline frame={f} from={4} to={168} tag="Approve" color={C.ok} text="Swipe right to approve." sub="One commit, verified. Work starts by itself." />
-      <Headline frame={f} from={172} to={368} tag="Rework" color={LAYERS.attention.ink} text="Swipe left to send it back." sub="Say what should change. A chat run reworks it." />
-      <Headline frame={f} from={370} to={SWIPE_FRAMES} tag="Ask" color={C.accent} text="Pull up to ask." sub="A chat on the card, right below it." />
+      <Caption f={f} from={4} to={168} color={C.ok} text="One commit, verified. Work starts by itself." />
+      <Caption f={f} from={172} to={368} color={LAYERS.attention.ink} text="Say what should change: a chat run reworks it." />
+      <Caption f={f} from={370} to={SWIPE_FRAMES} color={C.accent} text="Ask about the card, in a chat right below it." />
     </AbsoluteFill>
   );
 }
@@ -302,6 +307,47 @@ function CardChat({ f, open, top }: { f: number; open: number; top: number }) {
         <span style={{ flex: 1 }}>{asked || f < ASK.type ? 'Ask about this card' : typed(QUESTION, f, ASK.type, 34)}</span>
         <Glyph path={ICONS.send} size={18} color={C.accent} />
       </div>
+    </div>
+  );
+}
+
+/** A gesture's word filling the frame behind the phone: in, swept the way of the gesture as it is made, out */
+function Gesture({ f, from, to, word, color, dir, at }: { f: number; from: number; to: number; word: string; color: string; dir: 'left' | 'right' | 'up'; at: number }) {
+  if (f < from || f > to) return null;
+  const t = ramp(f, from, 16, Easing.out(Easing.cubic)) * (1 - ramp(f, to - 14, 14));
+  const sweep = ramp(f, at, 40, Easing.inOut(Easing.cubic));
+  const d = (dir === 'left' ? -1 : 1) * 260 * (sweep - 0.5);
+  const arrow = dir === 'right' ? '→' : dir === 'left' ? '←' : '↑';
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 300,
+        textAlign: 'center',
+        whiteSpace: 'nowrap',
+        fontFamily: F.head,
+        fontWeight: 700,
+        fontSize: 330,
+        letterSpacing: -6,
+        color,
+        opacity: 0.2 * t,
+        transform: dir === 'up' ? `translateY(${-200 * (sweep - 0.5)}px)` : `translateX(${d}px)`,
+      }}
+    >
+      {dir === 'left' ? `${arrow} ${word}` : `${word} ${arrow}`}
+    </div>
+  );
+}
+
+/** The gesture's line, under the phone */
+function Caption({ f, from, to, color, text }: { f: number; from: number; to: number; color: string; text: string }) {
+  if (f < from || f > to) return null;
+  const t = ramp(f, from + 10, 14, Easing.out(Easing.cubic)) * (1 - ramp(f, to - 10, 10));
+  return (
+    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 40, display: 'flex', justifyContent: 'center', opacity: t, transform: `translateY(${20 * (1 - t)}px)` }}>
+      <div style={{ background: C.surface, borderRadius: 999, padding: '14px 34px', boxShadow: '0 14px 34px rgba(30,41,59,.16)', borderLeft: `8px solid ${color}`, fontFamily: F.body, fontSize: 34, color: C.ink }}>{text}</div>
     </div>
   );
 }
