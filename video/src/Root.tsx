@@ -5,6 +5,7 @@ import { Swipe, SWIPE_FRAMES } from './scenes/Swipe.tsx';
 import { Loop, LOOP_FRAMES } from './scenes/Loop.tsx';
 import { Graph, GRAPH_FRAMES } from './scenes/Graph.tsx';
 import { Schedule, SCHEDULE_FRAMES } from './scenes/Schedule.tsx';
+import { Learn, LEARN_FRAMES } from './scenes/Learn.tsx';
 
 const SCENES = [
   { id: 'Layers', component: Layers, frames: LAYERS_FRAMES },
@@ -12,6 +13,7 @@ const SCENES = [
   { id: 'Loop', component: Loop, frames: LOOP_FRAMES },
   { id: 'Graph', component: Graph, frames: GRAPH_FRAMES },
   { id: 'Schedule', component: Schedule, frames: SCHEDULE_FRAMES },
+  { id: 'Learn', component: Learn, frames: LEARN_FRAMES },
 ];
 
 export function Root() {
