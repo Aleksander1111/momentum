@@ -146,7 +146,7 @@ Harness	Automation	The definition an automation runs, held in the harness worksp
 Harness	Trigger	What starts an automation's runs in this workspace: a schedule, an event, or the user on demand.
 Harness	Issue	A change that cannot be made consistent, a recurring problem or a failed validation, raised for the user to react to.
 Harness	Conflict	Files a run changed that changed on the main line while it ran; landed on the run's side and raised with its own priority for the user to check.
-Harness	Chat	A chat stored and indexed as a summary, with the chat as its artifact.
+Harness	Chat	The optimization candidates a chat held (skills, sub-agents, memories after a misalignment) with their evidence, the chat as its artifact; a chat with none has no entity.
 Harness	Plan	A plan prepared for the user to accept; a summary, short and quick to read and approve.
 Harness	Research	Information researched and collected to decide the next best action for the project.
 Harness	Pattern	A pattern that repeats across chats or in the user's reactions, with the times it was seen; a skill, memory, definition change or automatic reaction is proposed from it only once it was seen at least three times; a skill, memory or definition change is in effect as it lands and waits for the user's review; an automatic reaction takes effect only once the user approves it.
