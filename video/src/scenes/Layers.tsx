@@ -2,13 +2,13 @@
 // is approved, the phone tilts onto the knowledge graph (understanding) and the runs below it (implementation), whose
 // work rises through the guard and lands back in the feed as one card.
 import type { CSSProperties, ReactNode } from 'react';
-import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, Finger, Headline, Logo } from '../kit/stage.tsx';
 import { C, F, LAYERS, PARTS, domainOf, type Layer } from '../kit/theme.ts';
 import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
-export const LAYERS_FRAMES = 450;
+export const LAYERS_FRAMES = 490;
 
 const PROJECTS: Record<string, Project> = {
   bookshelf: { name: 'bookshelf-api', color: '#1D6FD6' },
@@ -78,9 +78,9 @@ const APPROVE = { show: 100, press: 126, drag: 130, release: 158 };
 const TILT = 186;
 const UNDERSTAND = 206;
 const IMPLEMENT = 290;
-const RISE = 345;
-const ARRIVE = 382;
-const CLOSE = 416;
+const RISE = 384;
+const ARRIVE = 421;
+const CLOSE = 455;
 
 // The stack: square planes, one per layer, the phone lying on the top one
 const STAGE = { x: 1270, y: 540 };
@@ -229,7 +229,7 @@ function Graph({ frame, pulse }: { frame: number; pulse: number }) {
 
 /** The runs working on the approved goal */
 const RUNS: [string, string, number][] = [
-  ['Preparation', 'Plan: search by author or title', 0],
+  ['Preparation', 'Plan ready', 0],
   ['Implementation', 'GET /books?q=', 8],
   ['Validation', '14 tests pass', 16],
 ];
@@ -436,7 +436,7 @@ function Chips({ frame }: { frame: number }) {
 }
 
 /** Reading time, where each beat has settled */
-const DWELLS: Dwell[] = [[86, 40], [176, 30], [282, 45], [394, 30], [446, 40]];
+const DWELLS: Dwell[] = [[86, 40], [176, 30], [282, 45], [362, 30], [433, 30], [486, 40]];
 export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
 
 export function Layers() {
@@ -445,8 +445,18 @@ export function Layers() {
   const drift = ramp(frame, TILT, LAYERS_FRAMES - TILT, Easing.linear);
   const rx = 58 * tilt;
   const rz = -26 * tilt + 7 * drift;
-  const scale = mix(tilt, 1, 0.6);
-  const dy = mix(tilt, 0, -225);
+  // The camera: the whole stack, then close on each layer as it is told, then the whole stack again for the work
+  // rising through it; `level` is the layer at the centre of the frame, 0 the top
+  const camera = (values: number[]) =>
+    interpolate(frame, [TILT, TILT + 40, UNDERSTAND + 26, UNDERSTAND + 56, IMPLEMENT - 4, IMPLEMENT + 26, RISE - 14, RISE + 16], values, {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+      easing: Easing.inOut(Easing.cubic),
+    });
+  const level = camera([0, 0.9, 0.9, 1, 1, 2, 2, 0.9]);
+  const scale = camera([1, 0.6, 0.6, 0.95, 0.95, 0.95, 0.95, 0.6]);
+  // A layer lies 407 px a unit of scale below the one above it on screen, at this tilt
+  const dy = -25 * tilt - 407 * scale * level;
   const glow = ramp(frame, CLOSE, 24);
   const pulse = (frame - (UNDERSTAND + 10)) % 30 / 30;
   const guardHit = ramp(frame, RISE + 12, 6) * (1 - ramp(frame, RISE + 24, 10));
