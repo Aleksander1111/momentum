@@ -28,7 +28,7 @@ Graph RAG over the [entity types](Code/ConfigSetting/entity-types), one knowledg
 
 - Entities are markdown at `knowledge-graph/<Domain>/<Type>/[<parent>/]<name>.md`; the type is the path
 - Frontmatter: type, origin, verification, sync, ranking, references, artifacts; the body is the card
-- Summaries, chats, plans, issues, triggers and definitions are all entities
+- Summaries, plans, issues, patterns, triggers, definitions are entities; chats are not
 - The guard lands each run as one commit; unverified entities enter the feed
 - A card may link the entities it names; each link is also a reference
 - Retrieval: full text and embeddings fused by rank, expanded along references; [the search automation](Harness/Automation/search) answers from it

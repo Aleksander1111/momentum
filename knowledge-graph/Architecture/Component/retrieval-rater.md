@@ -11,6 +11,8 @@ references:
     relation: part_of
   - to: Harness/Automation/chat
     relation: concerns
+  - to: Harness/Automation/optimization
+    relation: serves
   - to: Data/Database/index-and-metrics-database
     relation: writes
 artifacts:
@@ -19,8 +21,9 @@ artifacts:
 ---
 # Turn activity and retrieval rater
 
-- **Activity**: each session of a run is a turn after the last user message; each tool call ("server · tool", one-line detail, time, error, result start) and the tokens recorded as they happen
+- **Activity**: each run session is a turn; each tool call ("server · tool", detail, time, error, result start) and tokens recorded as they happen
 - **Retrieval**: every call but writes, Task/Agent, record_agent_metric, momentum-run tools
-- **Rating**: a chat's turn that retrieved is pending; Haiku reads question, answer, ≤40 calls (1500 chars each), rates each 0–5 and coverage 0–1
-- Tool relevance: its calls' mean, relative to the best; precision: share ≥3; score: mean of precision and coverage; parallel: two tools in one response
-- Kept on the turn and as rag and retrieval metrics
+- **Rating**: a chat turn that retrieved is pending; Haiku reads question, answer, ≤40 calls (1500 chars each), rates each 0–5, coverage 0–1
+- Tool relevance: calls' mean, relative to the best; precision: share ≥3; score: mean of precision, coverage; parallel: two tools in one response
+- Kept on the turn and as metrics
+- **Overview**: a project's means over the last days (30) and each tool's, for [the optimization](Harness/Automation/optimization)

@@ -31,13 +31,13 @@ artifacts:
 ---
 # Runner
 
-A Claude Code session per run, in a detached checkout
+A Claude Code session per run, detached checkout
 
 - **States**: serial per run; killed queued runs never run
 - **Messages**: in order; queued, they join the prompt
-- **Stop hook**: artifacts, build documents summarized; results `implements` target
+- **Stop hook**: artifacts, build documents summarized, not chats; results `implements` target
 - **Finish**: never rejects; guard lands it; usage, metrics; 3 failed builds halt
 - **Restart**: lost runs resume ≤2×; chats, interviews fail, resume on message
-- **Activity**: each session a turn of tool calls and tokens; a chat's is rated by the [retrieval rater](Architecture/Component/retrieval-rater)
+- **Activity**: each session a turn of tool calls and tokens; a chat's rated by the [retrieval rater](Architecture/Component/retrieval-rater)
 - **Timeline**: an event when it ends, with state moves
-- **Under way**: queued, running; chats in `chats/<id>.jsonl`
+- **Under way**: queued, running; chats in `chats/<id>.jsonl` for the optimization

@@ -13,27 +13,31 @@ references:
     relation: concerns
   - to: Harness/Automation/summarization
     relation: concerns
+  - to: Harness/Automation/optimization
+    relation: concerns
 artifacts:
   - apps/backend/src/runner.ts
 ---
 # momentum-run MCP server
 
-In-process MCP server every run gets beside `momentum-kb`.
+In-process, beside `momentum-kb`.
 
 **report_graph_build** (every run)
 
 | Input | Effect |
 |---|---|
-| complete | Ends the build, on the timeline; only once nothing the harness measures missing can be filled (each run is told what) |
-| progress | The next run's prompt carries it |
-| documents | Handed by the Stop hook to summarization |
+| complete | Ends the build once nothing missing can be filled |
+| progress | Carried to the next run's prompt |
+| documents | Handed to summarization |
 
-A run that never reports fails; 3 in a row stop the build.
+Not reporting fails the run; 3 in a row stop the build.
 
-**report_interview** (interview runs, every turn)
+**report_interview** (interview, every turn)
 
 | Input | Effect |
 |---|---|
 | question | Next question, or closing remark |
-| done | Unlocks summary and commit message |
-| document | Relative file outside knowledge-graph/, else refused; summarized when done |
+| done | Unlocks summary, commit message |
+| document | File outside knowledge-graph/; summarized when done |
+
+**retrieval_ratings** ([optimization](Harness/Automation/optimization)): per enabled project turns' means and each tool's relevance over `days` (1–90, 30)
