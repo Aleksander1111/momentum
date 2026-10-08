@@ -1,0 +1,25 @@
+{
+  "name": "@momentum/video",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The harness video, the deck's slides in order with a caption each, composed with Remotion",
+  "scripts": {
+    "assets": "node scripts/assets.mjs",
+    "studio": "node scripts/assets.mjs && remotion studio src/index.ts",
+    "render": "node scripts/assets.mjs && remotion render src/index.ts Harness out/harness.mp4",
+    "still": "node scripts/assets.mjs && remotion still src/index.ts Harness",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.534",
+    "@remotion/transitions": "4.0.534",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.534"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "typescript": "^5.9.3"
+  }
+}

@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - docs
+  - video
 onlyBuiltDependencies:
   - esbuild
   - onnxruntime-node
