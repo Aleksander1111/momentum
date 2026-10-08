@@ -26,11 +26,11 @@ In-process, beside `momentum-kb`.
 
 | Input | Effect |
 |---|---|
-| complete | Ends the build once nothing missing can be filled |
+| complete | Ends the build once nothing missing is fillable |
 | progress | Carried to the next run's prompt |
 | documents | Handed to summarization |
 
-Not reporting fails the run; 3 in a row stop the build.
+No report fails the run; 3 in a row stop the build.
 
 **report_interview** (interview, every turn)
 
@@ -38,6 +38,6 @@ Not reporting fails the run; 3 in a row stop the build.
 |---|---|
 | question | Next question, or closing remark |
 | done | Unlocks summary, commit message |
-| document | File outside knowledge-graph/; summarized when done |
+| document | Non-graph file; summarized when done |
 
-**retrieval_ratings** ([optimization](Harness/Automation/optimization)): per enabled project turns' means and each tool's relevance over `days` (1–90, 30)
+**retrieval_ratings** ([optimization](Harness/Automation/optimization)): per enabled project, all runs' rated turns' means, per automation, per tool, over `days` (1–90, 30)

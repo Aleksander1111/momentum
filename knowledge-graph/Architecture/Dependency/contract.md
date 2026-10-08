@@ -16,7 +16,7 @@ kind: internal library
 ---
 # Contract
 
-`@momentum/contract`: zod schemas, types for backend and app, jitless (CSP).
+`@momentum/contract`: zod schemas, types for backend, app; jitless (CSP).
 
 | Area | Schemas |
 |---|---|
@@ -27,7 +27,7 @@ kind: internal library
 | Runs, chats | automations, status, usage, context, interview, turns, steps, retrieval ratings |
 | Timeline | actor, kind, facts, state moves, page |
 | Voice | screen, status, partials |
-| Build, metrics | completeness, estimate; series; retrieval per tool |
+| Build, metrics | completeness, estimate; series; retrieval per automation, tool |
 | Settings | projects, logo, feed size, cards, lifetimes, models, limits |
 
 `openapi.json`: OpenAPI 3.0

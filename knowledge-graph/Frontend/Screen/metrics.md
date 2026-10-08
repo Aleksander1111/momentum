@@ -12,14 +12,14 @@ artifacts:
 ---
 # Metrics
 
-A workspace's metrics over 24h, 7d or 30d (default); workspace picker (shared with Chat, Explorer) and range switch on top.
+A workspace's metrics over 24h, 7d or 30d (default); workspace picker (shared with Chat, Explorer), range switch on top.
 
 | Panel | Shows |
 |---|---|
 | Usage | 5h and weekly limits: %, meter by automation, line over range |
-| Over time | Picked metrics, one chart, ≤2 units: entity states, usage, runs, attention, understanding, agents, implementation, retrieval, incl. per-tool relevance vs each turn's best |
-| Retrieval | RAG score, precision, coverage, parallel; per tool relevance /5, calls, bar vs best |
+| Over time | Picked metrics, one chart, ≤2 units: entity states, usage, runs, attention, understanding, agents, implementation, retrieval, tool relevance vs best |
+| Retrieval | Runs' RAG score, precision, coverage, parallel; RAG, turns per automation; per tool relevance /5, calls, bar vs best |
 | Runs by parameter | Runs per automation binned by usage, duration or messages |
 | Automations | Runs, failed, avg time, usage % |
 
-Hover: a bucket's value and parts; unmeasured: —.
+Hover: bucket value, parts; unmeasured: —.

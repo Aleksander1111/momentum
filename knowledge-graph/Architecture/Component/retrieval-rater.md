@@ -21,9 +21,9 @@ artifacts:
 ---
 # Turn activity and retrieval rater
 
-- **Activity**: each run session is a turn; each tool call ("server · tool", detail, time, error, result start) and tokens recorded as they happen
-- **Retrieval**: every call but writes, Task/Agent, record_agent_metric, momentum-run tools
-- **Rating**: a chat turn that retrieved is pending; Haiku reads question, answer, ≤40 calls (1500 chars each), rates each 0–5, coverage 0–1
-- Tool relevance: calls' mean, relative to the best; precision: share ≥3; score: mean of precision, coverage; parallel: two tools in one response
-- Kept on the turn and as metrics
-- **Overview**: a project's means over the last days (30) and each tool's, for [the optimization](Harness/Automation/optimization)
+- **Activity**: each session a turn; each tool call ("server · tool", detail, time, error, result start), tokens recorded live
+- **Retrieval**: every call but writes, Task/Agent, record_agent_metric, report_graph_build, report_interview
+- **Rating**: any run's turn that retrieved, at run end; Haiku reads question or automation prompt, answer (4000 chars), ≤40 calls (1500), each 0–5, coverage 0–1
+- Tool relevance: calls' mean, relative to best; precision: share ≥3; score: mean of both; parallel: two tools in one response
+- Kept on the turn, as metrics
+- **Overview**: a project's means over the last days (30), per automation and per tool, for [the optimization](Harness/Automation/optimization)
