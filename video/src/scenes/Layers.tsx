@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, Finger, Headline, Logo } from '../kit/stage.tsx';
-import { C, F, LAYERS, domainOf, type Layer } from '../kit/theme.ts';
+import { C, F, LAYERS, PARTS, domainOf, type Layer } from '../kit/theme.ts';
 import { mix, pop, ramp } from '../kit/motion.ts';
 
 export const LAYERS_FRAMES = 450;
@@ -127,7 +127,7 @@ function Plane({ layer, z, opacity, glow, children }: { layer: Layer; z: number;
   );
 }
 
-const SHIELD = 'M12 3a12 12 0 0 0 8.5 3A12 12 0 0 1 12 21 12 12 0 0 1 3.5 6 12 12 0 0 0 12 3M8.5 12l2.5 2.5 4.5-5';
+const SHIELD = PARTS.shield;
 
 /** The knowledge graph of bookshelf-api, its references drawing in, the guard at its centre */
 const NODES: [string, string, number, number][] = [

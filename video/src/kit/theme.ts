@@ -68,6 +68,16 @@ export const ICONS = {
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
 } as const;
 
+/** Stroked glyphs of the harness's parts, on a 24 grid */
+export const PARTS = {
+  shield: 'M12 3a12 12 0 0 0 8.5 3A12 12 0 0 1 12 21 12 12 0 0 1 3.5 6 12 12 0 0 0 12 3M8.5 12l2.5 2.5 4.5-5',
+  terminal: 'M4 17l6-5-6-5M12 19h8',
+  sparkles: 'M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8zM19 15l.9 2.1 2.1.9-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z',
+  pause: 'M8 5v14M16 5v14',
+  bolt: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  pencil: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+};
+
 /** Entity states: stroked glyphs (apps/app/src/ui/StateBadge.tsx) */
 export const STATES = {
   unverified: { path: 'M8 8a3.5 3 0 0 1 3.5-3h1a3.5 3 0 0 1 3.5 3 3 3 0 0 1-2 3 3 4 0 0 0-2 4M12 19v.01', color: C.stateUnverified },
