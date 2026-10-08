@@ -1,6 +1,6 @@
 {
   "name": "@momentum/video",
-  "version": "0.9.0",
+  "version": "0.91.0",
   "private": true,
   "type": "module",
   "description": "The Momentum marketing video: the app redrawn and animated, one scene per slide of the deck, composed with Remotion",
