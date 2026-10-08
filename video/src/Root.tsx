@@ -1,5 +1,6 @@
 import { Composition } from 'remotion';
 import { FPS } from './kit/motion.ts';
+import { Momentum, MOMENTUM_FRAMES } from './Momentum.tsx';
 import { Layers, LAYERS_FRAMES } from './scenes/Layers.tsx';
 import { Swipe, SWIPE_FRAMES } from './scenes/Swipe.tsx';
 import { Loop, LOOP_FRAMES } from './scenes/Loop.tsx';
@@ -11,6 +12,7 @@ import { Resolve, RESOLVE_FRAMES } from './scenes/Resolve.tsx';
 import { Line, LINE_FRAMES } from './scenes/Line.tsx';
 
 const SCENES = [
+  { id: 'Momentum', component: Momentum, frames: MOMENTUM_FRAMES },
   { id: 'Layers', component: Layers, frames: LAYERS_FRAMES },
   { id: 'Swipe', component: Swipe, frames: SWIPE_FRAMES },
   { id: 'Loop', component: Loop, frames: LOOP_FRAMES },
