@@ -103,7 +103,7 @@ export default function Explorer() {
   const corner = useCornerRoom();
   const params = useLocalSearchParams<{ ws?: string; path?: string; folder?: string }>();
   const [ws, setWs, names] = useCurrentWorkspace();
-  const excluded = useWorkspaces().data?.find((w) => w.name === ws)?.enabled === false;
+  const noneIncluded = !!useWorkspaces().data && !ws;
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [q, setQ] = useState('');
 
@@ -203,11 +203,11 @@ export default function Explorer() {
         <Pick value={ws} options={names} onChange={setWs} icon={(o, size) => <ProjectLogo name={o} size={size} />} />
         {types.data ? <Count>{`${types.data.total} entities`}</Count> : null}
       </View>
-      {ws && excluded ? (
+      {noneIncluded ? (
         <Pressable onPress={() => router.navigate('/settings')} accessibilityRole="link" style={{ marginBottom: 12 }}>
           <T style={{ color: C.muted, fontSize: 13.5, lineHeight: 19 }}>
-            {`${ws} is not included, so nothing maps it into the knowledge graph. `}
-            <T style={{ color: C.accent, fontSize: 13.5 }}>Include it in Settings</T>
+            {'No project is included, so there is no knowledge graph to show. '}
+            <T style={{ color: C.accent, fontSize: 13.5 }}>Include one in Settings</T>
           </T>
         </Pressable>
       ) : null}

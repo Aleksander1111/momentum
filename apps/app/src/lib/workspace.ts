@@ -20,15 +20,19 @@ export function useWorkspaces() {
   return useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces });
 }
 
-/** The chosen workspace, defaulting to the first enabled one. */
+/** The names of the enabled workspaces: the only ones shown anywhere but Settings */
+export function useEnabledWorkspaces(): string[] {
+  const { data } = useWorkspaces();
+  return (data ?? []).filter((w) => w.enabled).map((w) => w.name);
+}
+
+/** The chosen workspace, defaulting to the first enabled one; only enabled ones can be chosen. */
 export function useCurrentWorkspace(): [string | null, (ws: string) => void, string[]] {
   const chosen = useSyncExternalStore(subscribe, () => current, () => current);
-  const { data } = useWorkspaces();
-  const names = (data ?? []).map((w) => w.name);
-  const fallback = (data ?? []).find((w) => w.enabled)?.name ?? names[0] ?? null;
-  const shown = chosen && names.includes(chosen) ? chosen : fallback;
+  const names = useEnabledWorkspaces();
+  const shown = chosen && names.includes(chosen) ? chosen : (names[0] ?? null);
   // An enabled project shown when none was chosen stays chosen: another one enabled later does not take its place
-  const keep = !chosen && !!shown && !!data?.find((w) => w.name === shown)?.enabled;
+  const keep = !chosen && !!shown;
   useEffect(() => {
     if (keep && shown) setCurrentWorkspace(shown);
   }, [keep, shown]);

@@ -154,7 +154,7 @@ export class App {
     const since = new Date();
     if (title) {
       await this.swipe(title, -320);
-      await this.sheet('Disapprove', comment, 'Send back');
+      await this.sheet('Rework', comment, 'Send back');
     } else {
       await this.api.call('POST', `/feed/${encodeURIComponent(path)}/send-back`, { workspace: ws, comment, timeSpentMs: 1000 });
     }

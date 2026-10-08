@@ -7,7 +7,7 @@ import { api } from '../../lib/api';
 import { embedded } from '../../lib/embed';
 import { automationLabel, durationMs, usagePct } from '../../lib/format';
 import { openRun } from '../../lib/runs';
-import { useWorkspaces } from '../../lib/workspace';
+import { useEnabledWorkspaces } from '../../lib/workspace';
 import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon, type PATHS } from '../../ui/icons';
@@ -332,7 +332,7 @@ export default function Timeline() {
   useTheme();
   const wide = useWide();
   const corner = useCornerRoom();
-  const { data: workspaces } = useWorkspaces();
+  const workspaces = useEnabledWorkspaces();
   const [workspace, setWorkspace] = useState<string | null>(null);
   const [actor, setActor] = useState<ActorFilter>('all');
   // What is queued and running sits beside the timeline, a press away; its count shows on the way there
@@ -386,7 +386,7 @@ export default function Timeline() {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, paddingRight: corner, zIndex: 10 }}>
         <Pick
           value={workspace ?? ALL}
-          options={[ALL, ...(workspaces ?? []).map((w) => w.name)]}
+          options={[ALL, ...workspaces]}
           icon={(o, size) => (o === ALL ? null : <ProjectLogo name={o} size={size} />)}
           onChange={(v) => setWorkspace(v === ALL ? null : v)}
         />

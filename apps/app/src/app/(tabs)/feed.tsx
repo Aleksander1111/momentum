@@ -200,11 +200,12 @@ function TopCard({
             </>
           ) : null}
         </ScrollView>
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 22, top: issue ? 150 : 210 }, okStamp]}>
+        {/* Each stamp sits on the edge the card trails, so it stays on screen as the card leaves */}
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 22, top: issue ? 150 : 210 }, okStamp]}>
           <Stamp kind="ok" label={issue ? 'RESOLVE' : 'APPROVE'} />
         </Animated.View>
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 18, top: issue ? 150 : 330 }, noStamp]}>
-          <Stamp kind="no" label={issue ? 'OTHER' : 'DISAPPROVE'} />
+          <Stamp kind="no" label={issue ? 'OTHER' : 'REWORK'} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>
@@ -264,7 +265,7 @@ function Sheet({
               marginBottom: 14,
             }}
           />
-          <H style={{ fontSize: 22, marginBottom: 12 }}>{issue ? 'Your resolution' : 'Disapprove'}</H>
+          <H style={{ fontSize: 22, marginBottom: 12 }}>{issue ? 'Your resolution' : 'Rework'}</H>
           <TextInput
             value={comment}
             onChangeText={setComment}
