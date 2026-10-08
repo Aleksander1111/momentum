@@ -144,7 +144,7 @@ function Tokens({ f }: { f: number }) {
   return (
     <>
       {PROJECT_COLORS.map((color, i) => {
-        const a = ((90 + i * 90 - t * (4 + t * 0.06) - 14 * Math.sin(t / 11 + i)) * Math.PI) / 180;
+        const a = ((90 + i * 90 - t * (4 + t * 0.06) - 32 * Math.sin(t / 11 + i)) * Math.PI) / 180;
         const depth = (Math.sin(a) + 1) / 2;
         return (
           <div

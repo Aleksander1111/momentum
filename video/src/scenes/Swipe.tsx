@@ -173,7 +173,7 @@ export function Swipe() {
                 marginBottom: 14,
               }}
             >
-              {f >= REWORK.type ? typed(COMMENT, f, REWORK.type) : 'What should change?'}
+              {f >= REWORK.type ? typed(COMMENT, f, REWORK.type, 48) : 'What should change?'}
               {f >= REWORK.type && f < REWORK.send ? <span style={{ borderLeft: `2px solid ${C.accent}`, marginLeft: 1 }} /> : null}
             </div>
             <div style={{ display: 'flex', gap: 10 }}>

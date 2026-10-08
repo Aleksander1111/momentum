@@ -114,7 +114,8 @@ export const HOOK_LENGTH = dwelt(HOOK_FRAMES, DWELLS);
 export function Hook() {
   const f = useSceneFrame(DWELLS);
   const count = Math.round(1284 * ramp(f, 6, PULL - 6, Easing.in(Easing.quad)));
-  const projects = Math.min(PROJECTS.length, 1 + Math.floor(f / 10));
+  // A dozen by the time the voice says so
+  const projects = Math.min(PROJECTS.length, 1 + Math.floor(f / 2.5));
   const counterOut = ramp(f, PULL, 14);
   const dot = pop(f, PULL + 24, true);
   return (

@@ -101,7 +101,7 @@ const BLOCKS: Block[] = [
 ];
 const GROUND = 920;
 // The phone's score settles first; the blocks rise after, as its confirmation
-const riseOf = (b: Block, f: number) => ramp(f, CITY + 70 + b.at * 0.8, 24, Easing.out(Easing.back(1.3)));
+const riseOf = (b: Block, f: number) => ramp(f, CITY + 50 + b.at * 0.5, 16, Easing.out(Easing.back(1.4)));
 
 function territory(f: number) {
   const all = BLOCKS.reduce((s, b) => s + b.w * b.d, 0);

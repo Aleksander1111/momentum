@@ -82,8 +82,7 @@ try {
     });
     body = (await res.json()) as Reply;
     if (body.candidates) break;
-    console.log(`${model}: ${body.error?.message.split('
-')[0] ?? res.status}`);
+    console.log(`${model}: ${body.error?.message.split(String.fromCharCode(10))[0] ?? res.status}`);
   }
   if (!body.candidates) throw new Error('No model could review the video');
   const notes = JSON.parse(body.candidates[0]!.content.parts.map((p) => p.text).join('')) as { time: number; scene: string; kind: string; severity: number; issue: string; fix: string }[];

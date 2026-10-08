@@ -451,14 +451,14 @@ export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
 
 export function Layers() {
   const frame = useSceneFrame(DWELLS);
-  const tilt = ramp(frame, TILT, 56, Easing.bezier(0.45, 0, 0.2, 1));
+  const tilt = ramp(frame, TILT, 70, Easing.bezier(0.45, 0, 0.2, 1));
   const drift = ramp(frame, TILT, LAYERS_FRAMES - TILT, Easing.linear);
   const rx = 58 * tilt;
   const rz = -26 * tilt + 7 * drift;
   // The camera: the whole stack, then close on each layer as it is told, then the whole stack again for the work
   // rising through it; `level` is the layer at the centre of the frame, 0 the top
   const camera = (values: number[]) =>
-    interpolate(frame, [TILT, TILT + 56, UNDERSTAND + 26, UNDERSTAND + 56, IMPLEMENT - 4, IMPLEMENT + 26, RISE - 14, RISE + 16], values, {
+    interpolate(frame, [TILT, TILT + 70, UNDERSTAND + 40, UNDERSTAND + 70, IMPLEMENT - 4, IMPLEMENT + 26, RISE - 14, RISE + 16], values, {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
       easing: Easing.inOut(Easing.cubic),
@@ -496,7 +496,7 @@ export function Layers() {
           <Plane layer="implementation" z={-2 * GAP} opacity={ramp(frame, IMPLEMENT, 20)} glow={glow}>
             <Runs frame={frame} />
           </Plane>
-          <Plane layer="understanding" z={-GAP - 140 * (1 - ramp(frame, UNDERSTAND, 26, Easing.out(Easing.cubic)))} opacity={ramp(frame, UNDERSTAND, 16)} glow={glow}>
+          <Plane layer="understanding" z={-GAP - 140 * (1 - ramp(frame, UNDERSTAND, 44, Easing.out(Easing.cubic)))} opacity={ramp(frame, UNDERSTAND, 30)} glow={glow}>
             <Graph frame={frame} pulse={frame >= RISE ? guardHit : Math.max(0, pulse)} />
           </Plane>
           {/* Its name leaves before the camera, down on the runs, pushes it past the frame's top */}
