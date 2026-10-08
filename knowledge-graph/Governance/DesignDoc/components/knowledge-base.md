@@ -20,10 +20,10 @@ artifacts:
 
 Graph RAG over the entity types in docs/entity-types.tsv.
 
-- The entity is the unit; a summary is one with artifacts, by summarization
+- The entity is the unit; a summary is one with artifacts
 - Origins: user, requested, automation; the user's lands verified, an automation's unverified
-- Every entity is its card: a user-set limit sized for mobile, free form; too big means split
-- A type is a path on disk; chats, actions, patterns are entities too
-- A Harness/Pattern proposes a skill, memory, definition change or reaction after three sightings: in effect as it lands, a reaction only once approved
-- Runs write in their own checkout and land on the main line at run end
+- Every entity is its card, free form within a user-set limit; too big means split
+- A type is a path on disk; actions, patterns and chats with optimization candidates are entities
+- A Harness/Pattern proposes a skill, memory, definition change or reaction after three sightings; a reaction takes effect only once approved
+- Runs write in their own checkout, landing on the main line at run end
 - An approved plan is entity_ahead until implemented; no ingestion component
