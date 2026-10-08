@@ -8,6 +8,7 @@ import { Schedule, SCHEDULE_FRAMES } from './scenes/Schedule.tsx';
 import { Learn, LEARN_FRAMES } from './scenes/Learn.tsx';
 import { Measure, MEASURE_FRAMES } from './scenes/Measure.tsx';
 import { Resolve, RESOLVE_FRAMES } from './scenes/Resolve.tsx';
+import { Line, LINE_FRAMES } from './scenes/Line.tsx';
 
 const SCENES = [
   { id: 'Layers', component: Layers, frames: LAYERS_FRAMES },
@@ -18,6 +19,7 @@ const SCENES = [
   { id: 'Learn', component: Learn, frames: LEARN_FRAMES },
   { id: 'Measure', component: Measure, frames: MEASURE_FRAMES },
   { id: 'Resolve', component: Resolve, frames: RESOLVE_FRAMES },
+  { id: 'Line', component: Line, frames: LINE_FRAMES },
 ];
 
 export function Root() {

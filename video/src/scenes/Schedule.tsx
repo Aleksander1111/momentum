@@ -38,9 +38,10 @@ const DAY = { from: 16, to: 356 };
 const hourAt = (f: number) => interpolate(f, [DAY.from, DAY.to], [0, 24], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 const frameAt = (h: number) => DAY.from + ((DAY.to - DAY.from) * h) / 24;
 
-// The feed: 13 cards at dawn, a card per exploration or preparation run, paused at 20, three approvals at 16:00
-const LIMIT = 20;
-const PAUSE_AT = 9.6;
+// The feed: 30 cards at dawn, a card per exploration or preparation run, paused at its default size of 40, three
+// approvals at 16:00
+const LIMIT = 40;
+const PAUSE_AT = 8.6;
 const APPROVE_AT = 16.2;
 const paused = (h: number) => h >= PAUSE_AT && h < APPROVE_AT;
 const fires = (auto: Auto, h: number) => !paused(h) || auto === 'implementation';
@@ -55,7 +56,7 @@ const FIRED: Fired[] = [
 
 function feedSize(h: number): number {
   const made = FIRED.filter((r) => r.hour <= h && (r.auto === 'exploration' || r.auto === 'preparation')).length;
-  return Math.min(LIMIT, 13 + made) - (h >= APPROVE_AT ? 3 : 0);
+  return Math.min(LIMIT, 30 + made) - (h >= APPROVE_AT ? 3 : 0);
 }
 
 const clock = (h: number) => `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60) % 60).padStart(2, '0')}`;
