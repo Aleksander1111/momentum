@@ -489,7 +489,7 @@ export class Runner {
           ? [
               tool(
                 'retrieval_ratings',
-                "How well the chats' retrieval served their questions in each enabled project over the last days (30 unless given): the rated turns, their mean RAG score, precision, coverage and share with tools called side by side, and each retrieval tool's mean relevance (0-5) and relevance relative to the best tool of each turn (0-1).",
+                "How well the runs' retrieval served their questions and tasks in each enabled project over the last days (30 unless given), chats and automation runs alike: the rated turns, their mean RAG score, precision, coverage and share with tools called side by side, the same per automation, and each retrieval tool's mean relevance (0-5) and relevance relative to the best tool of each turn (0-1).",
                 { days: z.number().int().min(1).max(90).optional() },
                 async ({ days }) => {
                   const projects = await this.workspaces.enabled();
@@ -604,6 +604,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
 - Frontmatter: type, origin (user | requested | automation), verification (always unverified when you write), sync, product_impact, timeline_impact, unlocks (integers 0–5: impact on the product, impact on the timeline, how much the work unlocks — they rank the feed), references (to: entity path, relation: snake_case verb such as depends_on, implements, concerns, retires), artifacts (repository paths the entity summarizes).
 - The body starts with "# <title>" and then the card: free-form markdown within ${limit} characters, in whatever form presents the entity best (paragraph, bullets, table, PlantUML diagram in a \`\`\`plantuml code block; mermaid is not accepted). The entity is its card. An entity that does not fit is split into entities that reference each other.
 - Card presentation rules from the user: ${rules.trim() || 'none beyond the character limit'}
+- Retrieve with every fitting tool at once: call momentum-kb search, Grep, Glob and the search tools of any other MCP server side by side in one response, then read what the best of them found. The harness rates each tool by the relevance of what it brought back once the run ends.
 - Artifacts are repository files outside knowledge-graph/. Never write summaries of them yourself: when you stop, a harness hook lists the artifacts this run added, changed or deleted, for the momentum-summarization sub-agent.
 - Lifetimes per entity type: ${lifetimes.map((l) => `${l.type}: ${l.rule}`).join('; ') || 'none set'}
 - Every reference must resolve to an existing entity in this checkout.`;
@@ -716,11 +717,11 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   private async finish(ws: Workspace, id: string, entry: Active, result: SessionResult): Promise<void> {
     const log = (what: string) => (e: unknown) => console.error(`run ${id}: ${what}:`, e);
     let r: RunRow | null = null;
-    // A chat's turn that retrieved anything is rated once the run has ended; until then the chat waits for the rating
+    // A turn that retrieved anything is rated once the run has ended, a chat's or an automation's; until then it waits
     let rate = false;
     try {
       await entry.activity.end().catch(log('activity'));
-      if (entry.ref.automation === 'chat') rate = await awaitRating(ws, id, entry.activity.turn).catch(() => false);
+      rate = await awaitRating(ws, id, entry.activity.turn).catch(() => false);
       r = await this.row(ws, id);
       if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
       const landed = await this.guard.transaction(entry.ref);

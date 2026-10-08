@@ -35,6 +35,7 @@ describe('rating a turn of retrieval', () => {
     expect(retrieves('Write')).toBe(false);
     expect(retrieves('mcp__momentum-kb__write')).toBe(false);
     expect(retrieves('mcp__momentum-run__report_interview')).toBe(false);
+    expect(retrieves('mcp__momentum-run__retrieval_ratings')).toBe(true);
   });
 
   it('sees tools called side by side only when one response called two of them', () => {
@@ -46,6 +47,8 @@ describe('rating a turn of retrieval', () => {
     const { prompt } = ratingQuestion('Which routes?', 'GET /books.', [call('Grep', 'a', 'x'.repeat(3000))]);
     expect(prompt).toContain('## Call 1: Grep');
     expect(prompt).toContain('first 1500 of 3000 characters');
+    // An automation's long prompt is cut for the rater
+    expect(ratingQuestion('x'.repeat(5000), '', []).prompt).toContain('1000 more characters');
   });
 
   it('rates each tool against the best one, precision from the useful calls and the score from both', () => {

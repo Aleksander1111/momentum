@@ -320,6 +320,9 @@ async function retrievalMetrics(ws: Workspace, span: Span): Promise<MetricsRespo
      from ${ws.index.schema}.retrieval_metric where recorded_at >= ${span.start} group by tool order by 5 desc, 3 desc`,
   );
   const round = (v: number, d: number) => Math.round(v * 10 ** d) / 10 ** d;
+  const automations = await ws.index.sql.unsafe<{ automation: string; turns: number; score: number }[]>(
+    `select automation, count(*)::int as turns, avg(score)::float8 as score from ${rag} where recorded_at >= ${span.start} group by 1 order by 3`,
+  );
   const relative = await span.seriesBy(`${ws.index.schema}.retrieval_metric`, 'tool', 'relative', 'avg');
   const gaps = span.buckets.map((b) => ({ at: b.toISOString(), value: null }));
   return {
@@ -328,6 +331,9 @@ async function retrievalMetrics(ws: Workspace, span: Span): Promise<MetricsRespo
     coverage: await mean('coverage'),
     parallel: await mean('parallel::int'),
     turns: summed(await span.series(rag, '1', 'count')),
+    automations: automations
+      .filter((a): a is typeof a & { automation: AutomationName } => AutomationName.safeParse(a.automation).success)
+      .map((a) => ({ ...a, score: round(a.score, 2) })),
     tools: tools.map((t) => ({ ...t, relevance: round(t.relevance, 1), relative: round(t.relative, 2), series: relative.get(t.tool) ?? gaps })),
   };
 }

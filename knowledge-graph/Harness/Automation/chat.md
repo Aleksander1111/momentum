@@ -16,7 +16,7 @@ artifacts:
 The direct chat: an automation the user starts instead of the schedule.
 
 - Own process and checkout alongside the automation runs; does anything they can
-- Retrieves with every fitting tool at once (momentum-kb search, Grep, Glob, other MCP search tools), then reads the best hits; each turn's retrieval is rated per tool once the run ends
+- Retrieves with every fitting tool at once (momentum-kb search, Grep, Glob, other MCP search tools), then reads the best hits; each turn's retrieval is rated per tool once the run ends, as every run's is
 - What the user asks for is done in the run, never proposed back for approval: asked to remove, it deletes the files and drops the references
 - A send back's comment decides the target: change, split, replace, add alongside or remove
 - A plan asked for goes to plans/<name>.md, summarized as a Harness/Plan

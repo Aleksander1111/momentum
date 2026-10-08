@@ -448,8 +448,9 @@ function RunHistogram({ h, range }: { h: RunHistograms; range: string }) {
   );
 }
 
-/** How well the chats' retrieval served the questions, and each retrieval tool against the others */
+/** How well the runs' retrieval served their questions and tasks, per automation, and each retrieval tool against the others */
 function RetrievalPanel({ r, range }: { r: MetricsResponse['retrieval']; range: string }) {
+  const color = useAutomationColor();
   const figure = (label: string, m: MetricValue) => (
     <View key={label} style={{ flexGrow: 1, flexBasis: 90, backgroundColor: C.card, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 }}>
       <T style={{ color: C.muted, fontSize: 11.5 }}>{label}</T>
@@ -466,6 +467,25 @@ function RetrievalPanel({ r, range }: { r: MetricsResponse['retrieval']; range: 
             {figure('Coverage', r.coverage)}
             {figure('In parallel', r.parallel)}
           </View>
+          {r.automations.length > 1 ? (
+            <View>
+              <View style={{ flexDirection: 'row', paddingBottom: 4, gap: 8 }}>
+                <T style={{ flex: 1, color: C.muted, fontSize: 11.5 }}>By automation</T>
+                <T style={{ width: 60, textAlign: 'right', color: C.muted, fontSize: 11.5 }}>RAG</T>
+                <T style={{ width: 40, textAlign: 'right', color: C.muted, fontSize: 11.5 }}>Turns</T>
+              </View>
+              {r.automations.map((a) => (
+                <View key={a.automation} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, borderTopWidth: 1, borderTopColor: C.line, borderStyle: 'dashed' }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color(a.automation) }} />
+                  <T numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: C.muted }}>
+                    {automationLabel(a.automation)}
+                  </T>
+                  <T style={{ width: 60, textAlign: 'right', fontSize: 13 }}>{`${Math.round(a.score * 100)}%`}</T>
+                  <T style={{ width: 40, textAlign: 'right', fontSize: 13 }}>{String(a.turns)}</T>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <View>
             <View style={{ flexDirection: 'row', paddingBottom: 4, gap: 8 }}>
               <T style={{ flex: 1, color: C.muted, fontSize: 11.5 }}>{`${Math.round(r.turns.value)} rated ${Math.round(r.turns.value) === 1 ? 'turn' : 'turns'}, last ${range}`}</T>
@@ -489,7 +509,7 @@ function RetrievalPanel({ r, range }: { r: MetricsResponse['retrieval']; range: 
           </View>
         </View>
       ) : (
-        <T style={{ color: C.muted, fontSize: 13.5 }}>{`No chat retrieval rated in the last ${range}`}</T>
+        <T style={{ color: C.muted, fontSize: 13.5 }}>{`No retrieval rated in the last ${range}`}</T>
       )}
     </Panel>
   );

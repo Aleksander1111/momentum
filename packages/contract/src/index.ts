@@ -674,7 +674,7 @@ export const MetricsResponse = z.object({
     bugs: MetricValue,
     defects: MetricValue,
   }),
-  /** How well the chats' retrieval served the questions, from the rating of each turn that retrieved anything */
+  /** How well the runs' retrieval served their questions and tasks, from the rating of each turn that retrieved anything */
   retrieval: z.object({
     /** 0–1, the mean of precision and coverage; each a mean over the rated turns */
     score: MetricValue,
@@ -683,6 +683,8 @@ export const MetricsResponse = z.object({
     /** The share of rated turns whose retrieval tools were called side by side */
     parallel: MetricValue,
     turns: MetricValue,
+    /** Each automation's rated turns and mean RAG score over the range, the weakest first */
+    automations: z.array(z.object({ automation: AutomationName, turns: z.number(), score: z.number() })),
     /** Each retrieval tool over the range, the most relevant relative to the others first */
     tools: z.array(
       z.object({

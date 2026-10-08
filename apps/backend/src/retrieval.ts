@@ -10,6 +10,8 @@ export const RATER = 'haiku';
 /** The calls a rating reads, and how much of each result */
 const MAX_CALLS = 40;
 const RESULT_EXCERPT = 1500;
+/** How much of the task and of the answer the rater reads: an automation's prompt can be long */
+const TEXT_CHARS = 4000;
 
 /** Tools that change things or report to the harness; every other call brings information in */
 const NOT_RETRIEVAL = new Set([
@@ -22,9 +24,11 @@ const NOT_RETRIEVAL = new Set([
   'Agent',
   'mcp__momentum-kb__write',
   'mcp__momentum-kb__record_agent_metric',
+  'mcp__momentum-run__report_graph_build',
+  'mcp__momentum-run__report_interview',
 ]);
 
-export const retrieves = (name: string) => !NOT_RETRIEVAL.has(name) && !name.startsWith('mcp__momentum-run__');
+export const retrieves = (name: string) => !NOT_RETRIEVAL.has(name);
 
 export interface RetrievalCall {
   name: string;
@@ -49,18 +53,19 @@ export function calledInParallel(calls: RetrievalCall[]): boolean {
 
 /** The rater's instructions and the turn it rates: the question, the answer, and each call with what it brought back */
 export function ratingQuestion(question: string, answer: string, calls: RetrievalCall[]): { system: string; prompt: string } {
-  const system = `You ${SAY.rateRetrieval} with a coding agent: how relevant the information each tool call brought back was to the user's question, and how fully the calls together covered what the answer needed. Judge only what the calls returned, not the agent's answer itself.
+  const system = `You ${SAY.rateRetrieval}, a coding agent answering a user in a chat or doing a task an automation gave it: how relevant the information each tool call brought back was to the question or task, and how fully the calls together covered what the answer or the work needed. Judge only what the calls returned, not the agent's answer itself.
 
 Answer with JSON only, no prose and no code fence:
 {"calls": [{"n": <call number>, "relevance": <0-5>}], "coverage": <0-1>, "tools": {"<tool>": "<what it contributed, at most 12 words>"}, "summary": "<one sentence on the retrieval>"}
 
-Relevance: 0 nothing returned or an error, 1 unrelated, 2 loosely related, 3 useful context, 4 directly relevant, 5 the information the answer rests on. Coverage: 1 when everything the answer needed was retrieved, 0 when the answer needed facts no call returned. Rate every call.`;
+Relevance: 0 nothing returned or an error, 1 unrelated, 2 loosely related, 3 useful context, 4 directly relevant, 5 the information the answer or the work rests on. Coverage: 1 when everything the answer or the work needed was retrieved, 0 when it needed facts no call returned. Rate every call.`;
   const listed = calls.slice(0, MAX_CALLS).map((c, i) => {
     const input = JSON.stringify(c.input ?? c.detail);
     const result = c.error ? `error: ${c.result ?? ''}` : c.result === null ? '(no result)' : c.result.slice(0, RESULT_EXCERPT);
     return `## Call ${i + 1}: ${toolName(c.name)}\nInput: ${input}\nResult${c.result && c.result.length > RESULT_EXCERPT ? ` (first ${RESULT_EXCERPT} of ${c.result.length} characters)` : ''}:\n${result}`;
   });
-  const prompt = `# Question\n\n${question}\n\n# Answer\n\n${answer || '(none)'}\n\n# Calls\n\n${listed.join('\n\n')}`;
+  const cut = (s: string) => (s.length > TEXT_CHARS ? `${s.slice(0, TEXT_CHARS)}\n… (${s.length - TEXT_CHARS} more characters)` : s);
+  const prompt = `# Question or task\n\n${cut(question)}\n\n# Answer\n\n${cut(answer) || '(none)'}\n\n# Calls\n\n${listed.join('\n\n')}`;
   return { system, prompt };
 }
 
@@ -123,7 +128,7 @@ export function parseRating(answer: string, calls: RetrievalCall[]): RetrievalRa
   };
 }
 
-/** A turn that retrieved anything waits for its rating, so the chat keeps asking for it; true when it does */
+/** A turn that retrieved anything waits for its rating, so the app keeps asking for it; true when it does */
 export async function awaitRating(ws: Workspace, runId: string, turn: number): Promise<boolean> {
   const t = (table: string) => ws.index.sql(`${ws.index.schema}.${table}`);
   const names = await ws.index.sql<{ name: string }[]>`select distinct name from ${t('run_step')}
@@ -134,8 +139,8 @@ export async function awaitRating(ws: Workspace, runId: string, turn: number): P
 }
 
 /**
- * The retrieval of a chat's turn, rated once the turn has ended: what the user asked, what the agent answered and every
- * call it made to bring information in before the harness's bookkeeping. The rating is kept on the turn, for the chat
+ * The retrieval of a run's turn, rated once the run has ended: what the user asked, or the task an automation run was
+ * given, what the agent answered and every call it made to bring information in before the harness's bookkeeping. The rating is kept on the turn, for the chat
  * to show, and recorded as the turn's RAG metric and each tool's.
  */
 export async function rateRetrieval(ws: Workspace, run: { id: string; automation: string }, turn: number): Promise<void> {
@@ -157,7 +162,10 @@ export async function rateRetrieval(ws: Workspace, run: { id: string; automation
     if (!bounds) return void (await setState('none'));
     const messages = await ws.index.sql<{ seq: number; role: string; text: string }[]>`
       select seq, role, text from ${t('run_message')} where run_id = ${run.id} and seq > ${bounds.before ?? 0} order by seq`;
-    const question = messages.filter((m) => m.role === 'user' && m.seq <= bounds.after_seq).map((m) => m.text).join('\n\n');
+    // An automation run has no user messages: its task is the prompt it started with
+    const asked = messages.filter((m) => m.role === 'user' && m.seq <= bounds.after_seq).map((m) => m.text).join('\n\n');
+    const question =
+      asked || ((await ws.index.sql<{ prompt: string }[]>`select prompt from ${t('run')} where id = ${run.id}`)[0]?.prompt ?? '');
     const answer = messages
       .filter((m) => m.role === 'assistant' && m.seq > bounds.after_seq && (bounds.next === null || m.seq < bounds.next))
       .map((m) => m.text)
@@ -206,6 +214,11 @@ export async function retrievalOverview(ws: Workspace, days = 30) {
      from ${s}.retrieval_metric where recorded_at > now() - make_interval(days => $1) group by tool order by 5 desc`,
     [days],
   );
+  const automations = await ws.index.sql.unsafe<{ automation: string; turns: number; score: number }[]>(
+    `select automation, count(*)::int as turns, avg(score)::float8 as score
+     from ${s}.rag_metric where recorded_at > now() - make_interval(days => $1) group by 1 order by 3`,
+    [days],
+  );
   const r2 = (v: number | null) => (v === null ? null : Math.round(v * 100) / 100);
   return {
     project: ws.name,
@@ -215,6 +228,7 @@ export async function retrievalOverview(ws: Workspace, days = 30) {
     precision: r2(turns?.precision ?? null),
     coverage: r2(turns?.coverage ?? null),
     parallel: r2(turns?.parallel ?? null),
+    automations: automations.map((a) => ({ ...a, score: r2(a.score) })),
     tools: tools.map((t) => ({ ...t, relevance: r2(t.relevance), relative: r2(t.relative) })),
   };
 }

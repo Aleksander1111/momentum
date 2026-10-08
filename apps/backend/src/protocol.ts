@@ -17,7 +17,7 @@ export const SAY = {
   /** The risk estimator's instructions */
   riskEstimate: 'estimate the risk of an implementation',
   /** The retrieval rater's instructions */
-  rateRetrieval: 'rate the retrieval of one turn of a chat',
+  rateRetrieval: 'rate the retrieval of one turn of an agent',
 } as const;
 
 /** The commit message request: where the run writes it */

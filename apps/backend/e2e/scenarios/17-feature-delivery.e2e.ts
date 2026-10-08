@@ -1,7 +1,8 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { TimelineResponse } from '@momentum/contract';
+import type { MetricsResponse, TimelineResponse } from '@momentum/contract';
 import { until } from '../support/api.ts';
+import { REPO } from '../support/env.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 import { commitsOf, entitiesOf, filesOf, refs, testsPass } from '../support/landed.ts';
 import { entityText, messageFileOf, move, type Move } from '../support/scripted.ts';
@@ -56,6 +57,7 @@ const apiEntity = (extra: string) =>
 // The user switches the triggers on one by one as the work gets there
 scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, step }) => {
   model.on('exploration proposes', { automation: 'exploration', kind: 'prompt' }, (t) => [
+    move.parallel({ tool: 'mcp__momentum-kb__search', input: { query: 'find books' } }, { tool: 'Glob', input: { pattern: 'src/**/*.js' } }),
     move.entity(t, RESEARCH, {
       type: 'Harness/Research',
       title: 'Searching books by author',
@@ -126,6 +128,7 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
   });
 
   model.on('preparation plans', { automation: 'preparation', kind: 'prompt' }, (t) => [
+    move.parallel({ tool: 'mcp__momentum-kb__search', input: { query: 'search by author' } }, { tool: 'Grep', input: { pattern: 'author', path: 'src' } }),
     move.write(t, PLAN_FILE, `# Search by author\n\nPlans ${FEATURE}.\n\n1. Read \`author\` from the query string in \`GET /books\`.\n2. Filter the store.\n3. Test it.\n`),
     move.say('Planned.'),
   ]);
@@ -165,6 +168,18 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
     expect(files[0]).toMatch(/^plans\/.+\.md$/);
     expect(env.show(WS, files[0]!)).toContain(action);
     expect((await api.feed()).items.map((i) => i.path)).toContain(plans[0]!.path);
+    // An automation run's retrieval is rated like a chat's, against the task it was given
+    const rated = await until('the preparation retrieval rated', async () => (await api.run(run.id)).turns.find((t) => t.retrievalState === 'rated') ?? null, 2 * 60_000);
+    expect(rated.retrieval!.tools.map((t) => t.tool)).toEqual(['momentum-kb · search', 'Grep']);
+    expect(rated.retrieval!.parallel).toBe(true);
+    const metrics = await api.call<MetricsResponse>('GET', `/workspaces/${WS}/metrics?range=24h`);
+    expect(metrics.retrieval.automations.map((a) => a.automation)).toEqual(expect.arrayContaining(['exploration', 'preparation']));
+    await app.tab('Metrics');
+    await expect(app.text('By automation')).toBeVisible({ timeout: 30_000 });
+    await expect(app.text('Preparation', false).last()).toBeVisible();
+    const panel = app.frame().getByText('Retrieval', { exact: true }).last().locator('..');
+    await panel.scrollIntoViewIfNeeded();
+    await panel.screenshot({ path: join(REPO, 'test-results', 'retrieval-by-automation.png') });
     return plans[0]!.path;
   });
 
