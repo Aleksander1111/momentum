@@ -27,12 +27,9 @@ scenario('chat-and-send-back', { enabled: [WS] }, async ({ env, api, app, step }
     await app.reply(runId, 'Which of them creates a book? One line.');
     await until('the chat to answer again', async () => (await api.run(runId)).messages.filter((m) => m.role === 'assistant').length >= 2 && (await api.run(runId)).status === 'finished', 15 * 60_000);
     expect(await said(runId)).toMatch(/POST/);
-    const chats = await until('the chat summarized', async () => {
-      const rows = await api.entities(WS, 'Harness/Chat');
-      return rows.length ? rows : null;
-    }, 15 * 60_000);
-    const detail = await api.entity(WS, chats[0]!.path);
-    expect(detail.artifacts.map((a) => a.path)).toEqual(expect.arrayContaining([expect.stringMatching(/^chats\//)]));
+    // The transcript lands on the main line for the optimization to read; nothing summarizes it
+    await until('the transcript on the main line', async () => env.show(WS, `chats/${runId}.jsonl`) !== null, 15 * 60_000);
+    expect(await api.entities(WS, 'Harness/Chat')).toEqual([]);
   });
 
   await step(2, async () => {

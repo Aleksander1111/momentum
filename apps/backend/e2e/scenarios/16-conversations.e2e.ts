@@ -27,23 +27,6 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
       : undefined,
   );
   model.on('answers follow-ups', { automation: 'chat', kind: 'message' }, (t) => (/creates/i.test(t.input) ? [move.say('POST /books.')] : undefined));
-  // Summarization, as the sub-agent would: one chat entity over the transcript
-  model.on('summarizes chats', { automation: 'chat', kind: 'summarize' }, (t) => {
-    const transcript = /- (chats\/\w+\.jsonl)/.exec(t.input)?.[1];
-    if (!transcript) return undefined;
-    return [
-      move.summarize(),
-      move.entity(t, `Harness/Chat/${t.run}`, {
-        type: 'Harness/Chat',
-        title: 'Routes of the books API',
-        card: 'The user asked which routes the API has and which one creates a book: `POST /books`.',
-        artifacts: [transcript],
-        references: [{ to: API, relation: 'concerns' }],
-      }),
-      move.say('Summarized.'),
-    ];
-  });
-
   const runId = await step(0, async () => {
     const { title } = await api.entity(WS, API);
     const { runId } = await api.call<{ runId: string }>('POST', `/workspaces/${WS}/chats`, {
@@ -88,15 +71,13 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     expect(await api.answer(runId)).toMatch(/POST\W+\/books\b/);
     // One run, two turns: no second chat was started
     expect((await api.run(runId)).messages.filter((m) => m.role === 'user')).toHaveLength(2);
-    const summary = `Harness/Chat/${runId}`;
-    await until('the chat entity', async () => (await api.entities(WS, 'Harness/Chat')).some((e) => e.path === summary), 2 * 60_000);
-    expect((await api.entity(WS, summary)).artifacts.map((a) => a.path)).toContain(`chats/${runId}.jsonl`);
-    const listed = await until('the chat linked to its entity', async () =>
-      (await api.call<{ chats: { runId: string; entityPath: string | null }[] }>('GET', `/workspaces/${WS}/chats`)).chats.find((c) => c.runId === runId && c.entityPath));
-    expect(listed.entityPath).toBe(summary);
+    // A transcript is never summarized: no entity is written over it, in the run or after it
+    await until('the transcript on the main line', async () => env.show(WS, `chats/${runId}.jsonl`) !== null, 2 * 60_000);
+    expect(model.turns(runId).some((t) => t.kind === 'summarize')).toBe(false);
+    expect(await api.entities(WS, 'Harness/Chat')).toEqual([]);
     await app.tab('Chat');
     await expect(app.text('Which routes does this API have?', false)).toBeVisible();
-    // The chat summarized its own transcript: no summarization run follows for it, and nothing is left updating
+    // No summarization run follows for the transcript either, and nothing is left updating
     await new Promise((r) => setTimeout(r, 8000));
     expect(await api.runs(WS, 'summarization')).toEqual([]);
     expect((await api.entities(WS)).filter((e) => e.sync === 'updating' || e.sync === 'artifact_ahead').map((e) => e.path)).toEqual([]);

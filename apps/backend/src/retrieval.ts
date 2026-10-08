@@ -191,3 +191,30 @@ export async function rateRetrieval(ws: Workspace, run: { id: string; automation
     throw e;
   }
 }
+
+/** How well a project's chats retrieved over the last days: the turns' means, and each tool's against the others */
+export async function retrievalOverview(ws: Workspace, days = 30) {
+  const s = ws.index.schema;
+  const [turns] = await ws.index.sql.unsafe<{ turns: number; score: number | null; precision: number | null; coverage: number | null; parallel: number | null }[]>(
+    `select count(*)::int as turns, avg(score)::float8 as score, avg(precision)::float8 as precision, avg(coverage)::float8 as coverage,
+            avg(parallel::int)::float8 as parallel
+     from ${s}.rag_metric where recorded_at > now() - make_interval(days => $1)`,
+    [days],
+  );
+  const tools = await ws.index.sql.unsafe<{ tool: string; turns: number; calls: number; relevance: number; relative: number }[]>(
+    `select tool, count(*)::int as turns, sum(calls)::int as calls, avg(relevance)::float8 as relevance, avg(relative)::float8 as relative
+     from ${s}.retrieval_metric where recorded_at > now() - make_interval(days => $1) group by tool order by 5 desc`,
+    [days],
+  );
+  const r2 = (v: number | null) => (v === null ? null : Math.round(v * 100) / 100);
+  return {
+    project: ws.name,
+    days,
+    turns: turns?.turns ?? 0,
+    score: r2(turns?.score ?? null),
+    precision: r2(turns?.precision ?? null),
+    coverage: r2(turns?.coverage ?? null),
+    parallel: r2(turns?.parallel ?? null),
+    tools: tools.map((t) => ({ ...t, relevance: r2(t.relevance), relative: r2(t.relative) })),
+  };
+}

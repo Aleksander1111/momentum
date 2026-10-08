@@ -15,7 +15,7 @@ import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { bookkeeping, guardHooks } from './hooks.ts';
-import { awaitRating, rateRetrieval } from './retrieval.ts';
+import { awaitRating, rateRetrieval, retrievalOverview } from './retrieval.ts';
 import { endKind, measured, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
 import { ESTIMATOR, parseRisk, riskQuestion, sdkModel, setModel } from './models.ts';
@@ -485,6 +485,20 @@ export class Runner {
             return { content: [{ type: 'text', text: 'Recorded' }] };
           },
         ),
+        ...(HARNESS_ONLY.includes(r.automation)
+          ? [
+              tool(
+                'retrieval_ratings',
+                "How well the chats' retrieval served their questions in each enabled project over the last days (30 unless given): the rated turns, their mean RAG score, precision, coverage and share with tools called side by side, and each retrieval tool's mean relevance (0-5) and relevance relative to the best tool of each turn (0-1).",
+                { days: z.number().int().min(1).max(90).optional() },
+                async ({ days }) => {
+                  const projects = await this.workspaces.enabled();
+                  const out = await Promise.all(projects.map((p) => retrievalOverview(p, days)));
+                  return { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] };
+                },
+              ),
+            ]
+          : []),
         ...(r.automation === 'interview'
           ? [
               tool(
@@ -710,7 +724,6 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
       r = await this.row(ws, id);
       if (r.automation === 'chat') await this.writeTranscriptFile(ws, r);
       const landed = await this.guard.transaction(entry.ref);
-      if (r.automation === 'chat') await this.recordTranscript(ws, r);
       let status: RunStatus = result.error === 'killed' ? 'killed' : result.ok ? 'finished' : 'failed';
       let error = result.ok ? null : result.error;
       // A build run that never said how far it got would be followed by the same run again and again
@@ -811,13 +824,6 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     });
   }
 
-  /** The chat is stored as an artifact of its summary entity, once summarization has written it */
-  private async recordTranscript(ws: Workspace, r: RunRow): Promise<void> {
-    const [summary] = await ws.index.sql<{ entity_path: string }[]>`
-      select entity_path from ${this.t(ws, 'entity_artifact')} where artifact_path = ${`chats/${r.id}.jsonl`}`;
-    if (summary) await ws.index.sql`update ${this.t(ws, 'chat')} set entity_path = ${summary.entity_path} where run_id = ${r.id}`;
-  }
-
   private async writeTranscriptFile(ws: Workspace, r: RunRow): Promise<void> {
     const messages = await ws.index.sql<{ role: string; text: string; context: ContextItem[]; at: Date }[]>`
       select role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${r.id} order by seq`;
@@ -828,7 +834,8 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
 
   /**
    * What the Stop hook hands the summarization sub-agent: the artifacts the run added, changed or deleted and the
-   * documents a graph build run listed, minus the knowledge graph and the user's exclusions; null when there are none.
+   * documents a graph build run listed, minus the knowledge graph, the chat transcripts and the user's exclusions; null
+   * when there are none. A transcript is never summarized: the optimization reads the chats for what repeats.
    * An interview's document is summarized once, when the interview is done, never half written.
    */
   private async summaryRequest(ws: Workspace, r: RunRow, entry: Active): Promise<string | null> {
@@ -836,7 +843,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     if (r.automation === 'interview' && !entry.interview?.done) return null;
     const { summarization } = await this.settings.values();
     const excluded = (path: string) =>
-      path.startsWith('knowledge-graph/') || summarization.exclude.some((pattern) => posix.matchesGlob(path, pattern));
+      path.startsWith('knowledge-graph/') || path.startsWith('chats/') || summarization.exclude.some((pattern) => posix.matchesGlob(path, pattern));
     const base = (await this.row(ws, r.id)).base_commit;
     const artifacts = new Map<string, string>();
     for (const c of base ? await workingChanges(r.checkout, base) : []) {
