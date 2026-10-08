@@ -19,6 +19,8 @@ references:
     relation: concerns
   - to: Harness/Automation/chat
     relation: concerns
+  - to: Architecture/Component/retrieval-rater
+    relation: uses
 artifacts:
   - apps/backend/src/runner.ts
   - apps/backend/src/serial.ts
@@ -31,10 +33,11 @@ artifacts:
 
 A Claude Code session per run, in a detached checkout
 
-- **States**: start, message, kill serial per run; killed queued runs never run; open runs by automation, target
+- **States**: serial per run; killed queued runs never run
 - **Messages**: in order; queued, they join the prompt
 - **Stop hook**: artifacts, build documents summarized; results `implements` target
-- **Finish**: never rejects; guard lands it; usage, metrics; failed summary: targets artifact_ahead; 3 failed builds halt
-- **Restart**: lost runs resume ≤2×; chats, interviews fail, resume on message; unheld entities leave updating
-- **Timeline**: an event once it lands or ends, with state moves of a kill or what's left behind
+- **Finish**: never rejects; guard lands it; usage, metrics; 3 failed builds halt
+- **Restart**: lost runs resume ≤2×; chats, interviews fail, resume on message
+- **Activity**: each session a turn of tool calls and tokens; a chat's is rated by the [retrieval rater](Architecture/Component/retrieval-rater)
+- **Timeline**: an event when it ends, with state moves
 - **Under way**: queued, running; chats in `chats/<id>.jsonl`

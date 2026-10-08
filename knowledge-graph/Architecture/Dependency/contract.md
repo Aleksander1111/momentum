@@ -21,14 +21,13 @@ kind: internal library
 | Area | Schemas |
 |---|---|
 | Entity | frontmatter, states, references, issues, links |
-| Card | blocks, PlantUML SVG, parts |
-| Card diff | marks, spans, diagram |
+| Card | blocks, PlantUML SVG, parts; diff marks, spans |
 | Feed | items, versions, diffs, issue options, counts; reactions |
-| Search | results; ask, sources |
-| Runs, chats | automations, status, usage, context, interview, runs under way |
+| Search | results, ask, sources |
+| Runs, chats | automations, status, usage, context, interview, turns, steps, retrieval ratings |
 | Timeline | actor, kind, facts, state moves, page |
 | Voice | screen, status, partials |
-| Build, metrics | completeness, estimate; series |
-| Settings | projects, logo, feed size, cards, lifetimes, models, concurrency, exclusions |
+| Build, metrics | completeness, estimate; series; retrieval per tool |
+| Settings | projects, logo, feed size, cards, lifetimes, models, limits |
 
-`openapi.json`: generated OpenAPI 3.0
+`openapi.json`: OpenAPI 3.0
