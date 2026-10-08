@@ -4,7 +4,7 @@
 import type { CSSProperties } from 'react';
 import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
-import { Backdrop, Headline } from '../kit/stage.tsx';
+import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, LAYERS, PARTS, type Layer } from '../kit/theme.ts';
 import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
@@ -24,8 +24,8 @@ const N = STATIONS.length;
 const STEP = 360 / N;
 
 // The floor: an ellipse around the phone
-const RING = { x: 1270, y: 760, rx: 540, ry: 130 };
-const PHONE_AT = { x: 1270, y: 380, scale: 0.68 };
+const RING = { x: 960, y: 770, rx: 720, ry: 125 };
+const PHONE_AT = { x: 960, y: 470, scale: 0.6 };
 
 // Beats: one part at the front every BEAT frames, then every project at once
 const START = 18;
@@ -190,6 +190,7 @@ export function Loop() {
     <AbsoluteFill>
       <Backdrop />
       <Floor f={f} />
+      <Beam f={f} at={at} />
       {STATIONS.map((_, i) => (
         <Station key={i} i={i} at={at} f={f} />
       ))}
@@ -219,9 +220,34 @@ export function Loop() {
       </div>
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 200 }}>
-        <Headline frame={f} from={2} to={SPIN - 2} tag="How it works" color={C.accent} text="One loop per project." sub="From a trigger to your feed, on its own." />
-        <Headline frame={f} from={SPIN + 2} to={LOOP_FRAMES} tag="Every project" color={C.accent} text="All of them, at once." sub="Runs you start go at once, alongside." />
+        <TopHeadline frame={f} from={2} to={SPIN - 2} tag="How it works" color={C.accent} text="One loop per project." sub="From a trigger to your feed, on its own." />
+        <TopHeadline frame={f} from={SPIN + 2} to={LOOP_FRAMES} tag="Every project" color={C.accent} text="All of them, at once." sub="Runs you start go at once, alongside." />
       </div>
     </AbsoluteFill>
+  );
+}
+
+/** A beam from the part at the front up to the phone, in that part's layer colour: what reaches you, and from where */
+function Beam({ f, at }: { f: number; at: number }) {
+  if (f < START || f >= SPIN) return null;
+  const k = ((Math.round(at) % N) + N) % N;
+  const settled = 1 - Math.min(1, Math.abs(at - Math.round(at)) * 4);
+  const color = LAYERS[STATIONS[k]!.layer].ink;
+  const top = PHONE_AT.y + (PHONE.h / 2) * PHONE_AT.scale - 10;
+  const bottom = RING.y + RING.ry - 60;
+  return (
+    <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0, opacity: settled * ramp(f, START, 10), zIndex: 55 }}>
+      <defs>
+        <linearGradient id="beam" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stopColor={color} stopOpacity={0.55} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.05} />
+        </linearGradient>
+      </defs>
+      <path d={`M ${RING.x - 46} ${bottom} L ${PHONE_AT.x - 120} ${top} L ${PHONE_AT.x + 120} ${top} L ${RING.x + 46} ${bottom} Z`} fill="url(#beam)" />
+      {[0, 1, 2].map((i) => {
+        const t = ((f / 24 + i / 3) % 1);
+        return <circle key={i} cx={RING.x} cy={mix(t, bottom, top)} r={7} fill={color} opacity={0.8 * (1 - t)} />;
+      })}
+    </svg>
   );
 }

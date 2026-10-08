@@ -24,7 +24,7 @@ const CUT: [ComponentType, number, TransitionPresentation<any> | null][] = [
   [Layers, LAYERS_LENGTH, zoomThrough()],
   // Attention: what you do, and the loop that brings it to you
   [Swipe, SWIPE_LENGTH, push('right')],
-  [Loop, LOOP_LENGTH, iris(1270, 380)],
+  [Loop, LOOP_LENGTH, iris(960, 470)],
   // Understanding: the graph, how it is written and measured, how it stays consistent
   [Graph, GRAPH_LENGTH, push('bottom')],
   [Measure, MEASURE_LENGTH, iris(470, 540)],
