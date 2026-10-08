@@ -178,6 +178,8 @@ const values = (m: MetricValue) => m.series.map((p) => p.value);
 function useCatalog(m: MetricsResponse): MetricDef[] {
   const color = useAutomationColor();
   const autos = m.agents.automations;
+  // Retrieval tools told apart on the chart, the most relevant first; read here so they follow the theme
+  const TOOL_COLORS = [C.accent, C.ok, C.warn, C.stateArtifactAhead, C.stateUpdating, C.no, C.faint];
   const single = (group: string, key: string, label: string, unit: UnitKey, kind: 'bars' | 'line', v: MetricValue): MetricDef => ({
     key,
     group,
@@ -238,6 +240,16 @@ function useCatalog(m: MetricsResponse): MetricDef[] {
     single('Retrieval', 'retrieval.coverage', 'Coverage', 'ratio', 'line', m.retrieval.coverage),
     single('Retrieval', 'retrieval.parallel', 'Tools in parallel', 'ratio', 'line', m.retrieval.parallel),
     single('Retrieval', 'retrieval.turns', 'Rated turns', 'count', 'bars', m.retrieval.turns),
+    {
+      key: 'retrieval.tools',
+      group: 'Retrieval',
+      label: 'Tool relevance, relative',
+      unit: 'ratio',
+      kind: 'line',
+      series: m.retrieval.tools.map((t, i) => ({ key: t.tool, label: t.tool, color: TOOL_COLORS[i % TOOL_COLORS.length]!, values: t.series.map((p) => p.value) })),
+      figure: null,
+      split: true,
+    },
   ];
 }
 
@@ -456,7 +468,7 @@ function RetrievalPanel({ r, range }: { r: MetricsResponse['retrieval']; range: 
           </View>
           <View>
             <View style={{ flexDirection: 'row', paddingBottom: 4, gap: 8 }}>
-              <T style={{ flex: 1, color: C.muted, fontSize: 11.5 }}>{`${Math.round(r.turns.value)} rated turns, last ${range}`}</T>
+              <T style={{ flex: 1, color: C.muted, fontSize: 11.5 }}>{`${Math.round(r.turns.value)} rated ${Math.round(r.turns.value) === 1 ? 'turn' : 'turns'}, last ${range}`}</T>
               <T style={{ width: 60, textAlign: 'right', color: C.muted, fontSize: 11.5 }}>Relevance</T>
               <T style={{ width: 40, textAlign: 'right', color: C.muted, fontSize: 11.5 }}>Calls</T>
             </View>

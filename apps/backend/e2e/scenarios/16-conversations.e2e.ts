@@ -1,5 +1,7 @@
-import type { TimelineResponse } from '@momentum/contract';
+import type { MetricsResponse, TimelineResponse } from '@momentum/contract';
+import { join } from 'node:path';
 import { until } from '../support/api.ts';
+import { REPO } from '../support/env.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 import { entityText, move } from '../support/scripted.ts';
 
@@ -58,6 +60,25 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     await expect(app.text(/RAG \d+%/, false).first()).toBeVisible({ timeout: 30_000 });
     await worked.click();
     await expect(app.text(/^Retrieval \d+% · precision/, false).first()).toBeVisible();
+    // The metrics rate each retrieval tool against the others, over the range and over time
+    const metrics = await api.call<MetricsResponse>('GET', `/workspaces/${WS}/metrics?range=24h`);
+    expect(metrics.retrieval.turns.value).toBeGreaterThanOrEqual(1);
+    expect(metrics.retrieval.tools.map((t) => t.tool)).toEqual(expect.arrayContaining(['momentum-kb · search', 'Grep']));
+    expect(metrics.retrieval.tools.every((t) => t.series.some((p) => p.value !== null))).toBe(true);
+    await app.tab('Metrics');
+    await expect(app.text('Retrieval')).toBeVisible({ timeout: 30_000 });
+    await expect(app.text('RAG score', false).first()).toBeVisible();
+    await expect(app.text('momentum-kb · search', false).first()).toBeVisible();
+    // The panel's title comes after the chart's picker row of the same name
+    await expect(app.text(/^\d+ rated turns?, last /, false).first()).toBeVisible();
+    const panel = app.frame().getByText('Retrieval', { exact: true }).last().locator('..');
+    await panel.scrollIntoViewIfNeeded();
+    await panel.screenshot({ path: join(REPO, 'test-results', 'retrieval-metrics.png') });
+    await app.text('Tool relevance, relative').click();
+    const chart = app.frame().getByText('Over time', { exact: true }).first().locator('..');
+    await chart.scrollIntoViewIfNeeded();
+    await expect(app.text(/Retrieval · Tool relevance, relative/, false).first()).toBeVisible();
+    await chart.screenshot({ path: join(REPO, 'test-results', 'retrieval-tools-chart.png') });
 
     // Asked in the Chat tab, as the user types it
     const typed = await app.chat(WS, 'And which routes read a single book?');

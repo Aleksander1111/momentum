@@ -684,7 +684,17 @@ export const MetricsResponse = z.object({
     parallel: MetricValue,
     turns: MetricValue,
     /** Each retrieval tool over the range, the most relevant relative to the others first */
-    tools: z.array(z.object({ tool: z.string(), turns: z.number(), calls: z.number(), relevance: z.number(), relative: z.number() })),
+    tools: z.array(
+      z.object({
+        tool: z.string(),
+        turns: z.number(),
+        calls: z.number(),
+        relevance: z.number(),
+        relative: z.number(),
+        /** Its mean relevance relative to the best tool of each turn, per point */
+        series: Series,
+      }),
+    ),
   }),
 });
 export type MetricsResponse = z.infer<typeof MetricsResponse>;
