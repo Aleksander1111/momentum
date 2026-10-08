@@ -173,3 +173,30 @@ export function TopHeadline({ frame, from, to, tag, color, text, sub }: { frame:
     </div>
   );
 }
+
+/** A headline in the top-left corner, smaller, for scenes whose picture fills the frame */
+export function CornerHeadline({ frame, from, to, tag, color, text, sub }: { frame: number; from: number; to: number; tag: string; color: string; text: string; sub?: string }) {
+  if (frame < from || frame > to) return null;
+  const out = ramp(frame, to - 10, 10, Easing.in(Easing.cubic));
+  const tagIn = ramp(frame, from, 10, Easing.out(Easing.cubic));
+  const words = text.split(' ');
+  return (
+    <div style={{ position: 'absolute', left: 90, top: 70, width: 760, opacity: 1 - out, transform: `translateX(${-30 * out}px)`, pointerEvents: 'none' }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontFamily: F.body, fontWeight: 700, fontSize: 20, letterSpacing: 5, color, opacity: tagIn, marginBottom: 12 }}>
+        <div style={{ width: 30, height: 4, borderRadius: 2, background: color }} />
+        {tag.toUpperCase()}
+      </div>
+      <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 64, lineHeight: 1.08, color: C.ink, textShadow: `0 2px 18px ${C.behind1}` }}>
+        {words.map((w, i) => {
+          const t = ramp(frame, from + 3 + i * 3, 14, Easing.out(Easing.cubic));
+          return (
+            <span key={i} style={{ display: 'inline-block', opacity: t, transform: `translateX(${-24 * (1 - t)}px)`, marginRight: '0.22em' }}>
+              {w}
+            </span>
+          );
+        })}
+      </div>
+      {sub ? <div style={{ fontFamily: F.body, fontSize: 26, color: C.muted, marginTop: 12, opacity: ramp(frame, from + 10 + words.length * 3, 12) }}>{sub}</div> : null}
+    </div>
+  );
+}
