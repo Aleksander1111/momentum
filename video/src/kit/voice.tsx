@@ -12,7 +12,7 @@ export interface Cue {
 }
 
 /** Each line's recording and its length in frames, written by scripts/voice.ts */
-export const TIMING = timing as Record<string, { file: string; frames: number; text: string }>;
+export const TIMING = timing as Record<string, { file: string; frames: number; text: string; voice?: string }>;
 export const lineKey = (scene: string, i: number) => `${scene}-${i}`;
 const framesOf = (scene: string, i: number, cue: Cue) => {
   const t = TIMING[lineKey(scene, i)];

@@ -12,10 +12,10 @@ import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 export const LAYERS_FRAMES = 490;
 
 const PROJECTS: Record<string, Project> = {
-  bookshelf: { name: 'bookshelf-api', color: '#1D6FD6' },
+  bookshelf: { name: 'bookshelf', color: '#1D6FD6' },
   handbook: { name: 'handbook', color: '#7C3AED' },
-  notes: { name: 'notes-api', color: '#0F766E' },
-  todo: { name: 'todo-cli', color: '#C2410C' },
+  notes: { name: 'notes', color: '#0F766E' },
+  todo: { name: 'to-do app', color: '#C2410C' },
 };
 
 /** The feed as it fills: lowest rank first, so the top-ranked card lands last, on top */
@@ -27,17 +27,17 @@ const INCOMING: (Entity & { rank: number; chip: [number, number] })[] = [
     type: 'Product/Feature',
     title: 'A priority for every to-do',
     desc: 'Low, normal or high, and the list sorted by it.',
-    bullets: ['Set with todo priority <id> <level>', 'Shown in every listing'],
+    bullets: ['Low, normal or high', 'Shown in every list'],
     state: 'unverified',
   },
   {
     rank: 3,
     chip: [900, 860],
     project: PROJECTS.notes!,
-    type: 'Architecture/Api',
-    title: 'Notes API',
-    desc: 'Create, read, list and delete notes over HTTP.',
-    bullets: ['JSON in, JSON out', 'Validates every request'],
+    type: 'Product/Feature',
+    title: 'Shared notes',
+    desc: 'Share a note with anyone, to read or to edit.',
+    bullets: ['A link per note', 'Revoke at any time'],
     state: 'unverified',
   },
   {
@@ -56,8 +56,8 @@ const INCOMING: (Entity & { rank: number; chip: [number, number] })[] = [
     project: PROJECTS.bookshelf!,
     type: 'Product/Goal',
     title: 'Readers find a book fast',
-    desc: 'A reader finds a book by author or by title in one request.',
-    bullets: ['Not met yet: the API has no search', 'Measured in requests per book found'],
+    desc: 'A reader finds a book by author or title in one step.',
+    bullets: ['Not met yet: there is no search', 'Measured in clicks per book found'],
     state: 'unverified',
   },
 ];
@@ -65,10 +65,10 @@ const INCOMING: (Entity & { rank: number; chip: [number, number] })[] = [
 /** What the runs deliver for the approved goal: one card over the whole change */
 const DELIVERED: Entity = {
   project: PROJECTS.bookshelf!,
-  type: 'Architecture/Api',
-  title: 'Books API: search by author or title',
-  desc: 'GET /books?q= finds a book in one request.',
-  bullets: ['Planned, implemented and validated', 'Landed as one commit on the main line', 'Realises: Readers find a book fast'],
+  type: 'Product/Feature',
+  title: 'Search by author or title',
+  desc: 'Readers can now find a book by author or title.',
+  bullets: ['Planned, done and checked', 'Ready for your review', 'Meets: Readers find a book fast'],
   state: 'unverified',
 };
 
@@ -131,14 +131,14 @@ function Plane({ layer, z, opacity, glow, label = 1, children }: { layer: Layer;
 
 const SHIELD = PARTS.shield;
 
-/** The knowledge graph of bookshelf-api, its references drawing in, the guard at its centre */
+/** The knowledge graph of bookshelf, its references drawing in, the guard at its centre */
 const NODES: [string, string, number, number][] = [
   ['Product/Goal', 'Readers find a book fast', 330, 220],
-  ['Architecture/Api', 'Books API', 690, 210],
-  ['Governance/DesignDoc', 'Bookshelf API design', 330, 620],
+  ['Product/Feature', 'Book catalogue', 690, 210],
+  ['Governance/DesignDoc', 'Bookshelf design', 330, 620],
   ['Architecture/Component', 'Book store', 720, 560],
   ['Data/Schema', 'Book', 450, 830],
-  ['Testing/TestSuite', 'Books API tests', 740, 830],
+  ['Testing/TestSuite', 'Catalogue checks', 740, 830],
 ];
 const EDGES: [number, number][] = [
   [0, 1],
@@ -231,9 +231,9 @@ function Graph({ frame, pulse }: { frame: number; pulse: number }) {
 
 /** The runs working on the approved goal */
 const RUNS: [string, string, number][] = [
-  ['Preparation', 'Plan ready', 0],
-  ['Implementation', 'GET /books?q=', 8],
-  ['Validation', '14 tests pass', 16],
+  ['Planned', 'search by author', 0],
+  ['Done', 'built and tested', 8],
+  ['Checked', 'all 14 checks pass', 16],
 ];
 const RUN_Y = (i: number) => 230 + i * 210;
 
@@ -439,11 +439,11 @@ function Chips({ frame }: { frame: number }) {
 
 /** The narration: a line per beat */
 export const LAYERS_CUES: Cue[] = [
-  { at: 4, hold: 88, text: 'Momentum gathers what needs you, from every project, into one ranked feed.' },
-  { at: 100, hold: 180, text: 'Only what you approve counts.' },
-  { at: 196, hold: 284, text: 'Beneath it, each project becomes a knowledge graph, checked on every change.' },
-  { at: 296, hold: 368, text: 'Beneath that, Claude Code does the work: planned, built, validated.' },
-  { at: 384, hold: 440, text: 'The result rises through the graph and lands in your feed, as one card.' },
+  { at: 4, hold: 88, text: 'Everything that needs your decision, from every project, in one feed, most important first.' },
+  { at: 100, hold: 180, text: 'Nothing moves forward without your yes.' },
+  { at: 196, hold: 284, text: 'Behind it, Momentum understands each project, and keeps it consistent.' },
+  { at: 296, hold: 368, text: 'AI does the work: planned, done and checked.' },
+  { at: 384, hold: 440, text: 'What it finishes comes back to you, ready to read.' },
   { at: 455, hold: 486, text: 'Your attention, where it pays.' },
 ];
 const DWELLS = voiceDwells('Layers', LAYERS_CUES, LAYERS_FRAMES);
@@ -511,9 +511,9 @@ export function Layers() {
       <Finger x={fx} y={fy} opacity={fingerIn} pressed={pressed} />
 
       <Headline frame={frame} from={0} to={106} tag="One feed" color={C.accent} text="Every project. One feed." sub="Ranked by what matters most." />
-      <Headline frame={frame} from={106} to={192} tag="Attention" color={LAYERS.attention.ink} text="Only what you approve counts." />
+      <Headline frame={frame} from={106} to={192} tag="Attention" color={LAYERS.attention.ink} text='Nothing moves forward without your yes.' />
       <Headline frame={frame} from={194} to={302} tag="Understanding" color={LAYERS.understanding.ink} text="Every project, understood." sub="A knowledge graph, checked on every change." />
-      <Headline frame={frame} from={304} to={CLOSE} tag="Implementation" color={LAYERS.implementation.ink} text="Work arrives whole." sub="Claude Code plans, builds and validates it." />
+      <Headline frame={frame} from={304} to={CLOSE} tag="Implementation" color={LAYERS.implementation.ink} text="Work arrives whole." sub="AI plans it, does it and checks it." />
       <Closing frame={frame} />
     </AbsoluteFill>
   );

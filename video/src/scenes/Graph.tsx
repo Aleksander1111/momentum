@@ -33,17 +33,17 @@ const REWRITE = 532;
 const SETTLED = 568;
 
 type Node = { type: string; title: string; files: string[]; x: number; y: number };
-/** The graph of bookshelf-api: each card claims the files beneath it; positions round the centre of the frame */
+/** The graph of bookshelf: each card claims the files beneath it; positions round the centre of the frame */
 const NODES: Node[] = [
   { type: 'Product/Product', title: 'Bookshelf', files: ['README.md', 'docs/overview.md', 'LICENSE'], x: -700, y: -90 },
   { type: 'Product/Goal', title: 'Readers find a book fast', files: ['docs/goals.md', 'docs/metrics.md'], x: -250, y: -250 },
-  { type: 'Governance/DesignDoc', title: 'Bookshelf API design', files: ['docs/design.md', 'docs/decisions/001-store.md', 'docs/decisions/002-ids.md', 'docs/decisions/003-search.md'], x: -620, y: 140 },
-  { type: 'Architecture/Api', title: 'Books API', files: ['src/server.js', 'src/routes/index.js', 'src/routes/books.js', 'src/routes/health.js', 'src/http/send.js', 'src/http/read-json.js'], x: 0, y: 0 },
+  { type: 'Governance/DesignDoc', title: 'Bookshelf design', files: ['docs/design.md', 'docs/decisions/001-store.md', 'docs/decisions/002-ids.md', 'docs/decisions/003-search.md'], x: -620, y: 140 },
+  { type: 'Product/Feature', title: 'Book catalogue', files: ['src/server.js', 'src/routes/index.js', 'src/routes/books.js', 'src/routes/health.js', 'src/http/send.js', 'src/http/read-json.js'], x: 0, y: 0 },
   { type: 'Architecture/Component', title: 'Book store', files: ['src/store.js', 'src/store/memory.js', 'src/store/index.js'], x: 300, y: -230 },
   { type: 'Data/Schema', title: 'Book', files: ['src/models/book.js', 'src/validate.js', 'src/models/index.js'], x: 580, y: -60 },
-  { type: 'Testing/TestSuite', title: 'Books API tests', files: ['test/books.test.js', 'test/store.test.js', 'test/validate.test.js', 'test/health.test.js', 'test/helpers.js', 'test/fixtures/books.json'], x: 230, y: 250 },
-  { type: 'Infrastructure/Pipeline', title: 'CI pipeline', files: ['.github/workflows/ci.yml', 'package.json', 'package-lock.json', '.nvmrc'], x: -270, y: 260 },
-  { type: 'Code/Repository', title: 'bookshelf-api', files: ['.gitignore', '.editorconfig', 'eslint.config.js', 'tsconfig.json', '.prettierrc', 'CHANGELOG.md', 'scripts/seed.js'], x: 700, y: 300 },
+  { type: 'Testing/TestSuite', title: 'Catalogue checks', files: ['test/books.test.js', 'test/store.test.js', 'test/validate.test.js', 'test/health.test.js', 'test/helpers.js', 'test/fixtures/books.json'], x: 230, y: 250 },
+  { type: 'Infrastructure/Pipeline', title: 'Release process', files: ['.github/workflows/ci.yml', 'package.json', 'package-lock.json', '.nvmrc'], x: -270, y: 260 },
+  { type: 'Code/Repository', title: 'Bookshelf source', files: ['.gitignore', '.editorconfig', 'eslint.config.js', 'tsconfig.json', '.prettierrc', 'CHANGELOG.md', 'scripts/seed.js'], x: 700, y: 300 },
 ];
 const EDGES: [number, number][] = [
   [0, 1], [1, 3], [2, 3], [2, 1], [3, 4], [4, 5], [3, 6], [7, 6], [8, 3], [0, 2], [5, 6],
@@ -64,12 +64,12 @@ const rowHome = (k: number) => at(WINDOW.nav + 40, WINDOW.bar + 100 + k * ROW + 
 
 /** The narration: a line per beat */
 export const GRAPH_CUES: Cue[] = [
-  { at: 4, hold: 66, text: 'Take one small repository: thirty-eight files.' },
-  { at: 76, hold: 146, text: 'Momentum reads it into cards. Each card claims the files it accounts for.' },
-  { at: 152, hold: 296, text: 'Every card has a type, with its own colour and glyph.' },
-  { at: 340, hold: 446, text: 'Ask it anything. The answer comes from the cards, and links to each of them.' },
-  { at: 452, hold: 520, text: 'You verify a card by approving it.' },
-  { at: 532, hold: 590, text: 'When a run rewrites it, it comes back to you.' },
+  { at: 4, hold: 66, text: 'One project: dozens of files no one wants to read.' },
+  { at: 76, hold: 146, text: 'Momentum turns them into short cards.' },
+  { at: 152, hold: 296, text: 'Each card is a goal, a decision, a policy, a feature.' },
+  { at: 340, hold: 446, text: 'Ask a question, and the answer comes from the cards.' },
+  { at: 452, hold: 520, text: 'Approve a card, and it is verified.' },
+  { at: 532, hold: 590, text: 'If anything changes it, it comes back to you.' },
 ];
 const DWELLS = voiceDwells('Graph', GRAPH_CUES, GRAPH_FRAMES);
 export const GRAPH_LENGTH = dwelt(GRAPH_FRAMES, DWELLS);
@@ -89,7 +89,7 @@ export function Graph() {
       <AbsoluteFill style={{ perspective: 1800, perspectiveOrigin: '960px 300px' }}>
         <Desktop
           tab="explorer"
-          url="momentum / explorer / bookshelf-api"
+          url="momentum / explorer / bookshelf"
           style={{
             left: WIN.x,
             top: WIN.y,
@@ -112,7 +112,7 @@ export function Graph() {
       <GraphLayer f={f} turn={turn} />
       <Landing f={f} />
       <StateLens f={f} />
-      <TopHeadline frame={f} from={4} to={BURST - 2} tag="Knowledge graph" color={C.warn} text="38 files." sub="One small repository, as you would read it." />
+      <TopHeadline frame={f} from={4} to={BURST - 2} tag="Knowledge graph" color={C.warn} text="38 files." sub="One small project, as it really looks." />
       <TopHeadline frame={f} from={BURST} to={TURN.from - 2} tag="Knowledge graph" color={C.warn} text="Cards, not files." sub="Each card claims the files it accounts for." />
       <TopHeadline frame={f} from={TURN.from} to={HOME - 2} tag="Types" color={C.warn} text="Every card has a type." sub="Its domain's colour and glyph, wherever the app shows it." />
       <TopHeadline frame={f} from={HOME + 40} to={SELECT - 2} tag="Search" color={C.warn} text="Ask it anything." sub="The answer comes from the cards, linking each one." />
@@ -166,7 +166,7 @@ function Files({ f }: { f: number }) {
       })}
       {f < BURST + 20 ? (
         <div style={{ position: 'absolute', left: fileHome(0).x, top: fileHome(0).y - 44 * S, fontFamily: F.mono, fontSize: 15 * S, color: C.muted, opacity: 1 - ramp(f, BURST, 16) }}>
-          bookshelf-api / 38 files
+          bookshelf / 38 files
         </div>
       ) : null}
     </>
@@ -288,7 +288,7 @@ function Tree({ f }: { f: number }) {
       </div>
       {NODES.map((n, k) => {
         const landed = f >= LAND(k);
-        const selected = n.title === 'Books API' && f >= SELECT;
+        const selected = n.title === 'Book catalogue' && f >= SELECT;
         return (
           <div
             key={n.title}
@@ -323,8 +323,8 @@ const ADDED = ', and search by author or title';
 
 const QUESTION = 'How do readers find a book?';
 const CITED: [string, string][] = [
-  ['Architecture/Api', 'Books API'],
-  ['Governance/DesignDoc', 'Bookshelf API design'],
+  ['Product/Feature', 'Book catalogue'],
+  ['Governance/DesignDoc', 'Bookshelf design'],
   ['Product/Goal', 'Readers find a book fast'],
 ];
 
@@ -333,7 +333,7 @@ function Answer({ f }: { f: number }) {
   if (f < ANSWER || f > SELECT + 10) return null;
   const shown = pop(f, ANSWER);
   const out = ramp(f, SELECT - 10, 10);
-  const text = typed('By listing every book and reading its title: the API has no search yet. Search by author or title is planned as a query on the books route.', f, ANSWER + 6, 70);
+  const text = typed('They scroll the whole list today: there is no search yet. Search by author or title is planned next.', f, ANSWER + 6, 70);
   const press = f >= SELECT - 10 && f < SELECT ? Math.sin((Math.PI * (f - (SELECT - 10))) / 10) : 0;
   return (
     <div style={{ position: 'absolute', left: PANE + 48, top: 40, right: 48, opacity: shown * (1 - out), transform: `translateY(${16 * (1 - shown)}px)` }}>
@@ -370,19 +370,19 @@ function Entity({ f }: { f: number }) {
   return (
     <div style={{ position: 'absolute', left: PANE + 48, top: 40, right: 48 }}>
       <div style={part(0)}>
-        <TypePill type="Architecture/Api" size={15} />
+        <TypePill type="Product/Feature" size={15} />
       </div>
-      <div style={{ ...part(1), fontFamily: F.head, fontWeight: 700, fontSize: 38, color: C.ink, margin: '16px 0 14px' }}>Books API</div>
+      <div style={{ ...part(1), fontFamily: F.head, fontWeight: 700, fontSize: 38, color: C.ink, margin: '16px 0 14px' }}>Book catalogue</div>
       <div style={{ ...part(2), display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
         <StateBadge state={verified ? 'verified' : 'unverified'} />
         <StateBadge state={updating ? 'updating' : 'synced'} spin={updating ? (f - REWRITE) * 9 : 0} />
         <span style={{ fontFamily: F.body, fontSize: 13.5, color: C.muted }}>0 contradictions</span>
       </div>
       <div style={{ ...part(3), fontFamily: F.body, fontSize: 18, lineHeight: '27px', color: C.muted, marginBottom: 14 }}>
-        The HTTP routes over the book store: list, read and add
+        How readers list, open and add books
         {added ? <span style={{ background: 'rgba(63,107,82,.28)', borderRadius: 4, color: C.ink }}>{added}</span> : null}.
       </div>
-      {['GET /books, GET /books/:id, POST /books', 'Every request validated; 400 on invalid input'].map((b, k) => (
+      {['List, open and add books', 'Every request is checked'].map((b, k) => (
         <div key={b} style={{ ...part(4 + k), display: 'flex', gap: 10, fontFamily: F.body, fontSize: 17, lineHeight: '26px', color: C.ink, marginBottom: 6 }}>
           <span>•</span>
           {b}

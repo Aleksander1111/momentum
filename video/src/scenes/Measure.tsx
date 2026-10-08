@@ -21,11 +21,11 @@ const CITY = 236;
 const QUESTION = (i: number) => CITY + 40 + i * 20;
 
 const SUMMARY: Entity = {
-  project: { name: 'bookshelf-api', color: '#1D6FD6' },
-  type: 'Architecture/Api',
-  title: 'Books API: search by author or title',
-  desc: 'GET /books?q= finds a book in one request.',
-  bullets: ['src/routes/books.js, src/store.js', 'test/books.test.js: 9 new tests'],
+  project: { name: 'bookshelf', color: '#1D6FD6' },
+  type: 'Product/Feature',
+  title: 'Search by author or title',
+  desc: 'Readers can now find a book by author or title.',
+  bullets: ['Planned, done and checked', '9 new checks, all passing'],
   state: 'unverified',
 };
 
@@ -47,9 +47,9 @@ function DiffScreen({ f }: { f: number }) {
     <div style={{ position: 'absolute', inset: 0, background: C.surface, padding: '60px 0 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 8px', fontFamily: F.body, fontWeight: 700, fontSize: 13, color: C.ink, borderBottom: `1px solid ${C.line}` }}>
         <Glyph path={PARTS.terminal} size={16} color={C.ok} stroke />
-        Implementation run · bookshelf-api
+        Work in progress · bookshelf
         <span style={{ flex: 1 }} />
-        <span style={{ color: stopped ? C.ok : C.stateUpdating }}>{stopped ? 'stopped' : 'running'}</span>
+        <span style={{ color: stopped ? C.ok : C.stateUpdating }}>{stopped ? 'done' : 'working'}</span>
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 90, bottom: 82, overflow: 'hidden' }}>
         <div style={{ transform: `scaleY(${1 - 0.92 * fold})`, transformOrigin: '50% 45%', opacity: 1 - ramp(f, FOLD.to - 6, 8) }}>
@@ -74,7 +74,7 @@ function DiffScreen({ f }: { f: number }) {
       {stopped ? (
         <div style={{ position: 'absolute', left: '50%', top: 360, transform: `translate(-50%, -50%) scale(${pop(f, STOP, true)})`, opacity: 1 - ramp(f, FOLD.to, 8), background: C.warn, color: '#fff', borderRadius: 999, padding: '6px 14px', fontFamily: F.body, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', boxShadow: `0 0 20px ${C.warn}` }}>
           <Glyph path={PARTS.sparkles} size={14} color="#fff" stroke />
-          Stop hook: summarize
+          Writing it up
         </div>
       ) : null}
     </div>
@@ -137,10 +137,10 @@ function City({ f }: { f: number }) {
   if (shown <= 0) return null;
   const rz = interpolate(f, [CITY, MEASURE_FRAMES], [-48, -36]);
   const labels: [string, number, number][] = [
-    ['src', 260, 400],
-    ['test', 740, 400],
-    ['docs', 260, 670],
-    ['examples', 670, 670],
+    ['Product', 260, 400],
+    ['Checks', 740, 400],
+    ['Docs', 260, 670],
+    ['Examples', 670, 670],
   ];
   return (
     <AbsoluteFill style={{ perspective: 2400, perspectiveOrigin: '1300px 360px', opacity: shown }}>
@@ -151,7 +151,7 @@ function City({ f }: { f: number }) {
         ))}
         {labels.map(([name, x, y]) => (
           <div key={name} style={{ position: 'absolute', left: x, top: y, transformStyle: 'preserve-3d', transform: `translateZ(190px) rotateZ(${-rz}deg) rotateX(-58deg)` }}>
-            <div style={{ transform: 'translate(-50%, -50%)', fontFamily: F.mono, fontWeight: 700, fontSize: 34, color: C.ink, background: 'rgba(255,255,255,.9)', borderRadius: 10, padding: '4px 14px', whiteSpace: 'nowrap' }}>{name}/</div>
+            <div style={{ transform: 'translate(-50%, -50%)', fontFamily: F.mono, fontWeight: 700, fontSize: 34, color: C.ink, background: 'rgba(255,255,255,.9)', borderRadius: 10, padding: '4px 14px', whiteSpace: 'nowrap' }}>{name}</div>
           </div>
         ))}
       </div>
@@ -170,7 +170,7 @@ function SettingsScreen({ f }: { f: number }) {
   return (
     <div style={{ position: 'absolute', inset: 0, padding: '64px 18px 0', background: C.screen, opacity: shown }}>
       <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 26, color: C.ink, marginBottom: 4 }}>Settings</div>
-      <div style={{ fontFamily: F.body, fontSize: 13, fontWeight: 700, color: C.muted, letterSpacing: 1, marginBottom: 12 }}>BOOKSHELF-API · KNOWLEDGE GRAPH</div>
+      <div style={{ fontFamily: F.body, fontSize: 13, fontWeight: 700, color: C.muted, letterSpacing: 1, marginBottom: 12 }}>BOOKSHELF · HOW WELL IT IS UNDERSTOOD</div>
       <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
         <svg width={150} height={150} viewBox="0 0 150 150">
           <circle cx={75} cy={75} r={R} stroke={C.card} strokeWidth={16} fill="none" />
@@ -182,8 +182,8 @@ function SettingsScreen({ f }: { f: number }) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {(
             [
-              ['Questions', `${answered(f)}/8`, u],
-              ['Repository', `${Math.round(t * 100)}%`, t],
+              ['Questions answered', `${answered(f)}/8`, u],
+              ['Project covered', `${Math.round(t * 100)}%`, t],
             ] as const
           ).map(([name, value, share]) => (
             <div key={name}>
@@ -229,9 +229,9 @@ function Giant({ f, from, to, text, color, top = 420 }: { f: number; from: numbe
 
 /** The narration: a line per beat */
 export const MEASURE_CUES: Cue[] = [
-  { at: 8, hold: 120, text: 'When a run finishes, everything it changed is summarized' },
-  { at: 128, hold: 210, text: 'into one card you can read.' },
-  { at: 236, hold: 460, text: "And completeness is measured, not guessed: every area, every question." },
+  { at: 8, hold: 120, text: 'When work is finished,' },
+  { at: 128, hold: 210, text: 'you read one card, not a pile of changes.' },
+  { at: 236, hold: 460, text: 'And you see how well each project is understood.' },
 ];
 const DWELLS = voiceDwells('Measure', MEASURE_CUES, MEASURE_FRAMES);
 export const MEASURE_LENGTH = dwelt(MEASURE_FRAMES, DWELLS);
@@ -269,7 +269,7 @@ export function Measure() {
           </>
         ) : null}
       </Phone>
-      <Giant f={f} from={DIVE.to - 4} to={STOP + 4} text="Three files changed." color={C.ok} />
+      <Giant f={f} from={DIVE.to - 4} to={STOP + 4} text="A pile of changes." color={C.ok} />
       <Giant f={f} from={FOLD.from} to={OUT.to + 20} text="One card to read." color={C.warn} top={40} />
       <CornerHeadline frame={f} from={CITY + 10} to={MEASURE_FRAMES} side="right" tag="Graph build" color={C.ok} text="Completeness, measured." sub="Every area accounted for, every question answered." />
     </AbsoluteFill>

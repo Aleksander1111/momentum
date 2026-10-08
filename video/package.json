@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
+    "kokoro-js": "^1.2.1",
     "typescript": "^5.9.3"
   }
 }

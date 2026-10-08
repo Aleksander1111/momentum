@@ -14,11 +14,11 @@ const SCREEN0 = { x: AT.x - PHONE.w / 2 + 14, y: AT.y - PHONE.h / 2 + 14 };
 const CARD_C = { x: SCREEN0.x + SLOT.x + SLOT.w / 2, y: SCREEN0.y + SLOT.y + SLOT.h / 2 };
 
 const FEATURE: Entity = {
-  project: { name: 'notes-api', color: '#0F766E' },
+  project: { name: 'notes', color: '#0F766E' },
   type: 'Product/Feature',
   title: 'Search notes by tag',
   desc: 'Every note carrying a tag, in one request.',
-  bullets: ['GET /notes?tag=work', 'Tags match whatever their case'],
+  bullets: ['Every note tagged work, at once', 'Upper or lower case alike'],
   state: 'unverified',
 };
 const POLICY: Entity = {
@@ -41,9 +41,9 @@ const ANSWER = 'Payroll counts leave in half days; hours would need a new export
 
 /** The narration: a line per beat */
 export const SWIPE_CUES: Cue[] = [
-  { at: 8, hold: 150, text: 'Swipe right to approve. The work starts by itself.' },
+  { at: 8, hold: 150, text: 'Swipe right to approve, and the work goes ahead.' },
   { at: 176, hold: 350, text: 'Swipe left to send it back, with what should change.' },
-  { at: 372, hold: 520, text: 'Or pull up, and ask about the card, right below it.' },
+  { at: 372, hold: 520, text: 'Or pull up, and ask about it.' },
 ];
 const DWELLS = voiceDwells('Swipe', SWIPE_CUES, SWIPE_FRAMES);
 export const SWIPE_LENGTH = dwelt(SWIPE_FRAMES, DWELLS);
@@ -185,8 +185,8 @@ export function Swipe() {
       </AbsoluteFill>
       </AbsoluteFill>
 
-      <Caption f={f} from={4} to={168} color={C.ok} text="One commit, verified. Work starts by itself." />
-      <Caption f={f} from={172} to={368} color={LAYERS.attention.ink} text="Say what should change: a chat run reworks it." />
+      <Caption f={f} from={4} to={168} color={C.ok} text="Approved. The work goes ahead by itself." />
+      <Caption f={f} from={172} to={368} color={LAYERS.attention.ink} text="Say what should change, and it is reworked." />
       <Caption f={f} from={370} to={SWIPE_FRAMES} color={C.accent} text="Ask about the card, in a chat right below it." />
     </AbsoluteFill>
   );
@@ -214,7 +214,7 @@ function MainLine({ f }: { f: number }) {
         <Glyph path={ICONS.check} size={36} color="#fff" />
       </div>
       <div style={{ position: 'absolute', left: LINE.dot - 160, top: LINE.y - 84, width: 320, textAlign: 'center', fontFamily: F.body, fontWeight: 700, fontSize: 24, color: C.ok, opacity: dot }}>
-        one commit on the main line
+        approved and recorded
       </div>
       <div
         style={{
@@ -239,7 +239,7 @@ function MainLine({ f }: { f: number }) {
         <div style={{ transform: `rotate(${(f - APPROVE.release) * 8}deg)` }}>
           <StateIcon state="updating" size={28} />
         </div>
-        Implementing
+        Work started
       </div>
     </div>
   );
@@ -274,7 +274,7 @@ function ChatRun({ f }: { f: number }) {
       }}
     >
       <Glyph path={ICONS.chat} size={32} color={C.no} />
-      Chat run on it
+      Being reworked
       <div style={{ transform: `rotate(${done ? 0 : (f - REWORK.send) * 9}deg)` }}>
         {done ? <Glyph path="M5 12l5 5L20 7" size={30} color={C.ok} stroke /> : <StateIcon state="updating" size={30} />}
       </div>

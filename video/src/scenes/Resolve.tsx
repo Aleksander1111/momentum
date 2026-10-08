@@ -152,10 +152,10 @@ function Banner({ f, from, to, text, color }: { f: number; from: number; to: num
 
 /** The narration: a line per beat */
 export const RESOLVE_CUES: Cue[] = [
-  { at: 30, hold: 112, text: 'The consistency check finds where two cards disagree.' },
-  { at: 150, hold: 200, text: 'Each issue comes with options, the best one already picked.' },
-  { at: 204, hold: 240, text: 'One swipe resolves it,' },
-  { at: 296, hold: 440, text: 'and both cards agree again.' },
+  { at: 30, hold: 112, text: 'When two documents disagree, Momentum notices.' },
+  { at: 150, hold: 200, text: 'It suggests a fix, best option first.' },
+  { at: 204, hold: 240, text: 'One swipe,' },
+  { at: 296, hold: 440, text: 'and they agree again.' },
 ];
 const DWELLS = voiceDwells('Resolve', RESOLVE_CUES, RESOLVE_FRAMES);
 export const RESOLVE_LENGTH = dwelt(RESOLVE_FRAMES, DWELLS);

@@ -12,26 +12,26 @@ import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 export const HOOK_FRAMES = 240;
 
 const PROJECTS: Project[] = [
-  { name: 'bookshelf-api', color: '#1D6FD6' },
+  { name: 'bookshelf', color: '#1D6FD6' },
   { name: 'handbook', color: '#7C3AED' },
-  { name: 'notes-api', color: '#0F766E' },
-  { name: 'todo-cli', color: '#C2410C' },
+  { name: 'notes', color: '#0F766E' },
+  { name: 'to-do app', color: '#C2410C' },
   { name: 'billing', color: '#C0266D' },
-  { name: 'mobile-app', color: '#15803D' },
-  { name: 'data-pipeline', color: '#A16207' },
-  { name: 'auth-service', color: '#C62828' },
-  { name: 'marketing-site', color: '#0369A1' },
-  { name: 'infra', color: '#52606A' },
-  { name: 'design-system', color: '#8A5A2B' },
-  { name: 'search', color: '#5B5BD6' },
+  { name: 'mobile app', color: '#15803D' },
+  { name: 'finance', color: '#A16207' },
+  { name: 'support', color: '#C62828' },
+  { name: 'website', color: '#0369A1' },
+  { name: 'hiring', color: '#52606A' },
+  { name: 'partners', color: '#8A5A2B' },
+  { name: 'events', color: '#5B5BD6' },
 ];
 
 const KINDS: [string, string, string, string[]][] = [
-  ['Commit', ICONS.commit, C.ok, ['Fix pagination off by one', 'Bump dependencies', 'Refactor the store', 'Add retry on timeout']],
-  ['Pull request', DOMAINS.Code!.path, C.accent, ['Search by author', 'Dark mode toggle', 'Cache invoices', 'New onboarding flow']],
-  ['Doc changed', DOMAINS.Knowledge!.path, '#0369A1', ['Remote work policy', 'API reference', 'Release notes', 'Runbook: failover']],
-  ['Test failed', DOMAINS.Testing!.path, C.no, ['books.test.js: 2 failing', 'e2e: checkout times out', 'flaky: login spec', 'lint: 14 errors']],
-  ['Issue', PARTS.bolt, C.warn, ['Duplicate ISBNs', 'Slow dashboard', 'Wrong currency', 'Crash on resume']],
+  ['Edited', ICONS.commit, C.ok, ['Remote work policy', 'Onboarding guide', 'Pricing page', 'Release notes']],
+  ['New draft', DOMAINS.Governance!.path, C.accent, ['Q3 budget', 'Partner contract', 'Launch plan', 'Hiring brief']],
+  ['Changed', DOMAINS.Product!.path, '#0369A1', ['Search by author', 'Dark mode', 'Invoice export', 'New sign-up flow']],
+  ['Problem', DOMAINS.Testing!.path, C.no, ['Checkout times out', 'Wrong currency', 'Login fails on iOS', 'Slow dashboard']],
+  ['Question', PARTS.bolt, C.warn, ['Who owns billing?', 'Which plan is default?', 'When do we ship?', 'Is this still true?']],
 ];
 
 // A hundred changes, each at a place and a moment: sparse at first, then a flood
@@ -103,9 +103,9 @@ function Line({ f, from, to, top = 440, children }: { f: number; from: number; t
 
 /** The narration: a line per beat */
 export const HOOK_CUES: Cue[] = [
-  { at: 10, hold: 100, text: 'Your projects never stop: commits, pull requests, docs, failing tests.' },
-  { at: 108, hold: 168, text: 'Nobody can read it all.' },
-  { at: 196, hold: 236, text: 'So Momentum brings what matters to you, in one place.' },
+  { at: 10, hold: 100, text: 'You run a dozen projects. Each one changes every day.' },
+  { at: 108, hold: 168, text: 'Nobody can keep up with all of it.' },
+  { at: 196, hold: 236, text: 'Momentum brings what matters to you, in one place.' },
 ];
 const DWELLS = voiceDwells('Hook', HOOK_CUES, HOOK_FRAMES);
 export const HOOK_LENGTH = dwelt(HOOK_FRAMES, DWELLS);
@@ -134,8 +134,8 @@ export function Hook() {
           </div>
         ))}
       </div>
-      <Line f={f} from={28} to={104}>Your projects never stop.</Line>
-      <Line f={f} from={108} to={PULL}>Nobody reads it all.</Line>
+      <Line f={f} from={28} to={104}>Every project changes, every day.</Line>
+      <Line f={f} from={108} to={PULL}>Nobody keeps up with all of it.</Line>
       {/* Everything drawn into one point */}
       <div style={{ position: 'absolute', left: 960 - 30, top: 560 - 30, width: 60, height: 60, borderRadius: 30, background: C.accent, transform: `scale(${dot})`, boxShadow: `0 0 ${60 * dot}px ${C.accent}` }} />
       <Line f={f} from={ONE} to={HOOK_FRAMES + 40} top={680}>

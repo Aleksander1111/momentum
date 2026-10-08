@@ -12,14 +12,14 @@ import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 export const LOOP_FRAMES = 650;
 
 const STATIONS: { name: string; sub: string; layer: Layer; glyph: string; filled?: boolean }[] = [
-  { name: 'Triggers', sub: 'schedule · event · on demand', layer: 'implementation', glyph: ICONS.clock, filled: true },
-  { name: 'Runs', sub: 'own checkout of the main line', layer: 'implementation', glyph: PARTS.terminal },
-  { name: 'Work', sub: 'entities and artifacts', layer: 'implementation', glyph: DOMAINS.Code!.path },
-  { name: 'Summarization', sub: 'artifacts into cards', layer: 'implementation', glyph: PARTS.sparkles },
-  { name: 'Consistency guard', sub: 'validated, then landed', layer: 'understanding', glyph: PARTS.shield },
-  { name: 'Main line', sub: 'a commit per run', layer: 'understanding', glyph: ICONS.commit, filled: true },
-  { name: 'Attention feed', sub: 'ranked, unverified first', layer: 'attention', glyph: ICONS.feed, filled: true },
-  { name: 'You', sub: 'approve · send back · chat', layer: 'attention', glyph: ICONS.user, filled: true },
+  { name: 'Start', sub: 'a schedule, an event, or you', layer: 'implementation', glyph: ICONS.clock, filled: true },
+  { name: 'Work', sub: 'done by AI', layer: 'implementation', glyph: PARTS.terminal },
+  { name: 'Results', sub: 'documents and changes', layer: 'implementation', glyph: DOMAINS.Code!.path },
+  { name: 'Write-up', sub: 'into cards you can read', layer: 'implementation', glyph: PARTS.sparkles },
+  { name: 'Check', sub: 'before it counts', layer: 'understanding', glyph: PARTS.shield },
+  { name: 'History', sub: 'everything recorded', layer: 'understanding', glyph: ICONS.commit, filled: true },
+  { name: 'Your feed', sub: 'most important first', layer: 'attention', glyph: ICONS.feed, filled: true },
+  { name: 'You', sub: 'approve · send back · ask', layer: 'attention', glyph: ICONS.user, filled: true },
 ];
 const N = STATIONS.length;
 const STEP = 360 / N;
@@ -35,17 +35,17 @@ const MOVE = 20;
 const SPIN = START + N * BEAT;
 
 const CARD: Entity = {
-  project: { name: 'bookshelf-api', color: '#1D6FD6' },
-  type: 'Architecture/Api',
-  title: 'Books API: search by author or title',
-  desc: 'GET /books?q= finds a book in one request.',
-  bullets: ['Planned, implemented and validated', 'Landed as one commit on the main line'],
+  project: { name: 'bookshelf', color: '#1D6FD6' },
+  type: 'Product/Feature',
+  title: 'Search by author or title',
+  desc: 'Readers can now find a book by author or title.',
+  bullets: ['Planned, done and checked', 'Ready for your review'],
   state: 'unverified',
 };
 const MORE: Entity[] = [
   { project: { name: 'handbook', color: '#7C3AED' }, type: 'Knowledge/HowToGuide', title: 'Onboarding, week one', desc: 'What a new joiner does, day by day.', bullets: ['Laptop on day one', 'A buddy for the first month'], state: 'unverified' },
-  { project: { name: 'todo-cli', color: '#C2410C' }, type: 'Product/Feature', title: 'Due dates', desc: 'A to-do can be due on a day; overdue ones come first.', bullets: ['todo due <id> 2026-11-01'], state: 'unverified' },
-  { project: { name: 'notes-api', color: '#0F766E' }, type: 'Testing/TestSuite', title: 'Notes API tests', desc: 'Every route, valid and invalid input.', bullets: ['31 tests, all passing'], state: 'unverified' },
+  { project: { name: 'to-do app', color: '#C2410C' }, type: 'Product/Feature', title: 'Due dates', desc: 'A to-do can be due on a day; overdue ones come first.', bullets: ['todo due <id> 2026-11-01'], state: 'unverified' },
+  { project: { name: 'notes', color: '#0F766E' }, type: 'Testing/TestSuite', title: 'Sharing checks', desc: 'Every way a note is shared, tried out.', bullets: ['31 checks, all passing'], state: 'unverified' },
 ];
 const WAITING: Entity = {
   project: { name: 'handbook', color: '#7C3AED' },
@@ -172,11 +172,11 @@ function Tokens({ f }: { f: number }) {
 
 /** The narration: a line per beat */
 export const LOOP_CUES: Cue[] = [
-  { at: START, hold: START + BEAT + 20, text: 'A trigger starts a run, in its own checkout of the project.' },
-  { at: START + 2 * BEAT, hold: START + 3 * BEAT + 20, text: 'The run does the work, and summarization turns it into cards.' },
-  { at: START + 4 * BEAT, hold: START + 5 * BEAT + 20, text: 'The guard checks every change before it lands on the main line.' },
-  { at: START + 6 * BEAT, hold: START + 7 * BEAT + 20, text: 'Then it reaches your feed, and you decide.' },
-  { at: SPIN, hold: LOOP_FRAMES - 30, text: 'Every project runs its own loop, all at once.' },
+  { at: START, hold: START + BEAT + 20, text: 'Work starts on its own, on a schedule, or when something happens.' },
+  { at: START + 2 * BEAT, hold: START + 3 * BEAT + 20, text: 'It gets done, and written up for you.' },
+  { at: START + 4 * BEAT, hold: START + 5 * BEAT + 20, text: 'Every change is checked before it counts.' },
+  { at: START + 6 * BEAT, hold: START + 7 * BEAT + 20, text: 'Then it reaches you, and you decide.' },
+  { at: SPIN, hold: LOOP_FRAMES - 30, text: 'For every project, all at once.' },
 ];
 const DWELLS = voiceDwells('Loop', LOOP_CUES, LOOP_FRAMES);
 export const LOOP_LENGTH = dwelt(LOOP_FRAMES, DWELLS);
@@ -229,8 +229,8 @@ export function Loop() {
       </div>
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 200 }}>
-        <TopHeadline frame={f} from={2} to={SPIN - 2} tag="How it works" color={C.accent} text="One loop per project." sub="From a trigger to your feed, on its own." />
-        <TopHeadline frame={f} from={SPIN + 2} to={LOOP_FRAMES} tag="Every project" color={C.accent} text="All of them, at once." sub="Runs you start go at once, alongside." />
+        <TopHeadline frame={f} from={2} to={SPIN - 2} tag="How it works" color={C.accent} text="One loop per project." sub="From the first step to your decision, on its own." />
+        <TopHeadline frame={f} from={SPIN + 2} to={LOOP_FRAMES} tag="Every project" color={C.accent} text="All of them, at once." sub="And whatever you ask for starts right away." />
       </div>
     </AbsoluteFill>
   );

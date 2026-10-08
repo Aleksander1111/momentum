@@ -12,16 +12,16 @@ import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 export const LEARN_FRAMES = 450;
 
 const P: Record<string, Project> = {
-  todo: { name: 'todo-cli', color: '#C2410C' },
-  notes: { name: 'notes-api', color: '#0F766E' },
-  books: { name: 'bookshelf-api', color: '#1D6FD6' },
+  todo: { name: 'to-do app', color: '#C2410C' },
+  notes: { name: 'notes', color: '#0F766E' },
+  books: { name: 'bookshelf', color: '#1D6FD6' },
   handbook: { name: 'handbook', color: '#7C3AED' },
 };
 
 const CHATS: { project: Project; title: string; before: string; said: string; after: string }[] = [
-  { project: P.todo!, title: 'Due dates', before: 'Looks good. ', said: 'Run the tests before you commit', after: ', please.' },
-  { project: P.notes!, title: 'Tag search', before: 'You committed again ', said: 'without running the tests', after: '.' },
-  { project: P.books!, title: 'Search by author', before: 'Fine, but ', said: 'tests first, then the commit', after: '.' },
+  { project: P.todo!, title: 'Due dates', before: 'Looks good. ', said: 'Put a short summary at the top', after: ', please.' },
+  { project: P.notes!, title: 'Tag search', before: 'Again ', said: 'no summary at the top', after: '.' },
+  { project: P.books!, title: 'Search by author', before: 'Fine, but ', said: 'summary first, then the details', after: '.' },
 ];
 
 // Beats
@@ -58,13 +58,13 @@ function ChatScreen({ f, i }: { f: number; i: number }) {
         </div>
       </div>
       <Bubble mine>Add {c.title.toLowerCase()}.</Bubble>
-      <Bubble>Implemented, with 12 tests. Committed to main.</Bubble>
+      <Bubble>Done. Ready for your review.</Bubble>
       <Bubble mine style={{ fontSize: 16, lineHeight: '23px' }}>
         {c.before}
         <span style={{ background: `rgba(201,138,0,${0.6 * seen})`, color: seen > 0.5 ? '#fff' : undefined, borderRadius: 4, padding: '0 2px', opacity: lifted ? 0.25 : 1 }}>{c.said}</span>
         {c.after}
       </Bubble>
-      <Bubble>Understood; I will next time.</Bubble>
+      <Bubble>Noted; next time.</Bubble>
     </div>
   );
 }
@@ -141,7 +141,7 @@ function PatternCard({ f }: { f: number }) {
       }}
     >
       <TypePill type="Harness/Pattern" size={16} />
-      <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 38, color: C.ink, margin: '12px 0 6px' }}>Tests before every commit</div>
+      <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 38, color: C.ink, margin: '12px 0 6px' }}>A summary first, always</div>
       <div style={{ fontFamily: F.body, fontSize: 20, color: C.muted, marginBottom: 12 }}>Seen in 3 chats, across 3 projects</div>
       <div style={{ display: 'flex', gap: 8 }}>
         {CHATS.map((c) => (
@@ -155,7 +155,7 @@ function PatternCard({ f }: { f: number }) {
 const PROPOSAL: Entity = {
   project: { name: 'momentum', color: '#5B5BD6' },
   type: 'Harness/Automation',
-  title: 'Implementation: tests before the commit',
+  title: 'Every result starts with a summary',
   desc: 'Proposed by optimization from a pattern seen three times.',
   bullets: [],
   state: 'unverified',
@@ -195,9 +195,9 @@ function Tiles({ f }: { f: number }) {
                 <span style={{ fontFamily: F.body, fontWeight: 700, fontSize: 18, color: C.ink, flex: 1 }}>{t.project.name}</span>
                 {back ? <Glyph path="M5 12l5 5L20 7" size={24} color={C.ok} stroke /> : null}
               </div>
-              <div style={{ fontFamily: F.mono, fontSize: 16, color: C.muted, marginBottom: 8 }}>agents/momentum-implementation.md</div>
+              <div style={{ fontFamily: F.mono, fontSize: 16, color: C.muted, marginBottom: 8 }}>How work is handed over</div>
               <div style={{ borderRadius: 6, padding: '8px 12px', fontFamily: F.body, fontSize: 19, color: C.ink, background: back ? 'rgba(63,107,82,.25)' : C.card }}>
-                {back ? 'Run the tests; commit only when they pass.' : 'Commit when the work is done.'}
+                {back ? 'Start every result with a short summary.' : 'Hand over the result.'}
               </div>
             </div>
           </div>
@@ -216,9 +216,9 @@ function Tiles({ f }: { f: number }) {
 
 /** The narration: a line per beat */
 export const LEARN_CUES: Cue[] = [
-  { at: 10, hold: 130, text: 'When you ask for the same thing in three different chats,' },
-  { at: 142, hold: 240, text: 'Momentum notices, and proposes the change once.' },
-  { at: 250, hold: 440, text: 'It takes effect on every project at once, and still waits for your review.' },
+  { at: 10, hold: 130, text: 'Ask for the same thing again and again,' },
+  { at: 142, hold: 240, text: 'and Momentum proposes making it the rule.' },
+  { at: 250, hold: 440, text: 'It applies everywhere. You still have the last word.' },
 ];
 const DWELLS = voiceDwells('Learn', LEARN_CUES, LEARN_FRAMES);
 export const LEARN_LENGTH = dwelt(LEARN_FRAMES, DWELLS);
@@ -268,8 +268,8 @@ export function Learn() {
                   {!approved ? (
                     <FeedCard e={PROPOSAL} style={{ transform: `translateY(${-60 * (1 - landed)}px) translateX(${drag + away * 600}px) rotate(${Math.min(10, drag * 0.03)}deg)`, opacity: Math.min(1, landed * 2) * (1 - away) }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ borderRadius: 6, padding: '6px 10px', fontFamily: F.body, fontSize: 14.5, color: C.ink, background: 'rgba(160,64,47,.25)', textDecoration: 'line-through' }}>Commit when the work is done.</div>
-                        <div style={{ borderRadius: 6, padding: '6px 10px', fontFamily: F.body, fontSize: 14.5, color: C.ink, background: 'rgba(63,107,82,.28)' }}>Run the tests; commit only when they pass.</div>
+                        <div style={{ borderRadius: 6, padding: '6px 10px', fontFamily: F.body, fontSize: 14.5, color: C.ink, background: 'rgba(160,64,47,.25)', textDecoration: 'line-through' }}>Hand over the result.</div>
+                        <div style={{ borderRadius: 6, padding: '6px 10px', fontFamily: F.body, fontSize: 14.5, color: C.ink, background: 'rgba(63,107,82,.28)' }}>Start every result with a short summary.</div>
                       </div>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, background: C.washOk, color: C.ok, borderRadius: 999, padding: '5px 12px', fontFamily: F.body, fontWeight: 700, fontSize: 14, opacity: effect, transform: `scale(${mix(effect, 0.8, 1)})` }}>
                         <Glyph path={PARTS.bolt} size={16} color={C.ok} stroke />

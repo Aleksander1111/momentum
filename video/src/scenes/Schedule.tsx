@@ -26,13 +26,13 @@ type Auto = keyof typeof GLYPH;
 /** An approved card with nothing implementing it: an event, while the loops wait */
 const EVENT_AT = 12.3;
 const SATELLITES: { auto: Auto; name: string; hours: number[]; event?: boolean }[] = [
-  { auto: 'exploration', name: 'Exploration', hours: Array.from({ length: 12 }, (_, i) => i * 2) },
-  { auto: 'preparation', name: 'Preparation', hours: Array.from({ length: 12 }, (_, i) => i * 2 + 0.5) },
-  { auto: 'validation', name: 'Validation', hours: [2] },
-  { auto: 'consistency', name: 'Consistency check', hours: [3] },
-  { auto: 'retention', name: 'Retention', hours: [4] },
-  { auto: 'optimization', name: 'Optimization', hours: [5] },
-  { auto: 'implementation', name: 'Implementation', hours: [EVENT_AT], event: true },
+  { auto: 'exploration', name: 'Ideas', hours: Array.from({ length: 12 }, (_, i) => i * 2) },
+  { auto: 'preparation', name: 'Plans', hours: Array.from({ length: 12 }, (_, i) => i * 2 + 0.5) },
+  { auto: 'validation', name: 'Checks', hours: [2] },
+  { auto: 'consistency', name: 'Consistency', hours: [3] },
+  { auto: 'retention', name: 'Tidy-up', hours: [4] },
+  { auto: 'optimization', name: 'Learning', hours: [5] },
+  { auto: 'implementation', name: 'Work', hours: [EVENT_AT], event: true },
 ];
 
 // The day: 00:00 to 24:00 between these frames
@@ -70,9 +70,9 @@ function feedSize(h: number) {
   return START + made - (h >= APPROVE_AT ? APPROVED : 0);
 }
 
-const TITLES = ['Plan: search by author', 'Research: full-text index', 'Task: paginate /books', 'Plan: rate limits', 'Issue: duplicate ISBNs', 'Research: cache headers', 'Task: book covers', 'Plan: export to CSV', 'Task: sort by year', 'Research: fuzzy match', 'Plan: author pages', 'Task: health check'];
+const TITLES = ['Plan: search by author', 'Idea: reading lists', 'Task: book covers', 'Plan: gift cards', 'Problem: duplicate books', 'Idea: reviews', 'Task: export to Excel', 'Plan: author pages', 'Task: sort by year', 'Idea: recommendations', 'Plan: newsletter', 'Task: new home page'];
 const cardOf = (n: number): Entity => ({
-  project: { name: 'bookshelf-api', color: '#1D6FD6' },
+  project: { name: 'bookshelf', color: '#1D6FD6' },
   type: n % 2 ? 'Product/Task' : 'Harness/Plan',
   title: TITLES[n % TITLES.length]!,
   desc: 'Prepared while you were away, waiting for your swipe.',
@@ -176,9 +176,9 @@ function Pile({ f, rz }: { f: number; rz: number }) {
 
 /** The narration: a line per beat */
 export const SCHEDULE_CUES: Cue[] = [
-  { at: 8, hold: frameAt(PAUSE_AT) - 10, text: 'Meanwhile, each automation runs on its schedule, or on an event.' },
-  { at: frameAt(PAUSE_AT) + 2, hold: SWEEP(0) - 6, text: 'When your feed is full, the loops wait.' },
-  { at: SWEEP(0), hold: SCHEDULE_FRAMES - 30, text: 'Make room, and they go on. Never more work than you can review.' },
+  { at: 8, hold: frameAt(PAUSE_AT) - 10, text: 'Day and night, your projects keep moving.' },
+  { at: frameAt(PAUSE_AT) + 2, hold: SWEEP(0) - 6, text: 'When your feed is full, everything waits for you.' },
+  { at: SWEEP(0), hold: SCHEDULE_FRAMES - 30, text: 'Never more work than you can review.' },
 ];
 const DWELLS = voiceDwells('Schedule', SCHEDULE_CUES, SCHEDULE_FRAMES);
 export const SCHEDULE_LENGTH = dwelt(SCHEDULE_FRAMES, DWELLS);
@@ -242,8 +242,8 @@ export function Schedule() {
       <AbsoluteFill style={{ background: 'rgb(40,52,90)', opacity: 0.16 * night, pointerEvents: 'none' }} />
       <Clock h={h} still={still} />
       <FeedGauge n={n} />
-      <CornerHeadline frame={f} from={4} to={frameAt(PAUSE_AT) - 4} tag="Automations" color={C.ok} text="Your projects keep moving." sub="Each automation on its schedule, or on an event." />
-      <CornerHeadline frame={f} from={frameAt(PAUSE_AT)} to={frameAt(APPROVE_AT) + 4} tag="Triggers" color={C.no} text="Your feed is full. The loops wait." sub="An event still starts its run." />
+      <CornerHeadline frame={f} from={4} to={frameAt(PAUSE_AT) - 4} tag="Automations" color={C.ok} text="Your projects keep moving." sub="Ideas, plans, checks: each on its schedule." />
+      <CornerHeadline frame={f} from={frameAt(PAUSE_AT)} to={frameAt(APPROVE_AT) + 4} tag="Triggers" color={C.no} text="Your feed is full. The loops wait." sub="Only urgent work still starts." />
       <CornerHeadline frame={f} from={frameAt(APPROVE_AT) + 8} to={SCHEDULE_FRAMES} tag="Paced by you" color={C.ok} text="Make room, and they go on." sub="Never more work than you can review." />
     </AbsoluteFill>
   );
