@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import type { DiagramElement } from '@momentum/contract';
-import { AddToContext } from './AddToContext';
+import { AddsAtOnce, AddToContext } from './AddToContext';
 import { DiagramFull } from './DiagramFull';
 import { naturalText, svgSize } from './svgSize';
 import { C } from './theme';
@@ -22,6 +22,7 @@ const glow = (blur: number) => `drop-shadow(0 0 ${blur / 3}px ${C.accent}) drop-
 /**
  * Web: the SVG inline, scaled to the card width. A click on a shape picks it, the rest fades, and "Add to context" adds
  * what it reads as to the chat's context; a click beside the shapes drops the pick, or opens the diagram full size.
+ * Where picks go at once (AddsAtOnce), a click on a shape adds it.
  */
 export function Diagram({ svg, elements, onAdd }: { svg: string; elements?: DiagramElement[]; onAdd?: (element: string) => void }) {
   const [box, setBox] = useState(0);
@@ -33,6 +34,7 @@ export function Diagram({ svg, elements, onAdd }: { svg: string; elements?: Diag
   const width = Math.min(size.width, box);
   const height = width / size.ratio;
   const pickable = !!onAdd && !!elements?.length;
+  const atOnce = useContext(AddsAtOnce);
 
   useEffect(() => setPicked(null), [svg]);
 
@@ -71,7 +73,9 @@ export function Diagram({ svg, elements, onAdd }: { svg: string; elements?: Diag
 
   const click = (target: EventTarget) => {
     const g = pickable ? ((target as Element).closest?.('[data-pick]') as SVGGElement | null) : null;
-    if (g) setPicked(Number(g.dataset.pick) === picked ? null : Number(g.dataset.pick));
+    const element = g ? elements?.[Number(g.dataset.pick)] : undefined;
+    if (element && atOnce) onAdd!(element.name);
+    else if (g) setPicked(Number(g.dataset.pick) === picked ? null : Number(g.dataset.pick));
     else if (picked !== null) setPicked(null);
     else setOpen(true);
   };

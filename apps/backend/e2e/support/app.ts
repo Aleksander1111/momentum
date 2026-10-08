@@ -245,12 +245,43 @@ export class App {
     return item.title;
   }
 
+  /** Waits until the item is the card on top in the app, as a reaction to it would */
+  async showOnTop(ws: string, path: string): Promise<void> {
+    if (!(await this.onTop(ws, path))) throw new Error(`${path} is not on top of the feed`);
+  }
+
   /** Pulls the card on top of the feed up and asks about it in the chat that opens below it; the chat run it starts */
   async askAboutCard(ws: string, path: string, text: string): Promise<string> {
     const title = await this.onTop(ws, path);
     if (!title) throw new Error(`${path} is not on top of the feed: only the card on top opens a chat below it`);
     const since = new Date();
     await this.swipe(title, 0, -180);
+    const input = this.frame().getByPlaceholder('Ask about this card');
+    await pace('action', `Ask "${text}"`);
+    await typeInto(input, text);
+    await input.press('Enter');
+    return (await until('the chat on the card', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
+  }
+
+  /**
+   * Selects a text on the card on top of the feed, dragged across with the right mouse button as on a card that swipes;
+   * the selection opens the chat below the card with it in the context
+   */
+  async selectOnCard(text: string): Promise<void> {
+    await pace('action', `Select "${text}"`);
+    const box = await this.text(text).boundingBox();
+    if (!box) throw new Error(`"${text}" is not on screen`);
+    // From the start of its first line to the end of its last: a text that wraps is selected whole
+    const m = this.observer.mouse;
+    await m.move(box.x + 1, box.y + 4);
+    await m.down({ button: 'right' });
+    await m.move(box.x + box.width - 1, box.y + box.height - 4, { steps: 12 });
+    await m.up({ button: 'right' });
+  }
+
+  /** Sends the first message in the chat open below the card on top of the feed; the chat run it starts */
+  async askOnCard(ws: string, text: string): Promise<string> {
+    const since = new Date();
     const input = this.frame().getByPlaceholder('Ask about this card');
     await pace('action', `Ask "${text}"`);
     await typeInto(input, text);

@@ -130,6 +130,7 @@ function TopCard({
   onResolve,
   onDisapprove,
   onChat,
+  onPick,
 }: {
   item: FeedItem;
   wide: boolean;
@@ -140,6 +141,7 @@ function TopCard({
   onResolve: (option: number) => void;
   onDisapprove: () => void;
   onChat: () => void;
+  onPick: (item: ContextItem) => void;
 }) {
   const { width } = useWindowDimensions();
   const tx = useSharedValue(0);
@@ -242,7 +244,7 @@ function TopCard({
             measure();
           }}
         >
-          <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} swipe />
+          <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} swipe onPick={onPick} />
           {issue ? (
             <>
               <IssueHead issue={issue} workspace={item.workspace} />
@@ -378,7 +380,7 @@ function wholeCard(item: FeedItem): ContextItem {
 
 /**
  * The chat on the card on top, below it: the composer with the whole card in its context, then the conversation the
- * first message starts, on the card as its target. Parts of the card selected meanwhile join the context.
+ * first message starts, on the card as its target. Parts of the card selected, which open it too, join the context.
  */
 function CardChat({
   item,
@@ -397,6 +399,13 @@ function CardChat({
   const { height } = useWindowDimensions();
   const context = useChatContext(item.workspace);
   useCloseOnBack(true, onClose);
+  // A part of the card selected while the chat is open is asked about next: the field takes the keys
+  const field = useRef<TextInput>(null);
+  const parts = useRef(context.length);
+  useEffect(() => {
+    if (context.length > parts.current) field.current?.focus();
+    parts.current = context.length;
+  }, [context.length]);
   return (
     <View
       style={[
@@ -418,6 +427,7 @@ function CardChat({
         <Conversation key={runId} runId={runId} compact />
       ) : (
         <Composer
+          ref={field}
           placeholder="Ask about this card"
           autoFocus
           context={context}
@@ -543,8 +553,8 @@ export default function Feed() {
   const [chat, setChat] = useState<{ item: FeedItem; runId: string | null } | null>(null);
   const chats = useRef(new Map<string, string>());
   const closeChat = useCallback(() => {
-    // The card waiting in the context was never sent: it goes with the chat
-    if (chat && !chat.runId) chatContext.remove(wholeCard(chat.item));
+    // What of the card waits in the context, the whole card or parts selected, was never sent: it goes with the chat
+    if (chat) for (const c of chatContext.of(chat.item.workspace)) if (c.path === chat.item.path) chatContext.remove(c);
     setChat(null);
   }, [chat]);
   useEffect(() => {
@@ -593,6 +603,11 @@ export default function Feed() {
               const runId = chats.current.get(topKey!) ?? null;
               if (!runId) chatContext.add(wholeCard(top));
               setChat({ item: top, runId });
+            }}
+            onPick={(part) => {
+              // A part of the card selected opens the chat on it, with the part in its context instead of the whole card
+              chatContext.add(part);
+              if (!chat) setChat({ item: top, runId: chats.current.get(topKey!) ?? null });
             }}
           />
         ) : null}

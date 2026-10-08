@@ -13,6 +13,7 @@ import { Table, TABLE_TEXT } from './Table';
 import { SelectionMenu } from './SelectionMenu';
 import { SelectionScope } from './SelectionScope';
 import { chatContext } from '../lib/context';
+import { AddsAtOnce } from './AddToContext';
 import { pathSegments } from '../lib/format';
 
 /** Native texts are selectable for the selection menu; on the web the selection scope sets user-select */
@@ -276,7 +277,8 @@ function Crumbs({ workspace, type, path }: { workspace: string; type: string; pa
 /**
  * Card heading (breadcrumb, `aside` at its right, serif title) followed by the card blocks. A card that changed since the
  * user last verified it shows the diff instead, with the words removed and added. Selected text and picked diagram
- * shapes can be added to the chat's context; `swipe` marks a card the left mouse button swipes.
+ * shapes can be added to the chat's context; with `onPick` they go to it at once, with no button. `swipe` marks a card
+ * the left mouse button swipes.
  */
 export function CardView({
   type,
@@ -287,6 +289,7 @@ export function CardView({
   diff,
   aside,
   swipe,
+  onPick,
 }: {
   type: string;
   workspace: string;
@@ -296,6 +299,7 @@ export function CardView({
   diff?: CardDiff | null;
   aside?: ReactNode;
   swipe?: boolean;
+  onPick?: (item: ContextItem) => void;
 }) {
   const shown = diff?.card ?? card;
   // The title is shown once; a leading heading repeating it is dropped.
@@ -304,8 +308,9 @@ export function CardView({
   const blocks = shown.slice(lead);
   const headings = headingsOf(shown).slice(lead);
   const add = (heading: string[], part: { quote: string } | { element: string }) =>
-    chatContext.add({ workspace, path, title, heading, ...part } as ContextItem);
+    (onPick ?? chatContext.add)({ workspace, path, title, heading, ...part } as ContextItem);
   return (
+    <AddsAtOnce.Provider value={!!onPick}>
     <Fit.Provider value={!!swipe}>
     <EntityLinks workspace={workspace}>
       <View
@@ -349,5 +354,6 @@ export function CardView({
       </SelectionScope>
     </EntityLinks>
     </Fit.Provider>
+    </AddsAtOnce.Provider>
   );
 }

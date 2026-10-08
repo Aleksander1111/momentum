@@ -1,6 +1,13 @@
+import { createContext } from 'react';
 import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
 import { C } from './theme';
 import { T } from './Text';
+
+/**
+ * Whether what the user selects or picks goes to the chat at once, with no button: on the feed's card, whose chat opens
+ * below it
+ */
+export const AddsAtOnce = createContext(false);
 
 /** The button that adds the selected text or the picked diagram element to the chat's context */
 export function AddToContext({ onPress, style }: { onPress: () => void; style?: StyleProp<ViewStyle> }) {

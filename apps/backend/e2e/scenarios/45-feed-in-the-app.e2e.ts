@@ -44,6 +44,11 @@ const QUESTION = 'Where does the config file live?';
 const ANSWER = 'It lives at ~/.todo.json.';
 const REWORK = 'Say where it lives on the card.';
 const REWORKED = 'Document the config file at ~/.todo.json.';
+/** A part of it selected opens the chat on it */
+const PIN = { ws: TODO, path: 'Product/DevTask/pin-the-dependencies', entity: { ...task('Pin the dependencies', [5, 5, 5]), card: 'Pin every dependency to an exact version in the lockfile.' } } as const;
+const PART = 'Pin every dependency to an exact version in the lockfile.';
+const WHY = 'Why exact versions?';
+const BECAUSE = 'So every build installs the same versions.';
 
 // The user goes through the feed on the phone: every reaction is made on the card, none through the API
 scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, app, model, step }) => {
@@ -140,8 +145,10 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
   });
 
   // The chat on a card answers what it is asked and reworks the card when asked to
-  model.on('answers on the card', (t) => t.automation === 'chat' && t.target === ASK.path && (t.kind === 'prompt' || t.kind === 'message'), (t) =>
-    t.input.includes(REWORK) ? [move.entity(t, ASK.path, { ...ASK.entity, card: REWORKED }), move.say('Done: the card says where it lives.')] : [move.say(ANSWER)],
+  model.on('answers on the card', (t) => t.automation === 'chat' && (t.target === ASK.path || t.target === PIN.path) && (t.kind === 'prompt' || t.kind === 'message'), (t) =>
+    t.input.includes(REWORK)
+      ? [move.entity(t, ASK.path, { ...ASK.entity, card: REWORKED }), move.say('Done: the card says where it lives.')]
+      : [move.say(t.target === PIN.path ? BECAUSE : ANSWER)],
   );
 
   await step(4, async () => {
@@ -179,6 +186,33 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     await expect(app.frame().getByLabel('Close chat')).toHaveCount(0, { timeout: 60_000 });
     await expect(app.text(ASK.entity.title)).toBeVisible();
     expect(env.show(ASK.ws, kg(ASK.path))).toContain(REWORKED);
+    // Reworked as asked, it is approved with a swipe right
+    await app.approve(ASK.ws, ASK.path);
+    expect(app.throughApi).toEqual([]);
+  });
+
+  await step(6, async () => {
+    env.commit(PIN.ws, { [kg(PIN.path)]: entityText(PIN.entity) }, `Add ${PIN.entity.title}`);
+    await until(`${PIN.path} in the feed`, () => inFeed(PIN), 60_000, 500);
+    await app.showOnTop(PIN.ws, PIN.path);
+    // Selected, the text opens the chat below the card with the quote in its context: nothing to press first
+    await app.selectOnCard(PART);
+    const field = app.frame().getByPlaceholder('Ask about this card');
+    await expect(field).toBeVisible();
+    await expect(app.frame().getByText('Add to context', { exact: true })).toHaveCount(0);
+    await expect(app.frame().getByLabel('Remove from context')).toHaveCount(1);
+    // Closed unsent, the quote goes with the chat; selected again, it comes back
+    await app.frame().getByLabel('Close chat').click();
+    await expect(field).toHaveCount(0);
+    await app.selectOnCard(PART);
+    await expect(app.frame().getByLabel('Remove from context')).toHaveCount(1);
+    const chat = await app.askOnCard(PIN.ws, WHY);
+    const run = await api.run(chat);
+    expect(run.targetPath).toBe(PIN.path);
+    expect(run.messages[0]!.text).toBe(WHY);
+    expect(run.messages[0]!.context).toHaveLength(1);
+    expect(run.messages[0]!.context[0]).toMatchObject({ workspace: PIN.ws, path: PIN.path, quote: PART });
+    await expect(app.text(BECAUSE)).toBeVisible({ timeout: 5 * 60_000 });
     expect(app.throughApi).toEqual([]);
   });
 });

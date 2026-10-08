@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { View } from 'react-native';
-import { AddToContext } from './AddToContext';
+import { AddsAtOnce, AddToContext } from './AddToContext';
 
 type Caret = { node: Node; offset: number };
+
+/** How long a selection rests before it counts as made, where nothing else says it is done (touch, the keyboard) */
+const SETTLE_MS = 500;
 
 function caretAt(x: number, y: number): Caret | null {
   const doc = document as Document & {
@@ -19,7 +22,8 @@ function caretAt(x: number, y: number): Caret | null {
 /**
  * Web: text selected inside a card offers "Add to context" under the selection. The right mouse button drags a
  * selection anywhere on the card; on a card that swipes (`swipe`) the left button only swipes, elsewhere it selects as
- * usual. Touch keeps the browser's own long-press selection.
+ * usual. Touch keeps the browser's own long-press selection. Where selections go at once (AddsAtOnce), there is no
+ * button: a selection is added once the drag ends, or once it rests.
  */
 export function SelectionScope({
   onAdd,
@@ -32,24 +36,39 @@ export function SelectionScope({
 }) {
   const ref = useRef<View>(null);
   const [at, setAt] = useState<{ x: number; y: number; quote: string; block: number | null } | null>(null);
+  const atOnce = useContext(AddsAtOnce);
+  const add = useRef(onAdd);
+  add.current = onAdd;
 
   useEffect(() => {
     const host = ref.current as unknown as HTMLElement | null;
     if (!host) return;
     let anchor: Caret | null = null;
     let leftDown = false;
+    let settle: ReturnType<typeof setTimeout> | undefined;
 
-    const update = () => {
+    const selected = () => {
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return setAt(null);
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
       const range = sel.getRangeAt(0);
-      if (!host.contains(range.commonAncestorContainer)) return setAt(null);
+      if (!host.contains(range.commonAncestorContainer)) return null;
       const quote = sel.toString().replace(/\s+/g, ' ').trim();
-      if (!quote) return setAt(null);
+      if (!quote) return null;
       const rect = range.getBoundingClientRect();
       const start = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
       const block = start?.closest('[data-block]')?.getAttribute('data-block');
-      setAt({ x: rect.left + rect.width / 2, y: rect.bottom + 8, quote, block: block != null ? Number(block) : null });
+      return { x: rect.left + rect.width / 2, y: rect.bottom + 8, quote, block: block != null ? Number(block) : null };
+    };
+    const made = () => {
+      clearTimeout(settle);
+      const s = selected();
+      if (s) add.current(s.quote, s.block);
+    };
+    const update = () => {
+      if (!atOnce) return setAt(selected());
+      // A drag in progress is added as it ends
+      clearTimeout(settle);
+      if (!anchor) settle = setTimeout(made, SETTLE_MS);
     };
 
     const down = (e: PointerEvent) => {
@@ -75,6 +94,7 @@ export function SelectionScope({
       if (!anchor) return;
       anchor = null;
       if (host.hasPointerCapture(e.pointerId)) host.releasePointerCapture(e.pointerId);
+      if (atOnce) made();
     };
     // The left button swipes the card: it starts no selection there
     const selectStart = (e: Event) => {
@@ -92,6 +112,7 @@ export function SelectionScope({
     host.addEventListener('selectstart', selectStart);
     host.addEventListener('contextmenu', menu);
     return () => {
+      clearTimeout(settle);
       document.removeEventListener('selectionchange', update);
       window.removeEventListener('scroll', scrolled, true);
       host.removeEventListener('pointerdown', down);
@@ -101,7 +122,7 @@ export function SelectionScope({
       host.removeEventListener('selectstart', selectStart);
       host.removeEventListener('contextmenu', menu);
     };
-  }, [swipe]);
+  }, [swipe, atOnce]);
 
   return (
     <View ref={ref} style={{ userSelect: 'text' }}>

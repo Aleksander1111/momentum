@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { SvgCss } from 'react-native-svg/css';
 import type { DiagramElement } from '@momentum/contract';
-import { AddToContext } from './AddToContext';
+import { AddsAtOnce, AddToContext } from './AddToContext';
 import { DiagramFull } from './DiagramFull';
 import { naturalText, svgSize } from './svgSize';
 import { C } from './theme';
@@ -19,7 +19,7 @@ function faded(svg: string, picked: number): string {
 /**
  * Native: server-rendered PlantUML SVG, scaled to the card width. A tap on a shape picks it (the smallest box under the
  * finger), the rest fades, and "Add to context" adds what it reads as to the chat's context; a tap beside the shapes
- * drops the pick, or opens the diagram full size.
+ * drops the pick, or opens the diagram full size. Where picks go at once (AddsAtOnce), a tap on a shape adds it.
  */
 export function Diagram({ svg, elements, onAdd }: { svg: string; elements?: DiagramElement[]; onAdd?: (element: string) => void }) {
   const [box, setBox] = useState(0);
@@ -31,6 +31,7 @@ export function Diagram({ svg, elements, onAdd }: { svg: string; elements?: Diag
   const height = width / size.ratio;
   const scale = width / viewWidth;
   const pickable = !!onAdd && !!elements?.length;
+  const atOnce = useContext(AddsAtOnce);
   const shown = useMemo(() => (picked !== null ? faded(naturalText(svg), picked) : naturalText(svg)), [svg, picked]);
 
   useEffect(() => setPicked(null), [svg]);
@@ -45,7 +46,8 @@ export function Diagram({ svg, elements, onAdd }: { svg: string; elements?: Diag
           })
           .sort((a, b) => a.e.box[2] * a.e.box[3] - b.e.box[2] * b.e.box[3])[0]
       : undefined;
-    if (hit) setPicked(hit.i === picked ? null : hit.i);
+    if (hit && atOnce) onAdd!(hit.e.name);
+    else if (hit) setPicked(hit.i === picked ? null : hit.i);
     else if (picked !== null) setPicked(null);
     else setOpen(true);
   };

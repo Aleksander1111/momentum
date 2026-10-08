@@ -917,6 +917,7 @@ export const SCENARIOS: Scenario[] = [
       "Swiped left, an issue is resolved in the user's own words, and another closed as won't resolve with the reason",
       'Swiped left with a comment, a card is sent back to a chat on it; nothing went through the API instead of the app',
       'Pulled up, a card opens a chat below it on the whole card; the answer comes while the card waits, and the chat closes once it reworks the card',
+      'Text selected on a card opens the chat below it with the quote alone, no button pressed; closed unsent, the quote leaves the context',
     ],
     // The features each step checks, step by step
     checks: [
@@ -926,6 +927,7 @@ export const SCENARIOS: Scenario[] = [
       ['feed.swipes', 'feed.issue-options', 'feed.wont-resolve'],
       ['feed.swipes', 'feed.send-back'],
       ['feed.card-chat'],
+      ['feed.card-chat', 'feed.swipes'],
     ],
   },
   {
