@@ -4,7 +4,7 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Bubble, Button, Counters, FeedCard, Glyph, PHONE, Phone, SLOT, Sheet, Stamp, StateIcon, type Entity } from '../kit/app.tsx';
 import { Backdrop, Finger, Headline } from '../kit/stage.tsx';
 import { C, F, ICONS, LAYERS } from '../kit/theme.ts';
-import { mix, pop, ramp, typed } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
 
 export const SWIPE_FRAMES = 540;
 
@@ -38,8 +38,12 @@ const ASK = { finger: 368, press: 378, drag: 382, release: 404, type: 426, answe
 const QUESTION = 'Why half days and not hours?';
 const ANSWER = 'Payroll counts leave in half days; hours would need a new export.';
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[130, 40], [350, 30], [505, 45]];
+export const SWIPE_LENGTH = dwelt(SWIPE_FRAMES, DWELLS);
+
 export function Swipe() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   const enter = pop(f, 0);
 
   // Approve: dragged right, then drawn into its commit on the main line
@@ -168,8 +172,8 @@ export function Swipe() {
       </AbsoluteFill>
 
       <Headline frame={f} from={4} to={168} tag="Approve" color={C.ok} text="Swipe right to approve." sub="One commit, verified. Work starts by itself." />
-      <Headline frame={f} from={172} to={358} tag="Rework" color={LAYERS.attention.ink} text="Swipe left to send it back." sub="Say what should change. A chat run reworks it." />
-      <Headline frame={f} from={362} to={SWIPE_FRAMES} tag="Ask" color={C.accent} text="Pull up to ask." sub="A chat on the card, right below it." />
+      <Headline frame={f} from={172} to={368} tag="Rework" color={LAYERS.attention.ink} text="Swipe left to send it back." sub="Say what should change. A chat run reworks it." />
+      <Headline frame={f} from={370} to={SWIPE_FRAMES} tag="Ask" color={C.accent} text="Pull up to ask." sub="A chat on the card, right below it." />
     </AbsoluteFill>
   );
 }

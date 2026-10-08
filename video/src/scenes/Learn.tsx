@@ -6,7 +6,7 @@ import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, TypePill, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, BottomHeadline, Finger } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
-import { mix, pop, ramp } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
 export const LEARN_FRAMES = 450;
 
@@ -77,7 +77,8 @@ function Lifting({ f }: { f: number }) {
         if (t <= 0 || f > MERGE + 10) return null;
         const from = SAID_AT(i);
         const x = mix(t, from.x, PATTERN.x);
-        const y = mix(t, from.y, PATTERN.y) - 160 * Math.sin(Math.PI * t);
+        // Each on its own lane until they meet, so the three never cover one another
+        const y = mix(t, from.y, PATTERN.y) - (110 + 70 * i) * Math.sin(Math.PI * t);
         return (
           <div
             key={i}
@@ -180,7 +181,7 @@ function Tiles({ f }: { f: number }) {
           <div key={t.project.name} style={{ position: 'absolute', left: t.x, top: t.y, transform: `translate(-50%, -50%) perspective(1200px) rotateY(${180 * turn + (back ? 180 : 0)}deg) scale(${shown})` }}>
             <div
               style={{
-                width: 400,
+                width: 440,
                 background: C.surface,
                 borderRadius: 18,
                 border: `3px solid ${back ? C.ok : C.line}`,
@@ -193,8 +194,8 @@ function Tiles({ f }: { f: number }) {
                 <span style={{ fontFamily: F.body, fontWeight: 700, fontSize: 18, color: C.ink, flex: 1 }}>{t.project.name}</span>
                 {back ? <Glyph path="M5 12l5 5L20 7" size={24} color={C.ok} stroke /> : null}
               </div>
-              <div style={{ fontFamily: F.mono, fontSize: 13, color: C.muted, marginBottom: 8 }}>agents/momentum-implementation.md</div>
-              <div style={{ borderRadius: 6, padding: '6px 10px', fontFamily: F.body, fontSize: 15, color: C.ink, background: back ? 'rgba(63,107,82,.25)' : C.card }}>
+              <div style={{ fontFamily: F.mono, fontSize: 16, color: C.muted, marginBottom: 8 }}>agents/momentum-implementation.md</div>
+              <div style={{ borderRadius: 6, padding: '8px 12px', fontFamily: F.body, fontSize: 19, color: C.ink, background: back ? 'rgba(63,107,82,.25)' : C.card }}>
                 {back ? 'Run the tests; commit only when they pass.' : 'Commit when the work is done.'}
               </div>
             </div>
@@ -212,8 +213,12 @@ function Tiles({ f }: { f: number }) {
   );
 }
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[112, 30], [205, 40], [335, 30], [420, 30]];
+export const LEARN_LENGTH = dwelt(LEARN_FRAMES, DWELLS);
+
 export function Learn() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   const recede = ramp(f, LIFT, 36, Easing.inOut(Easing.cubic));
   const sides = ramp(f, INTO - 10, 24, Easing.in(Easing.cubic));
   const front = ramp(f, INTO, 26, Easing.inOut(Easing.cubic));

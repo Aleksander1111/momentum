@@ -7,16 +7,16 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } from '../kit/app.tsx';
 import { Backdrop, CornerHeadline } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
-import { mix, pop, ramp } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
-export const MEASURE_FRAMES = 450;
+export const MEASURE_FRAMES = 472;
 
 // Beats
 const DIVE = { from: 14, to: 54 };
 const STOP = 124;
 const FOLD = { from: 136, to: 160 };
 const OUT = { from: 156, to: 196 };
-const CITY = 214;
+const CITY = 236;
 const QUESTION = (i: number) => CITY + 40 + i * 20;
 
 const SUMMARY: Entity = {
@@ -132,7 +132,7 @@ function Box({ b, f }: { b: Block; f: number }) {
 }
 
 function City({ f }: { f: number }) {
-  const shown = ramp(f, CITY, 24, Easing.out(Easing.cubic));
+  const shown = ramp(f, CITY - 20, 30, Easing.out(Easing.cubic));
   if (shown <= 0) return null;
   const rz = interpolate(f, [CITY, MEASURE_FRAMES], [-48, -36]);
   const labels: [string, number, number][] = [
@@ -216,23 +216,28 @@ function SettingsScreen({ f }: { f: number }) {
 }
 
 /** Giant words over the dive */
-function Giant({ f, from, to, text, color }: { f: number; from: number; to: number; text: string; color: string }) {
+function Giant({ f, from, to, text, color, top = 420 }: { f: number; from: number; to: number; text: string; color: string; top?: number }) {
   if (f < from || f > to) return null;
   const t = ramp(f, from, 12, Easing.out(Easing.cubic)) * (1 - ramp(f, to - 10, 10));
   return (
-    <div style={{ position: 'absolute', left: 0, right: 0, top: 420, padding: '20px 0 34px', background: `linear-gradient(transparent, rgba(255,255,255,${0.85 * t}) 25%, rgba(255,255,255,${0.85 * t}) 75%, transparent)`, textAlign: 'center', fontFamily: F.head, fontWeight: 700, fontSize: 150, color, opacity: t, transform: `scale(${mix(t, 0.9, 1)})`, textShadow: '0 6px 40px rgba(255,255,255,.95), 0 0 80px rgba(255,255,255,.9)', letterSpacing: -2 }}>
+    <div style={{ position: 'absolute', left: 0, right: 0, top, padding: '20px 0 34px', background: `linear-gradient(transparent, rgba(255,255,255,${0.85 * t}) 25%, rgba(255,255,255,${0.85 * t}) 75%, transparent)`, textAlign: 'center', fontFamily: F.head, fontWeight: 700, fontSize: 150, color, opacity: t, transform: `scale(${mix(t, 0.9, 1)})`, textShadow: '0 6px 40px rgba(255,255,255,.95), 0 0 80px rgba(255,255,255,.9)', letterSpacing: -2 }}>
       {text}
     </div>
   );
 }
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[90, 30], [196, 40], [455, 45]];
+export const MEASURE_LENGTH = dwelt(MEASURE_FRAMES, DWELLS);
+
 export function Measure() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   const enter = pop(f, 0);
   // The camera: into the phone's screen, then back out, then the phone steps aside for the city
   const dive = ramp(f, DIVE.from, DIVE.to - DIVE.from, Easing.inOut(Easing.cubic)) * (1 - ramp(f, OUT.from, OUT.to - OUT.from, Easing.inOut(Easing.cubic)));
   const aside = ramp(f, CITY - 20, 30, Easing.inOut(Easing.cubic));
-  const scale = mix(dive, 0.66, 3.4) * mix(aside, 1, 0.92);
+  // Larger once aside, so its Settings read beside the city
+  const scale = mix(dive, 0.66, 3.4) * mix(aside, 1, 1.22);
   const x = mix(aside, 960, 470);
   const settings = f >= CITY - 10;
   const landed = pop(f, FOLD.to - 6, true);
@@ -255,7 +260,7 @@ export function Measure() {
         ) : null}
       </Phone>
       <Giant f={f} from={DIVE.to - 4} to={STOP + 4} text="Three files changed." color={C.ok} />
-      <Giant f={f} from={FOLD.from} to={OUT.to + 6} text="One card to read." color={C.warn} />
+      <Giant f={f} from={FOLD.from} to={OUT.to + 20} text="One card to read." color={C.warn} top={40} />
       <CornerHeadline frame={f} from={CITY + 10} to={MEASURE_FRAMES} side="right" tag="Graph build" color={C.ok} text="Completeness, measured." sub="Every area accounted for, every question answered." />
     </AbsoluteFill>
   );

@@ -8,7 +8,7 @@ import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } 
 import { Desktop, DomainBadge, StateBadge } from '../kit/desktop.tsx';
 import { Backdrop, Logo } from '../kit/stage.tsx';
 import { C, F, ICONS, PARTS } from '../kit/theme.ts';
-import { mix, pop, ramp } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
 export const LINE_FRAMES = 510;
 
@@ -65,10 +65,12 @@ function Road({ f }: { f: number }) {
         <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translateY(${travel}px)` }}>
           {/* Words painted on the road, read as they pass under the camera */}
           {[
-            ['ONE STRAIGHT LINE', 1400],
-            ['NO BRANCHES · NO MERGES', 3300],
+            // Painted right of the line, the posts standing left of it: neither covers the other
+            ['ONE STRAIGHT LINE', 1180],
+            ['NO BRANCHES', 2300],
+            ['NO MERGES', 3420],
           ].map(([text, d]) => (
-            <div key={text} style={{ position: 'absolute', left: 0, right: 0, top: ROAD.len - (d as number), textAlign: 'center', fontFamily: F.head, fontWeight: 700, fontSize: 190, color: C.accent, opacity: 0.85, letterSpacing: 6, whiteSpace: 'nowrap' }}>
+            <div key={text} style={{ position: 'absolute', left: ROAD.w / 2 + 90, top: ROAD.len - (d as number), fontFamily: F.head, fontWeight: 700, fontSize: 120, color: C.accent, opacity: 0.85, letterSpacing: 4, whiteSpace: 'nowrap' }}>
               {text}
             </div>
           ))}
@@ -309,15 +311,19 @@ function Closing({ f }: { f: number }) {
   );
 }
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[300, 40], [380, 30], [490, 60]];
+export const LINE_LENGTH = dwelt(LINE_FRAMES, DWELLS);
+
 export function Line() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   // The phone: floating ahead over the road, then close for Settings, then gone into the wall
   const close = ramp(f, SETTINGS - 16, 30, Easing.inOut(Easing.cubic));
   const away = ramp(f, WALL - 24, 26, Easing.in(Easing.cubic));
   const settings = f >= SETTINGS;
   const y = mix(close, 330, 540) + 10 * Math.sin(f / 14) * (1 - close);
   const x = mix(close, 1500, 960);
-  const scale = mix(close, 0.62, 0.92) * mix(away, 1, 0.3);
+  const scale = mix(close, 0.62, 1) * mix(away, 1, 0.3);
   return (
     <AbsoluteFill>
       <Backdrop />

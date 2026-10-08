@@ -7,7 +7,7 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { CornerHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
-import { mix, pop, ramp } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
 export const SCHEDULE_FRAMES = 480;
 
@@ -180,8 +180,12 @@ function Pile({ f, rz }: { f: number; rz: number }) {
   );
 }
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[frameAt(PAUSE_AT) + 20, 60], [frameAt(APPROVE_AT) + 16, 30]];
+export const SCHEDULE_LENGTH = dwelt(SCHEDULE_FRAMES, DWELLS);
+
 export function Schedule() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   const h = hourAt(f);
   // The orbit turns with the day, and stands still while the loops wait
   const still = paused(h) ? ramp(f, frameAt(PAUSE_AT), 10) * (1 - ramp(f, frameAt(APPROVE_AT), 10)) : 0;
@@ -237,7 +241,7 @@ export function Schedule() {
       </AbsoluteFill>
       <AbsoluteFill style={{ background: 'rgb(40,52,90)', opacity: 0.16 * night, pointerEvents: 'none' }} />
       <Clock h={h} still={still} />
-      <CornerHeadline frame={f} from={4} to={frameAt(PAUSE_AT) - 4} tag="Automations" color={C.ok} text="Twelve automations, on their own." sub="Each on its schedule, on an event, or when you ask." />
+      <CornerHeadline frame={f} from={4} to={frameAt(PAUSE_AT) - 4} tag="Automations" color={C.ok} text="Your projects keep moving." sub="Each automation on its schedule, or on an event." />
       <CornerHeadline frame={f} from={frameAt(PAUSE_AT)} to={frameAt(APPROVE_AT) + 4} tag="Triggers" color={C.no} text="Your feed is full. The loops wait." sub="An event still starts its run." />
       <CornerHeadline frame={f} from={frameAt(APPROVE_AT) + 8} to={SCHEDULE_FRAMES} tag="Paced by you" color={C.ok} text="Make room, and they go on." sub="Never more work than you can review." />
     </AbsoluteFill>

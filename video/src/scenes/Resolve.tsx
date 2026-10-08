@@ -8,7 +8,7 @@ import { Behind, Counters, FeedCard, PHONE, Phone, SLOT, Stamp, type Entity } fr
 import { DomainBadge } from '../kit/desktop.tsx';
 import { Backdrop, Finger } from '../kit/stage.tsx';
 import { C, F, LAYERS } from '../kit/theme.ts';
-import { mix, pop, ramp, typed } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
 
 export const RESOLVE_FRAMES = 450;
 
@@ -149,8 +149,12 @@ function Banner({ f, from, to, text, color }: { f: number; from: number; to: num
   );
 }
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[80, 40], [160, 30], [330, 40]];
+export const RESOLVE_LENGTH = dwelt(RESOLVE_FRAMES, DWELLS);
+
 export function Resolve() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   const drag = ramp(f, SWIPE.drag, SWIPE.release - SWIPE.drag, Easing.inOut(Easing.quad)) * 300;
   const away = ramp(f, SWIPE.release, 16, Easing.in(Easing.cubic));
   const resolved = f >= SWIPE.release + 16;

@@ -7,9 +7,9 @@ import { Glyph, TypePill } from '../kit/app.tsx';
 import { Desktop, DomainBadge, StateBadge, WINDOW } from '../kit/desktop.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, F, ICONS, domainOf } from '../kit/theme.ts';
-import { mix, pop, ramp, typed } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
 
-export const GRAPH_FRAMES = 510;
+export const GRAPH_FRAMES = 600;
 
 // The window, front on: where its parts sit on the frame
 const S = 1.1;
@@ -24,10 +24,12 @@ const FLY = 46;
 const TURN = { from: 150, to: 300 };
 const HOME = 304;
 const LAND = (k: number) => HOME + 8 + k * 5;
-const SELECT = 368;
-const VERIFY = 412;
-const REWRITE = 448;
-const SETTLED = 484;
+const ASK = 356;
+const ANSWER = 392;
+const SELECT = 452;
+const VERIFY = 496;
+const REWRITE = 532;
+const SETTLED = 568;
 
 type Node = { type: string; title: string; files: string[]; x: number; y: number };
 /** The graph of bookshelf-api: each card claims the files beneath it; positions round the centre of the frame */
@@ -59,8 +61,12 @@ function fileHome(i: number) {
 /** Where the k-th card's row sits in the window's tree */
 const rowHome = (k: number) => at(WINDOW.nav + 40, WINDOW.bar + 100 + k * ROW + ROW / 2);
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[40, 30], [126, 40], [200, 40], [430, 50], [508, 30], [575, 40]];
+export const GRAPH_LENGTH = dwelt(GRAPH_FRAMES, DWELLS);
+
 export function Graph() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   const enter = pop(f, 0);
   // The window leans back into a table under the floating graph, then rises again to take the cards in
   const lean = ramp(f, BURST - 6, 30, Easing.inOut(Easing.cubic)) * (1 - ramp(f, HOME - 34, 30, Easing.inOut(Easing.cubic)));
@@ -87,6 +93,7 @@ export function Graph() {
             <div style={{ opacity: 1 - 0.75 * dive }}>
               <Tree f={f} />
             </div>
+            <Answer f={f} />
             <Entity f={f} />
           </div>
         </Desktop>
@@ -98,7 +105,8 @@ export function Graph() {
       <TopHeadline frame={f} from={4} to={BURST - 2} tag="Knowledge graph" color={C.warn} text="38 files." sub="One small repository, as you would read it." />
       <TopHeadline frame={f} from={BURST} to={TURN.from - 2} tag="Knowledge graph" color={C.warn} text="Cards, not files." sub="Each card claims the files it accounts for." />
       <TopHeadline frame={f} from={TURN.from} to={HOME - 2} tag="Types" color={C.warn} text="Every card has a type." sub="Its domain's colour and glyph, wherever the app shows it." />
-      <TopHeadline frame={f} from={HOME + 40} to={GRAPH_FRAMES} tag="States" color={C.warn} text="You verify it." sub="Approval verifies; a rewrite brings it back to you." />
+      <TopHeadline frame={f} from={HOME + 40} to={SELECT - 2} tag="Search" color={C.warn} text="Ask it anything." sub="The answer comes from the cards, linking each one." />
+      <TopHeadline frame={f} from={SELECT} to={GRAPH_FRAMES} tag="States" color={C.warn} text="You verify it." sub="Approval verifies; a rewrite brings it back to you." />
     </AbsoluteFill>
   );
 }
@@ -258,8 +266,15 @@ function Tree({ f }: { f: number }) {
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: PANE, borderRight: `1px solid ${C.line}`, background: C.surface }}>
       <div style={{ position: 'absolute', left: 20, right: 20, top: 22, height: 44, borderRadius: 12, border: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px', fontFamily: F.body, fontSize: 15, color: C.muted }}>
-        <Glyph path={ICONS.search} size={18} color={C.muted} />
-        Search by words or meaning
+        <Glyph path={ICONS.search} size={18} color={f >= ASK ? C.accent : C.muted} />
+        {f >= ASK ? (
+          <span style={{ color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            {typed(QUESTION, f, ASK, 34)}
+            {f < ANSWER ? <span style={{ borderLeft: `2px solid ${C.accent}`, marginLeft: 1 }} /> : null}
+          </span>
+        ) : (
+          'Search by words or meaning'
+        )}
       </div>
       {NODES.map((n, k) => {
         const landed = f >= LAND(k);
@@ -295,6 +310,42 @@ function Tree({ f }: { f: number }) {
 }
 
 const ADDED = ', and search by author or title';
+
+const QUESTION = 'How do readers find a book?';
+const CITED: [string, string][] = [
+  ['Architecture/Api', 'Books API'],
+  ['Governance/DesignDoc', 'Bookshelf API design'],
+  ['Product/Goal', 'Readers find a book fast'],
+];
+
+/** The search's answer, written from the cards it found, each linked */
+function Answer({ f }: { f: number }) {
+  if (f < ANSWER || f > SELECT + 10) return null;
+  const shown = pop(f, ANSWER);
+  const out = ramp(f, SELECT, 10);
+  const text = typed('By listing every book and reading its title: the API has no search yet. Search by author or title is planned as a query on the books route.', f, ANSWER + 6, 70);
+  const press = f >= SELECT - 10 && f < SELECT ? Math.sin((Math.PI * (f - (SELECT - 10))) / 10) : 0;
+  return (
+    <div style={{ position: 'absolute', left: PANE + 48, top: 40, right: 48, opacity: shown * (1 - out), transform: `translateY(${16 * (1 - shown)}px)` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.body, fontWeight: 700, fontSize: 16, color: C.accent, marginBottom: 14 }}>
+        <Glyph path={ICONS.search} size={20} color={C.accent} />
+        {QUESTION}
+      </div>
+      <div style={{ fontFamily: F.body, fontSize: 24, lineHeight: '36px', color: C.ink, minHeight: 150 }}>{text}</div>
+      <div style={{ fontFamily: F.body, fontWeight: 700, fontSize: 14, letterSpacing: 2, color: C.muted, margin: '22px 0 10px' }}>FROM THE CARDS</div>
+      {CITED.map(([type, title], k) => {
+        const t = pop(f, ANSWER + 40 + k * 6, true);
+        const picked = k === 0 && press > 0;
+        return (
+          <div key={title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', marginBottom: 8, borderRadius: 12, background: picked ? C.accent + '1F' : C.surface, border: `1px solid ${picked ? C.accent : C.line}`, transform: `scale(${t * (1 - 0.03 * press * (k === 0 ? 1 : 0))})`, transformOrigin: 'left center' }}>
+            <DomainBadge type={type} size={34} />
+            <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 20, color: C.ink }}>{title}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /** The selected card, opened beside the tree */
 function Entity({ f }: { f: number }) {

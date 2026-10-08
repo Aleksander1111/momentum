@@ -6,7 +6,7 @@ import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, Finger, Headline, Logo } from '../kit/stage.tsx';
 import { C, F, LAYERS, PARTS, domainOf, type Layer } from '../kit/theme.ts';
-import { mix, pop, ramp } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
 export const LAYERS_FRAMES = 450;
 
@@ -80,7 +80,7 @@ const UNDERSTAND = 206;
 const IMPLEMENT = 290;
 const RISE = 345;
 const ARRIVE = 382;
-const CLOSE = 392;
+const CLOSE = 416;
 
 // The stack: square planes, one per layer, the phone lying on the top one
 const STAGE = { x: 1270, y: 540 };
@@ -187,7 +187,7 @@ function Graph({ frame, pulse }: { frame: number; pulse: number }) {
             <div style={{ width: 44, height: 44, borderRadius: 22, background: d.color + '29', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Glyph path={d.path} size={26} color={d.color} stroke />
             </div>
-            <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 28, color: C.ink }}>{title}</span>
+            <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 36, color: C.ink }}>{title}</span>
           </div>
         );
       })}
@@ -261,8 +261,8 @@ function Runs({ frame }: { frame: number }) {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 16 }}>
-              <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 34, color: C.ink }}>{name}</span>
-              <span style={{ fontFamily: F.mono, fontSize: 24, color: C.muted }}>{what}</span>
+              <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 42, color: C.ink }}>{name}</span>
+              <span style={{ fontFamily: F.mono, fontSize: 28, color: C.muted }}>{what}</span>
               <div style={{ flex: 1 }} />
               <div style={{ transform: `scale(${done ? pop(frame, IMPLEMENT + 54 + delay, true) : 0})` }}>
                 <Glyph path="M5 12l5 5L20 7" size={40} color={C.ok} stroke />
@@ -435,8 +435,12 @@ function Chips({ frame }: { frame: number }) {
   );
 }
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [[86, 40], [176, 30], [282, 45], [394, 30], [446, 40]];
+export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
+
 export function Layers() {
-  const frame = useCurrentFrame();
+  const frame = dwell(useCurrentFrame(), DWELLS);
   const tilt = ramp(frame, TILT, 40, Easing.inOut(Easing.cubic));
   const drift = ramp(frame, TILT, LAYERS_FRAMES - TILT, Easing.linear);
   const rx = 58 * tilt;
@@ -484,10 +488,10 @@ export function Layers() {
       <Chips frame={frame} />
       <Finger x={fx} y={fy} opacity={fingerIn} pressed={pressed} />
 
-      <Headline frame={frame} from={0} to={98} tag="One feed" color={C.accent} text="Every project. One feed." sub="Ranked by what matters most." />
-      <Headline frame={frame} from={100} to={184} tag="Attention" color={LAYERS.attention.ink} text="Only what you approve counts." />
-      <Headline frame={frame} from={188} to={288} tag="Understanding" color={LAYERS.understanding.ink} text="Every project, understood." sub="A knowledge graph, checked on every change." />
-      <Headline frame={frame} from={292} to={CLOSE - 2} tag="Implementation" color={LAYERS.implementation.ink} text="Work arrives whole." sub="Planned, built and validated, then landed." />
+      <Headline frame={frame} from={0} to={106} tag="One feed" color={C.accent} text="Every project. One feed." sub="Ranked by what matters most." />
+      <Headline frame={frame} from={106} to={192} tag="Attention" color={LAYERS.attention.ink} text="Only what you approve counts." />
+      <Headline frame={frame} from={194} to={302} tag="Understanding" color={LAYERS.understanding.ink} text="Every project, understood." sub="A knowledge graph, checked on every change." />
+      <Headline frame={frame} from={304} to={CLOSE} tag="Implementation" color={LAYERS.implementation.ink} text="Work arrives whole." sub="Claude Code plans, builds and validates it." />
       <Closing frame={frame} />
     </AbsoluteFill>
   );

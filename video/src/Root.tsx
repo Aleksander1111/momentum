@@ -1,27 +1,29 @@
 import { Composition } from 'remotion';
 import { FPS } from './kit/motion.ts';
 import { Momentum, MOMENTUM_FRAMES } from './Momentum.tsx';
-import { Layers, LAYERS_FRAMES } from './scenes/Layers.tsx';
-import { Swipe, SWIPE_FRAMES } from './scenes/Swipe.tsx';
-import { Loop, LOOP_FRAMES } from './scenes/Loop.tsx';
-import { Graph, GRAPH_FRAMES } from './scenes/Graph.tsx';
-import { Schedule, SCHEDULE_FRAMES } from './scenes/Schedule.tsx';
-import { Learn, LEARN_FRAMES } from './scenes/Learn.tsx';
-import { Measure, MEASURE_FRAMES } from './scenes/Measure.tsx';
-import { Resolve, RESOLVE_FRAMES } from './scenes/Resolve.tsx';
-import { Line, LINE_FRAMES } from './scenes/Line.tsx';
+import { Hook, HOOK_LENGTH } from './scenes/Hook.tsx';
+import { Layers, LAYERS_LENGTH } from './scenes/Layers.tsx';
+import { Swipe, SWIPE_LENGTH } from './scenes/Swipe.tsx';
+import { Loop, LOOP_LENGTH } from './scenes/Loop.tsx';
+import { Graph, GRAPH_LENGTH } from './scenes/Graph.tsx';
+import { Schedule, SCHEDULE_LENGTH } from './scenes/Schedule.tsx';
+import { Learn, LEARN_LENGTH } from './scenes/Learn.tsx';
+import { Measure, MEASURE_LENGTH } from './scenes/Measure.tsx';
+import { Resolve, RESOLVE_LENGTH } from './scenes/Resolve.tsx';
+import { Line, LINE_LENGTH } from './scenes/Line.tsx';
 
 const SCENES = [
   { id: 'Momentum', component: Momentum, frames: MOMENTUM_FRAMES },
-  { id: 'Layers', component: Layers, frames: LAYERS_FRAMES },
-  { id: 'Swipe', component: Swipe, frames: SWIPE_FRAMES },
-  { id: 'Loop', component: Loop, frames: LOOP_FRAMES },
-  { id: 'Graph', component: Graph, frames: GRAPH_FRAMES },
-  { id: 'Schedule', component: Schedule, frames: SCHEDULE_FRAMES },
-  { id: 'Learn', component: Learn, frames: LEARN_FRAMES },
-  { id: 'Measure', component: Measure, frames: MEASURE_FRAMES },
-  { id: 'Resolve', component: Resolve, frames: RESOLVE_FRAMES },
-  { id: 'Line', component: Line, frames: LINE_FRAMES },
+  { id: 'Hook', component: Hook, frames: HOOK_LENGTH },
+  { id: 'Layers', component: Layers, frames: LAYERS_LENGTH },
+  { id: 'Swipe', component: Swipe, frames: SWIPE_LENGTH },
+  { id: 'Loop', component: Loop, frames: LOOP_LENGTH },
+  { id: 'Graph', component: Graph, frames: GRAPH_LENGTH },
+  { id: 'Schedule', component: Schedule, frames: SCHEDULE_LENGTH },
+  { id: 'Learn', component: Learn, frames: LEARN_LENGTH },
+  { id: 'Measure', component: Measure, frames: MEASURE_LENGTH },
+  { id: 'Resolve', component: Resolve, frames: RESOLVE_LENGTH },
+  { id: 'Line', component: Line, frames: LINE_LENGTH },
 ];
 
 export function Root() {

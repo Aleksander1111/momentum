@@ -6,7 +6,7 @@ import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { Backdrop, Headline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, LAYERS, PARTS, type Layer } from '../kit/theme.ts';
-import { mix, pop, ramp } from '../kit/motion.ts';
+import { type Dwell, dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
 
 export const LOOP_FRAMES = 450;
 
@@ -111,7 +111,8 @@ function Station({ i, at, f }: { i: number; at: number; f: number }) {
       >
         <Glyph path={s.glyph} size={48} color={active > 0.5 ? '#fff' : l.ink} stroke={!s.filled} />
       </div>
-      <div style={{ marginTop: 14, fontFamily: F.head, fontWeight: 700, fontSize: 30, color: C.ink, whiteSpace: 'nowrap' }}>{s.name}</div>
+      {/* Names at the back of the ring would crowd the ones in front: they show from the sides forward */}
+      <div style={{ marginTop: 14, fontFamily: F.head, fontWeight: 700, fontSize: 30, color: C.ink, whiteSpace: 'nowrap', opacity: ramp(depth, 0.3, 0.25) }}>{s.name}</div>
       <div style={{ marginTop: 4, fontFamily: F.body, fontSize: 24, color: l.ink, whiteSpace: 'nowrap', opacity: active }}>{s.sub}</div>
     </div>
   );
@@ -168,8 +169,12 @@ function Tokens({ f }: { f: number }) {
   );
 }
 
+/** Reading time, where each beat has settled */
+const DWELLS: Dwell[] = [...Array.from({ length: N }, (_, k): Dwell => [START + k * BEAT + 4, 22]), [400, 30]];
+export const LOOP_LENGTH = dwelt(LOOP_FRAMES, DWELLS);
+
 export function Loop() {
-  const f = useCurrentFrame();
+  const f = dwell(useCurrentFrame(), DWELLS);
   const at = front(f);
   // The phone's feed: the card lands when the feed comes to the front, you approve it next, then cards pour in
   const feedBeat = START + 6 * BEAT;
