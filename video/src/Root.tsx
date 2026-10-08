@@ -1,7 +1,7 @@
 import { Composition } from 'remotion';
-import { Harness } from './Harness.tsx';
-import { FPS, TOTAL_FRAMES } from './scenes.ts';
+import { FPS } from './kit/motion.ts';
+import { Layers, LAYERS_FRAMES } from './scenes/Layers.tsx';
 
 export function Root() {
-  return <Composition id="Harness" component={Harness} durationInFrames={TOTAL_FRAMES} fps={FPS} width={1920} height={1080} />;
+  return <Composition id="Layers" component={Layers} durationInFrames={LAYERS_FRAMES} fps={FPS} width={1920} height={1080} />;
 }
