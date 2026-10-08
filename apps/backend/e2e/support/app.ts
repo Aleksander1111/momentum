@@ -119,8 +119,8 @@ export class App {
     return top.title;
   }
 
-  private async swipe(title: string, dx: number): Promise<void> {
-    await pace('action', `Swipe "${title}" ${dx > 0 ? 'right' : 'left'}`);
+  private async swipe(title: string, dx: number, dy = 0): Promise<void> {
+    await pace('action', `Swipe "${title}" ${dy < 0 ? 'up' : dx > 0 ? 'right' : 'left'}`);
     const box = await this.text(title).boundingBox();
     if (!box) throw new Error(`The card "${title}" is not on screen`);
     const x = box.x + box.width / 2;
@@ -129,7 +129,7 @@ export class App {
     await m.move(x, y);
     await m.down();
     for (let i = 1; i <= 12; i++) {
-      await m.move(x + (dx * i) / 12, y, { steps: 2 });
+      await m.move(x + (dx * i) / 12, y + (dy * i) / 12, { steps: 2 });
       await new Promise((r) => setTimeout(r, 40));
     }
     await m.up();
@@ -242,6 +242,27 @@ export class App {
       return this.text(item.title).isVisible();
     }, 30_000, 1000);
     return item.title;
+  }
+
+  /** Pulls the card on top of the feed up and asks about it in the chat that opens below it; the chat run it starts */
+  async askAboutCard(ws: string, path: string, text: string): Promise<string> {
+    const title = await this.onTop(ws, path);
+    if (!title) throw new Error(`${path} is not on top of the feed: only the card on top opens a chat below it`);
+    const since = new Date();
+    await this.swipe(title, 0, -180);
+    const input = this.frame().getByPlaceholder('Ask about this card');
+    await pace('action', `Ask "${text}"`);
+    await typeInto(input, text);
+    await input.press('Enter');
+    return (await until('the chat on the card', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
+  }
+
+  /** Sends the next message in the chat open below the card on top of the feed */
+  async replyOnCard(text: string): Promise<void> {
+    const input = this.frame().getByPlaceholder('Message', { exact: true });
+    await pace('action', `Reply "${text}"`);
+    await typeInto(input, text);
+    await input.press('Enter');
   }
 
   // Chat

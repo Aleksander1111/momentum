@@ -77,6 +77,7 @@ export const FEATURES = {
   'feed.patterns': 'Ten agreeing reactions on one entity type are proposed as a Harness/Pattern in the feed; the pattern counts only once approved',
   'feed.stale': 'A card that changed after the device showed it is not approved unseen',
   'feed.swipes': "Every reaction is made on the card in the app: a swipe right approves, a swipe left sends back with a comment, an issue's option is picked and swiped, the user's own resolution and won't resolve are written in the sheet",
+  'feed.card-chat': 'A card pulled up opens a chat below it, the whole card in its context and the card as its target; the card waits on top, and the chat closes when the card changes or is reacted to',
   'feed.once': 'The same reaction from two devices, a second tap or a replayed offline swipe acts once; a send back never starts a second chat',
 
   // Knowledge base

@@ -38,11 +38,17 @@ const [HOLIDAYS, RELEASE, REMOTE, USAGE, MEETING, RENAME] = CARDS;
 const OWN = 'Keep both: the README shows the short form, the usage text the long one. Say so in both.';
 const WONT = 'The meeting moved last week; the guide is being rewritten anyway.';
 const COMMENT = 'Too vague: say which command and what it becomes.';
+/** Asked about from the chat below it, after the morning's cards */
+const ASK = { ws: TODO, path: 'Product/DevTask/document-the-config-file', entity: task('Document the config file', [5, 5, 5]) } as const;
+const QUESTION = 'Where does the config file live?';
+const ANSWER = 'It lives at ~/.todo.json.';
+const REWORK = 'Say where it lives on the card.';
+const REWORKED = 'Document the config file at ~/.todo.json.';
 
 // The user goes through the feed on the phone: every reaction is made on the card, none through the API
 scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, app, model, step }) => {
   app.strict = true;
-  const inFeed = async (c: (typeof CARDS)[number]) => (await api.feed()).items.some((i) => i.workspace === c.ws && i.path === c.path);
+  const inFeed = async (c: { ws: string; path: string }) => (await api.feed()).items.some((i) => i.workspace === c.ws && i.path === c.path);
   const gone = (c: (typeof CARDS)[number]) => until(`${c.path} out of the feed`, async () => !(await inFeed(c)), 5 * 60_000);
   // Chats resolving an issue apply the resolution and retire the issue, as the chat definition says
   model.on('resolves the issue', (t) => t.automation === 'chat' && t.kind === 'prompt' && !!t.target?.startsWith('Harness/Issue/'), (t) => [
@@ -133,6 +139,11 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     expect(env.show(MEETING.ws, kg(MEETING.path))).toContain(`wont_resolve: ${WONT}`);
   });
 
+  // The chat on a card answers what it is asked and reworks the card when asked to
+  model.on('answers on the card', (t) => t.automation === 'chat' && t.target === ASK.path && (t.kind === 'prompt' || t.kind === 'message'), (t) =>
+    t.input.includes(REWORK) ? [move.entity(t, ASK.path, { ...ASK.entity, card: REWORKED }), move.say('Done: the card says where it lives.')] : [move.say(ANSWER)],
+  );
+
   await step(4, async () => {
     const chat = await app.sendBack(RENAME.ws, RENAME.path, COMMENT);
     const run = await api.run(chat);
@@ -145,5 +156,29 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     const kinds = events.map((e) => e.kind);
     for (const kind of ['approved', 'sent_back'] as const) expect(kinds).toContain(kind);
     expect(events.filter((e) => e.kind === 'approved').length).toBeGreaterThanOrEqual(2);
+  });
+
+  await step(5, async () => {
+    env.commit(ASK.ws, { [kg(ASK.path)]: entityText(ASK.entity) }, `Add ${ASK.entity.title}`);
+    await until(`${ASK.path} in the feed`, () => inFeed(ASK), 60_000, 500);
+    const before = (await api.feed()).items.find((i) => i.path === ASK.path)!.version;
+    const chat = await app.askAboutCard(ASK.ws, ASK.path, QUESTION);
+    // The chat is on the card, the whole of it in the context of the first message
+    const run = await api.run(chat);
+    expect(run.targetPath).toBe(ASK.path);
+    expect(run.messages[0]!.text).toBe(QUESTION);
+    expect(run.messages[0]!.context).toEqual([{ workspace: ASK.ws, path: ASK.path, title: ASK.entity.title, heading: [] }]);
+    // The answer shows below the card, which waits on top, still to be reacted to
+    await expect(app.text(ANSWER)).toBeVisible({ timeout: 5 * 60_000 });
+    await expect(app.text(ASK.entity.title)).toBeVisible();
+    await expect(app.frame().getByLabel('Close chat')).toBeVisible();
+    expect(await inFeed(ASK)).toBe(true);
+    // Asked to rework it, the chat changes the card: the chat closes and the card shows what changed
+    await app.replyOnCard(REWORK);
+    await until('the reworked card', async () => (await api.feed()).items.find((i) => i.path === ASK.path)?.version !== before, 5 * 60_000);
+    await expect(app.frame().getByLabel('Close chat')).toHaveCount(0, { timeout: 60_000 });
+    await expect(app.text(ASK.entity.title)).toBeVisible();
+    expect(env.show(ASK.ws, kg(ASK.path))).toContain(REWORKED);
+    expect(app.throughApi).toEqual([]);
   });
 });

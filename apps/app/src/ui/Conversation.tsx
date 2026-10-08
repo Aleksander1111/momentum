@@ -25,8 +25,11 @@ function changing(run: RunDetail): boolean {
   return run.turns.some((t) => t.retrievalState === 'pending' && t.endedAt && Date.now() - new Date(t.endedAt).getTime() < RATING_WAIT_MS);
 }
 
-/** Automation, state, what the run has used so far, the card it is about, and Stop while it is active */
-function RunHead({ run, onStop }: { run: RunDetail; onStop: () => Promise<void> }) {
+/**
+ * Automation, state, what the run has used so far, the card it is about, and Stop while it is active; `compact` leaves
+ * out the run's id and the card, for a chat shown below its card
+ */
+function RunHead({ run, onStop, compact }: { run: RunDetail; onStop: () => Promise<void>; compact?: boolean }) {
   const [stopping, setStopping] = useState(false);
   // The time it has been running goes on while nothing else about the run changes
   const [, tick] = useState(0);
@@ -62,8 +65,8 @@ function RunHead({ run, onStop }: { run: RunDetail; onStop: () => Promise<void> 
       />
       <View style={{ flex: 1 }}>
         <T style={{ fontSize: 13.5 }}>{`${automationLabel(run.automation)} · ${state}${usage}`}</T>
-        <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.id}</T>
-        {run.targetPath ? (
+        {compact ? null : <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.id}</T>}
+        {run.targetPath && !compact ? (
           <View style={{ marginTop: 4 }}>
             <EntityRef workspace={run.workspace} path={run.targetPath} title={target.data?.title} size={13} />
           </View>
@@ -118,8 +121,8 @@ function Turns({ run, at }: { run: RunDetail; at: number }) {
   );
 }
 
-/** Run header, messages and the message composer; polls the run while it is active. */
-export function Conversation({ runId }: { runId: string }) {
+/** Run header, messages and the message composer; polls the run while it is active. `compact` keeps the header to a line. */
+export function Conversation({ runId, compact }: { runId: string; compact?: boolean }) {
   const qc = useQueryClient();
   const wide = useWide();
   const scroll = useRef<ScrollView>(null);
@@ -143,6 +146,7 @@ export function Conversation({ runId }: { runId: string }) {
       {run ? (
         <RunHead
           run={run}
+          compact={compact}
           onStop={async () => {
             await api.killRun(runId);
             await qc.invalidateQueries({ queryKey: ['run', runId] });
