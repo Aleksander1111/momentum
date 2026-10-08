@@ -2,11 +2,11 @@
 // same request lights up in each; the three sentences lift out of the screens and merge into one pattern. The change
 // it proposes lands in the feed of the phone in the middle and ripples out to every project at once, each turning
 // over to show its updated definition, while it waits for your swipe.
-import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing } from 'remotion';
 import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, TypePill, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, BottomHeadline, Finger } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LEARN_FRAMES = 450;
@@ -216,14 +216,15 @@ function Tiles({ f }: { f: number }) {
 
 /** The narration: a line per beat */
 export const LEARN_CUES: Cue[] = [
-  { at: 10, hold: 138, text: 'Ask for the same thing again and again, and Momentum proposes making it the rule.' },
+  { at: 10, hold: 128, text: 'You ask for the same thing again and again.' },
+  { at: 142, hold: 236, text: 'Momentum notices, and proposes making it the rule.' },
   { at: 250, hold: 440, text: 'It applies everywhere. You still have the last word.' },
 ];
 const DWELLS = voiceDwells('Learn', LEARN_CUES, LEARN_FRAMES);
 export const LEARN_LENGTH = dwelt(LEARN_FRAMES, DWELLS);
 
 export function Learn() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const recede = ramp(f, LIFT, 36, Easing.inOut(Easing.cubic));
   const sides = ramp(f, INTO - 10, 24, Easing.in(Easing.cubic));
   const front = ramp(f, INTO, 26, Easing.inOut(Easing.cubic));

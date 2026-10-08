@@ -2,11 +2,11 @@
 // around the phone. Each part comes to the front in turn; the feed receives the card, you approve it; then every
 // project's loop spins at once.
 import type { CSSProperties } from 'react';
-import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, LAYERS, PARTS, type Layer } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LOOP_FRAMES = 650;
@@ -172,7 +172,7 @@ function Tokens({ f }: { f: number }) {
 /** The narration: a line per beat */
 export const LOOP_CUES: Cue[] = [
   { at: START, hold: START + BEAT + 20, text: 'Work starts on its own, on a schedule, or when something happens.' },
-  { at: START + 2 * BEAT, hold: START + 3 * BEAT + 20, text: 'It gets done, and written up for you.' },
+  { at: START + BEAT, hold: START + 3 * BEAT + 20, text: 'It gets done, and written up for you.' },
   { at: START + 4 * BEAT, hold: START + 5 * BEAT + 20, text: 'Every change is checked before it counts.' },
   { at: START + 6 * BEAT, hold: START + 7 * BEAT + 20, text: 'Then it reaches you, and you decide.' },
   { at: SPIN, hold: LOOP_FRAMES - 30, text: 'For every project, all at once.' },
@@ -181,7 +181,7 @@ const DWELLS = voiceDwells('Loop', LOOP_CUES, LOOP_FRAMES);
 export const LOOP_LENGTH = dwelt(LOOP_FRAMES, DWELLS);
 
 export function Loop() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const at = front(f);
   // The phone's feed: the card lands when the feed comes to the front, you approve it next, then cards pour in
   const feedBeat = START + 6 * BEAT;

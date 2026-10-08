@@ -3,11 +3,11 @@
 // drop a card on the feed's pile. At the feed's limit the orbit stops and the loops wait, though an event still
 // starts its run; your approvals make room and the day goes on.
 import type { CSSProperties, ReactNode } from 'react';
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { CornerHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const SCHEDULE_FRAMES = 480;
@@ -184,7 +184,7 @@ const DWELLS = voiceDwells('Schedule', SCHEDULE_CUES, SCHEDULE_FRAMES);
 export const SCHEDULE_LENGTH = dwelt(SCHEDULE_FRAMES, DWELLS);
 
 export function Schedule() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const h = hourAt(f);
   // The orbit turns with the day, and stands still while the loops wait
   const still = paused(h) ? ramp(f, frameAt(PAUSE_AT), 10) * (1 - ramp(f, frameAt(APPROVE_AT), 10)) : 0;

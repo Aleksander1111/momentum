@@ -3,12 +3,12 @@
 // crack opens on an extreme close-up of the phone, where the issue's recommended option is picked and swiped; the halves
 // close, the crack zips shut and the two cards agree.
 import type { CSSProperties } from 'react';
-import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing } from 'remotion';
 import { Behind, Counters, FeedCard, PHONE, Phone, SLOT, Stamp, type Entity } from '../kit/app.tsx';
 import { DomainBadge } from '../kit/desktop.tsx';
 import { Backdrop, Finger } from '../kit/stage.tsx';
 import { C, F, LAYERS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, typed, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const RESOLVE_FRAMES = 450;
@@ -154,13 +154,13 @@ function Banner({ f, from, to, text, color }: { f: number; from: number; to: num
 export const RESOLVE_CUES: Cue[] = [
   { at: 30, hold: 112, text: 'When two documents disagree, Momentum notices.' },
   { at: 150, hold: 200, text: 'It suggests a fix, best option first.' },
-  { at: 204, hold: 300, text: 'One swipe, and they agree again.' },
+  { at: 226, hold: 300, text: 'One swipe, and they agree again.' },
 ];
 const DWELLS = voiceDwells('Resolve', RESOLVE_CUES, RESOLVE_FRAMES);
 export const RESOLVE_LENGTH = dwelt(RESOLVE_FRAMES, DWELLS);
 
 export function Resolve() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const drag = ramp(f, SWIPE.drag, SWIPE.release - SWIPE.drag, Easing.inOut(Easing.quad)) * 300;
   const away = ramp(f, SWIPE.release, 16, Easing.in(Easing.cubic));
   const resolved = f >= SWIPE.release + 16;

@@ -1,12 +1,12 @@
 // Scene 9, after the deck's "Settings", and the close: the phone's Settings tune how much reaches you, over giant
 // words; the camera pulls back on a wall of every screen of the app, and the logo.
 import type { ReactNode } from 'react';
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } from '../kit/app.tsx';
 import { Desktop, DomainBadge, StateBadge } from '../kit/desktop.tsx';
 import { Backdrop, Logo } from '../kit/stage.tsx';
 import { C, F, ICONS, PARTS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LINE_FRAMES = 358;
@@ -221,7 +221,7 @@ const DWELLS = voiceDwells('Line', LINE_CUES, LINE_FRAMES);
 export const LINE_LENGTH = dwelt(LINE_FRAMES, DWELLS);
 
 export function Line() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   // The phone with its Settings, then gone into the wall
   const away = ramp(f, WALL - 24, 26, Easing.in(Easing.cubic));
   const scale = mix(pop(f, 0), 0.9, 1) * mix(away, 1, 0.3);

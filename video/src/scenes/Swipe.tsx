@@ -1,10 +1,10 @@
 // Scene 2, after the deck's "Mobile App" and "User actions": a swipe right approves and lands one commit, a swipe left
 // sends a card back for rework with a comment, a pull up opens a chat on the card.
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Bubble, Button, Counters, FeedCard, Glyph, PHONE, Phone, SLOT, Sheet, Stamp, StateIcon, type Entity } from '../kit/app.tsx';
 import { Backdrop, Finger } from '../kit/stage.tsx';
 import { C, F, ICONS, LAYERS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, typed, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const SWIPE_FRAMES = 540;
@@ -49,7 +49,7 @@ const DWELLS = voiceDwells('Swipe', SWIPE_CUES, SWIPE_FRAMES);
 export const SWIPE_LENGTH = dwelt(SWIPE_FRAMES, DWELLS);
 
 export function Swipe() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const enter = pop(f, 0);
 
   // Approve: dragged right, then drawn into its commit on the main line

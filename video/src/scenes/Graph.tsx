@@ -2,12 +2,12 @@
 // repository's files; they burst out of the screen and gather into a graph of cards floating over it, which turns
 // to show each card's type, then drops back into the Explorer's tree. The camera dives into one card, where approval
 // verifies it and a rewrite asks again.
-import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing } from 'remotion';
 import { Glyph, TypePill } from '../kit/app.tsx';
 import { Desktop, DomainBadge, StateBadge, WINDOW } from '../kit/desktop.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, F, ICONS, domainOf } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp, typed } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, typed, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const GRAPH_FRAMES = 600;
@@ -75,7 +75,7 @@ const DWELLS = voiceDwells('Graph', GRAPH_CUES, GRAPH_FRAMES);
 export const GRAPH_LENGTH = dwelt(GRAPH_FRAMES, DWELLS);
 
 export function Graph() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const enter = pop(f, 0);
   // The window leans back into a table under the floating graph, then rises again to take the cards in
   const lean = ramp(f, BURST - 6, 30, Easing.inOut(Easing.cubic)) * (1 - ramp(f, HOME - 34, 30, Easing.inOut(Easing.cubic)));

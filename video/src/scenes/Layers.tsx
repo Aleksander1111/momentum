@@ -2,11 +2,11 @@
 // is approved, the phone tilts onto the knowledge graph (understanding) and the runs below it (implementation), whose
 // work rises through the guard and lands back in the feed as one card.
 import type { CSSProperties, ReactNode } from 'react';
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, Finger, Headline, Logo } from '../kit/stage.tsx';
 import { C, F, LAYERS, PARTS, domainOf, type Layer } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LAYERS_FRAMES = 490;
@@ -450,7 +450,7 @@ const DWELLS = voiceDwells('Layers', LAYERS_CUES, LAYERS_FRAMES);
 export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
 
 export function Layers() {
-  const frame = dwell(useCurrentFrame(), DWELLS);
+  const frame = useSceneFrame(DWELLS);
   const tilt = ramp(frame, TILT, 56, Easing.bezier(0.45, 0, 0.2, 1));
   const drift = ramp(frame, TILT, LAYERS_FRAMES - TILT, Easing.linear);
   const rx = 58 * tilt;

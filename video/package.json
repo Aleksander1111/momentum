@@ -12,7 +12,8 @@
     "music": "tsx scripts/music.ts",
     "voice": "tsx scripts/voice.ts",
     "audit": "tsx scripts/audit.ts",
-    "review": "tsx scripts/review.ts"
+    "review": "tsx scripts/review.ts",
+    "stillness": "tsx scripts/stillness.ts"
   },
   "dependencies": {
     "@remotion/cli": "4.0.534",

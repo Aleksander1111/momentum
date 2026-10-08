@@ -3,11 +3,11 @@
 // find it in the feed. Then the repository rises beside the phone as a city of its areas, each block standing up as
 // the graph accounts for it, while the phone's Settings measure the graph to 100%.
 import type { CSSProperties } from 'react';
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } from '../kit/app.tsx';
 import { Backdrop, CornerHeadline } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const MEASURE_FRAMES = 472;
@@ -230,14 +230,14 @@ function Giant({ f, from, to, text, color, top = 420 }: { f: number; from: numbe
 
 /** The narration: a line per beat */
 export const MEASURE_CUES: Cue[] = [
-  { at: 8, hold: 210, text: 'When work is finished, you read one card, not a pile of changes.' },
+  { at: 64, hold: 210, text: 'When work is finished, you read one card, not a pile of changes.' },
   { at: 236, hold: 460, text: 'And you see how well each project is understood.' },
 ];
 const DWELLS = voiceDwells('Measure', MEASURE_CUES, MEASURE_FRAMES);
 export const MEASURE_LENGTH = dwelt(MEASURE_FRAMES, DWELLS);
 
 export function Measure() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const enter = pop(f, 0);
   // The camera: into the phone's screen, then back out, then the phone steps aside for the city
   const dive = ramp(f, DIVE.from, DIVE.to - DIVE.from, Easing.inOut(Easing.cubic)) * (1 - ramp(f, OUT.from, OUT.to - OUT.from, Easing.inOut(Easing.cubic)));

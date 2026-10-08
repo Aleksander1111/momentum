@@ -47,7 +47,13 @@ const prompt = `You are a senior motion designer and sound editor reviewing a ma
 for a person who runs many projects: everything that needs their decision comes to one feed, AI does the work, and
 they approve with a swipe. The audience is that person, not developers.
 
-Watch and listen to the whole video. List every moment that feels or sounds unnatural to a viewer: the voice (pace,
+Watch and listen to the whole video. Look hardest at three things a viewer has already complained about:
+1. Strange slowdowns: motion that drags or decelerates for no visible reason, a scene that seems to stall.
+2. Animations that are not executed correctly: elements that jump, pop, overlap, flicker, freeze, or end in the wrong
+   place; a move that starts or stops abruptly.
+3. The voice out of step with the picture: a line that describes something before it appears, after it has gone, or
+   while something else is on screen.
+Then list every other moment that feels or sounds unnatural to a viewer: the voice (pace,
 intonation, pauses, emphasis, joins between sentences), the music (repetition, mood, level against the voice), the
 motion (speed, easing, holds that look frozen or rushed, anything that moves mechanically), the edit (transitions,
 scene length, how long text stays to be read), and anything hard to read or understand.
@@ -56,7 +62,7 @@ Its scenes start at:
 ${scenes}
 
 Be specific and critical; skip praise. Answer as JSON only: an array of
-{ "time": seconds, "scene": name, "kind": "voice" | "music" | "motion" | "edit" | "text", "severity": 1-3, "issue": "...", "fix": "..." },
+{ "time": seconds, "scene": name, "kind": "slowdown" | "animation" | "sync" | "voice" | "music" | "motion" | "edit" | "text", "severity": 1-3, "issue": "...", "fix": "..." },
 most severe first.`;
 
 // The upload is not kept, whatever the review's outcome

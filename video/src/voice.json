@@ -193,12 +193,18 @@
   },
   "Learn-0": {
     "file": "Learn-0.wav",
-    "frames": 137,
-    "text": "Ask for the same thing again and again, and Momentum proposes making it the rule.",
+    "frames": 67,
+    "text": "You ask for the same thing again and again.",
     "voice": "af_heart@0.95/take"
   },
   "Learn-1": {
     "file": "Learn-1.wav",
+    "frames": 87,
+    "text": "Momentum notices, and proposes making it the rule.",
+    "voice": "af_heart@0.95/take"
+  },
+  "Learn-2": {
+    "file": "Learn-2.wav",
     "frames": 91,
     "text": "It applies everywhere. You still have the last word.",
     "voice": "af_heart@0.95/take"

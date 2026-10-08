@@ -2,11 +2,11 @@
 // the frame and the count of the day runs into the thousands; then all of it is drawn into one point, the place the
 // next scene opens as the feed.
 import type { ReactNode } from 'react';
-import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing } from 'remotion';
 import { Glyph, ProjectMark, type Project } from '../kit/app.tsx';
 import { Backdrop } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
-import { dwell, dwelt, mix, pop, ramp } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const HOOK_FRAMES = 240;
@@ -112,7 +112,7 @@ const DWELLS = voiceDwells('Hook', HOOK_CUES, HOOK_FRAMES);
 export const HOOK_LENGTH = dwelt(HOOK_FRAMES, DWELLS);
 
 export function Hook() {
-  const f = dwell(useCurrentFrame(), DWELLS);
+  const f = useSceneFrame(DWELLS);
   const count = Math.round(1284 * ramp(f, 6, PULL - 6, Easing.in(Easing.quad)));
   const projects = Math.min(PROJECTS.length, 1 + Math.floor(f / 10));
   const counterOut = ramp(f, PULL, 14);
