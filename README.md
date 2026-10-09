@@ -343,4 +343,4 @@ Momentum works on one straight line: no branches, no merges, in this repository 
 
 ## License
 
-No license has been chosen yet. All rights reserved.
+Momentum is licensed under the [Apache License 2.0](LICENSE).
