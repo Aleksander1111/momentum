@@ -236,8 +236,9 @@ const RUNS: [string, string, number][] = [
   ['Done', 'built and tested', 8],
   ['Checked', 'all 14 checks pass', 16],
 ];
-// Clear of the layer above, which overlaps this one's top edge once the stack is seen whole
-const RUN_Y = (i: number) => 430 + i * 165;
+// Clear of the layer above, which overlaps this one's top edge once the stack is seen whole, and well in from the
+// layer's other edges
+const RUN_Y = (i: number) => 400 + i * 140;
 
 function Runs({ frame }: { frame: number }) {
   return (
@@ -251,9 +252,9 @@ function Runs({ frame }: { frame: number }) {
             key={name}
             style={{
               position: 'absolute',
-              left: 90,
+              left: 130,
               top: RUN_Y(i),
-              width: 760,
+              width: 680,
               opacity: shown,
               transform: `translateX(${-40 * (1 - shown)}px)`,
               background: C.surface,
@@ -405,23 +406,36 @@ function Feed({ frame }: { frame: number }) {
 /** Where the phone's screen starts on the frame while the stack is flat */
 const SCREEN_ORIGIN = { x: STAGE.x - PHONE.w / 2 + 14, y: STAGE.y - PHONE.h / 2 + 14 };
 
+/** Each chip's place on the attention layer once it is there, in the layer's own pixels */
+const RESTS: [number, number][] = [
+  [810, 560],
+  [810, 820],
+  [810, 120],
+  [140, 120],
+];
+
+/** The projects around the phone: on its layer, so they stay beside it as the stack turns, and never over another */
 function Chips({ frame }: { frame: number }) {
-  // Each chip leaves as the feed takes over, unhurried
-  const out = ramp(frame, 80, 22, Easing.inOut(Easing.cubic));
+  // They make room as the attention layer appears under the phone
+  const settle = ramp(frame, APPROVE.show - 6, 30, Easing.inOut(Easing.cubic));
   return (
     <>
       {INCOMING.map((e, i) => {
         const t = pop(frame, 2 + i * 4, true);
+        // Where it rests on the layer: clear of the phone and of the layer's name
+        const [rx, ry] = RESTS[i]!;
+        const x = mix(settle, e.chip[0] - (STAGE.x - P / 2), rx);
+        const y = mix(settle, e.chip[1] - (STAGE.y - P / 2), ry);
         const sent = 1 + 0.15 * Math.sin(Math.PI * ramp(frame, LAND(i), 10));
         return (
           <div
             key={e.project.name}
             style={{
               position: 'absolute',
-              left: e.chip[0],
-              top: e.chip[1],
-              transform: `translate(-50%,-50%) scale(${t * sent * mix(out, 1, 0.7)})`,
-              opacity: 1 - out,
+              left: x,
+              top: y,
+              whiteSpace: 'nowrap',
+              transform: `translate(-50%,-50%) translateZ(8px) scale(${t * sent})`,
               display: 'flex',
               alignItems: 'center',
               gap: 12,
@@ -512,9 +526,11 @@ export function Layers() {
           <Phone style={{ left: (P - PHONE.w) / 2, top: (P - PHONE.h) / 2, transform: 'translateZ(8px)', opacity: focus, boxShadow: tilt > 0 ? `0 ${40 * (1 - tilt)}px ${80 * (1 - tilt) + 20}px rgba(30,41,59,.3)` : undefined }}>
             <Feed frame={frame} />
           </Phone>
+          <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', opacity: focus }}>
+            <Chips frame={frame} />
+          </div>
         </div>
       </AbsoluteFill>
-      <Chips frame={frame} />
       <Finger x={fx} y={fy} opacity={fingerIn} pressed={pressed} />
 
       <Headline frame={frame} from={0} to={APPROVE.show + 6} tag="One feed" color={C.accent} text="Every project. One feed." sub="Ranked by what matters most." />

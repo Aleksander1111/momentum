@@ -133,7 +133,7 @@ function Satellite({ f, i, angle, rz, still }: { f: number; i: number; angle: nu
 function Drops({ f, angleOf }: { f: number; angleOf: (i: number) => number }) {
   return (
     <>
-      {FIRED.filter((r) => r.card).map((r) => {
+      {FIRED.filter((r) => r.card).map((r, k) => {
         const t = ramp(f, frameAt(r.hour), 16, Easing.inOut(Easing.cubic));
         if (t <= 0 || t >= 1) return null;
         const a = angleOf(r.i);
@@ -143,7 +143,9 @@ function Drops({ f, angleOf }: { f: number; angleOf: (i: number) => number }) {
           <div
             key={`${r.auto}${r.hour}`}
             style={{ position: 'absolute', left: x - 90, top: y - 120, width: 180, height: 240, borderRadius: 14, background: C.surface, border: `3px solid ${C.ok}`, transform: `translateZ(${120 + 300 * Math.sin(Math.PI * t)}px) rotateZ(${40 * (1 - t)}deg)`, boxShadow: '0 20px 30px rgba(30,41,59,.2)' }}
-          />
+          >
+            <Face e={cardOf(k)} />
+          </div>
         );
       })}
     </>
