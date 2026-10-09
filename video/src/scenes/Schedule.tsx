@@ -4,13 +4,13 @@
 // starts its run; your approvals make room and the day goes on.
 import type { CSSProperties, ReactNode } from 'react';
 import { AbsoluteFill, Easing, interpolate } from 'remotion';
-import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
+import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, Stamp, TypePill, type Entity } from '../kit/app.tsx';
 import { CornerHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, useDrift, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const SCHEDULE_FRAMES = 480;
+export const SCHEDULE_FRAMES = 510;
 
 const GLYPH = {
   exploration: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z',
@@ -151,6 +151,23 @@ function Drops({ f, angleOf }: { f: number; angleOf: (i: number) => number }) {
 }
 
 /** The feed's cards as a pile on the desk, a sheet per card, swept off as you approve them */
+/** A card on the pile as it lies face up: what it is and what it is about */
+function Face({ e }: { e: Entity }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <TypePill type={e.type} size={11} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: F.body, fontWeight: 700, fontSize: 13, color: C.muted }}>
+        <ProjectMark project={e.project} size={16} />
+        {e.project.name}
+      </div>
+      <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 17, lineHeight: 1.15, color: C.ink, overflowWrap: 'anywhere' }}>{e.title}</div>
+      {[0.9, 0.75, 0.82].map((w, i) => (
+        <div key={i} style={{ height: 7, width: `${w * 100}%`, borderRadius: 4, background: C.line }} />
+      ))}
+    </div>
+  );
+}
+
 function Pile({ f, rz }: { f: number; rz: number }) {
   const h = hourAt(f);
   const n = feedSize(h);
@@ -162,12 +179,15 @@ function Pile({ f, rz }: { f: number; rz: number }) {
   return (
     <>
       {Array.from({ length: sheets }, (_, k) => (
-        <div key={k} style={{ ...sheet(k), background: k % 2 ? C.surface : C.behind1, transform: `translateZ(${k * SHEET}px) rotateZ(${((k * 37) % 9) - 4}deg)`, boxShadow: k === 0 ? '0 30px 40px rgba(30,41,59,.25)' : undefined }} />
+        <div key={k} style={{ ...sheet(k), background: k === sheets - 1 || k % 2 ? C.surface : C.behind1, transform: `translateZ(${k * SHEET}px) rotateZ(${((k * 37) % 9) - 4}deg)`, boxShadow: k === 0 ? '0 30px 40px rgba(30,41,59,.25)' : undefined }}>
+          {k === sheets - 1 ? <Face e={cardOf(k)} /> : null}
+        </div>
       ))}
       {sweeping
         ? sweep.map((t, k) => (
             <div key={`a${k}`} style={{ ...sheet(k), background: C.surface, border: `2px solid ${C.ok}`, transform: `translateZ(${(LIMIT - 1 - k) * SHEET + 200 * t}px) translateX(${700 * t}px) rotateZ(${30 * t}deg)`, opacity: 1 - t }}>
-              <Stamp kind="ok" label="APPROVE" style={{ left: 14, top: 96 }} />
+              <Face e={cardOf(LIMIT - 1 - k)} />
+              <Stamp kind="ok" label="APPROVE" style={{ left: 14, top: 150 }} />
             </div>
           ))
         : null}

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } from '../kit/app.tsx';
 import { Desktop, DomainBadge, StateBadge } from '../kit/desktop.tsx';
-import { Backdrop, Logo } from '../kit/stage.tsx';
+import { Backdrop, Logo, TopHeadline } from '../kit/stage.tsx';
 import { C, F, ICONS, PARTS } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, useDrift, Voice, voiceDwells } from '../kit/voice.tsx';
@@ -106,17 +106,6 @@ function Tuned({ f }: { f: number }) {
         );
       })}
     </>
-  );
-}
-
-/** Giant words behind the phone */
-function Giant({ f, from, to, text }: { f: number; from: number; to: number; text: string }) {
-  if (f < from || f > to) return null;
-  const t = ramp(f, from, 18, Easing.out(Easing.cubic)) * (1 - ramp(f, to - 12, 12));
-  return (
-    <div style={{ position: 'absolute', left: 0, right: 0, top: 330, textAlign: 'center', fontFamily: F.head, fontWeight: 700, fontSize: 260, letterSpacing: -4, color: 'rgba(47,62,70,.13)', opacity: t, transform: `scale(${mix(t, 1.15, 1)})`, whiteSpace: 'nowrap' }}>
-      {text}
-    </div>
   );
 }
 
@@ -230,16 +219,17 @@ export function Line() {
     <AbsoluteFill>
       <Voice scene="Line" cues={LINE_CUES} dwells={DWELLS} />
       <Backdrop />
-      <Giant f={f} from={SETTINGS} to={WALL} text="Tuned to you." />
       <Wall f={f} drift={drift} />
       {away < 1 ? (
         <Phone
           tab={null}
           screen={<SettingsScreen f={f} />}
-          style={{ left: 960 - PHONE.w / 2, top: 540 - PHONE.h / 2, opacity: pop(f, 0) * (1 - away), transform: `perspective(2000px) rotateY(-6deg) scale(${scale})` }}
+          style={{ left: 960 - PHONE.w / 2, top: 540 - PHONE.h / 2, opacity: pop(f, 0) * (1 - away), transform: `translateY(56px) perspective(2000px) rotateY(-6deg) scale(${0.8 * scale})` }}
         />
       ) : null}
       <Tuned f={f} />
+      {/* Above the phone, never behind it */}
+      <TopHeadline frame={f} from={SETTINGS} to={WALL} tag="Settings" color={C.accent} text="Tuned to you." />
       <Closing f={f} />
       {/* The scene's own captions */}
       {f >= SETTINGS && f < WALL ? (

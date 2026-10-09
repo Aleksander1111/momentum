@@ -785,67 +785,73 @@ function entityTypes() {
 // The trigger entities of automations/*/trigger.md
 function triggers() {
   let g = '';
-  // the day: schedules
-  g += caption(70, 62, 'Schedule', 'cron, in each trigger entity', { size: 30, fill: C.ok });
-  const X0 = 360, X1 = 1840, hx = (t) => X0 + ((X1 - X0) * t) / 24;
-  const lanes = [
-    ['Exploration', 'FaCompass', 'every 2 hours', Array.from({ length: 12 }, (_, i) => i * 2)],
-    ['Preparation', 'FaListCheck', 'every 2 hours, at half past', Array.from({ length: 12 }, (_, i) => i * 2 + 0.5)],
-    ['Validation', 'FaFlaskVial', '02:00', [2]],
-    ['Consistency check', 'FaScaleBalanced', '03:00', [3]],
-    ['Retention', 'FaBroom', '04:00', [4]],
-    ['Optimization', 'FaWandMagicSparkles', '05:00', [5]],
-  ];
-  for (let t = 0; t <= 24; t += 2) {
-    g += line(hx(t), 100, hx(t), 100 + lanes.length * 46 + 6, { stroke: C.line, sw: 1.5 });
-    g += text(hx(t), 96, `${String(t).padStart(2, '0')}:00`, { size: 15, anchor: 'middle', fill: C.muted });
-  }
-  lanes.forEach(([name, ic, when, at], i) => {
-    const y = 130 + i * 46;
-    g += iconAt(ic, 86, y, 24, C.ok) + text(110, y + 7, name, { size: 20, bold: true });
-    g += line(X0, y, X1, y, { stroke: C.bar, sw: 2 });
-    at.forEach((t) => (g += circle(hx(t), y, 9, { fill: C.ok, stroke: C.white, sw: 2.5 })));
-    if (at.length === 1) g += text(hx(at[0]) + 20, y + 6, when, { size: 17, fill: C.muted, italic: true });
-  });
+  // the schedules, read from automations/<name>/trigger.md, in a band across the top
+  const cronOf = (slug) => {
+    const m = source(`automations/${slug}/trigger.md`).match(/^schedule:\s*"([^"]+)"/m);
+    if (!m) throw new Error(`automations/${slug}/trigger.md has no schedule`);
+    return m[1];
+  };
+  const scheduled = (x, y, layer, ic, name, sub, slug) => {
+    const r = 48, bx = x + r * 0.74, by = y - r * 0.74;
+    return medallion(x, y, r, layer, ic) + circle(bx, by, 18, { fill: C.ochre, stroke: C.white, sw: 3 }) + iconAt('FaClock', bx, by, 18, C.white) +
+      text(x, y + r + 34, name, { head: true, bold: true, size: 20, anchor: 'middle' }) +
+      text(x, y + r + 60, sub, { size: 18, anchor: 'middle', fill: C.muted }) +
+      pill(x, y + r + 94, cronOf(slug), { color: C.muted, size: 15, italic: false });
+  };
+  g += rect(60, 30, 1800, 380, { r: 22, fill: C.paper });
+  g += caption(100, 86, 'Every two hours', 'around the clock', { size: 26, fill: C.ok });
+  g += scheduled(200, 200, LAYER.prod, 'FaCompass', 'Exploration', 'on the hour', 'exploration');
+  g += scheduled(520, 200, LAYER.prod, 'FaListCheck', 'Preparation', 'at half past', 'preparation');
+  g += line(268, 200, 452, 200, { stroke: C.muted, sw: 4, head: 'muted' });
+  g += line(720, 60, 720, 380, { stroke: C.white, sw: 3 });
+  g += caption(760, 86, 'Every night', 'one after another', { size: 26, fill: C.ok });
+  [['Validation', 'FaFlaskVial', '02:00', LAYER.kn, 'validation'], ['Consistency check', 'FaScaleBalanced', '03:00', LAYER.prod, 'consistency-check'],
+    ['Retention', 'FaBroom', '04:00', LAYER.prod, 'retention'], ['Optimization', 'FaWandMagicSparkles', '05:00', LAYER.prod, 'optimization']]
+    .forEach(([name, ic, time, layer, slug], i) => {
+      const x = 860 + i * 300;
+      g += scheduled(x, 200, layer, ic, name, time, slug);
+      if (i < 3) g += line(x + 68, 200, x + 232, 200, { stroke: C.muted, sw: 4, head: 'muted' });
+    });
 
   // events
-  const ey = 470;
+  const ey = 490;
   g += caption(70, ey, 'Events', 'one run starts the next', { size: 30, fill: C.ochre });
   const chain = (y, from, fromIc, ev, to, toIc) => {
     let s = pod(70, y, 300, 60, from, fromIc, LAYER.ink, { size: 18 });
     s += line(380, y + 30, 560, y + 30, { stroke: C.ochre, sw: 4, head: 'kn' }) + pill(470, y + 30 - 24, ev, { color: C.ochre, size: 15 });
     return s + pod(570, y, 260, 60, to, toIc, LAYER.kn, { size: 18 });
   };
-  g += chain(ey + 40, 'Approved, unimplemented', 'FaHandPointer', 'entity_ahead', 'Implementation', 'FaCode');
-  g += chain(ey + 120, 'Implementation finished', 'FaCodeCommit', 'implementation_finished', 'Validation', 'FaFlaskVial');
+  g += chain(ey + 50, 'Approved, unimplemented', 'FaHandPointer', 'entity_ahead', 'Implementation', 'FaCode');
+  g += chain(ey + 130, 'Implementation finished', 'FaCodeCommit', 'implementation_finished', 'Validation', 'FaFlaskVial');
 
   // on demand
-  g += caption(70, ey + 250, 'On demand', 'a trigger with on_demand · chat, interview on demand only', { size: 30, fill: C.red });
-  g += pod(70, ey + 290, 300, 60, 'Run on demand', 'FaPlay', LAYER.att, { size: 18 });
-  g += pod(400, ey + 290, 220, 60, 'Chat', 'FaComments', LAYER.att, { size: 18 });
+  g += caption(70, ey + 260, 'On demand', 'a trigger with on_demand · chat, interview on demand only', { size: 30, fill: C.red });
+  g += pod(70, ey + 300, 300, 60, 'Run on demand', 'FaPlay', LAYER.att, { size: 18 });
+  g += pod(400, ey + 300, 220, 60, 'Chat', 'FaComments', LAYER.att, { size: 18 });
 
   // the trigger entity
-  const cx = 960, cy = 440, cw = 460;
-  g += rect(cx, cy, cw, 300, { r: 18, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
-  g += text(cx + 24, cy + 40, 'HARNESS / TRIGGER', { size: 13, bold: true, fill: C.accent, spacing: 2 });
-  g += text(cx + 24, cy + 80, 'Consistency check trigger', { head: true, bold: true, size: 24 });
-  [['automation', 'consistency-check'], ['schedule', '"0 3 * * *"'], ['events', '[]'], ['on_demand', 'true']].forEach(([k, v], i) => {
-    const y = cy + 130 + i * 36;
-    g += text(cx + 24, y, `${k}:`, { size: 19, fill: C.muted }) + text(cx + 170, y, v, { size: 19, bold: true });
+  const cx = 920, cy = ey - 26, cw = 480;
+  g += rect(cx, cy, cw, 336, { r: 18, fill: C.white, stroke: C.line, sw: 1.5, shadow: true });
+  g += text(cx + 28, cy + 44, 'HARNESS / TRIGGER', { size: 13, bold: true, fill: C.accent, spacing: 2 });
+  g += text(cx + 28, cy + 84, 'Consistency check trigger', { head: true, bold: true, size: 24 });
+  [['automation', 'consistency-check'], ['schedule', `"${cronOf('consistency-check')}"`], ['events', '[]'], ['on_demand', 'true']].forEach(([k, v], i) => {
+    const y = cy + 134 + i * 36;
+    g += text(cx + 28, y, `${k}:`, { size: 19, fill: C.muted }) + text(cx + 180, y, v, { size: 19, bold: true });
   });
-  g += text(cx + 24, cy + 278, 'nine automations per workspace; optimization in the harness only', { size: 17, italic: true, fill: C.muted });
+  g += text(cx + 28, cy + 286, 'nine automations per workspace;', { size: 17, italic: true, fill: C.muted });
+  g += text(cx + 28, cy + 310, 'optimization in the harness only', { size: 17, italic: true, fill: C.muted });
 
   // no trigger entity
-  const nx = 1470;
-  g += caption(nx, ey, 'No trigger entity', null, { size: 26 });
+  const nx = 1490;
+  g += caption(nx, ey, 'No trigger entity', null, { size: 30 });
   [['Summarization', 'FaFileLines', 'Stop hook of every run'], ['Graph build', 'FaDiagramProject', 'project enabled, until complete'], ['Search', 'FaMagnifyingGlass', 'one turn per question, no run']]
     .forEach(([name, ic, sub], i) => {
-      const y = ey + 40 + i * 90;
+      const y = ey + 34 + i * 90;
       g += pod(nx, y, 370, 56, name, ic, LAYER.ink, { size: 18 }) + text(nx + 20, y + 78, sub, { size: 17, italic: true, fill: C.muted });
     });
   // the feed limit
-  g += rect(nx, ey + 320, 370, 70, { r: 16, fill: C.paper });
-  g += iconAt('FaPause', nx + 36, ey + 355, 26, C.red) + text(nx + 66, ey + 350, 'Feed at its limit', { size: 19, bold: true }) + text(nx + 66, ey + 374, 'scheduled loops pause', { size: 16, fill: C.muted });
+  g += rect(nx, ey + 310, 370, 70, { r: 16, fill: C.paper });
+  g += iconAt('FaPause', nx + 36, ey + 345, 26, C.red) + text(nx + 66, ey + 340, 'Feed at its limit', { size: 19, bold: true }) + text(nx + 66, ey + 364, 'scheduled loops pause', { size: 16, fill: C.muted });
   return svg(g);
 }
 
@@ -920,7 +926,7 @@ function settings() {
     ['Appearance', 'FaCircleHalfStroke', [['Theme', 'this device only', (r, y) => seg(r - 240, y, 240, ['System', 'Light', 'Dark'], 0)]]],
     ['Included projects', 'FaToggleOn', [
       ['momentum', 'enabled: loops run', (r, y) => sw(r - 46, y + 2, true)],
-      ['stock-fly', 'disabled: no loops', (r, y) => sw(r - 46, y + 2, false)],
+      ['bookshelf', 'disabled: no loops', (r, y) => sw(r - 46, y + 2, false)],
       ['Knowledge graph', 'build: stop, resume, reset', (r, y) => chev(r, y + 14)],
     ]],
     ['Feed size', 'FaLayerGroup', [['Items before loops pause', null, (r, y) => num(r, y, FEED_SIZE)]]],

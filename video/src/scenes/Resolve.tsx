@@ -28,8 +28,8 @@ const CRACK = (() => {
   const pts: [number, number][] = [];
   for (let i = 0; i <= 18; i++) {
     const y = (1080 * i) / 18;
-    // A clean cut, not a torn edge
-    const x = mix(i / 18, SEAM.top, SEAM.bottom);
+    // A torn edge: the two documents do not fit together
+    const x = mix(i / 18, SEAM.top, SEAM.bottom) + (i % 2 ? 1 : -1) * (14 + ((i * 37) % 11));
     pts.push([x, y]);
   }
   return pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join(' ');

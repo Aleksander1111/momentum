@@ -9,7 +9,7 @@ import { C, F, LAYERS, PARTS, domainOf, type Layer } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, turned, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, useDrift, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const LAYERS_FRAMES = 565;
+export const LAYERS_FRAMES = 820;
 
 const PROJECTS: Record<string, Project> = {
   bookshelf: { name: 'bookshelf', color: '#1D6FD6' },
@@ -75,13 +75,14 @@ const DELIVERED: Entity = {
 // Beats, in frames
 const LAND = (i: number) => 22 + i * 14;
 const FLY = 20;
-const APPROVE = { show: 100, press: 126, drag: 130, release: 158 };
-const TILT = 172;
-const UNDERSTAND = 206;
-const IMPLEMENT = 290;
-const RISE = 384;
-const ARRIVE = 421;
-const CLOSE = 455;
+// Each beat as long as its line: the feed, your approval, the understanding, the implementation, the close
+const APPROVE = { show: 240, press: 266, drag: 270, release: 298 };
+const TILT = 312;
+const UNDERSTAND = 346;
+const IMPLEMENT = 505;
+const RISE = 599;
+const ARRIVE = 636;
+const CLOSE = 710;
 
 // The stack: square planes, one per layer, the phone lying on the top one
 const STAGE = { x: 1270, y: 540 };
@@ -133,8 +134,8 @@ const SHIELD = PARTS.shield;
 
 /** The knowledge graph of bookshelf, its references drawing in, the guard at its centre */
 const NODES: [string, string, number, number][] = [
-  ['Product/Goal', 'Readers find a book fast', 330, 220],
-  ['Product/Feature', 'Book catalogue', 690, 210],
+  ['Product/Goal', 'Readers find a book fast', 300, 300],
+  ['Product/Feature', 'Book catalogue', 720, 240],
   ['Governance/DesignDoc', 'Bookshelf design', 330, 620],
   ['Architecture/Component', 'Book store', 720, 560],
   ['Data/Schema', 'Book', 450, 830],
@@ -235,7 +236,8 @@ const RUNS: [string, string, number][] = [
   ['Done', 'built and tested', 8],
   ['Checked', 'all 14 checks pass', 16],
 ];
-const RUN_Y = (i: number) => 230 + i * 210;
+// Clear of the layer above, which overlaps this one's top edge once the stack is seen whole
+const RUN_Y = (i: number) => 430 + i * 165;
 
 function Runs({ frame }: { frame: number }) {
   return (
@@ -404,7 +406,8 @@ function Feed({ frame }: { frame: number }) {
 const SCREEN_ORIGIN = { x: STAGE.x - PHONE.w / 2 + 14, y: STAGE.y - PHONE.h / 2 + 14 };
 
 function Chips({ frame }: { frame: number }) {
-  const out = ramp(frame, 84, 12);
+  // Each chip leaves as the feed takes over, unhurried
+  const out = ramp(frame, 80, 22, Easing.inOut(Easing.cubic));
   return (
     <>
       {INCOMING.map((e, i) => {
@@ -417,7 +420,8 @@ function Chips({ frame }: { frame: number }) {
               position: 'absolute',
               left: e.chip[0],
               top: e.chip[1],
-              transform: `translate(-50%,-50%) scale(${t * sent * (1 - out)})`,
+              transform: `translate(-50%,-50%) scale(${t * sent * mix(out, 1, 0.7)})`,
+              opacity: 1 - out,
               display: 'flex',
               alignItems: 'center',
               gap: 12,
@@ -440,11 +444,11 @@ function Chips({ frame }: { frame: number }) {
 /** The narration: a line per beat */
 export const LAYERS_CUES: Cue[] = [
   { at: 4, hold: 88, text: 'Everything that needs your decision, from every project, in one feed, most important first.' },
-  { at: 94, hold: 180, text: 'Nothing moves forward without your yes.' },
-  { at: 196, hold: 284, text: 'Behind it, Momentum understands each project, and keeps it consistent.' },
-  { at: 296, hold: 368, text: 'AI does the work: planned, done and checked.' },
-  { at: 384, hold: 440, text: 'What it finishes comes back to you, ready to read.' },
-  { at: 455, hold: 486, text: 'Your attention, where it pays.' },
+  { at: APPROVE.show - 6, hold: TILT + 8, text: 'Nothing moves forward without your approval.' },
+  { at: UNDERSTAND - 10, hold: IMPLEMENT - 20, text: 'Behind it, Momentum understands each project, and keeps it consistent.' },
+  { at: IMPLEMENT + 6, hold: RISE - 16, text: 'AI does the work: planned, done and checked.' },
+  { at: RISE, hold: CLOSE - 15, text: 'What it finishes comes back to you, ready to read.' },
+  { at: CLOSE, hold: CLOSE + 31, text: 'Your attention, where it pays.' },
 ];
 const DWELLS = voiceDwells('Layers', LAYERS_CUES, LAYERS_FRAMES);
 export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
@@ -513,10 +517,10 @@ export function Layers() {
       <Chips frame={frame} />
       <Finger x={fx} y={fy} opacity={fingerIn} pressed={pressed} />
 
-      <Headline frame={frame} from={0} to={106} tag="One feed" color={C.accent} text="Every project. One feed." sub="Ranked by what matters most." />
-      <Headline frame={frame} from={106} to={192} tag="Attention" color={LAYERS.attention.ink} text='Nothing moves forward without your yes.' />
-      <Headline frame={frame} from={194} to={302} tag="Understanding" color={LAYERS.understanding.ink} text="Every project, understood." sub="A knowledge graph, checked on every change." />
-      <Headline frame={frame} from={304} to={CLOSE} tag="Implementation" color={LAYERS.implementation.ink} text="Work arrives whole." sub="AI plans it, does it and checks it." />
+      <Headline frame={frame} from={0} to={APPROVE.show + 6} tag="One feed" color={C.accent} text="Every project. One feed." sub="Ranked by what matters most." />
+      <Headline frame={frame} from={APPROVE.show + 6} to={TILT + 20} tag="Attention" color={LAYERS.attention.ink} text="Nothing moves forward without your approval." />
+      <Headline frame={frame} from={TILT + 22} to={IMPLEMENT + 12} tag="Understanding" color={LAYERS.understanding.ink} text="Every project, understood." sub="A knowledge graph, checked on every change." />
+      <Headline frame={frame} from={IMPLEMENT + 14} to={CLOSE} tag="Implementation" color={LAYERS.implementation.ink} text="Work arrives whole." sub="AI plans it, does it and checks it." />
       <Closing frame={frame} />
     </AbsoluteFill>
   );

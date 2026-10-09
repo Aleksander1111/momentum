@@ -10,7 +10,7 @@ import { C, F, ICONS, domainOf } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, turned, typed, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const GRAPH_FRAMES = 600;
+export const GRAPH_FRAMES = 879;
 
 // The window, front on: where its parts sit on the frame
 const S = 1.1;
@@ -27,10 +27,12 @@ const HOME = 304;
 const LAND = (k: number) => HOME + 8 + k * 5;
 const ASK = 356;
 const ANSWER = 392;
-const SELECT = 452;
-const VERIFY = 496;
-const REWRITE = 532;
-const SETTLED = 568;
+// The answer is typed, its cards come in, and it stays to be read before a card is opened
+const SELECT = 585;
+// Each of the card's states stays long enough to be read under it
+const VERIFY = 671;
+const REWRITE = 733;
+const SETTLED = 791;
 
 type Node = { type: string; title: string; files: string[]; x: number; y: number };
 /** The graph of bookshelf: each card claims the files beneath it; positions round the centre of the frame */
@@ -67,9 +69,9 @@ export const GRAPH_CUES: Cue[] = [
   { at: 4, hold: 66, text: 'One project: dozens of files no one wants to read.', rest: 36 },
   { at: 76, hold: 146, text: 'Momentum turns them into short cards.' },
   { at: 168, hold: 296, text: 'Each card is a goal, a decision, a policy, a feature.' },
-  { at: 340, hold: 446, text: 'Ask a question, and the answer comes from the cards.' },
-  { at: 452, hold: 520, text: 'Approve a card, and it is verified.' },
-  { at: 532, hold: 590, text: 'If anything changes it, it comes back to you.' },
+  { at: 340, hold: SELECT - 10, text: 'Ask a question, and the answer comes from the cards.' },
+  { at: SELECT, hold: REWRITE - 12, text: 'Approve a card, and it is verified.' },
+  { at: REWRITE, hold: GRAPH_FRAMES - 10, text: 'If anything changes it, it comes back to you.' },
 ];
 const DWELLS = voiceDwells('Graph', GRAPH_CUES, GRAPH_FRAMES);
 export const GRAPH_LENGTH = dwelt(GRAPH_FRAMES, DWELLS);
@@ -113,7 +115,7 @@ export function Graph() {
       <Landing f={f} />
       <StateLens f={f} />
       <TopHeadline frame={f} from={4} to={BURST - 2} tag="Knowledge graph" color={C.warn} text="38 files." sub="One small project, as it really looks." />
-      <TopHeadline frame={f} from={BURST} to={TURN.from - 2} tag="Knowledge graph" color={C.warn} text="Cards, not files." sub="Each card claims the files it accounts for." />
+      <TopHeadline frame={f} from={BURST} to={TURN.from - 2} tag="Knowledge graph" color={C.warn} text="Cards, not files." />
       <TopHeadline frame={f} from={TURN.from} to={HOME - 2} tag="Types" color={C.warn} text="Every card has a type." sub="Its domain's colour and glyph, wherever the app shows it." />
       <TopHeadline frame={f} from={HOME + 40} to={SELECT - 2} tag="Search" color={C.warn} text="Ask it anything." sub="The answer comes from the cards, linking each one." />
       <TopHeadline frame={f} from={SELECT} to={GRAPH_FRAMES} tag="States" color={C.warn} text="You verify it." sub="Approval verifies; a rewrite brings it back to you." />
@@ -333,7 +335,7 @@ function Answer({ f }: { f: number }) {
   if (f < ANSWER || f > SELECT + 10) return null;
   const shown = pop(f, ANSWER);
   const out = ramp(f, SELECT - 10, 10);
-  const text = typed('They scroll the whole list today: there is no search yet. Search by author or title is planned next.', f, ANSWER + 6, 70);
+  const text = typed('No search yet: readers scroll the whole list. Search by author or title is next.', f, ANSWER + 6, 34);
   const press = f >= SELECT - 10 && f < SELECT ? Math.sin((Math.PI * (f - (SELECT - 10))) / 10) : 0;
   return (
     <div style={{ position: 'absolute', left: PANE + 48, top: 40, right: 48, opacity: shown * (1 - out), transform: `translateY(${16 * (1 - shown)}px)` }}>
@@ -344,10 +346,12 @@ function Answer({ f }: { f: number }) {
       <div style={{ fontFamily: F.body, fontSize: 24, lineHeight: '36px', color: C.ink, minHeight: 150 }}>{text}</div>
       <div style={{ fontFamily: F.body, fontWeight: 700, fontSize: 14, letterSpacing: 2, color: C.muted, margin: '22px 0 10px' }}>FROM THE CARDS</div>
       {CITED.map(([type, title], k) => {
-        const t = pop(f, ANSWER + 40 + k * 6, true);
+        const t = pop(f, ANSWER + 80 + k * 8, true);
         const picked = k === 0 && press > 0;
+        // Each card the answer came from lights up in turn while it is read
+        const lit = Math.sin(Math.PI * ramp(f, ANSWER + 112 + k * 22, 26));
         return (
-          <div key={title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', marginBottom: 8, borderRadius: 12, background: picked ? C.accent + '1F' : C.surface, border: `1px solid ${picked ? C.accent : C.line}`, transform: `scale(${t * (1 - 0.03 * press * (k === 0 ? 1 : 0))})`, transformOrigin: 'left center' }}>
+          <div key={title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', marginBottom: 8, borderRadius: 12, background: picked || lit > 0.5 ? C.accent + '1F' : C.surface, border: `1px solid ${picked || lit > 0.5 ? C.accent : C.line}`, boxShadow: `0 ${8 * lit}px ${24 * lit}px ${C.accent}33`, transform: `translateX(${18 * lit}px) scale(${t})`, transformOrigin: 'left center' }}>
             <DomainBadge type={type} size={34} />
             <span style={{ fontFamily: F.head, fontWeight: 700, fontSize: 20, color: C.ink }}>{title}</span>
           </div>
@@ -395,7 +399,7 @@ function Entity({ f }: { f: number }) {
 
 /** What is happening to the card's states, under the zoomed window */
 function StateLens({ f }: { f: number }) {
-  const t = pop(f, VERIFY - 16) * (1 - ramp(f, GRAPH_FRAMES - 10, 10));
+  const t = pop(f, VERIFY - 56) * (1 - ramp(f, GRAPH_FRAMES - 10, 10));
   if (t <= 0) return null;
   const verified = f >= VERIFY && f < SETTLED;
   const updating = f >= REWRITE && f < SETTLED;

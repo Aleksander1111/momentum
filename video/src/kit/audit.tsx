@@ -74,14 +74,26 @@ function audit(): string[] {
     }
     // Covered: what is drawn on top at the middle of each line of large text
     if (size >= 24) {
-      for (const r of rects) {
-        const x = r.left + r.width / 2;
-        const y = r.top + r.height / 2;
-        if (x < 0 || y < 0 || x > W || y > H) continue;
-        const top = document.elementsFromPoint(x, y)[0];
-        if (!top || top === el || el.contains(top) || top.contains(el)) continue;
-        const cs = getComputedStyle(top);
-        if (opacityOf(top) > SEEN && (solid(cs.backgroundColor) || ['path', 'circle', 'rect', 'ellipse', 'line'].includes(top.tagName))) issues.push(`${label} covered by ${name(top).slice(0, 50)}`);
+      // At five points along each line, anything drawn above the text that hides it: a solid box or a shape
+      let in3d = false;
+      for (let a: Element | null = el; a; a = a.parentElement) if (getComputedStyle(a).transformStyle === 'preserve-3d') in3d = true;
+      // Inside a 3D stack the browser's hit test ignores depth, so it cannot say what is in front: those frames are
+      // checked by eye on stills instead
+      for (const r of in3d ? [] : rects) {
+        for (const at of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+          const x = r.left + r.width * at;
+          const y = r.top + r.height / 2;
+          if (x < 0 || y < 0 || x > W || y > H) continue;
+          for (const over of document.elementsFromPoint(x, y)) {
+            if (over === el || el.contains(over)) break;
+            if (over.contains(el)) continue;
+            const cs = getComputedStyle(over);
+            if (opacityOf(over) > SEEN && (solid(cs.backgroundColor) || ['path', 'circle', 'rect', 'ellipse', 'line'].includes(over.tagName))) {
+              issues.push(`${label} covered by ${name(over).slice(0, 50)}`);
+              break;
+            }
+          }
+        }
       }
     }
   }
@@ -104,7 +116,7 @@ function readable(): string[] {
   }
   return [...blocks];
 }
-const READ_SIZE = 36;
+const READ_SIZE = 22;
 
 /** Measures each frame once it is laid out, and logs what it finds for the audit script */
 export function LayoutAudit() {

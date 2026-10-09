@@ -30,9 +30,12 @@ export const HANDOVER = 28;
 
 /** How much each frame of each scene differs from the one before, measured by scripts/stillness.ts */
 export const MOTION = stillness as Record<string, number[]>;
-/** Below this mean change a pixel, over a few frames either side, the picture reads as still */
-export const STILL = 0.3;
-const AROUND = 3;
+/**
+ * A hold needs a picture that barely changes (a spring settling by less than a pixel) for this many frames either side:
+ * an animation part way through its eased tail changes it more, and freezing it there leaves it unfinished on screen
+ */
+export const STILL = 0.12;
+const AROUND = 6;
 export const stillAt = (scene: string, h: number) => {
   const w = (MOTION[scene] ?? []).slice(h - AROUND, h + AROUND + 1);
   return w.length === 2 * AROUND + 1 && Math.max(...w) < STILL;

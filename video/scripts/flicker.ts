@@ -32,7 +32,7 @@ const base = first ?? 0;
 const sceneAt = (frame: number) => (id === 'Momentum' ? SCRIPT[CUTS.findLastIndex((c) => c <= frame)]!.scene : id);
 const handing = (i: number) => id === 'Momentum' && CUTS.some((c) => c > 0 && i >= c - 2 && i < c + HANDOVER + 2);
 /** Frames that stand out by design, in a scene's own time, and why */
-const DELIBERATE: [scene: string, from: number, to: number, why: string][] = [['Learn', 305, 325, 'the four cards turn edge-on together']];
+const DELIBERATE: [scene: string, from: number, to: number, why: string][] = [['Learn', 325, 345, 'the four cards turn edge-on together']];
 /** The scene a frame of the composition is in, and that scene's own time there */
 const placeOf = (i: number) => {
   const k = id === 'Momentum' ? CUTS.findLastIndex((c) => c <= i) : SCRIPT.findIndex((s) => s.scene === id);

@@ -3,13 +3,13 @@
 // project's loop spins at once.
 import type { CSSProperties } from 'react';
 import { AbsoluteFill, Easing } from 'remotion';
-import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
+import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, Stamp, type Entity } from '../kit/app.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, LAYERS, PARTS, type Layer } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const LOOP_FRAMES = 760;
+export const LOOP_FRAMES = 790;
 
 const STATIONS: { name: string; sub: string; layer: Layer; glyph: string; filled?: boolean }[] = [
   { name: 'Start', sub: 'a schedule, an event, or you', layer: 'implementation', glyph: ICONS.clock, filled: true },
@@ -33,7 +33,9 @@ const PHONE_AT = { x: 960, y: 470, scale: 0.6 };
 const OPEN = 18;
 const START = OPEN + 110;
 const BEAT = 60;
-const SPIN = START + N * BEAT;
+// You rest at the front a while longer: your decision is where the loop ends
+const YOU_REST = 30;
+const SPIN = START + N * BEAT + YOU_REST;
 
 const CARD: Entity = {
   project: { name: 'bookshelf', color: '#1D6FD6' },
@@ -63,12 +65,12 @@ function front(f: number): number {
   if (f < START) return 0;
   if (f < SPIN) {
     // Turning from part to part: each comes to rest at the front, so a line about it can be finished there
-    const p = (f - START) / BEAT;
+    const p = (Math.min(f, START + (N - 1) * BEAT) + Math.max(0, f - START - (N - 1) * BEAT - YOU_REST) - START) / BEAT;
     return p - Math.sin(2 * Math.PI * p) / (2 * Math.PI);
   }
-  // Every project's loop: spinning faster and faster
+  // Every project's loop: picking up speed, never a blur
   const t = f - SPIN;
-  return N + t * t * 0.0016 + t * 0.03;
+  return N + t * t * 0.0003 + t * 0.06;
 }
 
 function Station({ i, at, f }: { i: number; at: number; f: number }) {
@@ -81,7 +83,7 @@ function Station({ i, at, f }: { i: number; at: number; f: number }) {
   const depth = (Math.sin(angle) + 1) / 2;
   // How close it is to the front, round the ring; nothing is singled out while every loop spins
   const d = (((i - at) % N) + N) % N;
-  const active = Math.max(0, 1 - Math.min(d, N - d) * 2.5) * (1 - ramp(f, SPIN, 10));
+  const active = Math.max(0, 1 - Math.min(d, N - d) * 1.8) * (1 - ramp(f, SPIN, 10));
   const shown = pop(f, 4 + i * 2, true);
   const scale = (0.62 + 0.38 * depth + 0.3 * active) * shown;
   const style: CSSProperties = {
@@ -146,7 +148,7 @@ function Tokens({ f }: { f: number }) {
   return (
     <>
       {PROJECT_COLORS.map((color, i) => {
-        const a = ((90 + i * 90 - t * (4 + t * 0.06) - 32 * Math.sin(t / 11 + i)) * Math.PI) / 180;
+        const a = ((90 + i * 90 - t * (2 + t * 0.012) - 32 * Math.sin(t / 11 + i)) * Math.PI) / 180;
         const depth = (Math.sin(a) + 1) / 2;
         return (
           <div
@@ -168,6 +170,39 @@ function Tokens({ f }: { f: number }) {
         );
       })}
     </>
+  );
+}
+
+/** The steps of the job on its way to you, as the phone shows them: one per part of the ring before the feed */
+const STEPS = STATIONS.slice(0, 6);
+
+/** The phone while the job goes round: its steps ticking off as each part of the ring comes to the front */
+function Job({ at, real, style }: { at: number; real: number; style: CSSProperties }) {
+  const current = Math.min(STEPS.length, Math.max(0, Math.round(at)));
+  return (
+    <div style={{ position: 'absolute', left: 22, right: 22, top: 104, ...style }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.body, fontWeight: 700, fontSize: 20, color: C.muted }}>
+        <ProjectMark project={CARD.project} size={26} />
+        {CARD.project.name}
+      </div>
+      <div style={{ fontFamily: F.head, fontWeight: 700, fontSize: 30, lineHeight: 1.15, color: C.ink, margin: '10px 0 22px' }}>{CARD.title}</div>
+      {STEPS.map((step, k) => {
+        const l = LAYERS[step.layer];
+        const done = k < current;
+        const now = k === current;
+        return (
+          <div key={step.name} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 12px', marginBottom: 8, borderRadius: 16, background: now ? l.wash : 'transparent', border: `2px solid ${now ? l.ink : 'transparent'}` }}>
+            <div style={{ width: 46, height: 46, borderRadius: 23, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: done ? C.ok : now ? l.ink : C.card, boxShadow: now ? `0 0 ${10 + 8 * Math.sin(real / 6)}px ${l.ink}` : 'none' }}>
+              {done ? <Glyph path="M5 12l5 5L20 7" size={26} color="#fff" stroke /> : <Glyph path={step.glyph} size={24} color={now ? '#fff' : C.muted} stroke={!step.filled} />}
+            </div>
+            <div>
+              <div style={{ fontFamily: F.body, fontWeight: 700, fontSize: 23, color: done || now ? C.ink : C.muted }}>{step.name}</div>
+              <div style={{ fontFamily: F.body, fontSize: 17, color: C.muted }}>{step.sub}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -195,6 +230,8 @@ export function Loop() {
   const enter = pop(f, 0);
   const pouring = MORE.filter((_, i) => f >= SPIN + 20 + i * 22);
   const last = pouring.length - 1;
+  // The phone follows the job: its steps while the ring turns, the feed once the job reaches it
+  const toFeed = ramp(f, feedBeat - 16, 14);
 
   return (
     <AbsoluteFill>
@@ -208,6 +245,7 @@ export function Loop() {
       <Tokens f={f} />
       <div style={{ position: 'absolute', inset: 0, zIndex: 60 }}>
         <Phone
+          tab={toFeed < 0.5 ? 'chat' : 'feed'}
           style={{
             left: PHONE_AT.x - PHONE.w / 2,
             top: PHONE_AT.y - PHONE.h / 2,
@@ -215,10 +253,15 @@ export function Loop() {
             opacity: enter,
           }}
         >
-          <Counters unverified={22 + (f >= feedBeat ? 1 : 0) + pouring.length - (away >= 1 ? 1 : 0)} verified={12 + (away >= 1 ? 1 : 0)} bump={away >= 1 ? 1 - ramp(f, youBeat + 30, 12) : 0} />
-          <Behind depth={2} />
-          <Behind depth={1} />
-          {last < 0 ? <FeedCard e={WAITING} /> : null}
+          {toFeed < 1 ? <Job at={at} real={real} style={{ opacity: 1 - toFeed }} /> : null}
+          {toFeed > 0 ? (
+            <div style={{ position: 'absolute', inset: 0, opacity: toFeed }}>
+              <Counters unverified={22 + (f >= feedBeat ? 1 : 0) + pouring.length - (away >= 1 ? 1 : 0)} verified={12 + (away >= 1 ? 1 : 0)} bump={away >= 1 ? 1 - ramp(f, youBeat + 30, 12) : 0} />
+              <Behind depth={2} />
+              <Behind depth={1} />
+              {last < 0 ? <FeedCard e={WAITING} /> : null}
+            </div>
+          ) : null}
           {f >= feedBeat && away < 1 ? (
             <FeedCard e={CARD} style={{ transform: `translateY(${-80 * (1 - landed)}px) translateX(${away * 520}px) rotate(${away * 12}deg)`, opacity: Math.min(1, landed * 2) * (1 - away) }}>
               <Stamp kind="ok" label="APPROVE" style={{ left: 22, top: 200, opacity: stamp }} />

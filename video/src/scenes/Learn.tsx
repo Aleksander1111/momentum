@@ -9,7 +9,7 @@ import { C, F, PARTS } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, turned, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const LEARN_FRAMES = 450;
+export const LEARN_FRAMES = 470;
 
 const P: Record<string, Project> = {
   todo: { name: 'to-do app', color: '#C2410C' },
@@ -28,9 +28,9 @@ const CHATS: { project: Project; title: string; before: string; said: string; af
 const SEEN = (i: number) => 30 + i * 34;
 const LIFT = 140;
 const MERGE = 178;
-const INTO = 246;
-const RIPPLE = 282;
-const SWIPE = { finger: 352, press: 362, drag: 366, release: 394 };
+const INTO = 266;
+const RIPPLE = 302;
+const SWIPE = { finger: 372, press: 382, drag: 386, release: 414 };
 
 const PHONES = [
   { x: 520, ry: 22 },
@@ -218,7 +218,7 @@ function Tiles({ f }: { f: number }) {
 export const LEARN_CUES: Cue[] = [
   { at: 10, hold: 128, text: 'You ask for the same thing again and again.' },
   { at: 142, hold: 236, text: 'Momentum notices, and proposes making it the rule.' },
-  { at: 250, hold: 440, text: 'It applies everywhere. You still have the last word.' },
+  { at: 270, hold: 460, text: 'It applies everywhere. You still have the last word.' },
 ];
 const DWELLS = voiceDwells('Learn', LEARN_CUES, LEARN_FRAMES);
 export const LEARN_LENGTH = dwelt(LEARN_FRAMES, DWELLS);

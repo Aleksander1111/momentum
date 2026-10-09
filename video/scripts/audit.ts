@@ -17,6 +17,7 @@ const serveUrl = await bundle({ entryPoint: fileURLToPath(new URL('../src/index.
 const composition = await selectComposition({ serveUrl, id: 'Audit' });
 const found = new Map<string, number[]>();
 const seen = new Map<string, number[]>();
+const longest = new Map<string, string>();
 const sceneOf = (frame: number) => SCRIPT[CUTS.findLastIndex((c) => c <= frame)]!.scene;
 
 /** Frames a transition is under way: scenes slide and zoom through the frame's edge there on purpose */
@@ -40,7 +41,10 @@ await renderFrames({
     for (const item of JSON.parse(m[3]!) as string[]) {
       // A clock or a counter is the same text as its numbers change
       if (m[1] === 'READ') {
-        const key = item.replace(/\d/g, '#');
+        // Text being typed is one text from its first words: keyed by its start, read as its longest
+        const text = item.replace(/\d/g, '#');
+        const key = text.slice(0, 16);
+        if (text.length > (longest.get(key) ?? '').length) longest.set(key, text);
         seen.set(key, [...(seen.get(key) ?? []), frame]);
       }
       else if (!handing(frame)) {
@@ -54,7 +58,8 @@ await renderFrames({
 /** Layout findings that are the design, and why */
 const DELIBERATE: [RegExp, string][] = [
   [/^Swipe: "Leave policy" covered/, 'the card waits dimmed behind the rework sheet'],
-  [/^Resolve: "Remote days: three or two\?" covered by div "CONTRADICTION"/, 'the stamp lands on the issue it names'],
+  [/^Resolve: "Remote days: three or two\?" covered by div "(CONTRADICTION|Remote work policy|Onboarding guide)/, 'the issue waits on the phone behind the two documents and their stamp until the seam opens'],
+  [/^Loop: "Remote work policy" covered by div "Product · Feature/, 'the new card lands on the one waiting in the feed'],
   [/^Line: .* cut by the frame's edge/, "the closing wall runs past the frame, its edges masked"],
 ];
 const report: string[] = [];
@@ -66,11 +71,21 @@ for (const [issue, frames] of [...found].sort((a, b) => a[1][0]! - b[1][0]!)) {
   else report.push(line);
 }
 
-/** Text that goes before it could be read on purpose, and why */
-const INTENDED: [string, string][] = [['Two remote days a week.', 'the old value, read for seconds before, struck out and retyped as the fix lands']];
+/** Text that goes before it could be read on purpose, by scene and text, and why */
+const INTENDED: [string, RegExp, string][] = [
+  ['Resolve', /^Two remote days a week\.$/, 'the old value, read for seconds before, struck out and retyped as the fix lands'],
+  ['Layers', /^(A priority for every to-do|Shared notes|Remote work policy)$/, 'cards from every project flying into the feed, and the phone going out of focus'],
+  ['Loop', /^(Start|Work|Results|Write-up|Check|History|Your feed|You)$|^(a schedule, an event, or you|done by AI|documents and changes|into cards you can read|before it counts|everything recorded|most important first|approve · send back · ask)$/, 'the ring turning: a part shows its words at the front, and the phone keeps them'],
+  ['Graph', /^(Start|Work|Results|Write-up|Check|History|Your feed|You)$/, "the Loop's ring, passing as the scene hands over"],
+  ['Loop', /^(Onboarding, week one|Due dates|Sharing checks)$/, 'cards pouring in from every project at once'],
+  ['Graph', /^(Book catalogue|Catalogue checks|Bookshelf|Bookshelf design|Book store|Book|Release process|Bookshelf source|Readers find a book fast)$/, 'cards flying home into the tree'],
+  ['Schedule', /^(Plan|Idea|Task|Problem): /, 'the time-lapse: each run drops its card at its hour'],
+  ['Learn', /^Book store$/, 'the next card arriving as the scene hands over'],
+];
 
 // Each stretch a text is on screen, sampled every `step` frames, against the time its words take to read
-for (const [text, frames] of seen) {
+for (const [key, frames] of seen) {
+  const text = longest.get(key) ?? key;
   frames.sort((a, b) => a - b);
   const runs: [number, number][] = [];
   for (const f of frames) {
@@ -83,9 +98,9 @@ for (const [text, frames] of seen) {
     const shown = b - a + step;
     // Seen once: text being typed, or passing through a fade
     if (a === b) continue;
-    const intended = INTENDED.find(([t]) => text === t);
+    const intended = INTENDED.find(([scene, re]) => scene === sceneOf(a) && re.test(text));
     if (intended && shown < need) {
-      console.log(`accepted: "${text}" readable for ${(shown / FPS).toFixed(1)} s at ${(a / FPS).toFixed(1)} s: ${intended[1]}`);
+      console.log(`accepted: "${text}" readable for ${(shown / FPS).toFixed(1)} s at ${(a / FPS).toFixed(1)} s: ${intended[2]}`);
       continue;
     }
     if (shown < need) report.push(`${sceneOf(a)}: "${text.slice(0, 60)}" readable for ${(shown / FPS).toFixed(1)} s at ${(a / FPS).toFixed(1)} s, needs ${(need / FPS).toFixed(1)} s`);
