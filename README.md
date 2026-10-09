@@ -8,7 +8,7 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 
 ## Video
 
-[![Momentum walkthrough](https://img.youtube.com/vi/JHQ4OpeXyJo/maxresdefault.jpg)](https://youtu.be/JHQ4OpeXyJo)
+https://github.com/user-attachments/assets/9f1be4c6-2d95-4c91-bca5-03c4b7c9c4e7
 
 🎬 [Watch the walkthrough on YouTube](https://youtu.be/JHQ4OpeXyJo)
 
