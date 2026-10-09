@@ -7,8 +7,8 @@ import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { CornerHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
-import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
-import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
+import { dwelt, mix, pop, ramp, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
+import { type Cue, useDrift, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const SCHEDULE_FRAMES = 480;
 
@@ -43,7 +43,8 @@ const frameAt = (h: number) => DAY.from + ((DAY.to - DAY.from) * h) / 24;
 // The feed: 30 cards at midnight, one per exploration or preparation run, waiting at its default size of 40
 const LIMIT = 40;
 const START = 30;
-const APPROVE_AT = 15.4;
+// Late enough that the wait is long enough to be told
+const APPROVE_AT = 19.4;
 /** How many cards you approve at once, making room for the rest of the day */
 const APPROVED = 10;
 const SWEEP = (k: number) => frameAt(APPROVE_AT) - 56 + k * 5;
@@ -185,13 +186,14 @@ export const SCHEDULE_LENGTH = dwelt(SCHEDULE_FRAMES, DWELLS);
 
 export function Schedule() {
   const f = useSceneFrame(DWELLS);
+  const real = useAmbientFrame();
   const h = hourAt(f);
   // The orbit turns with the day, and stands still while the loops wait
   const still = paused(h) ? ramp(f, frameAt(PAUSE_AT), 10) * (1 - ramp(f, frameAt(APPROVE_AT), 10)) : 0;
   const moving = Math.min(f, frameAt(PAUSE_AT)) + Math.max(0, f - frameAt(APPROVE_AT));
   const turned = moving * 0.006;
   const angleOf = (i: number) => (i / SATELLITES.length) * Math.PI * 2 + turned;
-  const rz = interpolate(f, [0, SCHEDULE_FRAMES], [-18, 12]);
+  const rz = mix(useDrift(0, DWELLS, SCHEDULE_LENGTH), -18, 12);
   // The sun's shadow: from the west at dawn, round to the east at dusk; a little dimmer at night
   const sun = ((h - 6) / 12) * Math.PI;
   const shadow = { x: -Math.cos(sun) * 60, y: 40 + 30 * Math.sin(sun) };
@@ -223,7 +225,7 @@ export function Schedule() {
           <div style={{ position: 'absolute', left: DESK / 2 - ORBIT, top: DESK / 2 - ORBIT, width: ORBIT * 2, height: ORBIT * 2, borderRadius: ORBIT, border: `4px dashed ${still > 0.5 ? C.no : C.accent}66`, transform: `rotateZ(${turned * 57}deg)` }} />
           {/* The phone, its shadow, and a red ring while the feed is full */}
           <div style={{ position: 'absolute', left: DESK / 2 - PHONE.w / 2 + shadow.x, top: DESK / 2 - PHONE.h / 2 + shadow.y, width: PHONE.w, height: PHONE.h, borderRadius: 58, background: 'rgba(60,45,25,.28)', filter: 'blur(26px)' }} />
-          <div style={{ position: 'absolute', left: DESK / 2 - PHONE.w / 2 - 30, top: DESK / 2 - PHONE.h / 2 - 30, width: PHONE.w + 60, height: PHONE.h + 60, borderRadius: 80, border: `6px solid ${C.no}`, opacity: still * (0.5 + 0.5 * Math.sin(f / 4)), transform: 'translateZ(2px)' }} />
+          <div style={{ position: 'absolute', left: DESK / 2 - PHONE.w / 2 - 30, top: DESK / 2 - PHONE.h / 2 - 30, width: PHONE.w + 60, height: PHONE.h + 60, borderRadius: 80, border: `6px solid ${C.no}`, opacity: still * (0.5 + 0.5 * Math.sin(real / 4)), transform: 'translateZ(2px)' }} />
           <Phone style={{ left: DESK / 2 - PHONE.w / 2, top: DESK / 2 - PHONE.h / 2, transform: 'translateZ(6px)', boxShadow: 'none' }}>
             <Counters unverified={n} verified={51 + (h >= APPROVE_AT ? APPROVED : 0)} />
             <Behind depth={2} />

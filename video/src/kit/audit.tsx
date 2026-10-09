@@ -1,6 +1,7 @@
 // The layout audit: once a frame is laid out, every visible piece of text is measured, and whatever a viewer could not
 // read is logged for scripts/audit.ts: text cut by the frame's edge, by a container that clips it, running off the card
-// it sits on, or covered by something drawn over it.
+// it sits on, or covered by something drawn over it. Also logs the large text on screen, so scripts/audit.ts can tell
+// whether each stays long enough to be read.
 import { useEffect, useState } from 'react';
 import { continueRender, delayRender, useCurrentFrame } from 'remotion';
 
@@ -88,6 +89,23 @@ function audit(): string[] {
   return [...new Set(issues)];
 }
 
+/** Text large enough to be meant to be read (a headline, a caption, a line on screen), by the block it belongs to */
+function readable(): string[] {
+  const blocks = new Set<string>();
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const el = node.parentElement;
+    if (!(node.textContent ?? '').trim() || !el || opacityOf(el) < SEEN || parseFloat(getComputedStyle(el).fontSize) < READ_SIZE) continue;
+    const r = el.getBoundingClientRect();
+    if (r.right < 0 || r.bottom < 0 || r.left > W || r.top > H) continue;
+    let block: Element = el;
+    while (block.parentElement && getComputedStyle(block).display.startsWith('inline')) block = block.parentElement;
+    blocks.add((block.textContent ?? '').replace(/\s+/g, ' ').trim());
+  }
+  return [...blocks];
+}
+const READ_SIZE = 36;
+
 /** Measures each frame once it is laid out, and logs what it finds for the audit script */
 export function LayoutAudit() {
   const frame = useCurrentFrame();
@@ -96,6 +114,7 @@ export function LayoutAudit() {
     requestAnimationFrame(() => {
       const issues = audit();
       if (issues.length) console.log(`AUDIT ${frame} ${JSON.stringify(issues)}`);
+      console.log(`READ ${frame} ${JSON.stringify(readable())}`);
       continueRender(handle);
     });
   }, [frame, handle]);

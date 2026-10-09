@@ -18,57 +18,47 @@ export function pop(frame: number, start: number, bouncy = false): number {
 
 export const mix = (t: number, a: number, b: number) => a + (b - a) * t;
 
+/**
+ * An angle for a 3D turn, kept off exactly 0°: a layer turned by exactly 0° is drawn flat by the browser, a little
+ * softer or sharper than the frames either side, and flickers. A twentieth of a degree is never seen.
+ */
+export const turned = (deg: number) => (Math.abs(deg % 180) < 0.05 ? deg + 0.05 : deg);
+
 /** Text as typed so far: `cps` characters a second from `start` */
 export function typed(text: string, frame: number, start: number, cps = 28): string {
   return text.slice(0, Math.max(0, Math.floor(((frame - start) * cps) / FPS)));
 }
 
 /**
- * Reading time: at each `[at, frames, rate]` the scene eases down to `rate` of its speed for `frames` real frames and
- * eases back, so a line can be said in full. Where the picture is still, the rate is a near stop no one can see; where
- * it never stops, a gentle slowdown spread over the beat.
+ * Reading time: at each `[at, frames]` the scene stops at scene frame `at` for `frames` real frames, so a line can be
+ * said in full. A hold is only ever placed where the measured picture is still, so stopping there cannot be seen; what
+ * moves for ever (a pulse, a bob, a drift) runs on the real clock, `useAmbientFrame`, and never stops.
  */
-export type Dwell = [at: number, frames: number, rate?: number];
-/** The rate of a hold at a still picture, and the frames it takes to slow down and to speed up again */
-export const STOP = 0.04;
-const EASE = 12;
-const smooth = (x: number) => x * x * x - (x * x * x * x) / 2;
-
-/** Scene frames a hold of `len` real frames at `rate` moves on by */
-export const dwellSpan = (len: number, rate = STOP) => {
-  const r = Math.min(EASE, len / 2);
-  return r + rate * (len - r);
-};
-/** Real frames a hold at `rate` needs to add `extra` frames to the scene's length */
-export const dwellFor = (extra: number, rate = STOP) => EASE + extra / (1 - rate);
-
-/** How far into a hold of `len` frames at `rate` the scene is, `u` real frames in */
-function held(u: number, len: number, rate: number): number {
-  const r = Math.min(EASE, len / 2);
-  if (u < r) return u - (1 - rate) * r * smooth(u / r);
-  const slowed = r - ((1 - rate) * r) / 2;
-  if (u < len - r) return slowed + rate * (u - r);
-  const x = (u - (len - r)) / r;
-  return slowed + rate * (len - 2 * r) + rate * r * x + (1 - rate) * r * smooth(x);
-}
+export type Dwell = [at: number, frames: number];
 
 /** The scene's own time at a real frame */
 export function dwell(frame: number, dwells: Dwell[]): number {
   let added = 0;
-  for (const [at, frames, rate = STOP] of dwells) {
+  for (const [at, frames] of dwells) {
     const start = at + added;
     if (frame < start) break;
-    if (frame < start + frames) return at + held(frame - start, frames, rate);
-    added += frames - dwellSpan(frames, rate);
+    if (frame < start + frames) return at;
+    added += frames;
   }
   return frame - added;
 }
 
 /** How many real frames a scene of `frames` scene frames lasts with its dwells */
-export const dwelt = (frames: number, dwells: Dwell[]) => Math.round(frames + dwells.reduce((s, [, n, rate]) => s + n - dwellSpan(n, rate), 0));
+export const dwelt = (frames: number, dwells: Dwell[]) => frames + dwells.reduce((s, [, n]) => s + n, 0);
 
 /** Set while measuring where a scene is still: its own time, unheld */
 export const Unheld = createContext(false);
+
+/** The real clock, for what moves for ever: never held, and stopped while a scene is measured so it never counts as motion */
+export function useAmbientFrame(): number {
+  const frame = useCurrentFrame();
+  return useContext(Unheld) ? 0 : frame;
+}
 
 /** The scene's own time at the current frame, held for its lines unless being measured */
 export function useSceneFrame(dwells: Dwell[]): number {

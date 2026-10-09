@@ -7,7 +7,7 @@ import { Desktop, DomainBadge, StateBadge } from '../kit/desktop.tsx';
 import { Backdrop, Logo } from '../kit/stage.tsx';
 import { C, F, ICONS, PARTS } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
-import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
+import { type Cue, useDrift, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LINE_FRAMES = 358;
 
@@ -167,11 +167,11 @@ function MiniWindow({ k }: { k: number }) {
   );
 }
 
-function Wall({ f }: { f: number }) {
+function Wall({ f, drift }: { f: number; drift: number }) {
   if (f < WALL - 20) return null;
   const shown = ramp(f, WALL - 20, 30, Easing.out(Easing.cubic));
   const recede = ramp(f, LOGO - 10, 40, Easing.inOut(Easing.cubic));
-  const pan = interpolate(f, [WALL - 20, LINE_FRAMES], [140, -140]);
+  const pan = mix(drift, 140, -140);
   const tiles = Array.from({ length: 21 }, (_, i) => i);
   return (
     <AbsoluteFill style={{ perspective: 2400, opacity: shown * (1 - 0.82 * recede), filter: `blur(${8 * recede}px)`, maskImage: 'radial-gradient(ellipse 62% 60% at 50% 50%, black 62%, transparent 100%)' }}>
@@ -222,6 +222,7 @@ export const LINE_LENGTH = dwelt(LINE_FRAMES, DWELLS);
 
 export function Line() {
   const f = useSceneFrame(DWELLS);
+  const drift = useDrift(WALL - 20, DWELLS, LINE_LENGTH);
   // The phone with its Settings, then gone into the wall
   const away = ramp(f, WALL - 24, 26, Easing.in(Easing.cubic));
   const scale = mix(pop(f, 0), 0.9, 1) * mix(away, 1, 0.3);
@@ -230,7 +231,7 @@ export function Line() {
       <Voice scene="Line" cues={LINE_CUES} dwells={DWELLS} />
       <Backdrop />
       <Giant f={f} from={SETTINGS} to={WALL} text="Tuned to you." />
-      <Wall f={f} />
+      <Wall f={f} drift={drift} />
       {away < 1 ? (
         <Phone
           tab={null}

@@ -1,10 +1,11 @@
 // Scene 2, after the deck's "Mobile App" and "User actions": a swipe right approves and lands one commit, a swipe left
 // sends a card back for rework with a comment, a pull up opens a chat on the card.
+import type { CSSProperties } from 'react';
 import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Bubble, Button, Counters, FeedCard, Glyph, PHONE, Phone, SLOT, Sheet, Stamp, StateIcon, type Entity } from '../kit/app.tsx';
 import { Backdrop, Finger } from '../kit/stage.tsx';
 import { C, F, ICONS, LAYERS } from '../kit/theme.ts';
-import { dwelt, mix, pop, ramp, typed, useSceneFrame } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, turned, typed, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const SWIPE_FRAMES = 540;
@@ -50,6 +51,7 @@ export const SWIPE_LENGTH = dwelt(SWIPE_FRAMES, DWELLS);
 
 export function Swipe() {
   const f = useSceneFrame(DWELLS);
+  const real = useAmbientFrame();
   const enter = pop(f, 0);
 
   // Approve: dragged right, then drawn into its commit on the main line
@@ -103,7 +105,7 @@ export function Swipe() {
   // The whole stage a little smaller, so the caption below the phone has room
   // The phone steps aside for each gesture's word: left of it while approving and asking, right of it for rework
   const pan = interpolate(f, [0, 160, 190, 350, 380], [-330, -330, 330, 330, -330], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic) });
-  const camera = `translateX(${pan}px) translate(${AT.x}px, ${AT.y}px) scale(0.84) translate(${-AT.x}px, ${-AT.y}px) translate(${focus.x}px, ${focus.y}px) scale(${zoom}) translate(${-focus.x}px, ${-focus.y}px) translate(${AT.x}px, ${AT.y}px) rotateY(${ry}deg) translate(${-AT.x}px, ${-AT.y}px)`;
+  const camera = `translateX(${pan}px) translate(${AT.x}px, ${AT.y}px) scale(0.84) translate(${-AT.x}px, ${-AT.y}px) translate(${focus.x}px, ${focus.y}px) scale(${zoom}) translate(${-focus.x}px, ${-focus.y}px) translate(${AT.x}px, ${AT.y}px) rotateY(${turned(ry)}deg) translate(${-AT.x}px, ${-AT.y}px)`;
 
   return (
     <AbsoluteFill>
@@ -124,7 +126,7 @@ export function Swipe() {
         {approved ? (
           <FeedCard
             e={policy}
-            spin={sent && !reworked ? (f - REWORK.send) * 9 : 0}
+            spin={sent && !reworked ? real * 9 : 0}
             style={{
               transformOrigin: 'top',
               transform: `translate(${rDx}px, ${qDrag * (1 - qBack)}px) rotate(${rDx * 0.03}deg) translateY(${-8 * (1 - forward)}px) scale(${mix(forward, 0.965, 1)})`,
@@ -196,6 +198,7 @@ export function Swipe() {
 
 /** The main line the approval lands on, and the implementation it starts */
 function MainLine({ f }: { f: number }) {
+  const real = useAmbientFrame();
   const draw = ramp(f, APPROVE.release - 4, 24, Easing.out(Easing.cubic));
   const out = ramp(f, 162, 14);
   const dot = pop(f, APPROVE.release + 20, true);
@@ -238,7 +241,7 @@ function MainLine({ f }: { f: number }) {
           color: C.ink,
         }}
       >
-        <div style={{ transform: `rotate(${(f - APPROVE.release) * 8}deg)` }}>
+        <div style={{ transform: `rotate(${real * 8}deg)` }}>
           <StateIcon state="updating" size={28} />
         </div>
         Work started
@@ -249,6 +252,7 @@ function MainLine({ f }: { f: number }) {
 
 /** The chat run a send back starts */
 function ChatRun({ f }: { f: number }) {
+  const real = useAmbientFrame();
   const t = pop(f, REWORK.send + 14, true);
   const out = ramp(f, 356, 12);
   if (f < REWORK.send + 14 || out >= 1) return null;
@@ -277,12 +281,17 @@ function ChatRun({ f }: { f: number }) {
     >
       <Glyph path={ICONS.chat} size={32} color={C.no} />
       Being reworked
-      <div style={{ transform: `rotate(${done ? 0 : (f - REWORK.send) * 9}deg)` }}>
+      <div style={{ transform: `rotate(${done ? 0 : real * 9}deg)` }}>
         {done ? <Glyph path="M5 12l5 5L20 7" size={30} color={C.ok} stroke /> : <StateIcon state="updating" size={30} />}
       </div>
     </div>
   );
 }
+
+const arrive = (f: number, at: number): CSSProperties => {
+  const t = ramp(f, at, 8, Easing.out(Easing.cubic));
+  return { opacity: t, transform: `translateY(${12 * (1 - t)}px) scale(${mix(t, 0.92, 1)})`, transformOrigin: 'bottom' };
+};
 
 /** The chat below the card: the question typed and sent, the answer streaming in */
 function CardChat({ f, open, top }: { f: number; open: number; top: number }) {
@@ -311,8 +320,9 @@ function CardChat({ f, open, top }: { f: number; open: number; top: number }) {
         <span style={{ flex: 1 }}>Chat on this card</span>
         <span style={{ fontSize: 20 }}>×</span>
       </div>
-      {asked ? <Bubble mine>{QUESTION}</Bubble> : null}
-      {answer ? <Bubble>{answer}</Bubble> : null}
+      {/* Each bubble rises in as it arrives, never appears at once */}
+      {asked ? <Bubble mine style={arrive(f, ASK.type + 26)}>{QUESTION}</Bubble> : null}
+      {f >= ASK.answer - 8 ? <Bubble style={arrive(f, ASK.answer - 8)}>{answer || '…'}</Bubble> : null}
       <div style={{ flex: 1 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: '9px 12px', fontFamily: F.body, fontSize: 14.5, color: asked || f < ASK.type ? C.muted : C.ink }}>
         <span style={{ flex: 1 }}>{asked || f < ASK.type ? 'Ask about this card' : typed(QUESTION, f, ASK.type, 34)}</span>

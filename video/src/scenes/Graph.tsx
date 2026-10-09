@@ -7,7 +7,7 @@ import { Glyph, TypePill } from '../kit/app.tsx';
 import { Desktop, DomainBadge, StateBadge, WINDOW } from '../kit/desktop.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, F, ICONS, domainOf } from '../kit/theme.ts';
-import { dwelt, mix, pop, ramp, typed, useSceneFrame } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, turned, typed, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const GRAPH_FRAMES = 600;
@@ -66,7 +66,7 @@ const rowHome = (k: number) => at(WINDOW.nav + 40, WINDOW.bar + 100 + k * ROW + 
 export const GRAPH_CUES: Cue[] = [
   { at: 4, hold: 66, text: 'One project: dozens of files no one wants to read.', rest: 36 },
   { at: 76, hold: 146, text: 'Momentum turns them into short cards.' },
-  { at: 152, hold: 296, text: 'Each card is a goal, a decision, a policy, a feature.' },
+  { at: 168, hold: 296, text: 'Each card is a goal, a decision, a policy, a feature.' },
   { at: 340, hold: 446, text: 'Ask a question, and the answer comes from the cards.' },
   { at: 452, hold: 520, text: 'Approve a card, and it is verified.' },
   { at: 532, hold: 590, text: 'If anything changes it, it comes back to you.' },
@@ -96,7 +96,7 @@ export function Graph() {
             transformOrigin: '0 0',
             opacity: enter,
             filter: `saturate(${1 - 0.4 * lean})`,
-            transform: `translateY(${60 * (1 - enter) + 200 * lean}px) scale(${S}) rotateX(${38 * lean}deg)`,
+            transform: `translateY(${60 * (1 - enter) + 200 * lean}px) scale(${S}) rotateX(${turned(38 * lean)}deg)`,
           }}
         >
           <div style={{ position: 'absolute', inset: 0, transformOrigin: `${PANE + 48}px 40px`, transform: `translate(${-(PANE + 8) * dive}px, ${60 * dive}px) scale(${mix(dive, 1, 1.4)})` }}>
@@ -179,7 +179,7 @@ function GraphLayer({ f, turn }: { f: number; turn: number }) {
   const shown = ramp(f, TURN.from + 10, 20);
   return (
     <AbsoluteFill style={{ perspective: 1600, perspectiveOrigin: `${GRAPH_C.x}px ${GRAPH_C.y}px` }}>
-      <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transformOrigin: `${GRAPH_C.x}px ${GRAPH_C.y}px`, transform: `rotateY(${20 * turn}deg) rotateX(${-8 * turn}deg)` }}>
+      <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transformOrigin: `${GRAPH_C.x}px ${GRAPH_C.y}px`, transform: `rotateY(${turned(20 * turn)}deg) rotateX(${turned(-8 * turn)}deg)` }}>
         <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0 }}>
           {EDGES.map(([a, b], i) => {
             const A = NODES[a]!;
@@ -359,6 +359,7 @@ function Answer({ f }: { f: number }) {
 
 /** The selected card, opened beside the tree */
 function Entity({ f }: { f: number }) {
+  const real = useAmbientFrame();
   if (f < SELECT) return null;
   const part = (k: number) => {
     const t = pop(f, SELECT + 2 + k * 3);
@@ -375,7 +376,7 @@ function Entity({ f }: { f: number }) {
       <div style={{ ...part(1), fontFamily: F.head, fontWeight: 700, fontSize: 38, color: C.ink, margin: '16px 0 14px' }}>Book catalogue</div>
       <div style={{ ...part(2), display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
         <StateBadge state={verified ? 'verified' : 'unverified'} />
-        <StateBadge state={updating ? 'updating' : 'synced'} spin={updating ? (f - REWRITE) * 9 : 0} />
+        <StateBadge state={updating ? 'updating' : 'synced'} spin={updating ? real * 9 : 0} />
         <span style={{ fontFamily: F.body, fontSize: 13.5, color: C.muted }}>0 contradictions</span>
       </div>
       <div style={{ ...part(3), fontFamily: F.body, fontSize: 18, lineHeight: '27px', color: C.muted, marginBottom: 14 }}>

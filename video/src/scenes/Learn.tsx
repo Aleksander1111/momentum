@@ -6,7 +6,7 @@ import { AbsoluteFill, Easing } from 'remotion';
 import { Behind, Bubble, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, TypePill, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, BottomHeadline, Finger } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
-import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, turned, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const LEARN_FRAMES = 450;
@@ -179,7 +179,7 @@ function Tiles({ f }: { f: number }) {
         const turn = ramp(f, reachAt(t.x, t.y), 16, Easing.inOut(Easing.cubic));
         const back = turn > 0.5;
         return (
-          <div key={t.project.name} style={{ position: 'absolute', left: t.x, top: t.y, transform: `translate(-50%, -50%) perspective(1200px) rotateY(${180 * turn + (back ? 180 : 0)}deg) scale(${shown})` }}>
+          <div key={t.project.name} style={{ position: 'absolute', left: t.x, top: t.y, transform: `translate(-50%, -50%) perspective(1200px) rotateY(${turned(180 * turn + (back ? 180 : 0))}deg) scale(${shown})` }}>
             <div
               style={{
                 width: 440,
@@ -257,7 +257,7 @@ export function Learn() {
                 left: x - PHONE.w / 2,
                 top: Y - PHONE.h / 2,
                 opacity: enter * (centre ? 1 - 0.55 * recede * (1 - front) : 1 - 0.55 * recede),
-                transform: `translateY(${60 * (1 - enter) + 40 * recede * (1 - front)}px) rotateY(${p.ry * (1 - recede)}deg) scale(${scale})`,
+                transform: `translateY(${60 * (1 - enter) + 40 * recede * (1 - front)}px) rotateY(${turned(p.ry * (1 - recede))}deg) scale(${scale})`,
               }}
             >
               {feed ? (

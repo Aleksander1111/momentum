@@ -11,7 +11,7 @@ import { C, F, LAYERS } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, typed, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const RESOLVE_FRAMES = 450;
+export const RESOLVE_FRAMES = 392;
 
 // Beats
 const IN = 22;
@@ -58,7 +58,7 @@ function Half({ f, side }: { f: number; side: 'left' | 'right' }) {
   const open = ramp(f, OPEN.from, OPEN.to - OPEN.from, Easing.inOut(Easing.cubic)) * (1 - ramp(f, CLOSE.from, CLOSE.to - CLOSE.from, Easing.inOut(Easing.cubic)));
   const shake = f >= HIT && f < HIT + 16 ? Math.sin(f * 2.2) * 7 * (1 - (f - HIT) / 16) : 0;
   const agreed = f >= ZIP;
-  const fixed = ramp(f, ZIP + 4, 18);
+  const fixed = ramp(f, ZIP + 4, 26);
   const layer = left ? LAYERS.attention : LAYERS.understanding;
   const clip = left ? `polygon(0 0, ${SEAM.top}px 0, ${SEAM.bottom}px 100%, 0 100%)` : `polygon(${SEAM.top}px 0, 100% 0, 100% 100%, ${SEAM.bottom}px 100%)`;
   const dx = (left ? -1 : 1) * (1920 * (1 - enter) + 470 * open) + shake * (left ? 1 : -1);
@@ -82,7 +82,7 @@ function Half({ f, side }: { f: number; side: 'left' | 'right' }) {
             ) : (
               <span style={{ background: 'rgba(63,107,82,.28)', borderRadius: 8, padding: '0 6px' }}>
                 <span style={{ textDecoration: 'line-through', color: C.no, opacity: 1 - fixed, fontSize: 58 * (1 - fixed) + 1 }}>Two</span>
-                {typed('Three', f, ZIP + 6, 20)}
+                {typed('Three', f, ZIP + 8, 12)}
               </span>
             )}{' '}
             remote days a week.

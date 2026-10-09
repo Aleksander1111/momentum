@@ -10,12 +10,19 @@
     "still": "remotion still src/index.ts",
     "typecheck": "tsc --noEmit",
     "music": "tsx scripts/music.ts",
-    "voice": "tsx scripts/voice.ts",
+    "voice": "pnpm clone && pnpm pick",
     "audit": "tsx scripts/audit.ts",
     "review": "tsx scripts/review.ts",
     "stillness": "tsx scripts/stillness.ts",
-    "verify-voice": "tsx scripts/verify-voice.ts",
-    "pauses": "tsx scripts/pauses.ts"
+    "pauses": "tsx scripts/pauses.ts",
+    "validate": "tsx scripts/validate.ts",
+    "script": "tsx scripts/script.ts",
+    "clone": "tsx scripts/script.ts && tsx scripts/speech.ts clone.py",
+    "pick": "tsx scripts/speech.ts listen.py --pick",
+    "listen": "tsx scripts/speech.ts listen.py",
+    "track": "tsx scripts/track.ts && tsx scripts/speech.ts listen.py --track",
+    "check": "pnpm stillness && pnpm validate && pnpm run audit && pnpm pauses && pnpm flicker && pnpm listen && pnpm track",
+    "flicker": "tsx scripts/flicker.ts"
   },
   "dependencies": {
     "@remotion/cli": "4.0.534",

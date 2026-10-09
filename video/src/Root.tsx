@@ -63,7 +63,7 @@ export function Root() {
   return (
     <>
       {SCENES.map((s) => (
-        <Composition key={s.id} id={s.id} component={s.component} durationInFrames={s.frames} fps={FPS} width={1920} height={1080} />
+        <Composition key={s.id} id={s.id} component={s.component as ComponentType<Record<string, unknown>>} durationInFrames={s.frames} fps={FPS} width={1920} height={1080} />
       ))}
     </>
   );

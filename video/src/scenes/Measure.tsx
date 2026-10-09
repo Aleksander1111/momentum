@@ -8,7 +8,7 @@ import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, type Entity } from '..
 import { Backdrop, CornerHeadline } from '../kit/stage.tsx';
 import { C, F, PARTS } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
-import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
+import { type Cue, useDrift, Voice, voiceDwells } from '../kit/voice.tsx';
 
 export const MEASURE_FRAMES = 472;
 
@@ -133,10 +133,10 @@ function Box({ b, f }: { b: Block; f: number }) {
   );
 }
 
-function City({ f }: { f: number }) {
+function City({ f, drift }: { f: number; drift: number }) {
   const shown = ramp(f, CITY - 20, 30, Easing.out(Easing.cubic));
   if (shown <= 0) return null;
-  const rz = interpolate(f, [CITY, MEASURE_FRAMES], [-48, -36]);
+  const rz = mix(drift, -48, -36);
   const labels: [string, number, number][] = [
     ['Product', 260, 400],
     ['Checks', 740, 400],
@@ -238,6 +238,7 @@ export const MEASURE_LENGTH = dwelt(MEASURE_FRAMES, DWELLS);
 
 export function Measure() {
   const f = useSceneFrame(DWELLS);
+  const drift = useDrift(CITY, DWELLS, MEASURE_LENGTH);
   const enter = pop(f, 0);
   // The camera: into the phone's screen, then back out, then the phone steps aside for the city
   const dive = ramp(f, DIVE.from, DIVE.to - DIVE.from, Easing.inOut(Easing.cubic)) * (1 - ramp(f, OUT.from, OUT.to - OUT.from, Easing.inOut(Easing.cubic)));
@@ -252,7 +253,7 @@ export function Measure() {
     <AbsoluteFill>
       <Voice scene="Measure" cues={MEASURE_CUES} dwells={DWELLS} />
       <Backdrop />
-      <City f={f} />
+      <City f={f} drift={drift} />
       <Phone
         tab={settings ? null : f < OUT.from ? 'chat' : 'feed'}
         // Out of the frame at the bottom while the camera is close: gone until it pulls back

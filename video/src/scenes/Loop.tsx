@@ -6,10 +6,10 @@ import { AbsoluteFill, Easing } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, Stamp, type Entity } from '../kit/app.tsx';
 import { Backdrop, TopHeadline } from '../kit/stage.tsx';
 import { C, DOMAINS, F, ICONS, LAYERS, PARTS, type Layer } from '../kit/theme.ts';
-import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
+import { dwelt, mix, pop, ramp, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const LOOP_FRAMES = 650;
+export const LOOP_FRAMES = 760;
 
 const STATIONS: { name: string; sub: string; layer: Layer; glyph: string; filled?: boolean }[] = [
   { name: 'Start', sub: 'a schedule, an event, or you', layer: 'implementation', glyph: ICONS.clock, filled: true },
@@ -29,7 +29,9 @@ const RING = { x: 960, y: 770, rx: 720, ry: 125 };
 const PHONE_AT = { x: 960, y: 470, scale: 0.6 };
 
 // Beats: one part at the front every BEAT frames, then every project at once
-const START = 18;
+// The first part rests at the front while the loop is introduced, then the ring starts to turn
+const OPEN = 18;
+const START = OPEN + 110;
 const BEAT = 60;
 const SPIN = START + N * BEAT;
 
@@ -60,9 +62,9 @@ const PROJECT_COLORS = ['#1D6FD6', '#7C3AED', '#C2410C', '#0F766E'];
 function front(f: number): number {
   if (f < START) return 0;
   if (f < SPIN) {
-    // Turning without ever stopping: slower as each part comes to the front, quicker between
+    // Turning from part to part: each comes to rest at the front, so a line about it can be finished there
     const p = (f - START) / BEAT;
-    return p - (0.8 * Math.sin(2 * Math.PI * p)) / (2 * Math.PI);
+    return p - Math.sin(2 * Math.PI * p) / (2 * Math.PI);
   }
   // Every project's loop: spinning faster and faster
   const t = f - SPIN;
@@ -119,7 +121,7 @@ function Station({ i, at, f }: { i: number; at: number; f: number }) {
 }
 
 /** The floor's ring, its dashes flowing the way the loop turns, and the glow where the work is now */
-function Floor({ f }: { f: number }) {
+function Floor({ f, real }: { f: number; real: number }) {
   const shown = ramp(f, 0, 20);
   return (
     <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0, opacity: shown }}>
@@ -131,7 +133,7 @@ function Floor({ f }: { f: number }) {
       </defs>
       <ellipse cx={RING.x} cy={RING.y} rx={RING.rx + 80} ry={RING.ry + 40} fill={C.card} opacity={0.6} />
       <ellipse cx={RING.x} cy={RING.y} rx={RING.rx} ry={RING.ry} fill="none" stroke={C.line} strokeWidth={14} />
-      <ellipse cx={RING.x} cy={RING.y} rx={RING.rx} ry={RING.ry} fill="none" stroke={C.accent} strokeWidth={4} strokeDasharray="14 22" strokeDashoffset={-f * 3} opacity={0.7} />
+      <ellipse cx={RING.x} cy={RING.y} rx={RING.rx} ry={RING.ry} fill="none" stroke={C.accent} strokeWidth={4} strokeDasharray="14 22" strokeDashoffset={-real * 3} opacity={0.7} />
       <ellipse cx={RING.x} cy={RING.y + RING.ry} rx={150} ry={46} fill="url(#glow)" />
     </svg>
   );
@@ -171,7 +173,7 @@ function Tokens({ f }: { f: number }) {
 
 /** The narration: a line per beat */
 export const LOOP_CUES: Cue[] = [
-  { at: START, hold: START + BEAT + 20, text: 'Work starts on its own, on a schedule, or when something happens.' },
+  { at: OPEN, hold: START - 10, text: 'Work starts on its own, on a schedule, or when something happens.' },
   { at: START + BEAT, hold: START + 3 * BEAT + 20, text: 'It gets done, and written up for you.' },
   { at: START + 4 * BEAT, hold: START + 5 * BEAT + 20, text: 'Every change is checked before it counts.' },
   { at: START + 6 * BEAT, hold: START + 7 * BEAT + 20, text: 'Then it reaches you, and you decide.' },
@@ -182,6 +184,7 @@ export const LOOP_LENGTH = dwelt(LOOP_FRAMES, DWELLS);
 
 export function Loop() {
   const f = useSceneFrame(DWELLS);
+  const real = useAmbientFrame();
   const at = front(f);
   // The phone's feed: the card lands when the feed comes to the front, you approve it next, then cards pour in
   const feedBeat = START + 6 * BEAT;
@@ -197,8 +200,8 @@ export function Loop() {
     <AbsoluteFill>
       <Voice scene="Loop" cues={LOOP_CUES} dwells={DWELLS} />
       <Backdrop />
-      <Floor f={f} />
-      <Beam f={f} at={at} />
+      <Floor f={f} real={real} />
+      <Beam f={f} at={at} real={real} />
       {STATIONS.map((_, i) => (
         <Station key={i} i={i} at={at} f={f} />
       ))}
@@ -208,7 +211,7 @@ export function Loop() {
           style={{
             left: PHONE_AT.x - PHONE.w / 2,
             top: PHONE_AT.y - PHONE.h / 2,
-            transform: `scale(${PHONE_AT.scale * mix(enter, 0.9, 1)}) translateY(${-6 * Math.sin(f / 18)}px)`,
+            transform: `scale(${PHONE_AT.scale * mix(enter, 0.9, 1)}) translateY(${-6 * Math.sin(real / 18)}px)`,
             opacity: enter,
           }}
         >
@@ -236,15 +239,15 @@ export function Loop() {
 }
 
 /** A beam from the part at the front up to the phone, in that part's layer colour: what reaches you, and from where */
-function Beam({ f, at }: { f: number; at: number }) {
-  if (f < START || f >= SPIN) return null;
+function Beam({ f, at, real }: { f: number; at: number; real: number }) {
+  if (f < OPEN || f >= SPIN) return null;
   const k = ((Math.round(at) % N) + N) % N;
   const settled = 1 - Math.min(1, Math.abs(at - Math.round(at)) * 4);
   const color = LAYERS[STATIONS[k]!.layer].ink;
   const top = PHONE_AT.y + (PHONE.h / 2) * PHONE_AT.scale - 10;
   const bottom = RING.y + RING.ry - 60;
   return (
-    <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0, opacity: settled * ramp(f, START, 10), zIndex: 55 }}>
+    <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0, opacity: settled * ramp(f, OPEN, 10), zIndex: 55 }}>
       <defs>
         <linearGradient id="beam" x1="0" y1="1" x2="0" y2="0">
           <stop offset="0%" stopColor={color} stopOpacity={0.55} />
@@ -253,7 +256,7 @@ function Beam({ f, at }: { f: number; at: number }) {
       </defs>
       <path d={`M ${RING.x - 46} ${bottom} L ${PHONE_AT.x - 120} ${top} L ${PHONE_AT.x + 120} ${top} L ${RING.x + 46} ${bottom} Z`} fill="url(#beam)" />
       {[0, 1, 2].map((i) => {
-        const t = ((f / 24 + i / 3) % 1);
+        const t = (real / 24 + i / 3) % 1;
         return <circle key={i} cx={RING.x} cy={mix(t, bottom, top)} r={7} fill={color} opacity={0.8 * (1 - t)} />;
       })}
     </svg>

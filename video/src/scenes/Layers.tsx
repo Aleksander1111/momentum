@@ -6,10 +6,10 @@ import { AbsoluteFill, Easing, interpolate } from 'remotion';
 import { Behind, Counters, FeedCard, Glyph, PHONE, Phone, ProjectMark, SLOT, Stamp, type Entity, type Project } from '../kit/app.tsx';
 import { Backdrop, Finger, Headline, Logo } from '../kit/stage.tsx';
 import { C, F, LAYERS, PARTS, domainOf, type Layer } from '../kit/theme.ts';
-import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
-import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
+import { dwelt, mix, pop, ramp, turned, useAmbientFrame, useSceneFrame } from '../kit/motion.ts';
+import { type Cue, useDrift, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const LAYERS_FRAMES = 490;
+export const LAYERS_FRAMES = 565;
 
 const PROJECTS: Record<string, Project> = {
   bookshelf: { name: 'bookshelf', color: '#1D6FD6' },
@@ -440,7 +440,7 @@ function Chips({ frame }: { frame: number }) {
 /** The narration: a line per beat */
 export const LAYERS_CUES: Cue[] = [
   { at: 4, hold: 88, text: 'Everything that needs your decision, from every project, in one feed, most important first.' },
-  { at: 100, hold: 180, text: 'Nothing moves forward without your yes.' },
+  { at: 94, hold: 180, text: 'Nothing moves forward without your yes.' },
   { at: 196, hold: 284, text: 'Behind it, Momentum understands each project, and keeps it consistent.' },
   { at: 296, hold: 368, text: 'AI does the work: planned, done and checked.' },
   { at: 384, hold: 440, text: 'What it finishes comes back to you, ready to read.' },
@@ -451,8 +451,9 @@ export const LAYERS_LENGTH = dwelt(LAYERS_FRAMES, DWELLS);
 
 export function Layers() {
   const frame = useSceneFrame(DWELLS);
+  const real = useAmbientFrame();
   const tilt = ramp(frame, TILT, 70, Easing.bezier(0.45, 0, 0.2, 1));
-  const drift = ramp(frame, TILT, LAYERS_FRAMES - TILT, Easing.linear);
+  const drift = useDrift(TILT, DWELLS, LAYERS_LENGTH);
   const rx = 58 * tilt;
   const rz = -26 * tilt + 7 * drift;
   // The camera: the whole stack, then close on each layer as it is told, then the whole stack again for the work
@@ -468,7 +469,9 @@ export function Layers() {
   // A layer lies 407 px a unit of scale below the one above it on screen, at this tilt
   const dy = -25 * tilt - 407 * scale * level;
   const glow = ramp(frame, CLOSE, 24);
-  const pulse = (frame - (UNDERSTAND + 10)) % 30 / 30;
+  // While the camera looks at a layer below, the phone above it, half out of the frame, is out of focus
+  const focus = 1 - 0.7 * Math.min(1, Math.max(0, (level - 0.9) * 10));
+  const pulse = frame < UNDERSTAND + 10 ? -1 : (real % 30) / 30;
   const guardHit = ramp(frame, RISE + 12, 6) * (1 - ramp(frame, RISE + 24, 10));
 
   // The finger approving the top card, while the stack is still flat
@@ -490,7 +493,7 @@ export function Layers() {
             width: P,
             height: P,
             transformStyle: 'preserve-3d',
-            transform: `translateY(${dy}px) scale(${scale}) rotateX(${rx}deg) rotateZ(${rz}deg)`,
+            transform: `translateY(${dy}px) scale(${scale}) rotateX(${turned(rx)}deg) rotateZ(${rz}deg)`,
           }}
         >
           <Plane layer="implementation" z={-2 * GAP} opacity={ramp(frame, IMPLEMENT, 20)} glow={glow}>
@@ -502,7 +505,7 @@ export function Layers() {
           {/* Its name leaves before the camera, down on the runs, pushes it past the frame's top */}
           <Plane layer="attention" z={0} opacity={ramp(frame, APPROVE.show, 18)} glow={glow} label={1 - Math.min(1, Math.max(0, (level - 1.2) * 3))} />
           <Rising frame={frame} />
-          <Phone style={{ left: (P - PHONE.w) / 2, top: (P - PHONE.h) / 2, transform: 'translateZ(8px)', boxShadow: tilt > 0 ? `0 ${40 * (1 - tilt)}px ${80 * (1 - tilt) + 20}px rgba(30,41,59,.3)` : undefined }}>
+          <Phone style={{ left: (P - PHONE.w) / 2, top: (P - PHONE.h) / 2, transform: 'translateZ(8px)', opacity: focus, boxShadow: tilt > 0 ? `0 ${40 * (1 - tilt)}px ${80 * (1 - tilt) + 20}px rgba(30,41,59,.3)` : undefined }}>
             <Feed frame={frame} />
           </Phone>
         </div>

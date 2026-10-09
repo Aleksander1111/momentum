@@ -9,7 +9,7 @@ import { C, DOMAINS, F, ICONS, PARTS } from '../kit/theme.ts';
 import { dwelt, mix, pop, ramp, useSceneFrame } from '../kit/motion.ts';
 import { type Cue, Voice, voiceDwells } from '../kit/voice.tsx';
 
-export const HOOK_FRAMES = 240;
+export const HOOK_FRAMES = 410;
 
 const PROJECTS: Project[] = [
   { name: 'bookshelf', color: '#1D6FD6' },
@@ -41,7 +41,7 @@ const rand = (i: number, k: number) => {
   return x - Math.floor(x);
 };
 const ITEMS = Array.from({ length: N }, (_, i) => ({
-  at: 10 + 140 * (i / N) ** 0.55,
+  at: 10 + 196 * (i / N) ** 0.55,
   x: 60 + rand(i, 1) * 1500,
   y: 150 + rand(i, 2) * 820,
   rot: (rand(i, 3) - 0.5) * 10,
@@ -50,9 +50,11 @@ const ITEMS = Array.from({ length: N }, (_, i) => ({
   title: Math.floor(rand(i, 6) * 4),
 }));
 
-// Beats
-const PULL = 170;
-const ONE = 196;
+// Beats, each long enough for its line: the flood, what it means, then all of it drawn into one place
+const CHANGES = 84;
+const NOBODY = 168;
+const PULL = 254;
+const ONE = 280;
 
 function Item({ f, i }: { f: number; i: number }) {
   const it = ITEMS[i]!;
@@ -103,10 +105,10 @@ function Line({ f, from, to, top = 440, children }: { f: number; from: number; t
 
 /** The narration: a line per beat */
 export const HOOK_CUES: Cue[] = [
-  { at: 10, hold: 50, text: 'You run a dozen projects.' },
-  { at: 56, hold: 100, text: 'Each one changes, every day.' },
-  { at: 108, hold: 168, text: 'Nobody keeps up with all of it.' },
-  { at: 196, hold: 236, text: 'So it all comes to you, in one place.' },
+  { at: 10, hold: 60, text: 'You run a dozen projects.' },
+  { at: CHANGES, hold: 150, text: 'Each one changes, every day.' },
+  { at: NOBODY, hold: 246, text: 'Nobody keeps up with all of it.' },
+  { at: ONE, hold: 366, text: 'So it all comes to you, in one place.' },
 ];
 const DWELLS = voiceDwells('Hook', HOOK_CUES, HOOK_FRAMES);
 export const HOOK_LENGTH = dwelt(HOOK_FRAMES, DWELLS);
@@ -115,7 +117,7 @@ export function Hook() {
   const f = useSceneFrame(DWELLS);
   const count = Math.round(1284 * ramp(f, 6, PULL - 6, Easing.in(Easing.quad)));
   // A dozen by the time the voice says so
-  const projects = Math.min(PROJECTS.length, 1 + Math.floor(f / 2.5));
+  const projects = Math.min(PROJECTS.length, 1 + Math.floor(f / 3.5));
   const counterOut = ramp(f, PULL, 14);
   const dot = pop(f, PULL + 24, true);
   return (
@@ -136,8 +138,8 @@ export function Hook() {
           </div>
         ))}
       </div>
-      <Line f={f} from={28} to={104}>Every project changes, every day.</Line>
-      <Line f={f} from={108} to={PULL}>Nobody keeps up with all of it.</Line>
+      <Line f={f} from={CHANGES} to={NOBODY - 4}>Each one changes, every day.</Line>
+      <Line f={f} from={NOBODY} to={PULL + 10}>Nobody keeps up with all of it.</Line>
       {/* Everything drawn into one point */}
       <div style={{ position: 'absolute', left: 960 - 30, top: 560 - 30, width: 60, height: 60, borderRadius: 30, background: C.accent, transform: `scale(${dot})`, boxShadow: `0 0 ${60 * dot}px ${C.accent}` }} />
       <Line f={f} from={ONE} to={HOOK_FRAMES + 40} top={680}>
