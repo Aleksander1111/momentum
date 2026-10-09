@@ -62,10 +62,11 @@ One Expo (React Native) app for web and mobile. On a phone the tabs sit in a bot
 
 On a **Feed** card:
 
-- **Swipe right**: approve. The card becomes verified and leaves the feed.
-- **Swipe left**: rework. Send it back with a comment, which starts a chat run on the entity, or joins the one already open.
+- **Swipe right**: approve. One commit sets the entity verified, takes it out of the feed and syncs what it `implements`. An implementable entity with nothing implementing it starts **Implementation**.
+- **Swipe left**: rework. Send it back with a comment, which starts a chat run on the entity, or joins the one already open. The card leaves the feed while the chat works and returns if the chat leaves it unverified.
 - **Pull up**: ask. Opens a chat on the card with the whole card as context.
 - **Select part of a card** to add just that part to a chat's context.
+- **Resolve** or **won't resolve** an issue card: see [Consistency issue resolution](#consistency-issue-resolution).
 
 A card that changed since you last verified it shows the diff. Counters above the cards show entities by verification and sync state. When the back end is out of reach, your reactions queue and are sent once it is back.
 
@@ -75,6 +76,17 @@ The other tabs:
 - **Sessions**: your chats and interviews, and the automation runs, filtered by all, yours or automations.
 - **Timeline**: every run, reaction and harness event, newest first, plus the runs queued and running.
 - **Metrics**: usage of the rolling 5-hour and weekly limits, automations, trends over time, runs by parameter and retrieval quality.
+
+Beyond the feed:
+
+- **Chat** and **interview**, by text or by voice ("interview \<topic\>").
+- **Stop a run** from its conversation: what it wrote still lands.
+- **Run an automation on demand**, through the `run_automation` tool.
+- **Enable, build or reset projects** in Settings.
+- **Edit entities** by committing to the main line.
+- **Change settings**: limits, models, lifetimes.
+
+**Patterns**: when your last ten reactions to one entity type were all the same, a `Harness/Pattern` proposal ("Approve \<type\> items automatically") enters the feed. Approving it counts it in the attention metrics.
 
 ## How everything works together
 
