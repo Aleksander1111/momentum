@@ -15,7 +15,7 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 ## Contents
 
 1. [Harness and products](#harness-and-products)
-2. [Mobile app](#mobile-app)
+2. [User actions](#user-actions)
 3. [How everything works together](#how-everything-works-together)
 4. [Entities](#entities)
 5. [Entity types](#entity-types)
@@ -30,9 +30,8 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 14. [Consistency issue types](#consistency-issue-types)
 15. [Consistency issue resolution](#consistency-issue-resolution)
 16. [Versioning](#versioning)
-17. [User actions](#user-actions)
-18. [Settings](#settings)
-19. [Getting started](#getting-started)
+17. [Settings](#settings)
+18. [Getting started](#getting-started)
 
 ---
 
@@ -55,9 +54,9 @@ The **harness** is what you use and what runs it:
 
 The dashed line on the slide is the border between **unverified** and **verified**: a run's work arrives on the left, and only your approval moves it across.
 
-## Mobile app
+## User actions
 
-![Mobile app](docs/slide-images/02-mobile-app.png)
+![User actions](docs/slide-images/02-user-actions.png)
 
 One Expo (React Native) app for web and mobile. On a phone the tabs sit in a bottom bar and Settings is an icon in the corner; on a wide screen all six tabs sit in a left rail.
 
@@ -404,31 +403,9 @@ A guard issue or a conflict has no options: approve it, or send it back to start
 - **Your commits** are indexed on every orchestrator tick (see [Summarization](#summarization)).
 - **Your checkout follows** the main line: clean files are updated, files you changed are left alone.
 
-## User actions
-
-![User actions](docs/slide-images/17-user-actions.png)
-
-| Action | What happens |
-|---|---|
-| **Swipe right**: approve | One commit sets the entity verified and syncs what it `implements`. An implementable entity with nothing implementing it starts **Implementation**. |
-| **Swipe left**: send back | Your comment starts a chat run on the entity, or joins the open one. The card leaves the feed while the chat works and returns if the chat leaves it unverified. |
-| **Pull up**: ask | A chat on the card, with the card as context. |
-| **Resolve** or **won't resolve** | See [Consistency issue resolution](#consistency-issue-resolution). |
-
-Beyond the feed:
-
-- **Chat** and **interview**, by text or by voice ("interview \<topic\>").
-- **Stop a run** from its conversation: what it wrote still lands.
-- **Run an automation on demand**, through the `run_automation` tool.
-- **Enable, build or reset projects** in Settings.
-- **Edit entities** by committing to the main line.
-- **Change settings**: limits, models, lifetimes.
-
-**Patterns**: when your last ten reactions to one entity type were all the same, a `Harness/Pattern` proposal ("Approve \<type\> items automatically") enters the feed. Approving it counts it in the attention metrics.
-
 ## Settings
 
-![Settings](docs/slide-images/18-settings.png)
+![Settings](docs/slide-images/17-settings.png)
 
 | Section | Setting | Default |
 |---|---|---|
