@@ -8,9 +8,9 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 
 ## Video
 
-> 🎬 The walkthrough video is coming soon on YouTube.
+[![Momentum walkthrough](https://img.youtube.com/vi/JHQ4OpeXyJo/maxresdefault.jpg)](https://youtu.be/JHQ4OpeXyJo)
 
-<!-- Replace with: [![Momentum walkthrough](docs/slide-images/01-harness-and-products.png)](https://www.youtube.com/watch?v=VIDEO_ID) -->
+🎬 [Watch the walkthrough on YouTube](https://youtu.be/JHQ4OpeXyJo)
 
 ## Contents
 
