@@ -27,7 +27,7 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 11. [Summarization](#summarization)
 12. [Graph completeness](#graph-completeness)
 13. [Consistency guard](#consistency-guard)
-14. [Issue types](#issue-types)
+14. [Consistency issue types](#consistency-issue-types)
 15. [Issue resolution](#issue-resolution)
 16. [Git](#git)
 17. [User actions](#user-actions)
@@ -342,9 +342,9 @@ A run whose files changed on the main line meanwhile lands with a `Harness/Confl
 
 The **consistency check** runs every night at 03:00. It reads the knowledge graph only, never the artifacts, trusting the summaries, and raises one `Harness/Issue` per finding, `concerning` the entities involved.
 
-## Issue types
+## Consistency issue types
 
-![Issue types](docs/slide-images/14-issue-types.png)
+![Consistency issue types](docs/slide-images/14-issue-types.png)
 
 The consistency check sets exactly one `category` per issue.
 
