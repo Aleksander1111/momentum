@@ -8,7 +8,7 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 
 ## Video
 
-https://github.com/user-attachments/assets/9f1be4c6-2d95-4c91-bca5-03c4b7c9c4e7
+https://github.com/user-attachments/assets/97e31b2e-efcc-4aca-b49c-1f102181a758
 
 🎬 [Watch the walkthrough on YouTube](https://youtu.be/JHQ4OpeXyJo)
 
