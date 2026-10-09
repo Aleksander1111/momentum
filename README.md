@@ -1,8 +1,10 @@
 # Momentum
 
-**You run a dozen projects. Each one changes every day. Momentum brings everything that needs your decision into one place.**
+**A self-hosted harness around Claude Code: the single entry point between you and the work around all your projects.**
 
-Momentum is a harness around Claude Code. It understands each of your projects as a knowledge graph of short cards, lets AI agents plan, build and check the work, and puts every result in one ranked feed on your phone. Swipe right to approve, swipe left to send it back. Nothing moves forward without you.
+Every git repository under one root directory is a workspace. For each project you enable, Momentum builds a knowledge graph of short entity cards, runs Claude Code automations that explore, plan, implement, validate and summarize the work, and brings everything that needs your judgement into one ranked feed across projects, on the web or on your phone.
+
+Everything a run writes lands on the main line **unverified** and waits in the feed. Swipe right to approve it, swipe left to send it back with a comment. Only you verify.
 
 ## Video
 
@@ -38,108 +40,204 @@ Momentum is a harness around Claude Code. It understands each of your projects a
 
 ![Harness and products](docs/slide-images/01-harness-and-products.png)
 
-Momentum has two halves.
+Momentum works in **three layers**. Attention is shared across all projects; understanding and implementation exist once per project.
 
-- **The harness** is what you use and what runs it: the app's tabs (**Feed**, **Explorer**, **Chat**, **Timeline**, **Metrics**, **Settings**) and the back end behind them (**API**, **Orchestrator**, **Runner**, **Consistency Guard**).
-- **The products** are what the harness makes for each project, in three layers:
-  - **Attention layer**: the **Attention Feed**, fed by **Ranking** and emptied by **Approval**.
-  - **Understanding layer**: **Entity Cards** and the **Knowledge Graph**, held consistent by the **Consistency Guard**.
-  - **Implementation layer**: automations such as **Chat**, **Interview**, **Preparation**, **Implementation** and **Graph Build**, started by the **Orchestrator**. What they leave behind (chats, interviews, plans, code, documents) is turned into cards by **Summarization**.
+| Layer | What it does |
+|---|---|
+| **Attention** | One feed across enabled projects, ranked by `product_impact + timeline_impact + unlocks`. Your reactions: approve, send back, resolve an issue, won't resolve. |
+| **Understanding** | The knowledge graph: entity cards in each project's `knowledge-graph/`, indexed for Graph RAG search. The consistency guard validates every change. |
+| **Implementation** | Claude Code runs, one process and one detached checkout of the main line each, started by the orchestrator and landed on the main line when they end. |
 
-The **consistency border** runs down the middle: on the left everything is **unverified** and waits for you; on the right it is **verified**, because you approved it.
+The **harness** is what you use and what runs it:
+
+- **The app** (`apps/app`): Feed, Explorer, Sessions, Timeline, Metrics and Settings.
+- **The back end** (`apps/backend`): one Node process holding the **API** (typed HTTP routes, voice sockets, MCP tools at `/mcp`), the **orchestrator**, the **runner** and the **consistency guard**. Runs, search answers and risk estimates are the only separate processes.
+
+The dashed line on the slide is the border between **unverified** and **verified**: a run's work arrives on the left, and only your approval moves it across.
 
 ## Mobile app
 
 ![Mobile app](docs/slide-images/02-mobile-app.png)
 
-The app is a feed of **entity cards**: one component, decision, feature or issue per card, short enough to read on a phone screen.
+One Expo (React Native) app for web and mobile. On a phone the tabs sit in a bottom bar and Settings is an icon in the corner; on a wide screen all six tabs sit in a left rail.
 
-- **Swipe right** to approve. The card is verified and the work goes ahead.
-- **Swipe left** to send it back, with a comment saying what should change.
-- The tab bar takes you to **Explorer**, **Chat**, **Timeline** and **Metrics**.
+On a **Feed** card:
+
+- **Swipe right**: approve. The card becomes verified and leaves the feed.
+- **Swipe left**: rework. Send it back with a comment, which starts a chat run on the entity, or joins the one already open.
+- **Pull up**: ask. Opens a chat on the card with the whole card as context.
+- **Select part of a card** to add just that part to a chat's context.
+
+A card that changed since you last verified it shows the diff. Counters above the cards show entities by verification and sync state. When the back end is out of reach, your reactions queue and are sent once it is back.
+
+The other tabs:
+
+- **Explorer**: pick a project, browse its domain and type tree, search or ask a question (also by microphone), or explore through an agent.
+- **Sessions**: your chats and interviews, and the automation runs, filtered by all, yours or automations.
+- **Timeline**: every run, reaction and harness event, newest first, plus the runs queued and running.
+- **Metrics**: usage of the rolling 5-hour and weekly limits, automations, trends over time, runs by parameter and retrieval quality.
 
 ## How everything works together
 
 ![How everything works together](docs/slide-images/03-how-everything-works-together.png)
 
-One loop, for every project at once:
+One loop, for every enabled project:
 
-1. **You** approve, send back or chat.
-2. **Triggers** start work on a schedule, on an event or on demand.
-3. **Runs** queue up, each in its own checkout of the main line.
-4. **Work** produces entities and artifacts.
-5. **Summarization** turns the artifacts into cards.
-6. The **consistency guard** validates the run as one transaction, then lands it.
-7. The **main line** gets one commit per run.
-8. The **attention feed** shows the result, ranked, unverified first, and it comes back to you.
+1. **Triggers** queue runs on a schedule, on an event, or on demand. The orchestrator checks them every 30 seconds and on every event.
+2. **Runs** start, each a Claude Code session in its own detached checkout of the main line. Automation runs go one at a time per project. Runs you start go at once. All of them count toward the concurrent-runs limit.
+3. **Work**: the run writes code, plans, documents and entity cards. The guard checks every write as it happens.
+4. **Summarization**: before the run ends, its Stop hook hands every artifact it changed to the summarization sub-agent, which turns them into entity cards.
+5. **Consistency guard**: the run lands as one transaction and one commit on the main line. Every entity it wrote lands unverified. What fails validation lands too, with a `Harness/Issue` over it.
+6. **Attention feed**: the index updates, and the unverified entities enter the feed, ranked.
+7. **You** react. Approving an implementable entity that nothing implements yet starts **Implementation**. A finished implementation starts **Validation**.
 
-At the centre sits the **knowledge graph**, one per project. Your own commits skip the run and the guard; your own runs start at once.
+**Your own commits** need no run and are not validated, but the guard indexes them: unverified entities in them enter the feed, and changed artifacts mark the entities over them `artifact_ahead` and start one summarization run.
 
 ## Entities
 
 ![Entities](docs/slide-images/04-entities.png)
 
-An **entity is its card**: one Markdown file in the `knowledge-graph` directory, held under a character limit so it fits on a phone.
+An **entity is its card**: one Markdown file in the project's `knowledge-graph/` directory.
 
-- **Type = path.** The directory is the type, e.g. `knowledge-graph/Governance/Decision/private-mesh.md`. There are 151 types.
-- **References** link entities to each other (`depends_on`, `implements`, `concerns`), and search walks them with Graph RAG.
-- **Artifacts** are the files the entity summarizes: source code, plans, chats. A summary is the entity plus its artifacts.
+- **The type is the path**: `knowledge-graph/<Domain>/<Type>/[<parent>/]<name>.md`. The `type` in the frontmatter must match the directory.
+- **The file**: YAML frontmatter, then a `# Title`, then the card body. The card has no fixed structure; diagrams are PlantUML.
+- **The character limit** (700 by default, in Settings) keeps a card readable on a phone. Runs are told the limit and split an entity that does not fit into entities that reference each other.
+
+Frontmatter:
+
+| Field | Values |
+|---|---|
+| `type` | `<Domain>/<Type>`, one of the 151 types |
+| `origin` | `user`, `requested` or `automation` |
+| `verification` | `unverified` (default) or `verified` |
+| `sync` | `synced` (default), `entity_ahead`, `artifact_ahead` or `updating` |
+| `product_impact`, `timeline_impact`, `unlocks` | 0 to 5; their sum ranks the feed |
+| `references` | `{ to, relation }`: links to other entities |
+| `artifacts` | repository paths the entity accounts for; a directory claims everything in it |
+
+**References** must resolve to an existing entity. The relation is any snake_case verb. The harness acts on three: `implements` (sync and implementation), `plans` (a plan and the work it plans) and `concerns` (an issue and the entities it is about). A card may link the entities it names, as `[text](Domain/Type/name)`; every link must also be a reference.
+
+**Artifacts** are the files outside `knowledge-graph/` that the entity summarizes: an entity with artifacts is a **summary**.
+
+**Search** fuses Postgres full-text search with local embeddings (`bge-small-en-v1.5`) by reciprocal rank. The agents' search and the **Ask** answers then walk the references both ways (Graph RAG), one to three hops deep.
 
 ## Entity types
 
 ![Entity types](docs/slide-images/05-entity-types.png)
 
-**151 types in 12 domains**: Product, Governance, Architecture, Code, Data, Frontend, Testing, Security, Infrastructure, Organization, Knowledge and Harness. A feature, a decision, an API, a database table, a test suite, a threat, a deployment, a meeting note: each has a type, and each type has its directory at `knowledge-graph/<Domain>/<Type>/`. The full list lives in [docs/entity-types.tsv](docs/entity-types.tsv).
+**151 types in 12 domains**, listed with a description each in [docs/entity-types.tsv](docs/entity-types.tsv). Each type is a directory: `knowledge-graph/<Domain>/<Type>/`.
+
+| Domain | Types | Domain | Types |
+|---|---|---|---|
+| Product | 25 | Testing | 7 |
+| Governance | 11 | Infrastructure | 24 |
+| Architecture | 16 | Security | 9 |
+| Code | 11 | Organization | 7 |
+| Data | 18 | Knowledge | 5 |
+| Frontend | 10 | Harness | 8 |
+
+The **Harness** domain is Momentum's own: `Automation`, `Trigger`, `Issue`, `Conflict`, `Plan`, `Research`, `Pattern` and `Report`.
+
+Seven types are **implementable**: approving one with nothing implementing it starts an implementation. They are `Product/Feature`, `FeatureRequest`, `UserStory`, `DevTask`, `Bug`, `TechDebt` and `Harness/Plan`.
 
 ## Entity states
 
 ![Entity states](docs/slide-images/06-entity-states.png)
 
-Every entity carries three independent states.
+**Verification** is your judgement:
 
-- **Verification** is your judgement: **unverified** entities wait in the feed; your approval makes them **verified**. A run that rewrites an entity makes it unverified again.
-- **Sync** tracks the entity against its artifacts and implementation:
-  - **synced**: card and artifacts agree.
-  - **entity_ahead**: approved, not yet implemented; an implementation run follows.
-  - **artifact_ahead**: an artifact changed; a summarization run follows.
-  - **updating**: a run is working on it, until it lands.
-- **Contradictions** count the open contradiction issues over the entity.
+- **unverified**: in the feed. Every entity a run writes lands unverified, whatever its frontmatter said.
+- **verified**: out of the feed. Only you verify: by approving, or by marking an issue won't resolve.
+
+Your own edits to entity files keep the verification the file states.
+
+**Sync** tracks an entity against its artifacts and its implementation:
+
+| State | Set when | Leaves when |
+|---|---|---|
+| `synced` | Nothing below applies (the default) | |
+| `entity_ahead` | An implementable entity is verified, and nothing verified implements it | Approving a result that `implements` it sets it back to `synced` |
+| `artifact_ahead` | An artifact changed on the main line without its entity, or a summarization run failed | A summarization run rewrites the entity |
+| `updating` | A run targeting the entity is created, already while it is queued | The run lands, or is killed while queued |
+
+`entity_ahead` starts an **Implementation** run. `artifact_ahead` starts a **Summarization** run. `artifact_ahead` and `updating` live only in the index and are never committed to the file.
+
+**Contradictions** count the open `contradiction` issues that `concern` the entity, leaving out those marked won't resolve.
 
 ## Automations
 
 ![Automations](docs/slide-images/07-automations.png)
 
-Twelve automations work around the knowledge graph: **Search**, **Exploration**, **Preparation**, **Implementation**, **Validation**, **Consistency check**, **Retention**, **Optimization**, **Summarization**, **Graph build**, **Chat** and **Interview**. Each starts on a schedule, on an event, when you ask, when a project is enabled, or from a Stop hook.
+Twelve automations, each defined by its responsibility:
+
+| Automation | What it does | Started by |
+|---|---|---|
+| **Exploration** | Decides the next best action within the project's goals and researches what it needs | Schedule |
+| **Preparation** | Finds tasks, issues and research that can start, and writes plans to `plans/` | Schedule |
+| **Implementation** | Implements an approved entity; the work lands when the run ends | Event: `entity_ahead` |
+| **Validation** | Validates an implementation once it has landed, and the project as it stands | Schedule, and event: `implementation_finished` |
+| **Consistency check** | Checks consistency across all entities and raises each finding as a `Harness/Issue` | Schedule |
+| **Retention** | Retires entities whose lifetime is spent, by the lifetime rules per type | Schedule |
+| **Optimization** | Analyses every chat for repeating patterns and proposes skills, memories, sub-agents, definition and trigger changes | Schedule, harness workspace only |
+| **Summarization** | Summarizes the artifacts a run added, changed or deleted into entities | A run's Stop hook (as a sub-agent), and `artifact_ahead` (as its own run) |
+| **Graph build** | Builds the knowledge graph, run after run, until the repository is covered | Enabling the project |
+| **Chat** | The direct chat with you | You |
+| **Interview** | Interviews you one question at a time to write one document in `interviews/` | You |
+| **Search** | Answers a question from the entities a search found, in one pass | You, in Explorer; one model turn, no run |
 
 **One project, two lanes:**
 
-- **Automation runs** queue up and run one at a time.
-- **Your runs** (a chat, a send back, a run on demand) start at once, alongside them.
+- **Automation runs** queue and run one at a time per project. Different projects run side by side.
+- **Runs you start** (a chat, an interview, a send back, an issue resolution, a run on demand) start at once, alongside them.
+
+Both lanes share the **concurrent runs in total** limit (8 by default).
 
 ## Triggers
 
 ![Triggers](docs/slide-images/08-triggers.png)
 
-A **trigger** is an entity that says when an automation runs.
+A **trigger** is a `Harness/Trigger` entity that says when an automation runs:
 
-- **Every two hours**, around the clock: **Exploration** on the hour, **Preparation** at half past.
-- **Every night**, one after another: **Validation** at 02:00, **Consistency check** at 03:00, **Retention** at 04:00, **Optimization** at 05:00.
-- **Events**: one run starts the next. An approved, unimplemented entity starts **Implementation**; a finished implementation starts **Validation**.
-- **On demand**: any trigger with `on_demand: true`. Chat and Interview run on demand only.
-- **No trigger entity**: **Summarization** runs from every run's Stop hook, **Graph build** runs while a project is enabled until its graph is complete, and **Search** answers in one turn, without a run.
+```yaml
+automation: consistency-check
+schedule: "0 3 * * *"   # cron, server local time
+events: []              # entity_ahead, implementation_finished
+on_demand: true
+```
 
-When the feed reaches its limit, scheduled loops pause until you catch up.
+The default triggers come from `automations/<name>/trigger.md`:
+
+| Automation | Schedule | Events |
+|---|---|---|
+| Exploration | `0 */2 * * *`: every two hours, on the hour | |
+| Preparation | `30 */2 * * *`: every two hours, at half past | |
+| Validation | `0 2 * * *`: 02:00 | `implementation_finished` |
+| Consistency check | `0 3 * * *`: 03:00 | |
+| Retention | `0 4 * * *`: 04:00 | |
+| Optimization | `0 5 * * *`: 05:00, harness workspace only | |
+| Implementation | | `entity_ahead` |
+| Chat, Interview | on demand only | |
+
+All the defaults have `on_demand: true`. A run on demand is refused when its trigger does not allow it.
+
+**Without a trigger entity:** Summarization runs from every run's Stop hook and on `artifact_ahead`. Graph build runs while the project is enabled, until the build is complete. Search answers in one turn, without a run.
+
+**At the feed limit**, scheduled triggers and the graph build stop queueing new runs until the feed has room again. Event runs, your runs and summarization keep going.
 
 ## Automation management
 
 ![Automation management](docs/slide-images/09-automation-management.png)
 
-Automations are entities too.
+Automations are entities too, so they change through the feed like everything else.
 
-- The **harness workspace** holds one definition per automation; its artifacts are the Claude Code files at `automations/<name>/agents/momentum-<name>.md`.
-- **Each workspace** holds one trigger per automation: schedule, events, on demand.
-- Your edits land on the main line as you commit them. **Optimization** proposes changes for patterns that repeat three times across chats; they pass the consistency guard, reach the feed and are verified like any other entity.
-- You can **run on demand** (also by voice), **stop a run** (what it wrote still lands), pick **models** per automation and cap **concurrent runs** in total.
+- **Definitions** are `Harness/Automation` entities in the harness workspace (this repository). Their artifacts are the Claude Code files in `automations/<name>/`: the agent `agents/momentum-<name>.md`, the default `trigger.md`, and for implementation the risk rules `risk.md`.
+- **Triggers** are `Harness/Trigger` entities in each workspace. When you enable a project that has none, the defaults are committed to its main line; they take effect at once and wait in the feed for review.
+- **Materialization**: each definition is copied into every enabled workspace's `.claude/` (kept out of git through `.git/info/exclude`). This happens on enable and whenever a definition changes on the harness main line.
+- **In effect as they stand**: definitions and triggers work as soon as they land on the main line. Verification is your review, not a gate.
+- **Optimization** tracks each recurring pattern as a `Harness/Pattern` and proposes a change once it has seen it three times.
+- **Scope in the harness repository**: chat, interview and implementation may change anything; preparation only `plans/`; optimization only `automations/`; every other automation only `knowledge-graph/`. Changes outside the scope are put back.
+
+You can **stop a run** (what it wrote still lands; a queued run never starts), **steer a run** or resume an ended one with a message, pick **models** and set **concurrent runs in total**. An automation **runs on demand** through the `run_automation` MCP tool.
 
 ## Agent tools
 
@@ -147,97 +245,210 @@ Automations are entities too.
 
 What a run's agent can use:
 
-- **Claude Code built-in tools** (Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, Agent, Skill, TodoWrite) in the run's own checkout.
-- **momentum-kb** (MCP, in process): `search` (text, semantic, Graph RAG), `read` and `references`, `types`, `write` (validated on write) and `record_agent_metric`.
-- **momentum-run** (MCP, in process): `report_graph_build` and `report_interview`, so the run reports progress to the harness.
-- **Sub-agents**, such as `momentum-summarization`, from the project's `.claude/agents`.
-- **Hooks**: `PostToolUse` puts the consistency guard on every write; `Stop` and `SubagentStop` summarize, fix issues and write the commit message.
-- **momentum** (MCP over HTTP at `/mcp`): your voice tools. The whole API, no UI: feed, approve, send back, ask, resolve issues, run automations, settings and more.
+- **Claude Code built-in tools**, all of them, with permissions bypassed, in the run's own checkout. The checkout's project settings apply, including its hooks.
+- **`momentum-kb`** (in-process MCP), the project's knowledge base:
+
+  | Tool | Does |
+  |---|---|
+  | `search` | Full text, embeddings and Graph RAG |
+  | `read`, `references` | An entity, and its links both ways |
+  | `types` | The entity types and what each is for |
+  | `write` | Writes an entity, validated on write |
+  | `record_agent_metric` | Records misalignments and recurring issues |
+
+- **`momentum-run`** (in-process MCP), what the run reports to the harness: `report_graph_build` (progress, next, documents), `report_interview` (interview runs only) and `retrieval_ratings` (optimization only).
+- **The `momentum-summarization` sub-agent**, the one sub-agent the harness provides.
+- **Hooks** that put the consistency guard inside the run:
+  - `PostToolUse` checks every `Write`, `Edit`, `MultiEdit`, `NotebookEdit` and `momentum-kb` write, and tells the agent what the guard will not accept.
+  - `Stop` asks for summarization, then for fixes to the guard's issues (at most twice), then for the commit message.
+  - `SubagentStop` records that summarization ran.
+
+Each run is held by Process Governor to 4 GB of memory and 4 CPU cores by default, and cannot see the harness's database credentials. After a run, its retrieval calls are rated for relevance by Haiku, and optimization reads the ratings.
+
+**Your voice tools** are separate: the **`momentum`** MCP server over HTTP at `/mcp`, behind your session. It is the API without the UI: feed, approve, send back, resolve issues, entities, search, ask, chats, runs, graph build, metrics, timeline and settings. Runs do not get it.
 
 ## Summarization
 
 ![Summarization](docs/slide-images/11-summarization.png)
 
-When a run stops, the **Stop hook** hands the run's artifacts (code, plans, chats, documents) to the **summarization sub-agent**. It turns them into **summary entities**: one card each, within the character limit, so you read one card instead of a pile of changes.
+**When a run stops**, its Stop hook stops it once more and asks it to run the `momentum-summarization` sub-agent over everything it changed: the files added, changed or deleted against the run's base commit, the documents a graph-build run listed, and an interview's document once the interview is done.
 
-Your own commits work the same way: a changed artifact marks its entity **artifact_ahead**, a summarization run follows, and the card is rewritten.
+The sub-agent writes **one summary entity per coherent piece of work**, not one per file:
+
+- It rewrites the entity already over an artifact rather than adding one beside it, and leaves a card alone when it is still true.
+- It re-points moved artifacts, drops deleted ones, and deletes entities left with no artifact.
+- The results of an implementation reference its target with `implements`.
+
+**Never summarized**: `knowledge-graph/`, the chat transcripts in `chats/` (they are left for optimization), and the patterns in Settings → Summarization.
+
+**Your own commits**: a changed artifact marks the entities over it `artifact_ahead`, and one summarization run covers all of them, rewriting a card only where the change makes it wrong or adds to it. New files that no entity covers are summarized once the graph build is complete.
 
 ## Graph completeness
 
 ![Graph completeness](docs/slide-images/12-graph-completeness.png)
 
-How well is a project understood? Completeness is **the mean of two halves**:
+How well a project is understood: **the mean of two halves**, measured by the harness on the main line, never estimated by a run.
 
-- **Understanding**: eight questions a reader needs answered (what the product is, what it is for, what it does, how it is built, where the code is, where it runs, how it is tested, what rules and decisions shape it). Any entity of a matching type answers its question.
-- **Territory**: every area of the repository accounted for. An area counts by its parts, not its files, weighted by the logarithm of its size. One card can claim a whole directory; a card per file, class or function counts for nothing.
+**Understanding**: eight questions a reader needs answered. Each is answered by any entity of one of its types; the score is answered questions out of eight.
 
-It is **measured on the main line** by the harness, never estimated by a run. Each graph build run is told the gaps, and the build is **complete** when nothing is left that the repository can fill.
+| Question | Types that answer it |
+|---|---|
+| What the product is | Product/Product |
+| What it is for | Product/Goal, Initiative, RoadmapItem |
+| What it does | Product/Capability, Feature, UseCase, UserJourney |
+| How it is built | Architecture/System, Service |
+| Where the code is | Code/Repository |
+| Where it runs | Infrastructure/Environment, Deployment, CiCdPipeline |
+| How it is tested | Testing/TestSuite, TestPlan, TestCase |
+| What rules and decisions shape it | Governance/Decision, Constraint, Requirement, DesignDoc, Policy; Product/BusinessRule |
+
+**Territory**: every area of the repository accounted for.
+
+- An **area** is a top-level directory. A directory that holds only directories, like `apps/` or `packages/`, is replaced by its children. Root files form one area.
+- An area counts by its **parts**: its subdirectories, plus its own files as one part. A part is claimed when an entity lists it, anything inside it, or a directory above it in `artifacts`.
+- Areas are weighted by `log2(1 + files)`.
+- Detail types claim nothing: `Code/SourceFile`, `Class`, `Function`, `Commit`, `Data/Column`, `Index`, `Frontend/FormField` and `LocalizationString`. The graph exists to spare the reader those.
+- `knowledge-graph`, `chats`, `.claude`, `.git` and the never-summarized patterns are left out.
+
+**Graph build**: each build run is told the gaps, writes at most as many entities as the feed has room for, and reports its progress. The build is **complete** when a run reports that nothing missing can be found in the repository. Three failed build runs in a row stop it until you resume it.
 
 ## Consistency guard
 
 ![Consistency guard](docs/slide-images/13-consistency-guard.png)
 
-The **consistency guard** checks every write in the run's checkout: **type**, **links**, **diagram** and **references**. A run lands as one transaction and one commit on the main line. Everything lands; what fails carries an issue.
+The **consistency guard** keeps the knowledge base consistent while runs write freely.
 
-The nightly **consistency check** reads the knowledge graph only, never the artifacts. It raises a **Harness/Issue** for each finding (a contradiction, say) that **concerns** the entities involved, and the issue is counted on each of them.
+Every entity is validated for:
+
+- `parse`: a readable file
+- `unknown_type`: the type is in `entity-types.tsv`
+- `type_path_mismatch`: the type matches its directory
+- `mermaid_diagram`: diagrams are PlantUML
+- `unresolved_reference`: every reference resolves
+- `unlisted_link`: every linked entity is among the references
+
+**During the run**, the `PostToolUse` hook checks every write, and the `Stop` hook has the run fix what fails, at most twice.
+
+**When the run ends**, whether it finished, failed or was killed, the guard lands it as **one transaction**:
+
+1. Puts back changes outside the automation's scope (harness repository only).
+2. Validates every changed entity, and every deleted entity something still references.
+3. Writes a `Harness/Report` for the entities the run removed.
+4. Sets every entity the run wrote to unverified.
+5. Raises a `Harness/Issue` over what failed. **Everything lands.**
+6. Commits, lands and indexes in one step, and updates the index and metrics database.
+
+A run whose files changed on the main line meanwhile lands with a `Harness/Conflict` (see [Git](#git)).
+
+The **consistency check** runs every night at 03:00. It reads the knowledge graph only, never the artifacts, trusting the summaries, and raises one `Harness/Issue` per finding, `concerning` the entities involved.
 
 ## Issue types
 
 ![Issue types](docs/slide-images/14-issue-types.png)
 
-- **By rule**, found by queries over the graph and the guard's checks:
-  - **Reference**: an unresolved reference, or a card linking an entity that is not among its references.
-  - **Type path**: a type outside `entity-types.tsv`, or outside its directory.
-- **By reading** the cards themselves, by severity:
-  - **High**: **Contradiction** (claims clash across entities), **Logical** (claims of one entity cannot all be true), **Ambiguity** (wording open to more than one reading).
-  - **Medium**: **Design gap** (a missing flow, mechanism or rule), **Naming** (an unintroduced name, or two names for one concept), **Repetition** (facts restated elsewhere).
-  - **Low**: **Verbose**, **Struct** (a format that hides the information), **Split** (a fragment of another entity).
+The consistency check sets exactly one `category` per issue.
 
-**One issue per finding.** The check raises issues and never fixes them. Each issue names the entity at fault, offers 2–4 options to resolve, and scores impact and unlocks from 0 to 5.
+**By rule**, found with queries and rules:
+
+- `reference`: an unresolved reference, or a linked entity not among the references.
+- `type-path`: a type not in `entity-types.tsv`, or not matching its directory.
+
+**By reading** the cards, with a `severity`:
+
+| Severity | Category | Raised when |
+|---|---|---|
+| High | `contradiction` | Other entities state the opposite of this one |
+| High | `logical` | The entity contradicts itself |
+| High | `ambiguity` | The entity can be read more than one way |
+| Medium | `design-gap` | A flow, mechanism or rule it needs is missing |
+| Medium | `naming` | A name not introduced, two names for one concept, or one name for two |
+| Medium | `repetition` | Other entities restate the same information |
+| Low | `verbose` | More words than meaning |
+| Low | `struct` | The format hides the information |
+| Low | `split` | A fragment of another entity |
+
+**One issue per finding**, raised and never fixed by the check, and none where an existing issue already covers it. Each issue:
+
+- `concerns` the entities involved, the one at fault first (at least two for a contradiction, repetition or split).
+- Offers 2–4 `options`, each a label and a change, with a `recommended` one when one is clearly best.
+- Is scored on `product_impact`, `timeline_impact` and `unlocks`.
+
+The guard's own issues (`source: guard`) and conflicts carry no category or options.
 
 ## Issue resolution
 
 ![Issue resolution](docs/slide-images/15-issue-resolution.png)
 
-An issue card in the feed lists the entities it concerns and the options to resolve it, the recommended one first.
+An issue card in the feed shows its severity, its category, the entities it concerns (the one at fault marked), and its options, with the recommended one marked and picked.
 
-- **Swipe right** to take the picked option.
-- **Swipe left** to give your own resolution.
-- Either way a **chat run** applies it to the concerned entities, which come back to the feed unverified, and retires the issue.
-- **Won't resolve** keeps the issue, verified, with your reason in its frontmatter. It is not raised again and no longer counts as a contradiction.
+- **Swipe right**: resolve with the picked option.
+- **Swipe left**: write your own resolution, or **won't resolve**.
+
+A resolution starts a **chat run** that applies it to the concerned entities and deletes the issue. If a chat is already open on the issue, the resolution goes to it as a message. The changed entities land unverified and come back to the feed.
+
+**Won't resolve** needs a reason. It is one commit that keeps the issue, verified, with the reason in its `wont_resolve` frontmatter. The check skips findings an existing issue covers, and the issue no longer counts as a contradiction.
+
+A guard issue or a conflict has no options: approve it, or send it back to start a chat run on it.
 
 ## Git
 
 ![Git](docs/slide-images/16-git.png)
 
-The **main line is the only branch**. Every run works in its own checkout and lands as one commit:
+**The main line is the only branch.** Enabling a project with another branch, a detached HEAD or a merge is refused, and an enabled project that gains one is switched off.
 
-- A run on an untouched tip **fast-forwards**.
-- A run whose base moved is **replayed** on the new tip. If its files changed meanwhile, it still lands and a **Harness/Conflict** reaches the feed.
-- **Your chat** runs at once, alongside the queue; queued runs (validation, retention, preparation) follow one at a time.
-- **Your checkout follows**: clean files are updated, dirty ones are left alone.
+- **Every run** works in its own detached checkout, created when it starts and removed when it ends.
+- **One commit per run**, by `Momentum <momentum@localhost>`, with the message the run wrote. A run that changed nothing makes no commit.
+- **Untouched tip**: the main line fast-forwards to the run's commit.
+- **Moved tip**: the run is replayed onto the new tip as one commit, by a three-way merge. Files that conflict take the run's version whole, and a `Harness/Conflict` lands in the same commit.
+- **Reactions** (approve, won't resolve, default triggers) are commits too, made without touching any working tree. A reaction to a card that changed meanwhile is refused.
+- **Your commits** are indexed on every orchestrator tick (see [Summarization](#summarization)).
+- **Your checkout follows** the main line: clean files are updated, files you changed are left alone.
 
 ## User actions
 
 ![User actions](docs/slide-images/17-user-actions.png)
 
-- **Swipe left**: send back with a comment. A chat run works on it and the card shows **updating**.
-- **Swipe right**: approve. One commit on the main line; when nothing implements the entity yet, **Implementation** follows.
-- Beyond the feed: **chat** to ask and steer, **run on demand** by voice, **stop a run** (what it wrote lands), **enable, build or reset projects**, **edit entities** by committing to main, and change **settings**, limits and models.
+| Action | What happens |
+|---|---|
+| **Swipe right**: approve | One commit sets the entity verified and syncs what it `implements`. An implementable entity with nothing implementing it starts **Implementation**. |
+| **Swipe left**: send back | Your comment starts a chat run on the entity, or joins the open one. The card leaves the feed while the chat works and returns if the chat leaves it unverified. |
+| **Pull up**: ask | A chat on the card, with the card as context. |
+| **Resolve** or **won't resolve** | See [Issue resolution](#issue-resolution). |
+
+Beyond the feed:
+
+- **Chat** and **interview**, by text or by voice ("interview \<topic\>").
+- **Stop a run** from its conversation: what it wrote still lands.
+- **Run an automation on demand**, through the `run_automation` tool.
+- **Enable, build or reset projects** in Settings.
+- **Edit entities** by committing to the main line.
+- **Change settings**: limits, models, lifetimes.
+
+**Patterns**: when your last ten reactions to one entity type were all the same, a `Harness/Pattern` proposal ("Approve \<type\> items automatically") enters the feed. Approving it counts it in the attention metrics.
 
 ## Settings
 
 ![Settings](docs/slide-images/18-settings.png)
 
-- **Appearance**: system, light or dark theme, per device.
-- **Included projects**: enable a project to start its loops, and stop, resume or reset its knowledge graph build.
-- **Feed size**: how many items before scheduled loops pause.
-- **Cards**: the character limit (a card fits on a phone screen) and presentation rules.
-- **Summarization**: path patterns never summarized, such as `**/*.lock`.
-- **Lifetimes**: when the retention automation retires entities of each type.
-- **Agents**: concurrent runs in total, across projects.
-- **Models**: one model, one per automation, or **by risk** (e.g. Haiku for low-risk implementation, Sonnet for medium, Opus for high).
-- **In the knowledge graph**: automations, entity types, risk rules and each project's triggers live as entities and change through the feed.
+| Section | Setting | Default |
+|---|---|---|
+| **Appearance** | Theme: System, Light or Dark, on this device | System |
+| **Included projects** | Enable a project to start its loops; a logo; the knowledge graph build: stop, resume, reset | |
+| **Feed size** | Items before loops pause | 40 |
+| **Cards** | Character limit, sized so a card fits on a phone | 700 |
+| | Presentation rules | empty |
+| **Summarization** | Never summarized: path patterns such as `**/*.lock` | empty |
+| **Lifetimes** | When retention retires each type | `Product/DevTask`: 30 days after resolved, unless referenced; `Harness/Research`: 60 days after delivered; `Governance/Decision`: kept while referenced |
+| **Agents** | Concurrent runs in total, across projects | 8 |
+| **Models** | One model, Per automation, or By risk; choices Default, Fable, Opus, Sonnet, Haiku | One model: Default (Claude Code's own) |
+| **In the knowledge graph** | Automations, entity types, risk rules, and each project's triggers and patterns, opened where they live | |
+| **This device** | Sign out; other devices stay signed in | |
+
+- **Enabling** a project requires one straight line. It indexes the project, proposes the default triggers and starts the graph build.
+- **Reset** asks first. It ends every run, deletes the knowledge graph from the main line in one commit, drops the project's index, and builds again. The harness itself cannot be reset.
+- **By risk** applies to implementation: Haiku estimates each implementation's risk from `automations/implementation/risk.md` and picks Haiku, Sonnet or Opus. Per automation, everything is Default except search, which uses Sonnet.
+
+Every settings change is recorded on the Timeline.
 
 ---
 
@@ -245,13 +456,18 @@ The **main line is the only branch**. Every run works in its own checkout and la
 
 ### Requirements
 
-- **Windows** (the service scripts and run limits use PowerShell and [Process Governor](https://github.com/lowleveldesign/process-governor))
-- **Node.js 24+** and **pnpm 10**
-- **PostgreSQL** with the **pgvector** extension (e.g. in Docker Desktop)
-- **Claude Code**, signed in: every run is a Claude Code session under your account
-- **Tailscale**: the API listens only on the tailnet, so the phone reaches it over a private WireGuard mesh with no public port
+- **Windows**. Runs are held in Windows job objects and the service scripts are PowerShell.
+- **Node.js 24+** and **pnpm 10**.
+- **git**, with a user name and email configured.
+- **PostgreSQL with pgvector**, for example the `pgvector/pgvector` Docker image. Create the database first; the extension and schemas are created on start.
+- **Claude Code, signed in**. Every run is a Claude Code session under your account and uses its usage limits.
+- **[Process Governor](https://github.com/lowleveldesign/process-governor)** (`procgov`). Without it every run fails.
+- **[Tailscale](https://tailscale.com)**. The API listens only on the tailnet, so no port is exposed to the internet. Set `MOMENTUM_HOST` to develop on one machine without it.
+- Optional: a **PlantUML server** on `localhost:8080` to draw the diagrams in cards.
 
 ### Install
+
+The repository must sit directly under the workspaces root as a directory named `momentum`, e.g. `C:\Projects\momentum`. Every other git repository directly under the root is a workspace.
 
 ```bash
 pnpm install
@@ -261,53 +477,72 @@ Create `.env` in the repository root:
 
 ```ini
 DATABASE_URL=postgres://user:password@127.0.0.1:5432/momentum
-MOMENTUM_ROOT=C:\Projects        # every git repository directly under it is a workspace
-MOMENTUM_HOST=127.0.0.1          # optional: development on this machine instead of the tailnet
+MOMENTUM_ROOT=C:\Projects
+MOMENTUM_PROCGOV=C:\Tools\procgov.exe
+MOMENTUM_HOST=127.0.0.1
 ```
-
-Other settings, with their defaults:
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `DATABASE_URL` | required | Index and metrics database |
+| `MOMENTUM_ROOT` | `C:\Projects` | Workspaces root |
+| `MOMENTUM_HOST` | the Tailscale IPv4 address | Address the API listens on |
 | `MOMENTUM_PORT` | `7300` | API port |
-| `MOMENTUM_RUNS` | `<root>\.runs` | Where run checkouts live |
-| `MOMENTUM_RUN_MEMORY` | `4G` | Memory limit per run |
-| `MOMENTUM_RUN_CPUS` | `4` | CPU cores per run |
-| `MOMENTUM_TICK_MS` | `30000` | How often the orchestrator checks triggers |
 | `MOMENTUM_PROCGOV` | `procgov` | Process Governor executable |
+| `MOMENTUM_RUNS` | `<root>\.runs` | Run checkouts |
+| `MOMENTUM_RUN_MEMORY` | `4G` | Memory per run, child processes included |
+| `MOMENTUM_RUN_CPUS` | `4` | CPU cores per run |
+| `MOMENTUM_RUN_DATABASE_URL` | none | A database a run may use, given to it as `DATABASE_URL` |
+| `MOMENTUM_TICK_MS` | `30000` | How often the orchestrator checks triggers |
+| `MOMENTUM_MODELS` | `<root>\.momentum\models` | Embedding model cache |
+| `MOMENTUM_PLANTUML_URL` | `http://localhost:8080` | PlantUML server |
+| `MOMENTUM_COMMAND_STREAM` | `http://127.0.0.1:8780` | External speech-to-command service, for voice |
+| `MOMENTUM_VOICE_SOURCES` | `remote` | Audio sources acted on, comma-separated |
+| `MOMENTUM_APP_DIST` | `apps/app/dist` | Web app build the back end serves |
+| `LOG_LEVEL` | `info` | Server log level |
+
+The first start downloads the embedding model (`Xenova/bge-small-en-v1.5`) from Hugging Face. No API key is needed.
 
 ### Run
 
-Set a password for the app, then start the back end and web app (both restart on change):
+The server does not start without a password. Generate one; it is written to `<root>\.momentum\password.txt`:
 
 ```bash
 pnpm momentum generate-password
 ```
 
+Start the back end and the web app. The back end restarts on every change, and the web app is exported again when its sources change:
+
 ```bash
 pnpm dev
 ```
 
-Enable a project so its loops start:
+Open `http://<MOMENTUM_HOST>:7300` and sign in. Then enable a project to start its graph build and loops:
 
 ```bash
 pnpm momentum enable <workspace>
 ```
 
-To serve Momentum at every logon, register the scheduled task once with `apps/backend/service/install.ps1`.
+To serve Momentum at every logon, run `apps/backend/service/install.ps1` once. It registers a scheduled task that waits for Postgres and runs `pnpm dev`.
+
+**Native app**: build with `EXPO_PUBLIC_API_URL` set to the back end's address, e.g. an Android APK with `pnpm --filter @momentum/app android:apk` (needs the Android SDK and a JDK).
 
 ### CLI
 
+`pnpm momentum <command>`; when a server is running, the command goes through it.
+
 | Command | What it does |
 |---|---|
-| `generate-password` | Writes a new password to `<root>\.momentum\password.txt` |
-| `set-password [password]` | Sets the password and ends existing sessions |
-| `enable` / `disable <workspace>` | Starts or stops a project's loops |
-| `logo <workspace> <file \| --remove>` | Sets the project's logo |
+| `generate-password` | Writes a new password to `<root>\.momentum\password.txt` and ends all sessions |
+| `set-password [password]` | Sets the password, asking for it if not given, and ends all sessions |
+| `enable <workspace>` / `disable <workspace>` | Starts or stops a project's loops |
+| `logo <workspace> <file \| --remove>` | Sets the project's logo (.png, .jpg, .webp, .svg); a relative path is read from `apps/backend` |
 | `index [workspace...]` | Indexes the main line afresh |
 | `openapi` | Writes `packages/contract/openapi.json` |
 
 ### Test
+
+Unit tests need the Postgres from `.env`, with a role allowed to create databases:
 
 ```bash
 pnpm test
@@ -317,6 +552,8 @@ pnpm test
 pnpm typecheck
 ```
 
+The end-to-end scenarios run in Playwright on Firefox, through a test runner at `127.0.0.1:7400` (`pnpm e2e:runner` opens it). Some scenarios call real Claude models and use your usage limits:
+
 ```bash
 pnpm e2e
 ```
@@ -325,17 +562,21 @@ pnpm e2e
 
 | Path | Contents |
 |---|---|
-| `apps/backend` | API, orchestrator, runner and consistency guard (Fastify, Claude Agent SDK) |
-| `apps/app` | The mobile and web app (Expo, React Native) |
-| `packages/contract` | Typed routes shared by the app and back end, and the OpenAPI document |
-| `packages/entity` | Entity parsing and validation |
-| `packages/kb` | The knowledge base: Postgres index, search, embeddings, MCP tools |
-| `packages/runs` | Run checkouts and process limits |
-| `automations` | One Claude Code agent definition per automation |
+| `apps/backend` | API, orchestrator, runner, consistency guard, voice, CLI and the Windows service scripts |
+| `apps/app` | The web and mobile app (Expo, React Native) |
+| `packages/contract` | Zod schemas shared by app and back end; `openapi.json` |
+| `packages/entity` | Entity parsing, validation, links, card rendering and PlantUML |
+| `packages/kb` | The knowledge base: Postgres schema, index, search, embeddings, the `momentum-kb` MCP tools |
+| `packages/runs` | Git, run processes and Claude Agent SDK sessions |
+| `automations` | One directory per automation: its agent and default trigger |
 | `knowledge-graph` | Momentum's own knowledge graph |
+| `chats` | Chat transcripts |
 | `examples` | Sample projects for the end-to-end scenarios |
-| `docs` | The slide deck and its sources, and the entity type list |
+| `docs` | Slide deck and its sources, slide images, entity types |
 | `video` | The walkthrough video (Remotion) |
+| `scripts` | `dev.mjs`, the development server |
+
+`pnpm deck` builds `docs/harness-diagram.pptx`. `pnpm video` renders `video/out/momentum.mp4`; its voice step needs a separate speech project.
 
 ### Working rules
 
