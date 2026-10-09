@@ -18,8 +18,9 @@ artifacts:
 ---
 # Front-end
 
-The mobile app, as the deck shows it:
+User actions on the phone, as the deck shows them:
 
-- The [attention feed](Governance/DesignDoc/components/attention-feed) shows one entity card per screen: type and project in the header, a title, a paragraph, bullets, and a diagram or table where the card has one
-- Swipe right to approve; swipe left to disapprove, with a comment the user writes and sends back
-- Five tabs on the phone: feed, explorer, chat, timeline, metrics; settings has no tab
+- The [attention feed](Governance/DesignDoc/components/attention-feed) shows one entity card at a time; tabs: feed, explorer, chat, timeline, metrics
+- Swipe left: send it back with a comment; a chat run works on it and the card shows it updating
+- Swipe right: approve, one commit on the main line; when nothing implements it yet, an Implement run follows
+- Also: chat (ask, steer), run on demand by voice tool, stop a run (what it wrote lands), projects (enable, build, reset), edit entities (commit to main), settings (limits, models)
