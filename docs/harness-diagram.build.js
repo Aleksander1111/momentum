@@ -288,7 +288,7 @@ const THEME = {
   pres.layout = 'LAYOUT_WIDE';
   pres.title = 'Harness & Products';
   await render(pres, THEME);
-  // User actions, then how everything works together: entities, states, automations, summarization, the guard, git, settings
+  // User actions, then how everything works together: entities, states, automations, summarization, the guard, git, metrics, settings
   await require('./harness-diagram.mechanics.js')(pres, THEME);
   await pres.writeFile({ fileName: OUT });
   console.log('wrote', OUT);

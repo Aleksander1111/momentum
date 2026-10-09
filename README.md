@@ -30,8 +30,9 @@ https://github.com/user-attachments/assets/97e31b2e-efcc-4aca-b49c-1f102181a758
 14. [Consistency issue types](#consistency-issue-types)
 15. [Consistency issue resolution](#consistency-issue-resolution)
 16. [Versioning](#versioning)
-17. [Settings](#settings)
-18. [Getting started](#getting-started)
+17. [Metrics](#metrics)
+18. [Settings](#settings)
+19. [Getting started](#getting-started)
 
 ---
 
@@ -415,9 +416,27 @@ A guard issue or a conflict has no options: approve it, or send it back to start
 - **Your commits** are indexed on every orchestrator tick (see [Summarization](#summarization)).
 - **Your checkout follows** the main line: clean files are updated, files you changed are left alone.
 
+## Metrics
+
+![Metrics](docs/slide-images/17-metrics.png)
+
+The **Metrics** tab shows one project at a time over the last **24 h, 7 d or 30 d**, and charts any metric over time.
+
+| Group | Metrics | How it is measured |
+|---|---|---|
+| **Usage** | Share of the rolling 5-hour and weekly limits, in total and per automation | From every limit reading a run reports; each rise is split evenly among the runs running |
+| **Attention** | Time per item, approved, rejected, sent back, patterns automated | One row per reaction, with the time you spent on the card |
+| **Understanding** | Consistency, open issues | With every validated transaction. Consistency is the share of entities whose references all resolve; open issues are the unverified issues and conflicts |
+| **Entities** | Counts by verification and by sync state | From the history of every entity's state |
+| **Implementation** | Outstanding issues, bugs, defects | With every validated transaction. Bugs are `Product/Bug` entities not yet verified and synced; defects are open issues raised by validation |
+| **Agents** | Runs, failures, average time and usage per automation; misalignments, recurring issues | Every run. Misalignments and recurring issues are recorded by optimization |
+| **Retrieval** | Precision, coverage, RAG score, tools in parallel, tool relevance | Haiku rates every turn of a run that searched: precision is the share of calls rated 3 of 5 or more, coverage how much of what the turn needed was found, the RAG score their mean |
+
+**Runs by parameter** shows each automation's runs as histograms of usage, duration and messages. A count nothing has measured yet shows as no data, not zero. Optimization reads the retrieval ratings to improve the automations.
+
 ## Settings
 
-![Settings](docs/slide-images/17-settings.png)
+![Settings](docs/slide-images/18-settings.png)
 
 | Section | Setting | Default |
 |---|---|---|

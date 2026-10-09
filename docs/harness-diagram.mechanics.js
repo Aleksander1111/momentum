@@ -904,6 +904,109 @@ function management() {
   return svg(g);
 }
 
+// ---------------------------------------------------------------- metrics
+// The groups of the app's Metrics tab (apps/app/src/app/(tabs)/metrics.tsx), as apps/backend/src/metrics.ts measures them
+function metrics() {
+  let g = '';
+  const PW = 568, PH = 372, X = [70, 70 + PW + 36, 70 + 2 * (PW + 36)], Y = [30, 438];
+  const panel = (x, y, layer, ic, crumb, title, sub) => {
+    g += rect(x, y, PW, PH, { r: 24, fill: C.paper });
+    g += medallion(x + 72, y + 72, 42, layer, ic, { color: layer.strong, k: 0.7 });
+    g += text(x + 132, y + 48, crumb, { size: 13, bold: true, fill: C.accent, spacing: 1.5 });
+    g += caption(x + 132, y + 80, title, sub, { size: 26, subSize: 18, gap: 27 });
+  };
+  // one metric per line: its name and what it counts
+  const rows = (x, y, items, layer, top = 158, gap = 46, col = 214) =>
+    items.forEach(([name, what], i) => {
+      const yy = y + top + i * gap;
+      if (i) g += line(x + 36, yy - 30, x + PW - 36, yy - 30, { stroke: C.line, sw: 1.5 });
+      g += text(x + 36, yy, name, { size: 19, bold: true, fill: layer.strong }) + text(x + col, yy, what, { size: 17, fill: C.muted });
+    });
+  const foot = (x, y, s, layer) => (g += text(x + 36, y + PH - 24, s, { size: 16, italic: true, fill: layer?.strong ?? C.muted }));
+  // a bar of shares, one segment per automation
+  const gauge = (x, y, w, label, total, parts) => {
+    g += text(x, y, label, { size: 17, bold: true }) + text(x + w, y, `${total}%`, { size: 17, bold: true, anchor: 'end' });
+    g += rect(x, y + 12, w, 18, { r: 9, fill: C.white, stroke: C.line, sw: 1.5 });
+    let px = x;
+    parts.forEach(([share, color], i) => {
+      const pw = (w * share) / 100;
+      g += rect(px, y + 12, pw, 18, { r: i === 0 ? 9 : 0, fill: color });
+      px += pw;
+    });
+  };
+  const AUTO = { implementation: C.ok, exploration: '#5B7F95', validation: C.ochre, chat: C.accent };
+
+  // 1. the account's limits
+  panel(X[0], Y[0], LAYER.ink, 'FaGaugeHigh', 'ACCOUNT LIMITS', 'Usage', 'your share of the Claude limits');
+  gauge(X[0] + 36, Y[0] + 168, PW - 72, 'Rolling 5 hours', 38, [[16, AUTO.implementation], [9, AUTO.exploration], [7, AUTO.validation], [6, AUTO.chat]]);
+  gauge(X[0] + 36, Y[0] + 238, PW - 72, 'Rolling week', 61, [[27, AUTO.implementation], [14, AUTO.exploration], [12, AUTO.validation], [8, AUTO.chat]]);
+  [['implementation', AUTO.implementation], ['exploration', AUTO.exploration], ['validation', AUTO.validation], ['chat', AUTO.chat]].forEach(([a, c], i) => {
+    const lx = X[0] + 36 + i * 128;
+    g += rect(lx, Y[0] + 290, 12, 12, { r: 3, fill: c }) + text(lx + 18, Y[0] + 301, a, { size: 14, fill: C.muted });
+  });
+  foot(X[0], Y[0], 'each rise split evenly among the runs running');
+
+  // 2. the user's reactions
+  panel(X[1], Y[0], LAYER.att, 'FaLayerGroup', 'YOUR REACTIONS', 'Attention', 'what the feed costs you');
+  rows(X[1], Y[0], [
+    ['Time per item', 'seconds on a card before reacting'],
+    ['Reactions', 'approved, rejected, sent back'],
+    ['Patterns', 'accepted Harness/Pattern proposals'],
+  ], LAYER.att);
+  foot(X[1], Y[0], 'one row per reaction', LAYER.att);
+
+  // 3. the knowledge graph as it stands
+  panel(X[2], Y[0], LAYER.kn, 'FaDiagramProject', 'EVERY TRANSACTION', 'Understanding', 'the knowledge graph as it stands');
+  {
+    const cx = X[2] + 36, cy = Y[0] + 150, cw = PW - 72, ch = 70;
+    const pts = [0.82, 0.85, 0.84, 0.9, 0.93, 0.92, 0.96, 0.97, 0.99];
+    g += line(cx, cy + ch, cx + cw - 110, cy + ch, { stroke: C.line, sw: 1.5 });
+    g += path(pts.map((v, i) => `${i ? 'L' : 'M'}${n(cx + (i * (cw - 110)) / (pts.length - 1))} ${n(cy + ch - (v - 0.75) * ch * 4)}`).join(' '), { stroke: C.ochre, sw: 3.5 });
+    g += text(cx + cw, cy + 30, '99%', { head: true, bold: true, size: 34, anchor: 'end', fill: C.ochre }) + text(cx + cw, cy + 56, 'consistency', { size: 16, anchor: 'end', fill: C.muted });
+  }
+  rows(X[2], Y[0], [
+    ['Consistency', 'entities whose references resolve'],
+    ['Open issues', 'unverified issues and conflicts'],
+  ], LAYER.kn, 258);
+  foot(X[2], Y[0], 'recorded with every validated transaction', LAYER.kn);
+
+  // 4. what is still wrong
+  panel(X[0], Y[1], LAYER.prod, 'FaCode', 'EVERY TRANSACTION', 'Implementation', 'what is still wrong in the product');
+  rows(X[0], Y[1], [
+    ['Outstanding', 'unverified issues and conflicts'],
+    ['Bugs', 'Product/Bug not verified and synced'],
+    ['Defects', 'open issues raised by validation'],
+  ], LAYER.prod);
+  foot(X[0], Y[1], 'a count nothing measured yet is no data, not zero', LAYER.prod);
+
+  // 5. the runs
+  panel(X[1], Y[1], LAYER.ink, 'FaTerminal', 'EVERY RUN', 'Agents', 'runs, failures, time and usage');
+  {
+    const tx = X[1] + 36, ty = Y[1] + 160, cols = [['Runs', 270], ['Failed', 340], ['Avg', 410], ['Week', 490]];
+    cols.forEach(([h, cx]) => (g += text(tx + cx, ty, h, { size: 14, fill: C.muted, anchor: 'end' })));
+    [['implementation', '14', '1', '9 m', '27'], ['exploration', '12', '0', '4 m', '14'], ['validation', '9', '2', '6 m', '12']].forEach((r, i) => {
+      const yy = ty + 34 + i * 34;
+      g += line(tx, yy - 24, tx + PW - 72, yy - 24, { stroke: C.line, sw: 1.5, dash: '4 5' });
+      g += rect(tx, yy - 12, 12, 12, { r: 3, fill: AUTO[r[0]] }) + text(tx + 20, yy, r[0], { size: 17 });
+      cols.forEach(([, cx], j) => (g += text(tx + cx, yy, r[j + 1], { size: 17, anchor: 'end' })));
+    });
+  }
+  foot(X[1], Y[1], 'misalignments and recurring issues, from optimization');
+
+  // 6. retrieval, rated after each run
+  panel(X[2], Y[1], LAYER.kn, 'FaMagnifyingGlass', 'RATED BY HAIKU', 'Retrieval', 'how well search served each turn');
+  rows(X[2], Y[1], [
+    ['Precision', 'calls rated 3 of 5 or more'],
+    ['Coverage', 'what the turn needed, found'],
+    ['RAG score', 'the mean of both'],
+    ['Tool relevance', 'each tool against the best'],
+  ], LAYER.kn, 150, 42, 200);
+
+  // over time, per project
+  g += text(W / 2, 908, 'Per project, over 24 h, 7 d or 30 d · charted over time in the Metrics tab · read by optimization', { size: 19, italic: true, fill: C.muted, anchor: 'middle' });
+  return svg(g);
+}
+
 // ---------------------------------------------------------------- settings
 // The sections of the app's Settings tab (apps/app/src/app/(tabs)/settings.tsx), with the harness defaults
 function settings() {
@@ -1172,7 +1275,8 @@ const SLIDES = [
   ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, card links missing from the references, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
   ['Issue resolution', resolution, "Every issue the consistency check raises offers two to four options to resolve it, each a label and one sentence of what it changes, with the obviously best one recommended when there is one. The feed card shows them with the recommended option picked; a tap picks another. Swipe right resolves with the picked option, swipe left with the user's own resolution: either starts a chat run that applies it to the concerned entities and retires the issue, and the changed entities come back to the feed unverified. Won't resolve keeps the issue, verified, with the reason: the check does not raise it again and it no longer counts as a contradiction."],
   ['Git', git,"One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],
-  ['Settings', settings, 'The Settings tab: theme on this device; included projects, each enabled or disabled, with its knowledge graph build; feed size, the items before loops pause; cards, the character limit and presentation rules; paths never summarized; lifetimes per entity type; concurrent runs in total; models, one for all, per automation or by implementation risk; and links into the knowledge graph, where the automations, entity types, risk rules, triggers and patterns are kept. Values shown are the harness defaults, with models shown by risk.'],
+  ['Metrics', metrics, "The Metrics tab, per project, over 24 hours, 7 days or 30 days, each metric charted over time. Usage is the account's share of the rolling 5-hour and weekly limits; each rise is split evenly among the runs running, so every automation shows what it used. Attention is the user's reactions: the time spent on a card, approvals, rejections, send-backs and the patterns accepted. Understanding and implementation are recorded with every validated transaction: consistency is the share of entities whose references all resolve, beside the open issues, the bugs not yet verified and synced, and the defects validation raised. Agents are the runs of each automation, their failures, time and usage, and the misalignments and recurring issues optimization records. Retrieval is rated by Haiku after every run that searched: precision, the calls that brought back something useful; coverage, how much of what the turn needed was found; their mean, the RAG score; and each tool's relevance against the best of the turn. A count nothing has measured yet is no data, not zero."],
+  ['Settings', settings,'The Settings tab: theme on this device; included projects, each enabled or disabled, with its knowledge graph build; feed size, the items before loops pause; cards, the character limit and presentation rules; paths never summarized; lifetimes per entity type; concurrent runs in total; models, one for all, per automation or by implementation risk; and links into the knowledge graph, where the automations, entity types, risk rules, triggers and patterns are kept. Values shown are the harness defaults, with models shown by risk.'],
 ];
 
 async function renderPngs(svgs) {
