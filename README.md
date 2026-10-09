@@ -29,7 +29,7 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 13. [Consistency guard](#consistency-guard)
 14. [Consistency issue types](#consistency-issue-types)
 15. [Consistency issue resolution](#consistency-issue-resolution)
-16. [Git](#git)
+16. [Versioning](#versioning)
 17. [User actions](#user-actions)
 18. [Settings](#settings)
 19. [Getting started](#getting-started)
@@ -338,7 +338,7 @@ Every entity is validated for:
 5. Raises a `Harness/Issue` over what failed. **Everything lands.**
 6. Commits, lands and indexes in one step, and updates the index and metrics database.
 
-A run whose files changed on the main line meanwhile lands with a `Harness/Conflict` (see [Git](#git)).
+A run whose files changed on the main line meanwhile lands with a `Harness/Conflict` (see [Versioning](#versioning)).
 
 The **consistency check** runs every night at 03:00. It reads the knowledge graph only, never the artifacts, trusting the summaries, and raises one `Harness/Issue` per finding, `concerning` the entities involved.
 
@@ -390,9 +390,9 @@ A resolution starts a **chat run** that applies it to the concerned entities and
 
 A guard issue or a conflict has no options: approve it, or send it back to start a chat run on it.
 
-## Git
+## Versioning
 
-![Git](docs/slide-images/16-git.png)
+![Versioning](docs/slide-images/16-git.png)
 
 **The main line is the only branch.** Enabling a project with another branch, a detached HEAD or a merge is refused, and an enabled project that gains one is switched off.
 
