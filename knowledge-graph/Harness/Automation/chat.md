@@ -13,12 +13,13 @@ artifacts:
 ---
 # Chat
 
-The direct chat: an automation the user starts instead of the schedule.
+The direct chat, started by the user instead of the schedule.
 
-- Own process and checkout alongside the automation runs; does anything they can
-- Retrieves with every fitting tool at once (momentum-kb search, Grep, Glob, other MCP search tools), then reads the best hits; each turn's retrieval is rated per tool once the run ends, as every run's is
-- What the user asks for is done in the run, never proposed back for approval: asked to remove, it deletes the files and drops the references
-- A send back's comment decides the target: change, split, replace, add alongside or remove
-- A plan asked for goes to plans/<name>.md, summarized as a Harness/Plan
-- Never turns one chat into a skill, memory or definition change on its own; asked outright, it makes it, in effect as it lands, a trigger change too
-- Everything it writes lands unverified, for the user to verify in the feed
+- Own process and checkout; does anything runs can
+- Retrieves with every fitting tool at once, then reads the best hits
+- What the user asks is done in the run, never proposed back; asked to remove, it deletes and drops the references
+- A send back's comment decides: change, split, replace, add alongside or remove
+- A plan asked for goes to plans/<name>.md, a Harness/Plan
+- Never turns one chat into a skill, memory or definition change; asked outright, makes it, in effect as it lands
+- Triggers: edits the frontmatter the harness follows (`schedule` quoted cron, `events`, `on_demand`), card to match
+- Lands unverified
