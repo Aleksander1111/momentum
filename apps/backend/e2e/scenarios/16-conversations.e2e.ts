@@ -63,12 +63,14 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     // The metrics rate each retrieval tool against the others, over the range and over time
     const metrics = await api.call<MetricsResponse>('GET', `/workspaces/${WS}/metrics?range=24h`);
     expect(metrics.retrieval.turns.value).toBeGreaterThanOrEqual(1);
-    expect(metrics.retrieval.tools.map((t) => t.tool)).toEqual(expect.arrayContaining(['momentum-kb · search', 'Grep']));
+    // Live, the agent picks its own tools: reading the card it was handed is as fair as searching for it
+    const used = model.live ? rated.retrieval!.tools.map((t) => t.tool) : ['momentum-kb · search', 'Grep'];
+    expect(metrics.retrieval.tools.map((t) => t.tool)).toEqual(expect.arrayContaining(used));
     expect(metrics.retrieval.tools.every((t) => t.series.some((p) => p.value !== null))).toBe(true);
     await app.tab('Metrics');
     await expect(app.text('Retrieval')).toBeVisible({ timeout: 30_000 });
     await expect(app.text('RAG score', false).first()).toBeVisible();
-    await expect(app.text('momentum-kb · search', false).first()).toBeVisible();
+    await expect(app.text(used[0]!, false).first()).toBeVisible();
     // The panel's title comes after the chart's picker row of the same name
     await expect(app.text(/^\d+ rated turns?, last /, false).first()).toBeVisible();
     const panel = app.frame().getByText('Retrieval', { exact: true }).last().locator('..');

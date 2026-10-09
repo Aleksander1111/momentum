@@ -68,13 +68,17 @@ scenario('links-and-answers', { enabled: [WS, HARNESS], graphBuild: 'complete' }
     await link.click();
     await expect(f.getByText('Leave policy', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 15_000 });
     // A chat answer names entities the same way, by a link or by a path
-    const chat = await app.chat(WS, 'Where are the holiday rules?');
+    const chat = await app.chat(WS, 'Where are the holiday rules, and can unused days carry over?');
     expect((await api.runEnded(chat)).status).toBe('finished');
     await app.go(`/chat/${chat}`);
-    await expect(f.getByRole('link', { name: /the leave policy/ })).toBeVisible({ timeout: 15_000 });
-    await expect(f.getByRole('link', { name: 'Carry over' })).toBeVisible();
-    await f.getByRole('link', { name: 'Carry over' }).click();
+    // A link under its own label, a path under the entity's title; live, the model words its links itself
+    const policy = f.getByRole('link', { name: model.live ? /leave policy/i : /the leave policy/ }).locator('visible=true').first();
+    const faq = f.getByRole('link', { name: model.live ? /carry.?over/i : 'Can unused holiday carry over?' }).locator('visible=true').first();
+    await expect(policy).toBeVisible({ timeout: 15_000 });
+    await expect(faq).toBeVisible({ timeout: 15_000 });
+    await faq.click();
     await expect(f.getByText('Can unused holiday carry over?', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 15_000 });
+    await until('the FAQ opened from the answer', async () => decodeURIComponent(f.url()).includes(CARRY));
   });
 
   await step(2, async () => {

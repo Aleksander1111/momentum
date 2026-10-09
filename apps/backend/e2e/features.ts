@@ -98,7 +98,7 @@ export const FEATURES = {
   'automation.consistency-check': 'Files each inconsistency as a Harness/Issue with category, severity and options; fixes nothing',
   'automation.retention': 'Removes spent entities by the lifetime rules, keeping what something still references; the harness reports what went',
   'feed.removal-report': "What a run removed shows as a report card in the feed, with the titles the entities had, and on the run's timeline event; nothing to approve",
-  'automation.optimization': 'Reads every chat; proposes a Harness/Pattern and a skill, memory, definition or trigger change only for what was seen at least three times',
+  'automation.optimization': 'Reads every chat; writes a Harness/Pattern from the first sighting of a candidate; proposes a skill, memory, definition or trigger change only for what was seen at least three times',
   'automation.chat': 'Answers from the knowledge base first; a requested plan becomes a Harness/Plan',
   'automation.interview': 'Asks one question at a time, writes answers to one document, summarized once when done',
 

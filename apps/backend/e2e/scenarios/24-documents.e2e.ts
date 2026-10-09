@@ -137,6 +137,12 @@ scenario('documents', { enabled: [WS], settings: { summarization: { exclude: ['a
     const { runId } = await api.chat(WS, 'Add to docs/remote-work.md that a remote day needs a calendar invite.');
     expect((await api.runEnded(runId, 10 * 60_000)).status).toBe('finished');
     expect(env.show(WS, 'docs/remote-work.md')).toMatch(/calendar invite/);
+    if (model.live) {
+      // A real model may summarize in the chat itself, and no summarization run follows: either way the card ends in step
+      await until('the policy synced', async () => (await sync(REMOTE)) === 'synced' && !(await summaries()).some((r) => r.status === 'queued' || r.status === 'running'), 10 * 60_000);
+      expect((await api.entity(WS, REMOTE)).markdown).toMatch(/calendar invit/i);
+      return;
+    }
     const run = await api.automationRan(WS, 'summarization', since, 10 * 60_000);
     expect(run.status).toBe('finished');
     expect(model.turns(run.id)[0]!.input).toMatch(/^- Governance\/Policy\/remote-work: docs\/remote-work\.md/m);

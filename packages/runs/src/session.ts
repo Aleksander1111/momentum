@@ -236,29 +236,48 @@ export async function ask(spec: AskSpec): Promise<string> {
 
 /** One Claude Code process per run, through the Agent SDK, with the run's checkout as cwd */
 export function startSession(spec: SessionSpec): SessionHandle {
-  const input = new InputQueue();
   const abort = new AbortController();
-  input.push(spec.prompt);
-
-  const q = query({
-    prompt: input,
-    options: {
-      cwd: spec.cwd,
-      abortController: abort,
-      systemPrompt: { type: 'preset', preset: 'claude_code', append: spec.instructions },
-      settingSources: ['project'],
-      permissionMode: 'bypassPermissions',
-      allowDangerouslySkipPermissions: true,
-      agents: spec.agents,
-      mcpServers: spec.mcpServers,
-      hooks: spec.hooks,
-      resume: spec.resume,
-      model: spec.model,
-      spawnClaudeCodeProcess: spawnLimited({ limits: spec.limits, procgov: spec.procgov, onPid: spec.onPid }),
-    },
-  });
+  /** What the run was told so far: a process started again is told all of it */
+  const told = [spec.prompt];
+  let input: InputQueue;
+  let q: Query;
+  const begin = () => {
+    input = new InputQueue();
+    for (const text of told) input.push(text);
+    q = query({
+      prompt: input,
+      options: {
+        cwd: spec.cwd,
+        abortController: abort,
+        systemPrompt: { type: 'preset', preset: 'claude_code', append: spec.instructions },
+        settingSources: ['project'],
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        agents: spec.agents,
+        mcpServers: spec.mcpServers,
+        hooks: spec.hooks,
+        resume: spec.resume,
+        model: spec.model,
+        spawnClaudeCodeProcess: spawnLimited({ limits: spec.limits, procgov: spec.procgov, onPid: spec.onPid }),
+      },
+    });
+  };
+  begin();
 
   const done = (async (): Promise<SessionResult> => {
+    let result = await attempt();
+    // A process that died before its session started did nothing yet, so it starts once more: Claude Code exits so when
+    // another process is writing the config file they share as it starts
+    if (!result.ok && result.sessionId === null && !abort.signal.aborted) {
+      await new Promise((r) => setTimeout(r, 1000));
+      if (abort.signal.aborted) return { ...result, error: 'killed' };
+      begin();
+      result = await attempt();
+    }
+    return result;
+  })();
+
+  async function attempt(): Promise<SessionResult> {
     let sessionId: string | null = null;
     let ok = true;
     let error: string | null = null;
@@ -308,10 +327,10 @@ export function startSession(spec: SessionSpec): SessionHandle {
       input.close();
     }
     return { sessionId, ok, error, usageBefore, usageAfter };
-  })();
+  }
 
   return {
-    send: (text) => input.push(text),
+    send: (text) => input.push(text) && told.push(text) > 0,
     interrupt: async () => {
       await q.interrupt();
     },

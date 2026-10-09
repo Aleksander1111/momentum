@@ -86,7 +86,8 @@ const switchedOff = (text: string) =>
 
 /**
  * The harness workspace: this repository's automation definitions, as they are, with the default triggers of the
- * automations the scenario does not switch on switched off
+ * automations the scenario does not switch on switched off. Every definition starts reviewed, whatever its review state
+ * in this repository: the feed holds only what the scenario changes, and each change has a reviewed version to diff with
  */
 function harnessRepo(dir: string, triggers: AutomationName[]) {
   cpSync(join(REPO, 'automations'), join(dir, 'automations'), { recursive: true });
@@ -96,7 +97,8 @@ function harnessRepo(dir: string, triggers: AutomationName[]) {
   }
   const defs = join(REPO, 'knowledge-graph', 'Harness', 'Automation');
   for (const f of readdirSync(defs)) {
-    put(dir, `knowledge-graph/Harness/Automation/${f}`, readFileSync(join(defs, f), 'utf8'));
+    const text = readFileSync(join(defs, f), 'utf8').replace(/^verification: unverified$/m, 'verification: verified');
+    put(dir, `knowledge-graph/Harness/Automation/${f}`, text);
   }
   // The entity types, the other configuration the settings lead to; the repository it belongs to is not in this copy
   cpSync(join(REPO, 'docs', 'entity-types.tsv'), join(dir, 'docs', 'entity-types.tsv'));

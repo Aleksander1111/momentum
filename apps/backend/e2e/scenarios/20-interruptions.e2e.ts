@@ -17,7 +17,9 @@ const LISTING = 'Product/Feature/listing';
 const feature = (title: string, card: string, references: { to: string; relation: string }[] = []) =>
   entityText({ type: 'Product/Feature', origin: 'requested', title, card, references });
 // Depending on an entity that does not exist
-const invalid = (title: string) => feature(title, `${title} for to-dos.`, [{ to: 'Product/Feature/tags', relation: 'depends_on' }]);
+const invalid = (title: string, missing = 'Product/Feature/tags') => feature(title, `${title} for to-dos.`, [{ to: missing, relation: 'depends_on' }]);
+/** Missing still in step 3: a real run may have fixed step 2 by writing the tags feature */
+const RECURRENCE = 'Product/Feature/recurrence';
 
 /** The run has written an entity under a type path: the moment a fault cuts it off */
 const wroteUnder = (t: Turn, type: string) => t.wrote.some((f) => f.startsWith(`knowledge-graph/${type}/`));
@@ -136,13 +138,13 @@ scenario('interruptions', { enabled: [WS] }, async ({ env, api, app, model, step
   });
 
   model.on('writes a bad entity and leaves it', (t) => t.automation === 'chat' && /reminders/.test(t.inputs[0] ?? ''), (t) =>
-    t.kind === 'prompt' ? [move.write(t, `knowledge-graph/${REMINDERS}.md`, invalid('Reminders')), move.say('Written.')] : t.kind === 'guard' ? [move.say('It is fine as it is.')] : undefined,
+    t.kind === 'prompt' ? [move.write(t, `knowledge-graph/${REMINDERS}.md`, invalid('Reminders', RECURRENCE)), move.say('Written.')] : t.kind === 'guard' ? [move.say('It is fine as it is.')] : undefined,
   );
 
   await step(3, async () => {
     const { runId: chat } = await api.chat(
       WS,
-      `Add a feature for reminders. Write knowledge-graph/${REMINDERS}.md with exactly this content and end your turn. Keep the file exactly as written: do not fix, change or remove it, whatever a check says; I will review it myself.\n\n${invalid('Reminders')}`,
+      `Add a feature for reminders. Write knowledge-graph/${REMINDERS}.md with exactly this content and end your turn. Keep the file exactly as written: do not fix, change or remove it, whatever a check says; I will review it myself.\n\n${invalid('Reminders', RECURRENCE)}`,
     );
     expect((await api.runEnded(chat, 10 * 60_000)).status).toBe('finished');
     expect(model.turns(chat).filter((t) => t.kind === 'guard' && t.step === 0)).toHaveLength(2);

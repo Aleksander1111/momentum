@@ -52,6 +52,13 @@ const BECAUSE = 'So every build installs the same versions.';
 
 // The user goes through the feed on the phone: every reaction is made on the card, none through the API
 scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, app, model, step }) => {
+  /** A chat's answer on screen: the scripted one, or live a stretch of plain words of what the model said */
+  const answerShows = async (chat: string, scripted: string) => {
+    if (!model.live) return expect(app.text(scripted)).toBeVisible({ timeout: 5 * 60_000 });
+    await api.answered(chat, 1);
+    const words = (await api.answer(chat)).match(/[A-Za-z][A-Za-z ,']{15,}/)![0].trim();
+    await expect(app.text(words, false).first()).toBeVisible({ timeout: 60_000 });
+  };
   app.strict = true;
   const inFeed = async (c: { ws: string; path: string }) => (await api.feed()).items.some((i) => i.workspace === c.ws && i.path === c.path);
   const gone = (c: (typeof CARDS)[number]) => until(`${c.path} out of the feed`, async () => !(await inFeed(c)), 5 * 60_000);
@@ -176,7 +183,7 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     expect(run.messages[0]!.text).toBe(QUESTION);
     expect(run.messages[0]!.context).toEqual([{ workspace: ASK.ws, path: ASK.path, title: ASK.entity.title, heading: [] }]);
     // The answer shows below the card, which waits on top, still to be reacted to
-    await expect(app.text(ANSWER)).toBeVisible({ timeout: 5 * 60_000 });
+    await answerShows(chat, ANSWER);
     await expect(app.text(ASK.entity.title)).toBeVisible();
     await expect(app.frame().getByLabel('Close chat')).toBeVisible();
     expect(await inFeed(ASK)).toBe(true);
@@ -185,7 +192,7 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     await until('the reworked card', async () => (await api.feed()).items.find((i) => i.path === ASK.path)?.version !== before, 5 * 60_000);
     await expect(app.frame().getByLabel('Close chat')).toHaveCount(0, { timeout: 60_000 });
     await expect(app.text(ASK.entity.title)).toBeVisible();
-    expect(env.show(ASK.ws, kg(ASK.path))).toContain(REWORKED);
+    if (!model.live) expect(env.show(ASK.ws, kg(ASK.path))).toContain(REWORKED);
     // Reworked as asked, it is approved with a swipe right
     await app.approve(ASK.ws, ASK.path);
     expect(app.throughApi).toEqual([]);
@@ -212,7 +219,7 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     expect(run.messages[0]!.text).toBe(WHY);
     expect(run.messages[0]!.context).toHaveLength(1);
     expect(run.messages[0]!.context[0]).toMatchObject({ workspace: PIN.ws, path: PIN.path, quote: PART });
-    await expect(app.text(BECAUSE)).toBeVisible({ timeout: 5 * 60_000 });
+    await answerShows(chat, BECAUSE);
     expect(app.throughApi).toEqual([]);
   });
 });

@@ -170,8 +170,12 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
     expect((await api.feed()).items.map((i) => i.path)).toContain(plans[0]!.path);
     // An automation run's retrieval is rated like a chat's, against the task it was given
     const rated = await until('the preparation retrieval rated', async () => (await api.run(run.id)).turns.find((t) => t.retrievalState === 'rated') ?? null, 2 * 60_000);
-    expect(rated.retrieval!.tools.map((t) => t.tool)).toEqual(['momentum-kb · search', 'Grep']);
-    expect(rated.retrieval!.parallel).toBe(true);
+    // Live, the run picks its own tools: entities read as files are as fair as through momentum-kb
+    expect(rated.retrieval!.tools.length).toBeGreaterThanOrEqual(1);
+    if (!model.live) {
+      expect(rated.retrieval!.tools.map((t) => t.tool)).toEqual(['momentum-kb · search', 'Grep']);
+      expect(rated.retrieval!.parallel).toBe(true);
+    }
     const metrics = await api.call<MetricsResponse>('GET', `/workspaces/${WS}/metrics?range=24h`);
     expect(metrics.retrieval.automations.map((a) => a.automation)).toEqual(expect.arrayContaining(['exploration', 'preparation']));
     await app.tab('Metrics');

@@ -21,14 +21,15 @@ scenario('optimization', { enabled: [WS, HARNESS] }, async ({ env, api, app, ste
       }, 15 * 60_000);
     };
     for (const q of ['Give me an overview of the routes, as a table.', 'Compare the routes by method and path, as a table.']) await correctedChat(q);
-    // Twice is not a pattern: nothing is proposed
+    // Twice is not enough: no change is proposed, a pattern at most stands from its first sighting, counted below three
     let since = new Date();
     // Switched on now: its schedule is due at once
     await env.trigger(HARNESS, 'optimization');
     const first = await api.automationRan(HARNESS, 'optimization', since, 60 * 60_000);
     expect(first.status).toBe('finished');
-    const early = (await api.feed()).items.filter((i) => i.workspace === HARNESS && ['Harness/Automation', 'Harness/Pattern'].includes(i.type));
-    expect(early.map((i) => i.path), 'nothing proposed from two chats').toEqual([]);
+    const early = (await api.feed()).items.filter((i) => i.workspace === HARNESS && i.type === 'Harness/Automation');
+    expect(early.map((i) => i.path), 'no change proposed from two chats').toEqual([]);
+    for (const p of await api.entities(HARNESS, 'Harness/Pattern')) expect(Number(p.frontmatter.seen), `${p.path} seen`).toBeLessThan(3);
     // The third time it is
     await correctedChat('List the routes with what each returns, as a table.');
     since = new Date();

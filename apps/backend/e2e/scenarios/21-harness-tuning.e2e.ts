@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
+import { commitsOf, filesOf } from '../support/landed.ts';
 import { entityText, move } from '../support/scripted.ts';
 
 const WS = 'bookshelf-api';
@@ -79,9 +80,9 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     const entity = readFileSync(t.file('knowledge-graph/Harness/Automation/chat.md'), 'utf8')
       .replace('verification: verified', 'verification: unverified')
       .replace(/^artifacts:/m, 'variant: bullets\nartifacts:')
-      .replace(/\r?\n$/, `\n\nProposed by optimization: in ${WS}, 2 of 2 chats were corrected to drop tables; answers come in bullet points.\n`);
+      .replace(/\r?\n$/, `\n\nProposed by optimization: in ${WS}, 3 of 3 chats were corrected to drop tables; answers come in bullet points.\n`);
     return [
-      move.metric(2, 1),
+      move.metric(3, 1),
       move.write(t, CHAT_AGENT, `${agent.trimEnd()}\n${RULE}\n`),
       move.write(t, 'knowledge-graph/Harness/Automation/chat.md', entity),
       move.say('Proposed one change to the chat definition.'),
@@ -94,7 +95,8 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
   ]);
 
   await step(2, async () => {
-    for (const q of ['Give me an overview of the routes, as a table.', 'Compare the routes, as a table.']) {
+    // Three times: a change waits for three sightings
+    for (const q of ['Give me an overview of the routes, as a table.', 'Compare the routes, as a table.', 'List the routes with what each returns, as a table.']) {
       const chat = await app.chat(WS, q);
       await api.runEnded(chat, 5 * 60_000);
       await app.reply(chat, CORRECTION);
@@ -174,6 +176,12 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     const run = await api.automationRan(HARNESS, 'exploration', since, 10 * 60_000);
     expect(run.status).toBe('finished');
     expect(env.show(HARNESS, code)).toBeNull();
+    // Live, the exploration decides what it writes: whatever landed of it is the knowledge graph's, never the code
+    if (model.live) {
+      const files = filesOf(env, HARNESS, await commitsOf(env, HARNESS, run.id));
+      expect(files.filter((f) => !f.startsWith('knowledge-graph/') && !f.startsWith('chats/')), 'only the knowledge graph landed').toEqual([]);
+      return;
+    }
     expect(env.show(HARNESS, `knowledge-graph/${research}.md`)).toContain('# Next tuning');
     const issue = await api.entity(HARNESS, `Harness/Issue/guard-${run.id}`);
     expect(issue.markdown).toContain(code);

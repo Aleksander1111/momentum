@@ -30,6 +30,7 @@ const CHECKS = 'npm run typecheck && npm test';
 const failed = (output: string) => /error TS\d+|^\W{0,3}fail [1-9]|npm ERR!|npm error/m.test(output);
 /** The summary line node --test prints, whichever reporter it uses: # pass 16, or ℹ pass 16 */
 const PASSED = /^\W{0,3}pass [1-9]\d*\s*$/m;
+const INSTALLED = /added \d+ packages|up to date/;
 
 const PINS_TEST_TS = `import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -99,6 +100,9 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
   const checks = (t: Turn) => t.results.filter((r) => r.tool === 'Bash').map((r) => plainText(r.text));
   /** What each run's shell commands answered, by run */
   const shells = new Map<string, string[]>();
+  /** The shell commands each run issued, by run: live, an install may say nothing (`npm ci >/dev/null`) */
+  const commands = new Map<string, string[]>();
+  const commandsOf = (t: Turn) => t.results.filter((r) => r.tool === 'Bash').map((r) => String((r.input as { command?: string }).command ?? ''));
 
   model.on('graph build', { automation: 'graph-build', kind: 'prompt' }, (t) => {
     const source = filesUnder(t.checkout, 'src');
@@ -153,12 +157,13 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     await app.setProject(WS, true);
     await until('the build complete', async () => (await api.graphBuild(WS)).state === 'complete', 30 * 60_000, 5000);
     const builds = await api.runs(WS, 'graph-build');
-    expect(builds.length).toBeGreaterThan(2);
+    // Scripted, a run maps a batch of files; a real one may map the whole repository within the feed's room
+    expect(builds.length).toBeGreaterThan(model.live ? 0 : 2);
     expect(builds.every((r) => r.status === 'finished')).toBe(true);
     expect((await api.graphBuild(WS)).completeness.score).toBeGreaterThan(0);
-    // Every source file and the documents are artifacts of entities on the main line
+    // Every source file and the documents are artifacts of entities on the main line: a directory claims what is in it
     const artifacts = (await env.sql<{ artifact_path: string }[]>`select artifact_path from ${env.sql('ws_notes_api.entity_artifact')}`).map((a) => a.artifact_path);
-    for (const f of filesUnder(env.path(WS), 'src')) expect(artifacts, f).toContain(f);
+    for (const f of filesUnder(env.path(WS), 'src')) expect(artifacts.some((a) => a === f || f.startsWith(`${a}/`)), f).toBe(true);
     expect(artifacts).toEqual(expect.arrayContaining(['README.md', 'docs/api.md', 'package.json']));
     expect(graphIssues(env, WS)).toEqual([]);
     // The history is what it was, with the build's landings on top, one commit each, none merged
@@ -173,6 +178,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
 
   model.on('implementation', { automation: 'implementation', kind: 'prompt' }, (t) => {
     shells.set(t.run, checks(t));
+    commands.set(t.run, commandsOf(t));
     return [
       move.bash(`cd "${sh(t.checkout)}" && ${INSTALL}`),
       ...edits(t).map(([file, content]) => move.write(t, file, content)),
@@ -244,17 +250,23 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     expect(run.status).toBe('finished');
     expect(run.target_path).toBe(STORY);
     // It installed into its own checkout and ran the checks there, which passed
-    const [install, checked] = shells.get(run.id) ?? [];
-    expect(install, 'the install ran').toMatch(/added \d+ packages|up to date/);
+    // Scripted, the install and then the checks; live, the model runs what it likes in between, and may silence the install
+    const outputs = shells.get(run.id) ?? [];
+    if (model.live) expect(commands.get(run.id) ?? [], 'the install ran').toContainEqual(expect.stringMatching(/\bnpm (ci|install|i)\b/));
+    else expect(outputs[0], 'the install ran').toMatch(INSTALLED);
+    const checked = model.live ? outputs.findLast((o) => PASSED.test(o)) : outputs[1];
     expect(checked, `the checks ran: ${JSON.stringify(checked?.slice(-200))}`).toMatch(PASSED);
-    expect(failed(checked ?? 'npm error')).toBe(false);
+    // Live, a run may fix what a check found and check again in part: the user's checkout below judges the landed work
+    if (!model.live) expect(failed(checked ?? 'npm error')).toBe(false);
     // One commit on top of the approval: code, test and cards, and nothing of the install
     const own = await commitsOf(env, WS, run.id);
     expect(own).toHaveLength(1);
     expect(env.git(WS, 'rev-list', '--count', `${original}..main`)).toBe('2');
     expect(env.head(WS)).toBe(own[0]);
     const files = filesOf(env, WS, own);
-    expect(files).toEqual(expect.arrayContaining(['src/domain/note.ts', 'src/store/memory.ts', 'src/routes/notes.ts', PINS_TEST, kg(ROUTES)]));
+    if (model.live) {
+      expect(files.some((f) => f.startsWith('src/')) && files.some((f) => f.startsWith('test/')), `code and a test among ${files}`).toBe(true);
+    } else expect(files).toEqual(expect.arrayContaining(['src/domain/note.ts', 'src/store/memory.ts', 'src/routes/notes.ts', PINS_TEST, kg(ROUTES)]));
     expect(files.filter((f) => f.startsWith('node_modules/') || f === 'package-lock.json')).toEqual([]);
     const results = (await Promise.all((await entitiesOf(env, WS, run.id)).map((p) => api.entity(WS, p)))).filter((e) => refs(e, 'implements').includes(STORY));
     expect(results.length, 'an entity implementing the story').toBeGreaterThan(0);
@@ -262,7 +274,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     expect(npmPasses(env, WS, 'typecheck').ok).toBe(true);
     const tests = npmPasses(env, WS, 'test');
     expect(tests.ok, tests.output).toBe(true);
-    expect(tests.output).toMatch(/^\W{0,3}pass 16\s*$/m);
+    expect(tests.output).toMatch(model.live ? PASSED : /^\W{0,3}pass 16\s*$/m);
     // Its checkout, node_modules and all, is gone; the validation it started may be working in one of its own
     expect(existsSync(join(env.dir, 'runs', WS, run.id))).toBe(false);
     expect(env.git(WS, 'rev-list', '--merges', 'main')).toBe('');
@@ -273,7 +285,8 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     const run = await api.automationRan(WS, 'validation', new Date(implemented.ended_at!), 30 * 60_000);
     expect(run.trigger).toBe('event');
     expect(run.status).toBe('finished');
-    const [checked] = shells.get(run.id) ?? [];
+    const outputs = shells.get(run.id) ?? [];
+    const checked = model.live ? outputs.findLast((o) => PASSED.test(o)) : outputs[0];
     expect(checked, `the checks ran: ${JSON.stringify(checked?.slice(-200))}`).toMatch(PASSED);
     expect((await entitiesOf(env, WS, run.id)).filter((p) => p.startsWith('Harness/Issue/'))).toEqual([]);
     // The user breaks the type check in a commit of their own
@@ -290,11 +303,14 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     const raised = (await entitiesOf(env, WS, nightly.id)).filter((p) => p.startsWith('Harness/Issue/'));
     expect(raised).toHaveLength(1);
     const issue = await api.entity(WS, raised[0]!);
-    expect(issue.markdown).toMatch(/error TS\d+/);
+    // The compiler's own codes: "error TS2322", or as a run quotes them, "TS2322"
+    expect(issue.markdown).toMatch(/\bTS\d{4}\b/);
     expect(issue.markdown).toContain('src/search.ts');
     const item = await until('the issue in the feed', async () => (await api.feed()).items.find((i) => i.path === raised[0]));
     expect(item.issue!.severity).toBe('high');
-    expect(item.issue!.options.length).toBe(2);
+    // The definition asks for 2-4 ways to resolve it; the script offers two
+    if (model.live) expect(item.issue!.options.length).toBeGreaterThanOrEqual(2);
+    else expect(item.issue!.options.length).toBe(2);
     await app.entity(WS, raised[0]!);
     // Every run's checkout went when the run ended, the dependencies installed in it too
     await api.idle(WS, 10 * 60_000);

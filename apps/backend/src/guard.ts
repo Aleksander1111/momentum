@@ -9,6 +9,7 @@ import {
   renderDiagrams,
   serializeEntity,
   toCard,
+  typeOfPath,
   validateText,
   type DiagramRenderer,
   type ParsedEntity,
@@ -525,11 +526,16 @@ export class Guard {
       if (result.entity) written.push({ path, entity: result.entity });
     }
     const deleted = kg.filter((c) => c.status === 'D').map((c) => entityPathOf(c.path)!);
+    // The index has the main line's references: a referrer the run rewrote points where its checkout file says
+    const stillPoints = (from: string, to: string) => {
+      const w = written.find((w) => w.path === from);
+      return w ? w.entity.frontmatter.references.some((r) => r.to === to) : true;
+    };
     for (const path of deleted) {
       const referrers = await ws.index.sql<{ from_path: string }[]>`
         select from_path from ${ws.index.sql(`${ws.index.schema}.entity_reference`)} where to_path = ${path}`;
       for (const r of referrers) {
-        if (resolves(r.from_path) && !deleted.includes(r.from_path)) {
+        if (resolves(r.from_path) && !deleted.includes(r.from_path) && stillPoints(r.from_path, path)) {
           issues.push({ path: r.from_path, code: 'unresolved_reference', message: `references ${path}, which this change removes` });
         }
       }
@@ -540,9 +546,9 @@ export class Guard {
   /** Sync state of an entity against its implementation: the `implements` references */
   async syncOf(ws: Workspace, path: string, fm: EntityFrontmatter): Promise<Sync> {
     if (fm.sync === 'artifact_ahead') return 'artifact_ahead';
-    const implementsRefs = fm.references.filter((r) => r.relation === 'implements');
-    if (implementsRefs.length > 0) return 'synced';
     if (!IMPLEMENTABLE.has(fm.type)) return 'synced';
+    // A result implementing work is the implementation; a task that "implements" its product is still to do
+    if (fm.references.some((r) => r.relation === 'implements' && IMPLEMENTABLE.has(typeOfPath(r.to)))) return 'synced';
     // Implemented directly, or through a plan of it that a verified result implements
     const refs = ws.index.sql(`${ws.index.schema}.entity_reference`);
     const [implemented] = await ws.index.sql`

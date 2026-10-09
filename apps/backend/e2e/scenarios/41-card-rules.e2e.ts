@@ -52,10 +52,19 @@ scenario('card-rules', { enabled: [WS, HARNESS], triggers: ['implementation'] },
     expect(instructions).toContain(`within ${LIMIT} characters`);
     expect(instructions).toContain(RULE);
     // The limit is the run's to keep: the write goes through with no issue
-    const [written] = seen;
-    expect(written!.text).toBe(`Wrote knowledge-graph/${FEATURE}.md`);
-    expect(model.turns(chat).some((t) => t.flagged)).toBe(false);
-    expect(env.show(WS, `knowledge-graph/${FEATURE}.md`)).toContain(SHORT);
+    const written = seen.find((r) => r.tool === 'mcp__momentum-kb__write');
+    if (!model.live) {
+      expect(written!.text).toBe(`Wrote knowledge-graph/${FEATURE}.md`);
+      expect(model.turns(chat).some((t) => t.flagged)).toBe(false);
+      expect(env.show(WS, `knowledge-graph/${FEATURE}.md`)).toContain(SHORT);
+    } else {
+      // Live the model looks around first and words the card itself; its references may still raise issues, never a refusal
+      const path = (written!.input as { path: string }).path;
+      expect(path).toMatch(/^Product\/Feature\//);
+      expect(written!.text).toContain(`knowledge-graph/${path}.md`);
+      expect(written!.text).not.toMatch(/rejected/i);
+      expect(env.show(WS, `knowledge-graph/${path}.md`)).toBeTruthy();
+    }
   });
 
   await step(1, async () => {

@@ -6,11 +6,12 @@ import { expect, scenario } from '../support/fixtures.ts';
 
 const WS = 'todo-cli';
 const FILE = 'knowledge-graph/Product/Feature/priorities.md';
-const ASK = `Create the entity file ${FILE} (type Product/Feature) describing to-do priorities (low, normal, high; list sorts by priority).
-Write it in a single Write call exactly like this, with a reference to Product/Feature/tags
+const ask = (file: string, what: string, missing: string) => `Create the entity file ${file} (type Product/Feature) describing ${what}.
+Write it in a single Write call exactly like this, with a reference to ${missing}
 with relation depends_on, even though that entity does not exist. Then do whatever the harness tells you about it.`;
+const ASK = ask(FILE, 'to-do priorities (low, normal, high; list sorts by priority)', 'Product/Feature/tags');
 
-const bad = (text: string) => text.includes('Product/Feature/tags');
+const bad = (text: string, missing = 'Product/Feature/tags') => text.includes(missing);
 
 scenario('guard-in-a-run', { enabled: [WS] }, async ({ env, api, app, step }) => {
   const watchCheckout = (runId: string) => {
@@ -47,11 +48,13 @@ scenario('guard-in-a-run', { enabled: [WS] }, async ({ env, api, app, step }) =>
   });
 
   await step(2, async () => {
-    const runId = await app.chat(WS, ASK.replace('priorities', 'reminders').replace('to-do priorities (low, normal, high; list sorts by priority)', 'reminders for to-dos'));
     const file = FILE.replace('priorities', 'reminders');
+    // Not tags: a real run may have fixed step 1 by writing the tags feature
+    const missing = 'Product/Feature/recurrence';
+    const runId = await app.chat(WS, ask(file, 'reminders for to-dos', missing));
     await until('the bad entity in the checkout', async () => {
       const r = await api.run(runId);
-      return existsSync(join(r.checkout, file)) && bad(readFileSync(join(r.checkout, file), 'utf8'));
+      return existsSync(join(r.checkout, file)) && bad(readFileSync(join(r.checkout, file), 'utf8'), missing);
     }, 10 * 60_000, 300);
     await api.mcp('kill_run', { id: runId });
     expect((await api.runEnded(runId)).status).toBe('killed');

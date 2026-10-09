@@ -231,22 +231,27 @@ export class Runner {
     const id = randomBytes(4).toString('hex');
     const checkout = join(config.runs, ws.name, id);
     await this.workspaces.sql`insert into harness.run_ref ${this.workspaces.sql({ id, workspace: ws.name })}`;
-    await ws.index.sql`insert into ${this.t(ws, 'run')} ${ws.index.sql({
-      id,
-      automation: spec.automation,
-      checkout,
-      trigger: spec.trigger,
-      target_path: spec.targetPath ?? null,
-      targets: spec.targets ?? [],
-      status: 'queued',
-      title: spec.title ?? '',
-      prompt: withContext(spec.context ?? [], spec.prompt),
-    })}`;
-    if (spec.automation === 'chat') {
-      await ws.index.sql`insert into ${this.t(ws, 'chat')} ${ws.index.sql({ run_id: id, entity_path: null })}`;
-      await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt, spec.context ?? []);
-    }
-    if (spec.automation === 'interview') await this.addMessage(ws, id, 'user', spec.message ?? spec.prompt);
+    // A conversation appears with the message that started it: one read between the two would show a chat saying nothing
+    const first = spec.automation === 'chat' ? (spec.context ?? []) : spec.automation === 'interview' ? [] : null;
+    await ws.index.sql.begin(async (t) => {
+      const tx = t as unknown as typeof ws.index.sql;
+      await tx`insert into ${this.t(ws, 'run')} ${tx({
+        id,
+        automation: spec.automation,
+        checkout,
+        trigger: spec.trigger,
+        target_path: spec.targetPath ?? null,
+        targets: spec.targets ?? [],
+        status: 'queued',
+        title: spec.title ?? '',
+        prompt: withContext(spec.context ?? [], spec.prompt),
+      })}`;
+      if (spec.automation === 'chat') await tx`insert into ${this.t(ws, 'chat')} ${tx({ run_id: id, entity_path: null })}`;
+      if (first) {
+        await tx`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context)
+          values (${id}, 1, 'user', ${spec.message ?? spec.prompt}, ${tx.json(first as never)})`;
+      }
+    });
     for (const path of new Set([spec.targetPath, ...(spec.targets ?? [])])) if (path) await this.guard.markUpdating(ws, path);
     // A run is on the timeline once something comes of it: it lands, ends, fails or stops
     return id;

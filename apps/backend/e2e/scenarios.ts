@@ -185,7 +185,7 @@ export const SCENARIOS: Scenario[] = [
     real: true,
     covers: ['automation.optimization', 'metrics.agent', 'definition.land', 'definition.variant'],
     steps: [
-      'Two chats repeating a correction propose nothing; after a third, optimization records the counts and proposes the pattern and a definition change with evidence',
+      'Two chats repeating a correction propose no change; after a third, optimization records the counts and proposes the pattern and a definition change with evidence',
       'The proposal is in every enabled project as it lands, before anyone approves it; a definition variant is recorded on the runs it shapes',
     ],
     // The features each step checks, step by step

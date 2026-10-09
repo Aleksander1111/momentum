@@ -147,6 +147,10 @@ scenario('api-contract', { enabled: [WS, OTHER] }, async ({ env, api, model, ste
     await ok('POST', '/runs/{id}/messages', `/runs/${runId}/messages`, { text: 'And which guides?' });
     await api.answered(runId, 2, 5 * 60_000);
     const { runId: longer } = await ok<{ runId: string }>('POST', '/workspaces/{ws}/chats', `/workspaces/${WS}/chats`, { text: 'Read every document.' });
+    // What is under way, everywhere and in one workspace; chats are not among it
+    await ok('GET', '/runs', '/runs');
+    const { runs: underWay } = await ok<{ runs: { id: string; workspace: string }[] }>('GET', '/runs', `/runs?workspace=${WS}`);
+    expect(underWay.every((r) => r.workspace === WS && r.id !== longer)).toBe(true);
     await ok('POST', '/runs/{id}/kill', `/runs/${longer}/kill`);
     expect((await call('GET', '/runs/{id}', '/runs/nonexistent')).status).toBe(404);
 

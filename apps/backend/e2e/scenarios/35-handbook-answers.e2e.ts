@@ -1,3 +1,4 @@
+import type { TimelineResponse } from '@momentum/contract';
 import { until } from '../support/api.ts';
 import { typeInto } from '../support/app.ts';
 import { expect, scenario } from '../support/fixtures.ts';
@@ -76,8 +77,13 @@ scenario('handbook-answers', { enabled: [WS], graphBuild: 'complete' }, async ({
     // Asked again later: the search finds the answer
     const { results } = await api.call<{ results: { path: string }[] }>('GET', `/workspaces/${WS}/search?q=${encodeURIComponent('bicycle')}`);
     expect(results.slice(0, 3).map((r) => r.path)).toContain(faq);
+    const { events } = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&actor=user`);
+    const approved = events.find((e) => e.kind === 'approved' && e.path === faq);
+    expect(approved, 'the approval on the timeline').toBeTruthy();
+    // The row's check already says it was approved: the line names only what was
+    const what = approved!.title.replace(/^Approved\s+“?(.*?)”?$/, '$1');
     await app.tab('Timeline');
-    await expect(app.text('Approved', false).first()).toBeVisible({ timeout: 15_000 });
+    await expect(app.frame().getByText(what, { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 15_000 });
     expect(env.show(WS, kg(faq))).toContain('verification: verified');
   });
 });

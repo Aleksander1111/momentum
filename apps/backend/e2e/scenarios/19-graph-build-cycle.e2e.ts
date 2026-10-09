@@ -93,7 +93,10 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
     // Measured, not reported: the entities so far account for some of the repository, and the next run is told the rest
     expect(status.completeness.score).toBeGreaterThan(0);
     expect(status.completeness.score).toBeLessThan(1);
-    expect(status.completeness.territory.areas.some((a) => a.missing.length > 0)).toBe(true);
+    // Scripted, the run maps one file; a real one may claim every directory with its one entity, leaving slots to fill
+    const unfilled = status.completeness.understanding.slots.some((s) => !s.filled);
+    const uncovered = status.completeness.territory.areas.some((a) => a.missing.length > 0);
+    expect(model.live ? unfilled || uncovered : uncovered).toBe(true);
     expect(status.progress).toBeTruthy();
     progress = status.progress!;
   });

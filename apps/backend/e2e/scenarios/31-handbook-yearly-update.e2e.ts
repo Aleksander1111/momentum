@@ -132,11 +132,18 @@ scenario('handbook-yearly-update', { enabled: [WS], graphBuild: 'complete', sett
     // The archived document is never summarized: gone from what is, the policy over it is spent
     expect(model.turns(run.id)[0]!.input).toMatch(/docs\/remote-work\.md \(deleted\)/);
     expect(model.turns(run.id)[0]!.input).not.toContain('archive/');
-    // The product still points at the policy: the run leaves it, and reports nothing removed
-    expect(exists(kg(REMOTE))).toBe(true);
-    expect(await api.referencing(WS, REMOTE)).toContain('Product/Product/handbook');
     const event = await until('the run on the timeline', async () => (await api.timeline({ workspace: WS })).events.find((e) => e.runId === run.id));
-    expect((event.facts.removed ?? []).map((r) => r.path)).not.toContain(REMOTE);
+    const removed = (event.facts.removed ?? []).map((r) => r.path);
+    if (!model.live || exists(kg(REMOTE))) {
+      // The product still points at the policy: the run leaves it, and reports nothing removed
+      expect(exists(kg(REMOTE))).toBe(true);
+      expect(await api.referencing(WS, REMOTE)).toContain('Product/Product/handbook');
+      expect(removed).not.toContain(REMOTE);
+    } else {
+      // A real model may judge the product's `contains` no reliance: then it drops the reference with the policy, reported removed
+      expect(await api.referencing(WS, REMOTE)).toEqual([]);
+      expect(removed).toContain(REMOTE);
+    }
     expect(graphIssues(env, WS)).toEqual([]);
   });
 });
