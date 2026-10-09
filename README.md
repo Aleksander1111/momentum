@@ -28,7 +28,7 @@ Everything a run writes lands on the main line **unverified** and waits in the f
 12. [Graph completeness](#graph-completeness)
 13. [Consistency guard](#consistency-guard)
 14. [Consistency issue types](#consistency-issue-types)
-15. [Issue resolution](#issue-resolution)
+15. [Consistency issue resolution](#consistency-issue-resolution)
 16. [Git](#git)
 17. [User actions](#user-actions)
 18. [Settings](#settings)
@@ -375,9 +375,9 @@ The consistency check sets exactly one `category` per issue.
 
 The guard's own issues (`source: guard`) and conflicts carry no category or options.
 
-## Issue resolution
+## Consistency issue resolution
 
-![Issue resolution](docs/slide-images/15-issue-resolution.png)
+![Consistency issue resolution](docs/slide-images/15-issue-resolution.png)
 
 An issue card in the feed shows its severity, its category, the entities it concerns (the one at fault marked), and its options, with the recommended one marked and picked.
 
@@ -413,7 +413,7 @@ A guard issue or a conflict has no options: approve it, or send it back to start
 | **Swipe right**: approve | One commit sets the entity verified and syncs what it `implements`. An implementable entity with nothing implementing it starts **Implementation**. |
 | **Swipe left**: send back | Your comment starts a chat run on the entity, or joins the open one. The card leaves the feed while the chat works and returns if the chat leaves it unverified. |
 | **Pull up**: ask | A chat on the card, with the card as context. |
-| **Resolve** or **won't resolve** | See [Issue resolution](#issue-resolution). |
+| **Resolve** or **won't resolve** | See [Consistency issue resolution](#consistency-issue-resolution). |
 
 Beyond the feed:
 
