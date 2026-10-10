@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, TextInput, View, type TextStyle } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { AutomationName, ProjectLogo as LogoSchema, Risk } from '@momentum/contract';
@@ -404,34 +404,72 @@ function GraphBuildRow({ name }: { name: string }) {
     onSettled: () => setArmed(false),
   });
   if (!m?.state) return null;
-  const sep = ' \u00b7 ';
-  const soFar = [
-    reset.isPending ? 'resetting' : GRAPH_BUILD[m.state],
-    `${m.runs} ${m.runs === 1 ? 'run' : 'runs'}`,
-    `${m.entities} ${m.entities === 1 ? 'entity' : 'entities'}`,
-    durationMs(m.spentMs),
-    `${usagePct(m.usage.fiveHour)} of 5 h`,
-    `${usagePct(m.usage.week)} of week`,
-  ].join(sep);
   // Completeness as the harness measures it on the main line, and the full build extrapolated from what it took so far
   const c = m.completeness;
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   const slots = c.understanding.slots;
   const measured = [
-    `${pct(c.score)} complete`,
     `${slots.filter((s) => s.filled).length} of ${slots.length} questions answered`,
     `${pct(c.territory.score)} of the repository accounted for`,
     ...(c.detail > 0 ? [`${c.detail} implementation-detail ${c.detail === 1 ? 'entity' : 'entities'}`] : []),
-  ].join(sep);
-  const full =
-    m.state === 'complete' || !m.estimate
-      ? null
-      : [`full build \u2248 ${durationMs(m.estimate.totalMs)}`, `${usagePct(m.estimate.usage.fiveHour)} of 5 h`, `${usagePct(m.estimate.usage.week)} of week`].join(sep);
-  const missing = [...slots.filter((s) => !s.filled).map((s) => s.name.toLowerCase()), ...c.territory.areas.filter((a) => a.score < 1).map((a) => a.path)];
-  const sub = [soFar, measured, full, missing.length ? `missing: ${missing.join(', ')}` : null].filter(Boolean).join('\n');
+  ].join(' \u00b7 ');
+  const cost = [
+    { label: m.state === 'complete' ? 'Spent' : 'So far', ms: m.spentMs, usage: m.usage },
+    ...(m.state === 'complete' || !m.estimate ? [] : [{ label: 'Full build \u2248', ms: m.estimate.totalMs, usage: m.estimate.usage }]),
+  ];
+  const missing = [...new Set([...slots.filter((s) => !s.filled).map((s) => s.name.toLowerCase()), ...c.territory.areas.filter((a) => a.score < 1).map((a) => a.path)])];
+  const tone = reset.isPending ? C.muted : { building: C.accent, stopped: C.warn, complete: C.ok }[m.state];
+  const small = { fontSize: 12.5, color: C.muted };
+  const num: TextStyle = { fontSize: 12.5, width: 64, textAlign: 'right', fontVariant: ['tabular-nums'] };
   return (
-    <Row style={{ paddingLeft: 28, backgroundColor: C.card }}>
-      <RowText title="Knowledge graph" sub={sub} size={14} />
+    <Row style={{ paddingLeft: 28, backgroundColor: C.card, alignItems: 'flex-start' }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 10, rowGap: 4 }}>
+          <T style={{ fontSize: 14 }}>Knowledge graph</T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: tone, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tone }} />
+            <T style={{ fontSize: 12, color: tone }}>{reset.isPending ? 'resetting' : GRAPH_BUILD[m.state]}</T>
+          </View>
+          <T style={small}>
+            {m.runs} {m.runs === 1 ? 'run' : 'runs'} {'\u00b7'} {m.entities} {m.entities === 1 ? 'entity' : 'entities'}
+          </T>
+        </View>
+        <View style={{ maxWidth: 420, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: C.line, overflow: 'hidden' }}>
+              <View style={{ width: pct(Math.min(1, Math.max(0, c.score))) as `${number}%`, height: '100%', backgroundColor: m.state === 'complete' ? C.ok : C.accent }} />
+            </View>
+            <T style={{ fontSize: 12.5, fontVariant: ['tabular-nums'] }}>{pct(c.score)} complete</T>
+          </View>
+          <T style={small}>{measured}</T>
+        </View>
+        <View style={{ maxWidth: 420 }}>
+          <View style={{ flexDirection: 'row', paddingBottom: 3, borderBottomWidth: 1, borderBottomColor: C.line }}>
+            <T style={[small, { flex: 1 }]}>Cost</T>
+            <T style={[num, small]}>Time</T>
+            <T style={[num, small]}>5 h</T>
+            <T style={[num, small]}>Week</T>
+          </View>
+          {cost.map((r) => (
+            <View key={r.label} style={{ flexDirection: 'row', paddingTop: 3 }}>
+              <T style={[small, { flex: 1 }]}>{r.label}</T>
+              <T style={num}>{durationMs(r.ms)}</T>
+              <T style={num}>{usagePct(r.usage.fiveHour)}</T>
+              <T style={num}>{usagePct(r.usage.week)}</T>
+            </View>
+          ))}
+        </View>
+        {missing.length ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            <T style={small}>Missing</T>
+            {missing.map((x) => (
+              <View key={x} style={{ backgroundColor: C.washWarn, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 }}>
+                <T style={{ fontSize: 12, color: C.warn }}>{x}</T>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
       {m.state !== 'complete' && !armed ? (
         <Btn
           small
