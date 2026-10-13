@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { persistOptions, queryClient } from '../lib/query';
+import { useVisibleViewport } from '../lib/viewport';
 import { AppearanceProvider } from '../ui/AppearanceProvider';
 import { NoticeBar } from '../ui/Notice';
 import { C, useTheme } from '../ui/theme';
@@ -18,6 +19,7 @@ export default function RootLayout() {
 
 function Root() {
   const { scheme } = useTheme();
+  useVisibleViewport();
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.screen }}>
       <SafeAreaProvider>
