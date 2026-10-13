@@ -4,7 +4,6 @@ import { move } from '../support/scripted.ts';
 
 const WS = 'bookshelf-api';
 const API = 'Architecture/Api/books-api';
-const TOTAL = 3;
 const QUESTIONS = [
   'Which routes does the API have?',
   'What does GET /books/:id answer for a missing book?',
@@ -14,8 +13,8 @@ const QUESTIONS = [
 ];
 const FOLLOW_UP = 'And what does it answer when the body is not JSON?';
 
-// Many questions at once on a busy day, within a total of three runs
-scenario('busy-chat-day', { enabled: [WS], settings: { agents: { concurrentTotal: TOTAL } } }, async ({ api, app, model, step }) => {
+// Many questions at once on a busy day, in one project: its chats take its one working directory one after another
+scenario('busy-chat-day', { enabled: [WS] }, async ({ api, app, model, step }) => {
   // Each turn's first answer waits until the scenario lets the chats go: held at the network, live too
   let open = () => {};
   let gate = new Promise<void>((r) => (open = r));
@@ -27,11 +26,10 @@ scenario('busy-chat-day', { enabled: [WS], settings: { agents: { concurrentTotal
 
   await step(0, async () => {
     for (const q of QUESTIONS) chats.push((await api.chat(WS, q)).runId);
-    await until('three running', async () => (await Promise.all(chats.map(status))).filter((s) => s === 'running').length === TOTAL, 60_000);
-    const states = await Promise.all(chats.map(status));
-    expect(states.filter((s) => s === 'queued')).toHaveLength(2);
-    // The oldest go first
-    expect(states.slice(0, TOTAL)).toEqual(['running', 'running', 'running']);
+    await until('one running', async () => (await Promise.all(chats.map(status))).includes('running'), 60_000);
+    await new Promise((r) => setTimeout(r, 6000));
+    // The oldest goes first; the others wait for the working directory
+    expect(await Promise.all(chats.map(status))).toEqual(['running', 'queued', 'queued', 'queued', 'queued']);
   });
 
   await step(1, async () => {
@@ -41,6 +39,11 @@ scenario('busy-chat-day', { enabled: [WS], settings: { agents: { concurrentTotal
     open();
     gate = Promise.resolve();
     await until('all answered', async () => (await Promise.all(chats.map(status))).every((s) => s === 'finished'), 15 * 60_000, 5000);
+    // One after another, oldest first
+    const runs = await Promise.all(chats.map((id) => api.run(id)));
+    for (let i = 1; i < runs.length; i++) {
+      expect(+new Date(runs[i]!.startedAt!), `chat ${i} started after chat ${i - 1} ended`).toBeGreaterThanOrEqual(+new Date(runs[i - 1]!.endedAt!));
+    }
     // One turn answered both: the run started with the question and its follow-up together, and was never asked again
     const turns = model.turns(chats[3]!);
     expect(turns.filter((t) => t.kind === 'message')).toEqual([]);
@@ -67,7 +70,7 @@ scenario('busy-chat-day', { enabled: [WS], settings: { agents: { concurrentTotal
   await step(3, async () => {
     gate = new Promise<void>((r) => (open = r));
     const busy = await Promise.all(['Which port does the server listen on?', 'Which test covers the 404?', 'What does a book look like?'].map((q) => api.chat(WS, q)));
-    await until('three running', async () => (await Promise.all(busy.map((b) => status(b.runId)))).every((s) => s === 'running'), 60_000);
+    await until('one running', async () => (await Promise.all(busy.map((b) => status(b.runId)))).includes('running'), 60_000);
     const waiting = await api.chat(WS, 'Never mind this one.');
     expect(await status(waiting.runId)).toBe('queued');
     // Stopped while it waits: it never starts

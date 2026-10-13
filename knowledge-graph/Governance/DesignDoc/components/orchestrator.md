@@ -23,7 +23,7 @@ Runs the automation loops per enabled project, in the API's process.
 - Loops pause when the feed reaches its limit
 - Enabling a project starts the graph build; disabling stops the build, running runs finish, queued ones wait
 - Reset wipes a project and rebuilds; not the harness
-- One killable Claude Code process per run, in its own checkout of the main line; what it leaves lands when it ends
+- One killable Claude Code process per run, in the project folder, on main; what it leaves lands when it ends
 - A run cut off by a restart resumes, twice at most; a chat or interview fails at once and resumes on the next message
-- Automation runs go one at a time per project; user runs at once
+- A project's runs go one at a time; user runs first
 - A killed run's writes reach the feed

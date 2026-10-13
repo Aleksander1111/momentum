@@ -1,9 +1,6 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { until, type EntityRow } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
+import { testsPass } from '../support/landed.ts';
 
 const WS = 'bookshelf-api';
 const ACTIONS = ['Product/Feature', 'Product/FeatureRequest', 'Product/UserStory', 'Product/DevTask', 'Product/Bug', 'Product/TechDebt'];
@@ -54,22 +51,11 @@ scenario('goal-to-landed-work', { enabled: [WS], triggers: ['exploration'] }, as
     const run = await api.automationRan(WS, 'validation', new Date(implementation.run.ended_at!), 60 * 60_000);
     expect(run.trigger).toBe('event');
     expect(run.status).toBe('finished');
-    const dir = mkdtempSync(join(tmpdir(), 'bookshelf-main-'));
-    try {
-      env.git(WS, 'worktree', 'add', '--detach', dir, 'main');
-      let passes = true;
-      try {
-        execFileSync(process.execPath, ['--test'], { cwd: dir, stdio: 'ignore', windowsHide: true });
-      } catch {
-        passes = false;
-      }
-      if (!passes) {
-        const raised = [...(await api.entities(WS, 'Harness/Issue')), ...(await api.entities(WS, 'Product/Bug'))];
-        expect(raised.some((e) => /title/i.test(e.card)), 'the failing empty-title test raised as an issue').toBe(true);
-      }
-    } finally {
-      env.git(WS, 'worktree', 'remove', '--force', dir);
-      rmSync(dir, { recursive: true, force: true });
+    // The tests of the main line, in the project's one working directory, once no run works there
+    await api.idle(WS, 10 * 60_000);
+    if (!testsPass(env, WS)) {
+      const raised = [...(await api.entities(WS, 'Harness/Issue')), ...(await api.entities(WS, 'Product/Bug'))];
+      expect(raised.some((e) => /title/i.test(e.card)), 'the failing empty-title test raised as an issue').toBe(true);
     }
   });
 

@@ -34,7 +34,7 @@ artifacts:
 ---
 # Back-end
 
-One Node process, `apps/backend`, API, orchestrator, consistency guard; only runs, search answers, risk estimates run apart. The "Momentum" logon task (`install.ps1`) runs `serve.ps1`, which reruns `pnpm dev` when it exits; that restarts it on source changes and runs the [web export](Architecture/Workflow/web-export-from-main).
+One Node process, `apps/backend`: API, orchestrator, guard; only runs, search answers, risk estimates run apart. The "Momentum" logon task (`install.ps1`) runs `serve.ps1`, which reruns `pnpm dev` when it exits; that restarts it when a commit changes its sources and runs the [web export](Architecture/Workflow/web-export-from-main).
 
 - `createMomentum` wires Postgres, workspaces, settings, bus, timeline, automations, embedder, guard, runner, approval, orchestrator, auth, voice
 - Server: no password, no start; recovers runs, indexes the harness, materializes definitions, listens, starts orchestrator and voice

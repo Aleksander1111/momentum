@@ -1,8 +1,9 @@
-// PreToolUse hook: all work in this repository happens on main. Any shell command that would create a branch, switch
-// to one, or check one out is refused before it runs.
+// PreToolUse hook: all work in this repository happens on main, in its one working directory. Any shell command that
+// would create a branch, switch to one, check one out or add a worktree is refused before it runs, and so is entering a
+// worktree.
 import { execFileSync } from 'node:child_process';
 
-const REASON = 'Branches are forbidden in this repository: all work happens on main.';
+const REASON = 'Branches and worktrees are forbidden in this repository: all work happens on main, in its one working directory.';
 const LISTING = new Set(['-l', '--list', '-v', '-vv', '--verbose', '-a', '--all', '-r', '--remotes', '--show-current', '--merged', '--no-merged', '--contains', '--no-contains', '--sort', '--format', '--color', '--no-color', '--column', '--no-column']);
 
 const input = JSON.parse(await new Promise((ok) => {
@@ -53,12 +54,12 @@ function forbidden({ sub, args }) {
       return refs.some((r) => r !== 'main' && isBranch(r));
     }
     case 'worktree':
-      return args[0] === 'add' && flags.some((f) => ['-b', '-B'].includes(f));
+      return args[0] === 'add';
     default:
       return false;
   }
 }
 
-if (gitCalls(command).some(forbidden)) {
+if (input.tool_name === 'EnterWorktree' || gitCalls(command).some(forbidden)) {
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: REASON } }));
 }

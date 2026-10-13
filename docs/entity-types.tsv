@@ -145,7 +145,6 @@ Knowledge	ReleaseNote	A record of notable changes in a release or to a component
 Harness	Automation	The definition an automation runs, held in the harness workspace; its artifacts are the Claude Code agent, skill, sub-agent and MCP files.
 Harness	Trigger	What starts an automation's runs in this workspace: a schedule, an event, or the user on demand.
 Harness	Issue	A change that cannot be made consistent, a recurring problem or a failed validation, raised for the user to react to.
-Harness	Conflict	Files a run changed that changed on the main line while it ran; landed on the run's side and raised with its own priority for the user to check.
 Harness	Plan	A plan prepared for the user to accept; a summary, short and quick to read and approve.
 Harness	Research	Information researched and collected to decide the next best action for the project.
 Harness	Pattern	A skill, sub-agent, memory or retrieval candidate the optimization found in the chats, or a pattern in the user's reactions, with the times it was seen; a skill, memory, definition change or automatic reaction is proposed from it only once it was seen at least three times; a skill, memory or definition change is in effect as it lands and waits for the user's review; an automatic reaction takes effect only once the user approves it.

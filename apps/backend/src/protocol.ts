@@ -28,9 +28,9 @@ export const messageRequest = (file: string) =>
 export const MESSAGE_FILE = /write the commit message .*? to (.+?), replacing what it holds/s;
 
 /** The run's context lines: where it works, and which run it is */
-export const workspaceLine = (ws: { name: string; path: string; main: string }, checkout: string) =>
-  `- Workspace: ${ws.name} (${ws.path}); this checkout: ${checkout}; main line: ${ws.main}`;
-export const CHECKOUT = /this checkout: (.+?); main line:/;
+export const workspaceLine = (ws: { name: string; path: string; main: string }) =>
+  `- Workspace: ${ws.name}; working directory: ${ws.path}; main line: ${ws.main}`;
+export const WORKING_DIR = /working directory: (.+?); main line:/;
 export const runLine = (r: { id: string; automation: string; trigger: string; targetPath: string | null }) =>
   `- Run: ${r.id}, automation ${r.automation}, started by ${r.trigger}${r.targetPath ? `, target entity ${r.targetPath}` : ''}`;
 export const RUN_LINE = /^- Run: (\w+), automation ([\w-]+), started by (\w+)(?:, target entity (\S+))?$/m;

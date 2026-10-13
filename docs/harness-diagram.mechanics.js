@@ -207,7 +207,7 @@ function loop() {
   const S = [
     ['You', 'FaUser', 'att', 'approve · send back · chat', 270],
     ['Triggers', 'FaClock', 'prod', 'schedule · event · on demand', 301],
-    ['Runs', 'FaTerminal', 'prod', 'own checkout of the main line', 338],
+    ['Runs', 'FaTerminal', 'prod', 'one at a time, in the project folder', 338],
     ['Work', 'FaFileCode', 'prod', 'entities and artifacts', 383],
     ['Summarization', 'FaWandMagicSparkles', 'prod', 'artifacts into cards', 419],
     ['Consistency guard', 'FaShieldHalved', 'kn', 'validated, then landed', 450],
@@ -258,9 +258,9 @@ function loop() {
     const y = 790 + i * 44;
     g += circle(96, y, 13, { fill: LAYER[k].wash, stroke: LAYER[k].strong, sw: 3 }) + text(122, y + 7, s, { size: 21, fill: LAYER[k].strong, bold: true });
   });
-  // what you do yourself: runs bypass the queue, cards need no run
+  // what you do yourself: your runs go first, cards need no run
   g += pod(1470, 740, 390, 64, 'Your commits: no run, no guard', 'FaPenToSquare', LAYER.att);
-  g += pod(1470, 820, 390, 64, 'Your runs: at once', 'FaBolt', LAYER.att);
+  g += pod(1470, 820, 390, 64, 'Your runs: first in the queue', 'FaBolt', LAYER.att);
   return svg(g);
 }
 
@@ -416,15 +416,15 @@ function automations() {
     g += text(x, y + r + 28, name, { head: true, bold: true, size: 20, anchor: 'middle' });
   });
 
-  // two lanes
+  // one working directory, one run at a time
   const X = 1100;
-  g += caption(X, 80, 'One project, two lanes', null, { size: 32 });
+  g += caption(X, 80, 'One project, one working directory', null, { size: 32 });
   g += caption(X, 150, 'Automation runs', 'queued, one at a time', { size: 24 });
   [['Exploration', 'FaCompass', 175], ['Implementation', 'FaCode', 205], ['Validation', 'FaFlaskVial', 160], ['Summarization', 'FaFileLines', 185]].reduce((x, [s, ic, w]) => {
     g += pod(x, 205, w, 62, s, ic, LAYER.prod, { size: 17 });
     return x + w + 8;
   }, X);
-  g += caption(X, 340, 'Your runs', 'at once, alongside', { size: 24, fill: C.red });
+  g += caption(X, 340, 'Your runs', 'first in the queue, then one at a time', { size: 24, fill: C.red });
   g += pod(X + 40, 385, 330, 62, 'Chat', 'FaComments', LAYER.att);
   g += pod(X + 230, 462, 330, 62, 'Send back', 'FaRotateLeft', LAYER.att);
   g += pod(X + 420, 539, 320, 62, 'Run on demand', 'FaPlay', LAYER.att);
@@ -572,11 +572,11 @@ function completeness() {
 // ---------------------------------------------------------------- 6. consistency guard
 function guard() {
   let g = '';
-  // the road from the run checkout to the main line
+  // the road from the project's working directory to the main line
   g += rect(60, 245, 1520, 120, { r: 60, fill: C.paper });
   g += line(140, 305, 1520, 305, { stroke: C.white, sw: 6, dash: '34 22' });
   g += medallion(150, 305, 62, LAYER.prod, 'FaTerminal');
-  g += text(150, 210, 'Run checkout', { head: true, bold: true, size: 24, anchor: 'middle' });
+  g += text(150, 210, 'Working directory', { head: true, bold: true, size: 24, anchor: 'middle' });
   // every write checked on the way
   [320, 410, 500].forEach((x) => (g += circle(x, 245, 22, { fill: C.ochre, stroke: C.white, sw: 4 }) + iconAt('FaBolt', x, 245, 22, C.white)));
   g += text(410, 196, 'every write checked', { size: 21, anchor: 'middle', italic: true, fill: C.ochre });
@@ -758,7 +758,7 @@ function entityTypes() {
     ['Infrastructure', 'M6 4h12a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3zM6 12h12a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3zM7 8v.01M7 16v.01', '#52606A', ['Deployment', 'Cluster', 'Metric', 'Incident']],
     ['Organization', 'M5 7a4 4 0 1 0 8 0 4 4 0 1 0-8 0M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85', '#8A5A2B', ['Team', 'Person', 'Vendor', 'Customer']],
     ['Knowledge', 'M3 19a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6v13M12 6v13M21 6v13', '#0369A1', ['MeetingNote', 'Faq', 'HowToGuide', 'ReleaseNote']],
-    ['Harness', 'M8 4h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM12 2v2M9 12v9M15 12v9M5 16l4-2M15 14l4 2M9 18h6M10 8v.01M14 8v.01', '#B85042', ['Automation', 'Trigger', 'Issue', 'Chat']],
+    ['Harness', 'M8 4h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM12 2v2M9 12v9M15 12v9M5 16l4-2M15 14l4 2M9 18h6M10 8v.01M14 8v.01', '#B85042', ['Automation', 'Trigger', 'Issue', 'Plan']],
   ];
   for (const [d, , , ex] of D) for (const t of ex) if (!by.get(d)?.includes(t)) throw new Error(`${d}/${t} is not in entity-types.tsv`);
   const glyph = (d, cx, cy, size, color) =>
@@ -966,14 +966,14 @@ function metrics() {
   }
   rows(X[2], Y[0], [
     ['Consistency', 'entities whose references resolve'],
-    ['Open issues', 'unverified issues and conflicts'],
+    ['Open issues', 'unverified issues'],
   ], LAYER.kn, 258);
   foot(X[2], Y[0], 'recorded with every validated transaction', LAYER.kn);
 
   // 4. what is still wrong
   panel(X[0], Y[1], LAYER.prod, 'FaCode', 'EVERY TRANSACTION', 'Implementation', 'what is still wrong in the product');
   rows(X[0], Y[1], [
-    ['Outstanding', 'unverified issues and conflicts'],
+    ['Outstanding', 'unverified issues'],
     ['Bugs', 'Product/Bug not verified and synced'],
     ['Defects', 'open issues raised by validation'],
   ], LAYER.prod);
@@ -1076,29 +1076,27 @@ function git() {
   let g = '';
   const Y = 540;
   g += line(80, Y, 1860, Y, { stroke: C.ink, sw: 14 });
-  g += text(80, Y + 70, 'Main line', { head: true, bold: true, size: 28 }) + text(80, Y + 98, 'the only branch', { size: 20, italic: true, fill: C.muted });
+  g += text(80, Y + 70, 'Main line', { head: true, bold: true, size: 28 }) + text(80, Y + 98, 'the only branch, in one working directory', { size: 20, italic: true, fill: C.muted });
   const commit = (x, color, label, o = {}) => {
     let s = circle(x, Y, 24, { fill: o.fill ? color : C.white, stroke: o.fill ? C.white : color, sw: o.fill ? 6 : 9 });
     if (o.icon) s += iconAt(o.icon, x, Y, 22, C.white);
     return s + text(x, Y + 64, label, { size: 20, anchor: 'middle', bold: true, fill: color });
   };
-  // a run that lands on an unchanged main line: fast-forward
+  // a run works in the working directory and commits on top of the main line as it stands
   g += pod(200, 340, 250, 66, 'Exploration', 'FaCompass', LAYER.prod);
   g += path(`M300 ${Y - 26} C300 470 230 430 230 412`, { stroke: C.ink, sw: 3, dash: '9 8' });
   g += path(`M430 406 C470 440 480 480 480 ${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
-  g += pill(560, 450, 'fast-forward', { color: C.ok });
-  // a run that lands after your commit: replayed, conflicts raised
+  g += pill(560, 450, 'one commit', { color: C.ok });
+  // a run that works while you commit: your commit stays, the run's lands on top of it
   g += pod(760, 330, 300, 66, 'Implementation', 'FaCode', LAYER.prod);
   g += path(`M680 ${Y - 26} C680 450 760 420 780 400`, { stroke: C.ink, sw: 3, dash: '9 8' });
   g += path(`M1050 396 C1130 430 1180 470 1180 ${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
-  g += iconAt('FaBolt', 1158, 452, 34, C.red) + pill(1050, 480, 'replayed', { color: C.ok });
-  g += path(`M1180 ${Y + 90} V${Y + 128}`, { stroke: C.red, sw: 3, dash: '6 6' });
-  g += miniCard(1080, Y + 130, 260, 120, { crumb: 'HARNESS / CONFLICT', title: 'Changed meanwhile', titleSize: 18, flag: true, stroke: C.red, sw: 2.5, bars: [0.8, 0.6] });
-  // your chat, at once, alongside
-  g += pod(820, 150, 300, 66, 'Your chat', 'FaComments', LAYER.att);
-  g += path(`M690 ${Y - 26} C700 300 760 190 820 183`, { stroke: C.red, sw: 3, dash: '9 8' });
-  g += path(`M1120 183 C1300 183 1400 300 1400 ${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
-  g += pill(1270, 210, 'at once, alongside', { color: C.red });
+  g += pill(1050, 480, 'on top of yours', { color: C.ok });
+  // your chat waits for the run working there, then goes first
+  g += pod(1110, 150, 300, 66, 'Your chat', 'FaComments', LAYER.att);
+  g += path(`M1180 ${Y - 26} C1180 380 1150 300 1150 218`, { stroke: C.red, sw: 3, dash: '9 8' });
+  g += path(`M1410 183 C1440 240 1400 380 1400 ${Y - 32}`, { stroke: C.ok, sw: 5, head: 'ok' });
+  g += pill(1290, 290, 'next, first in the queue', { color: C.red });
   // queued automation runs, one at a time
   g += text(1700, 100, 'queued, one at a time', { size: 21, anchor: 'middle', italic: true, fill: C.ok });
   g += pod(1560, 125, 280, 58, 'Validation', 'FaFlaskVial', LAYER.prod, { ghost: true, size: 18 });
@@ -1114,8 +1112,8 @@ function git() {
   g += commit(1400, C.ok, 'chat landed', { fill: true });
   g += commit(1700, C.ok, 'next run', { fill: true });
 
-  g += iconAt('FaLaptopCode', 1480, 845, 64, C.ink);
-  g += caption(1530, 840, 'Your checkout follows', 'clean files updated, dirty ones left alone', { size: 26 });
+  g += iconAt('FaFolderOpen', 1480, 845, 64, C.ink);
+  g += caption(1530, 840, 'One working directory', 'no worktree, no copy; approvals reach it', { size: 26 });
   return svg(g);
 }
 
@@ -1208,7 +1206,7 @@ function tools() {
   const foot = (x, y, s, layer) => (g += text(x + 36, y + PH - 30, s, { size: 17, italic: true, fill: layer?.strong ?? C.muted }));
 
   // 1. Claude Code's own tools
-  panel(X[0], Y[0], LAYER.ink, 'FaTerminal', 'CLAUDE CODE', 'Built-in tools', 'files, shell and web in the run\'s checkout');
+  panel(X[0], Y[0], LAYER.ink, 'FaTerminal', 'CLAUDE CODE', 'Built-in tools', 'files, shell and web in the working directory');
   chips(X[0], Y[0], ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash', 'WebSearch', 'WebFetch', 'Agent', 'Skill', 'TodoWrite']);
   foot(X[0], Y[0], 'project settings, permissions bypassed, limits per process');
 
@@ -1261,20 +1259,20 @@ function tools() {
 // ---------------------------------------------------------------- slides
 const SLIDES = [
   ['User actions', actions, 'Swipe right approves: one commit, verified; an implementable entity with nothing implementing it starts an implementation run. Swipe left sends back with a comment: a chat run works on the entity. Chat, run an automation on demand through the voice tools where its trigger allows, stop a run, manage projects, edit entities and change settings.'],
-  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in its own checkout of the main line; summarization turns its artifacts into cards; the consistency guard validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user commits needs no run and no guard: it lands as committed, with the verification its frontmatter says, unverified by default, and the consistency check reads it like any other. Runs the user starts go at once, alongside the queued automation runs.'],
+  ['How everything works together', loop, 'One loop per project. Triggers queue runs; each run works in the project\x27s one working directory, on the main line, one run at a time; summarization turns its artifacts into cards; the consistency guard validates the transaction and lands it as one commit; the index follows the main line and the feed ranks what is unverified; the user approves, sends back or chats. A card the user commits needs no run and no guard: it lands as committed, with the verification its frontmatter says, unverified by default, and the consistency check reads it like any other. The runs the user starts wait only for the run working in their project, and go ahead of the queued automation runs.'],
   ['Entities', entities, 'The unit of the knowledge base. The type is the path on disk. The entity is its card, within the character limit. References link entities and are walked by Graph RAG. A summary is an entity with artifacts beneath it.'],
-  ['Entity types', entityTypes, 'Every entity has one of the types in docs/entity-types.tsv, grouped in domains, each with the colour and glyph the app shows; four examples per domain. The type is the path of the entity in the knowledge graph. The Harness domain holds the entities of Momentum itself: automations, triggers, issues, conflicts, chats, plans, research, patterns and reports of what runs removed. Wherever the app names an entity, in a card, a chat, an answer or a list, it shows this glyph and colour and opens it on a press.'],
+  ['Entity types', entityTypes, 'Every entity has one of the types in docs/entity-types.tsv, grouped in domains, each with the colour and glyph the app shows; four examples per domain. The type is the path of the entity in the knowledge graph. The Harness domain holds the entities of Momentum itself: automations, triggers, issues, plans, research, patterns and reports of what runs removed. Wherever the app names an entity, in a card, a chat, an answer or a list, it shows this glyph and colour and opens it on a press.'],
   ['Entity states', states, "Verification is the user's judgement: approval verifies, any rewrite by a run makes the entity unverified again. Sync is the entity against its artifacts and implementation. Contradictions count the open contradiction issues over the entity."],
-  ['Automations', automations, 'Twelve automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Interview and search start only when the user asks; search answers in one turn and is not a run. Automation runs go one at a time per project; runs the user starts go at once.'],
+  ['Automations', automations, 'Twelve automations around the knowledge graph, each with its trigger: schedule, event, the user, the Stop hook or enabling the project. Interview and search start only when the user asks; search answers in one turn and is not a run. A project has one working directory: its runs go one at a time there, the ones the user starts first.'],
   ['Triggers', triggers, 'Nine automations have a trigger entity in each workspace, holding its schedule, its events and whether it starts on demand; the optimization trigger exists in the harness workspace only, and a trigger is in effect as it lands, before the user reviews it. Exploration every two hours, preparation every two hours at half past, validation at 02:00 and after every implementation, consistency check at 03:00, retention at 04:00, optimization at 05:00. An approved entity with nothing implementing it starts implementation; a finished implementation starts validation. Chat and interview start only when the user asks. Summarization runs in the Stop hook of every run, graph build while the project is enabled, and search answers in one turn without a run, so none of the three has a trigger entity. Scheduled loops and the graph build pause while the feed is at its limit; events still start their runs.'],
   ['Automation management', management, 'Automations are configured through the knowledge base, not through settings. The definition is an entity in the harness workspace, one per automation, with the Claude Code files as its artifacts; the triggers are an entity per automation in each workspace. An edit the user commits lands on the main line as committed. A definition change optimization proposes passes the consistency guard and lands unverified: it is in effect as it lands, materialized into every project from the harness main line, and waits in the feed for the user\'s review; a trigger change is in effect as it lands in the same way. Optimization reads every chat and proposes a skill, memory, sub-agent or definition change only for a pattern seen at least three times, as a Harness/Pattern with its evidence; nothing is learnt from one chat. Runs start on demand through the voice tools, for automations whose trigger allows it, and stop from the chat; models and concurrency are settings, and the Settings tab leads to the rest in the knowledge graph.'],
-  ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the run's own checkout with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, types, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and documents, and an interview's next question. The summarization sub-agent takes the run's artifacts over through the Agent tool at Stop, and the harness checks it ran before trusting it. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools the API's handlers, ask included, without the UI; only reading a repository file, changing a logo and signing out have no tool. A question typed in the explorer search is not a run: the search finds the entities, and the search automation answers from them in one turn without tools, linking each it drew from."],
+  ['Agent tools', tools, "What a run's agent can call. Claude Code's built-in tools work in the project's working directory with the project's settings. momentum-kb is an in-process MCP server over the knowledge base: search (full text, semantic, expanded along references), read, references, types, write (validated as it writes) and record_agent_metric. momentum-run carries what the run reports to the harness: the graph build's progress and documents, and an interview's next question. The summarization sub-agent takes the run's artifacts over through the Agent tool at Stop, and the harness checks it ran before trusting it. Hooks wrap the tools: after every write the consistency guard returns its issues at once; at Stop the run summarizes, fixes what the guard cannot accept and writes its commit message. The momentum MCP server over HTTP is not for runs: it gives the user's voice tools the API's handlers, ask included, without the UI; only reading a repository file, changing a logo and signing out have no tool. A question typed in the explorer search is not a run: the search finds the entities, and the search automation answers from them in one turn without tools, linking each it drew from."],
   ['Summarization', summarization, "When a run stops, its Stop hook hands the artifacts it added, changed or deleted to the summarization sub-agent, which writes one summary entity per piece of work. Artifacts changed by the user's own commits make the entities over them artifact_ahead, and a summarization run rewrites their cards."],
   ['Graph completeness', completeness, "How complete a project's knowledge graph is, measured by the harness on the main line and never estimated by a run: the mean of two halves. Understanding is the questions every product's graph must answer, eight slots, each filled by an entity of one of its types: what the product is, what it is for, what it does, how it is built, where the code is, where it runs, how it is tested, and what rules and decisions shape it. Territory is every area of the repository accounted for: a top-level directory, or each child of one that holds only directories, with the files at the root as one more. An area counts by its parts, its direct subdirectories and its own files, and weighs the logarithm of its file count. An entity accounts for a part by listing it, anything in it, or a directory above it as an artifact, so one card listing examples claims the whole of it. Cards of implementation-detail types, a file, a class, a function, claim nothing: the graph exists to spare the reader those. Each graph build run is told what is missing; it reports complete only once nothing missing can be filled from the repository. The Settings tab shows the score, the questions answered, the share of the repository accounted for and what is missing."],
   ['Consistency guard', guard, 'Every write is checked while the run works. When it ends, the transaction passes the guard: type, references, the links on each card, and diagrams in PlantUML, never mermaid. Everything lands as one commit; what fails carries an issue entity; in the harness repository a file outside the automation\'s scope is put back and named in it. The consistency check reads the knowledge graph only, never the artifacts, and counts contradictions on each entity.'],
   ['Issue types', issues, 'The kinds of issue the consistency check raises over the knowledge graph. By rule: unresolved references, card links missing from the references, types outside entity-types.tsv or their directory. By reading, in three severities: high for contradiction, logical and ambiguity; medium for design gap, naming and repetition; low for verbose, struct and split. Each finding is its own issue entity, concerning the entity at fault first and the entities it clashes with, repeats or belongs with, with two to four options to resolve it; the check fixes nothing itself.'],
   ['Issue resolution', resolution, "Every issue the consistency check raises offers two to four options to resolve it, each a label and one sentence of what it changes, with the obviously best one recommended when there is one. The feed card shows them with the recommended option picked; a tap picks another. Swipe right resolves with the picked option, swipe left with the user's own resolution: either starts a chat run that applies it to the concerned entities and retires the issue, and the changed entities come back to the feed unverified. Won't resolve keeps the issue, verified, with the reason: the check does not raise it again and it no longer counts as a contradiction."],
-  ['Git', git,"One branch per workspace. A run lands as one commit: fast-forwarded when the main line has not moved, replayed onto the new tip otherwise, with a conflict entity over what changed meanwhile. Approval is one more commit. Automation runs queue one at a time; the user's chats run alongside."],
+  ['Git', git,"One branch per workspace, in one working directory: no worktree, no copy. A run works in the project's folder and lands as one commit on top of the main line as it stands there, on top of whatever the user committed meanwhile. Approval is one more commit, and the working directory follows it, merged into the files a run is changing. Runs queue one at a time per project; the user's chats go first."],
   ['Metrics', metrics, "The Metrics tab, per project, over 24 hours, 7 days or 30 days, each metric charted over time. Usage is the account's share of the rolling 5-hour and weekly limits; each rise is split evenly among the runs running, so every automation shows what it used. Attention is the user's reactions: the time spent on a card, approvals, rejections, send-backs and the patterns accepted. Understanding and implementation are recorded with every validated transaction: consistency is the share of entities whose references all resolve, beside the open issues, the bugs not yet verified and synced, and the defects validation raised. Agents are the runs of each automation, their failures, time and usage, and the misalignments and recurring issues optimization records. Retrieval is rated by Haiku after every run that searched: precision, the calls that brought back something useful; coverage, how much of what the turn needed was found; their mean, the RAG score; and each tool's relevance against the best of the turn. A count nothing has measured yet is no data, not zero."],
   ['Settings', settings,'The Settings tab: theme on this device; included projects, each enabled or disabled, with its knowledge graph build; feed size, the items before loops pause; cards, the character limit and presentation rules; paths never summarized; lifetimes per entity type; concurrent runs in total; models, one for all, per automation or by implementation risk; and links into the knowledge graph, where the automations, entity types, risk rules, triggers and patterns are kept. Values shown are the harness defaults, with models shown by risk.'],
 ];

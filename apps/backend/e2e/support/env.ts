@@ -242,7 +242,6 @@ export class Env {
       DATABASE_URL: this.databaseUrl,
       MOMENTUM_ROOT: this.root,
       MOMENTUM_MODELS: MODELS,
-      MOMENTUM_RUNS: join(this.dir, 'runs'),
       MOMENTUM_HOST: '127.0.0.1',
       MOMENTUM_PORT: String(this.port),
       MOMENTUM_TICK_MS: process.env.E2E_TICK_MS ?? '3000',
@@ -267,7 +266,7 @@ export class Env {
       if (existsSync(signIn)) cpSync(signIn, join(this.claudeConfig, '.credentials.json'));
     }
     for (const p of this.projects) {
-      // With its installed dependencies, as the user's checkout has them; they are not in its repository
+      // With its installed dependencies, as its working directory has them; they are not in its repository
       cpSync(join(REPO, 'examples', p), this.path(p), { recursive: true });
       initRepo(this.path(p), 'Initial commit', HISTORY[p]);
     }
@@ -348,7 +347,7 @@ export class Env {
     }
     if (leaked.length) throw new Error(`Processes outlived the back-end that started them: ${leaked.map((p) => `${p.name} (${p.pid})`).join(', ')}`);
     if (keep) return;
-    // The run processes just killed let go of their checkouts a moment later: Windows refuses until then
+    // The run processes just killed let go of the working directories a moment later: Windows refuses until then
     try {
       rmSync(this.dir, { recursive: true, force: true, maxRetries: 25, retryDelay: 100 });
     } catch (e) {
@@ -371,6 +370,19 @@ export class Env {
     }
     git(dir, 'add', '-A');
     git(dir, 'commit', '-q', '-m', message);
+    return git(dir, 'rev-parse', 'HEAD');
+  }
+
+  /**
+   * A commit of the user's own files only, made while a run works in the same working directory: what the run has
+   * written so far stays out of it
+   */
+  commitOnly(project: string, files: Record<string, string>, message: string): string {
+    const dir = this.path(project);
+    for (const [f, text] of Object.entries(files)) put(dir, f, text);
+    const paths = Object.keys(files);
+    git(dir, 'add', '--', ...paths);
+    git(dir, 'commit', '-q', '-m', message, '--', ...paths);
     return git(dir, 'rev-parse', 'HEAD');
   }
 

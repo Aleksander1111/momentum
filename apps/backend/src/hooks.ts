@@ -21,10 +21,10 @@ export const bookkeeping = (feedback: string) => feedback.includes(SAY.summarize
 function writtenFile(run: RunRef, input: HookInput): string | null {
   if (input.hook_event_name !== 'PostToolUse') return null;
   const args = (input.tool_input ?? {}) as { file_path?: string; notebook_path?: string; path?: string };
-  if (input.tool_name === 'mcp__momentum-kb__write') return args.path ? join(run.checkout, fileOf(args.path)) : null;
+  if (input.tool_name === 'mcp__momentum-kb__write') return args.path ? join(run.dir, fileOf(args.path)) : null;
   const file = args.file_path ?? args.notebook_path;
   if (!file) return null;
-  return isAbsolute(file) ? file : join(run.checkout, file);
+  return isAbsolute(file) ? file : join(run.dir, file);
 }
 
 /**
@@ -94,10 +94,10 @@ export function guardHooks(
               }
             }
             if (!describe()) return {};
-            const tree = await workingTree(run.checkout);
-            if (tree === described || tree === (await head(run.checkout, 'HEAD^{tree}'))) return {};
+            const tree = await workingTree(run.dir);
+            if (tree === described || tree === (await head(run.dir, 'HEAD^{tree}'))) return {};
             described = tree;
-            return { decision: 'block', reason: messageRequest(await messageFile(run.checkout)) };
+            return { decision: 'block', reason: messageRequest(await messageFile(run.dir)) };
           },
         ],
       },

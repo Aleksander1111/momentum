@@ -1,8 +1,6 @@
 import { crossProjectFeed, pruneHarness, pruneWorkspace } from '@momentum/kb';
-import { commitPathsFrom, listFiles, nonLinear, removeWorktree, worktreeDirs } from '@momentum/runs';
+import { commitPathsFrom, listFiles, nonLinear } from '@momentum/runs';
 import { CronExpressionParser } from 'cron-parser';
-import { rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { fileOf, KNOWLEDGE_GRAPH } from '@momentum/entity';
 import { HARNESS_ONLY, TRIGGER_TYPE, type Automations, type Trigger } from './automations.ts';
 import { config } from './config.ts';
@@ -10,7 +8,7 @@ import type { Bus, Moved } from './events.ts';
 import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { completeness, graphBuildPrompt } from './graph-build.ts';
-import { userStarted, type Runner } from './runner.ts';
+import type { Runner } from './runner.ts';
 import type { Timeline } from './timeline.ts';
 import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
 
@@ -23,8 +21,8 @@ const PROMPTS: Record<string, string> = {
 
 /**
  * Starts and supervises the automation loops of every enabled project, from the trigger entities of each workspace.
- * The feed size bounds the scheduled loops; automation runs go one at a time per project, so their changes never
- * conflict, while runs the user starts go at once; a total across projects bounds them all.
+ * The feed size bounds the scheduled loops. A project has one working directory, so its runs go one at a time there,
+ * the ones the user starts first; a total across projects bounds them all.
  */
 export class Orchestrator {
   private timer: NodeJS.Timeout | null = null;
@@ -49,6 +47,7 @@ export class Orchestrator {
     bus.on('artifact_ahead', ({ workspace, entities, added, deleted, moved }) => void this.summarizeMainLine(workspace, entities, added, deleted, moved));
     bus.on('definition_changed', () => void this.automations.materializeAll());
     bus.on('run_ended', () => void this.tick());
+    bus.on('run_queued', () => void this.tick());
     bus.on('feed_changed', () => void this.tick());
   }
 
@@ -92,8 +91,8 @@ export class Orchestrator {
   }
 
   /**
-   * Resetting a project: every run ends, run checkouts go, the knowledge graph is deleted from the main line in one
-   * commit, and the workspace's index and metrics database is dropped. An enabled project is then enabled afresh:
+   * Resetting a project: every run ends, the knowledge graph is deleted from the main line in one commit, and the
+   * workspace's index and metrics database is dropped. An enabled project is then enabled afresh:
    * default triggers are proposed again and the knowledge graph is built from the start.
    */
   async reset(ws: Workspace): Promise<void> {
@@ -104,7 +103,6 @@ export class Orchestrator {
     try {
       while (this.ticking) await new Promise((r) => setTimeout(r, 50));
       await this.runner.stopWorkspace(ws.name);
-      await this.removeCheckouts(ws);
       const files = await listFiles(ws.path, `refs/heads/${ws.main}`, KNOWLEDGE_GRAPH);
       if (files.length > 0) {
         await commitPathsFrom(ws.path, ws.main, files.map((path) => ({ path, content: null })), 'Reset the knowledge graph');
@@ -117,34 +115,30 @@ export class Orchestrator {
     if (enabled) await this.enable(await this.workspaces.get(ws.name));
   }
 
-  /** Every run checkout of a workspace */
-  private async removeCheckouts(ws: Workspace): Promise<void> {
-    const runs = resolve(config.runs, ws.name);
-    const inRuns = (dir: string) => resolve(dir).toLowerCase().startsWith(runs.toLowerCase());
-    for (const dir of (await worktreeDirs(ws.path)).filter(inRuns)) {
-      await removeWorktree(ws.path, dir).catch((e) => console.error(`reset ${ws.name}: worktree ${dir}:`, e));
-    }
-    await rm(runs, { recursive: true, force: true }).catch((e) => console.error(`reset ${ws.name}: ${runs}:`, e));
-  }
-
   /**
-   * Before a project is enabled: refused unless it is one straight line, and its main line taken as it stands, merge
-   * commits already in its history included
+   * Before a project is enabled: refused unless it is one straight line in one working directory, and its main line
+   * taken as it stands, merge commits already in its history included
    */
   async acceptLine(ws: Workspace): Promise<void> {
     await this.assertLinear(ws.name, ws.path);
     await this.guard.indexMainLine(ws, true);
   }
 
-  /** Refuses a project that is not one straight line: momentum works on one line, one change after another */
+  /**
+   * Refuses a project that is not one straight line in one working directory: momentum works on one line in one place,
+   * one change after another
+   */
   async assertLinear(name: string, path: string): Promise<void> {
     const reasons = await nonLinear(path);
-    if (reasons.length > 0) throw new Conflict(`${name} is not one straight line: ${reasons.join('; ')}. Momentum works on one line only.`);
+    if (reasons.length > 0) {
+      throw new Conflict(`${name} is not one straight line in one working directory: ${reasons.join('; ')}. Momentum works on one line in one place only.`);
+    }
   }
 
   /**
-   * An enabled project that stopped being one straight line, by a branch, a detached HEAD or a merge, is switched
-   * off at once and says why; nothing of it runs until the user makes it one line again and enables it
+   * An enabled project that stopped being one straight line in one working directory, by a branch, a worktree, a
+   * detached HEAD or a merge, is switched off at once and says why; nothing of it runs until the user makes it one line
+   * in one place again and enables it
    */
   private async keptLinear(ws: Workspace): Promise<boolean> {
     let reasons: string[];
@@ -163,8 +157,8 @@ export class Orchestrator {
       workspace: ws.name,
       actor: 'harness',
       kind: 'project_disabled',
-      title: `Disabled ${ws.name}: it is not one straight line`,
-      detail: `${reasons.join('; ')}. Momentum works on one line only: remove what is not, then enable it again.`,
+      title: `Disabled ${ws.name}: it is not one straight line in one working directory`,
+      detail: `${reasons.join('; ')}. Momentum works on one line in one place only: remove what is not, then enable it again.`,
     });
     return false;
   }
@@ -286,7 +280,7 @@ export class Orchestrator {
 
   /**
    * One pass: main lines indexed, scheduled loops queued while the feed has room, queued runs started within the total;
-   * an automation run waits while another automation run of its project is active, a run the user started does not
+   * a run waits while another run works in its project's working directory, and the user's runs start first
    */
   async tick(): Promise<void> {
     if (this.passive) return;
@@ -323,7 +317,7 @@ export class Orchestrator {
       for (const q of await this.runner.queued()) {
         if (!names.has(q.workspace)) continue;
         if (this.runner.activeCount() >= values.agents.concurrentTotal) break;
-        if (!userStarted(q.trigger) && this.runner.activeAutomationCount(q.workspace) > 0) continue;
+        if (this.runner.activeCount(q.workspace) > 0) continue;
         await this.runner.start(q.id);
       }
     } catch (e) {

@@ -1,4 +1,3 @@
-import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MetricsResponse, TimelineResponse } from '@momentum/contract';
 import { until } from '../support/api.ts';
@@ -251,7 +250,7 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
     const started = await until('the implementation run', async () => (await api.runs(WS, 'implementation')).find((r) => r.created_at >= since), 60_000);
     // While it describes its work, the user commits a change of their own that breaks looking a book up
     await until('the implementation to describe its work', async () => model.turns(started.id).some((t) => t.kind === 'commit-message'), 20 * 60_000);
-    env.commit(WS, { 'src/store.js': env.show(WS, 'src/store.js')!.replace(LOOKUP, BROKEN_LOOKUP) }, 'Look books up by position');
+    env.commitOnly(WS, { 'src/store.js': env.show(WS, 'src/store.js')!.replace(LOOKUP, BROKEN_LOOKUP) }, 'Look books up by position');
     regress();
     const run = await api.runEnded(started.id, 10 * 60_000);
     expect(run.status).toBe('finished');
@@ -318,14 +317,14 @@ scenario('feature-delivery', { enabled: [WS] }, async ({ env, api, app, model, s
 
   await step(4, async () => {
     const runs = (await api.runs(WS)).filter((r) => r.automation !== 'chat' && r.started_at).sort((a, b) => +a.started_at! - +b.started_at!);
-    // Each automation in its turn, and never two of the project's automation runs at once
+    // Each automation in its turn, and never two of the project's runs at once
     // in the order the work went; a schedule falling due on the real clock while the scenario runs may add a run of its own
     const work = runs.filter((r) => r.automation !== 'summarization');
     expect([...new Set(work.map((r) => r.automation))]).toEqual(['exploration', 'preparation', 'implementation', 'validation']);
     for (const [i, r] of work.entries()) if (work.findIndex((x) => x.automation === r.automation) < i) expect(r.trigger).toBe('schedule');
     for (let i = 1; i < runs.length; i++) expect(+runs[i]!.started_at!).toBeGreaterThanOrEqual(+runs[i - 1]!.ended_at!);
-    const checkouts = join(env.dir, 'runs', WS);
-    expect(existsSync(checkouts) ? readdirSync(checkouts) : []).toEqual([]);
-    expect(env.git(WS, 'worktree', 'list').split('\n')).toHaveLength(1);
+    // Every run worked in the project's one working directory: no worktree, nothing left uncommitted
+    expect(env.git(WS, 'worktree', 'list').split('\n').filter(Boolean)).toHaveLength(1);
+    expect(env.git(WS, 'diff', '--name-only', 'HEAD')).toBe('');
   });
 });

@@ -3898,9 +3898,6 @@
                         "search"
                       ]
                     },
-                    "checkout": {
-                      "type": "string"
-                    },
                     "trigger": {
                       "type": "string",
                       "enum": [
@@ -4046,13 +4043,176 @@
                         "document"
                       ],
                       "additionalProperties": false
+                    },
+                    "turns": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "turn": {
+                            "type": "number"
+                          },
+                          "afterSeq": {
+                            "type": "number"
+                          },
+                          "startedAt": {
+                            "type": "string"
+                          },
+                          "answeredAt": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "endedAt": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "contextTokens": {
+                            "type": "number"
+                          },
+                          "outputTokens": {
+                            "type": "number"
+                          },
+                          "steps": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "parent": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "detail": {
+                                  "type": "string"
+                                },
+                                "bookkeeping": {
+                                  "type": "boolean"
+                                },
+                                "startedAt": {
+                                  "type": "string"
+                                },
+                                "endedAt": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "error": {
+                                  "type": "boolean"
+                                },
+                                "resultChars": {
+                                  "nullable": true,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "parent",
+                                "name",
+                                "detail",
+                                "bookkeeping",
+                                "startedAt",
+                                "endedAt",
+                                "error",
+                                "resultChars"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "retrievalState": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "pending",
+                              "rated"
+                            ]
+                          },
+                          "retrieval": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "score": {
+                                "type": "number"
+                              },
+                              "precision": {
+                                "type": "number"
+                              },
+                              "coverage": {
+                                "type": "number"
+                              },
+                              "parallel": {
+                                "type": "boolean"
+                              },
+                              "summary": {
+                                "type": "string"
+                              },
+                              "tools": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "tool": {
+                                      "type": "string"
+                                    },
+                                    "calls": {
+                                      "type": "number"
+                                    },
+                                    "relevance": {
+                                      "type": "number"
+                                    },
+                                    "relative": {
+                                      "type": "number"
+                                    },
+                                    "note": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "tool",
+                                    "calls",
+                                    "relevance",
+                                    "relative",
+                                    "note"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "score",
+                              "precision",
+                              "coverage",
+                              "parallel",
+                              "summary",
+                              "tools"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "turn",
+                          "afterSeq",
+                          "startedAt",
+                          "answeredAt",
+                          "endedAt",
+                          "contextTokens",
+                          "outputTokens",
+                          "steps",
+                          "retrievalState",
+                          "retrieval"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
                     "id",
                     "workspace",
                     "automation",
-                    "checkout",
                     "trigger",
                     "targetPath",
                     "status",
@@ -4061,7 +4221,8 @@
                     "error",
                     "usage",
                     "messages",
-                    "interview"
+                    "interview",
+                    "turns"
                   ],
                   "additionalProperties": false
                 }
@@ -5581,6 +5742,280 @@
                         "defects"
                       ],
                       "additionalProperties": false
+                    },
+                    "retrieval": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "precision": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "coverage": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "parallel": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "turns": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "series": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "nullable": true,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "series"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "automations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "automation": {
+                                "type": "string",
+                                "enum": [
+                                  "exploration",
+                                  "preparation",
+                                  "consistency-check",
+                                  "retention",
+                                  "implementation",
+                                  "validation",
+                                  "optimization",
+                                  "summarization",
+                                  "chat",
+                                  "graph-build",
+                                  "interview",
+                                  "search"
+                                ]
+                              },
+                              "turns": {
+                                "type": "number"
+                              },
+                              "score": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "automation",
+                              "turns",
+                              "score"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "tools": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string"
+                              },
+                              "turns": {
+                                "type": "number"
+                              },
+                              "calls": {
+                                "type": "number"
+                              },
+                              "relevance": {
+                                "type": "number"
+                              },
+                              "relative": {
+                                "type": "number"
+                              },
+                              "series": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "nullable": true,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "turns",
+                              "calls",
+                              "relevance",
+                              "relative",
+                              "series"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "score",
+                        "precision",
+                        "coverage",
+                        "parallel",
+                        "turns",
+                        "automations",
+                        "tools"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -5592,7 +6027,8 @@
                     "understanding",
                     "agents",
                     "entities",
-                    "implementation"
+                    "implementation",
+                    "retrieval"
                   ],
                   "additionalProperties": false
                 }
@@ -7081,12 +7517,6 @@
                                 "type": "integer",
                                 "minimum": -9007199254740991,
                                 "maximum": 9007199254740991
-                              },
-                              "conflicts": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
                               },
                               "timeSpentMs": {
                                 "type": "number"

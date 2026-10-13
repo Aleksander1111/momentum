@@ -2,9 +2,8 @@ import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import type { ActiveRun, AutomationName, ContextItem, EntityFrontmatter, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
-import { ask, ensureCheckout, head, removeWorktree, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
+import { ask, head, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { z } from 'zod';
@@ -26,7 +25,6 @@ import { Conflict, NotFound, type Workspace, type Workspaces } from './workspace
 interface RunRow {
   id: string;
   automation: AutomationName;
-  checkout: string;
   trigger: RunTrigger;
   target_path: string | null;
   targets: string[];
@@ -169,7 +167,6 @@ export class Runner {
       id: r.id,
       workspace: ws.name,
       automation: r.automation,
-      checkout: r.checkout,
       trigger: r.trigger,
       targetPath: r.target_path,
       status: r.status,
@@ -222,14 +219,13 @@ export class Runner {
   }
 
   private ref(ws: Workspace, r: RunRow): RunRef {
-    return { id: r.id, workspace: ws.name, automation: r.automation, checkout: r.checkout, targetPath: r.target_path, targets: r.targets ?? [] };
+    return { id: r.id, workspace: ws.name, automation: r.automation, dir: ws.path, targetPath: r.target_path, targets: r.targets ?? [] };
   }
 
-  /** A queued run: its own checkout of the main line is created when it starts */
+  /** A queued run: it starts in the project's working directory once no other run works there */
   async create(spec: NewRun): Promise<string> {
     const ws = await this.workspaces.get(spec.workspace);
     const id = randomBytes(4).toString('hex');
-    const checkout = join(config.runs, ws.name, id);
     await this.workspaces.sql`insert into harness.run_ref ${this.workspaces.sql({ id, workspace: ws.name })}`;
     // A conversation appears with the message that started it: one read between the two would show a chat saying nothing
     const first = spec.automation === 'chat' ? (spec.context ?? []) : spec.automation === 'interview' ? [] : null;
@@ -238,7 +234,6 @@ export class Runner {
       await tx`insert into ${this.t(ws, 'run')} ${tx({
         id,
         automation: spec.automation,
-        checkout,
         trigger: spec.trigger,
         target_path: spec.targetPath ?? null,
         targets: spec.targets ?? [],
@@ -257,15 +252,18 @@ export class Runner {
     return id;
   }
 
-  /** Queued runs of the enabled workspaces, oldest first */
+  /** Queued runs of the enabled workspaces: the ones the user started first, then the others, oldest first */
   async queued(): Promise<QueuedRun[]> {
-    const out: QueuedRun[] = [];
+    const out: (QueuedRun & { created_at: Date })[] = [];
     for (const ws of await this.workspaces.enabled()) {
-      const rows = await ws.index.sql<{ id: string; automation: AutomationName; trigger: RunTrigger }[]>`
-        select id, automation, trigger from ${this.t(ws, 'run')} where status = 'queued' order by created_at`;
+      const rows = await ws.index.sql<{ id: string; automation: AutomationName; trigger: RunTrigger; created_at: Date }[]>`
+        select id, automation, trigger, created_at from ${this.t(ws, 'run')} where status = 'queued' order by created_at`;
       out.push(...rows.map((r) => ({ workspace: ws.name, ...r })));
     }
-    return out;
+    const rank = (q: QueuedRun) => (userStarted(q.trigger) ? 0 : 1);
+    return out
+      .sort((a, b) => rank(a) - rank(b) || a.created_at.getTime() - b.created_at.getTime())
+      .map(({ created_at: _, ...q }) => q);
   }
 
   /** Automation runs of the enabled workspaces that have not ended; chats and interviews are the user's conversations */
@@ -298,11 +296,6 @@ export class Runner {
 
   activeCount(workspace?: string): number {
     return [...this.active.values()].filter((a) => !workspace || a.ref.workspace === workspace).length;
-  }
-
-  /** Automation runs active in a workspace: they run one at a time, so their changes never conflict */
-  activeAutomationCount(workspace: string): number {
-    return [...this.active.values()].filter((a) => a.ref.workspace === workspace && !userStarted(a.trigger)).length;
   }
 
   isActive(id: string): boolean {
@@ -361,9 +354,10 @@ export class Runner {
   }
 
   /**
-   * Runs a restart left `running`: their processes are gone. Each is queued again and resumes its session on the same
-   * checkout, up to MAX_RESTARTS times. A run past that, a chat or an interview, is failed: what it wrote still lands on
-   * the main line and reaches the feed, and a chat or an interview resumes its session on the next message.
+   * Runs a restart left `running`: their processes are gone. Each is queued again and resumes its session in the
+   * working directory, where what it wrote so far still is, up to MAX_RESTARTS times. A run past that, a chat or an
+   * interview, is failed: what it wrote still lands on the main line and reaches the feed, and a chat or an interview
+   * resumes its session on the next message.
    */
   async recover(): Promise<void> {
     const refs = await this.workspaces.sql<{ workspace: string }[]>`select distinct workspace from harness.run_ref`;
@@ -373,15 +367,12 @@ export class Runner {
       const rows = await ws.index.sql<RunRow[]>`select * from ${this.t(ws, 'run')} where status = 'running'`;
       for (const r of rows) {
         if (this.active.has(r.id)) continue;
-        if (!conversational(r.automation) && r.restarts < MAX_RESTARTS && existsSync(r.checkout)) {
+        if (!conversational(r.automation) && r.restarts < MAX_RESTARTS) {
           await this.setStatus(ws, r.id, 'queued', { restarts: r.restarts + 1 });
           console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart and is queued again`);
           continue;
         }
-        if (existsSync(r.checkout)) {
-          await this.guard.transaction(this.ref(ws, r)).catch((e) => console.error(`recover ${r.id}:`, e));
-          await removeWorktree(ws.path, r.checkout).catch(() => {});
-        }
+        await this.guard.transaction(this.ref(ws, r)).catch((e) => console.error(`recover ${r.id}:`, e));
         await this.setStatus(ws, r.id, 'failed', { ended_at: new Date(), error: 'lost at restart' });
         await this.timeline.run(runEvent(ws.name, r, 'run_failed', { detail: 'Lost at restart', facts: { status: 'failed' } }));
         console.log(`run ${r.id} (${r.automation}, ${ws.name}) was lost at restart`);
@@ -408,7 +399,7 @@ export class Runner {
     }
   }
 
-  /** Starts a queued run: its own checkout of the main line as it stands, one Claude Code process */
+  /** Starts a queued run: one Claude Code process in the project's working directory, on the main line as it stands */
   start(id: string): Promise<void> {
     return this.lifecycle.run(id, () => this.launchRun(id));
   }
@@ -420,9 +411,8 @@ export class Runner {
     if (!r) return;
     const ref = this.ref(ws, r);
     try {
-      await ensureCheckout(ws.path, r.checkout, ws.main);
       const prompt = r.resume_prompt ?? (r.session_id ? RESUME : r.prompt);
-      await this.setStatus(ws, id, 'running', { base_commit: r.base_commit ?? (await head(r.checkout)), resume_prompt: null });
+      await this.setStatus(ws, id, 'running', { base_commit: r.base_commit ?? (await head(ws.path)), resume_prompt: null });
       this.guard.watch(ref);
       // A run queued again after a restart, or a chat the user wrote to, resumes its session
       await this.launch(ws, r, ref, prompt, r.session_id);
@@ -459,7 +449,7 @@ export class Runner {
     const kb = createKbServer({
       index: ws.index,
       embed: this.embed,
-      checkout: r.checkout,
+      dir: ws.path,
       runId: r.id,
       validation: async () => ({ types: this.workspaces.types }),
       types: () => [...this.workspaces.types.values()],
@@ -508,12 +498,12 @@ export class Runner {
           ? [
               tool(
                 'report_interview',
-                'Report this turn of the interview: the question you ask next (or, when done, your one-line closing remark), whether the interview is done, and the path of the document it writes, relative to the checkout. Call it once every turn, before you stop.',
+                'Report this turn of the interview: the question you ask next (or, when done, your one-line closing remark), whether the interview is done, and the path of the document it writes, relative to the working directory. Call it once every turn, before you stop.',
                 { question: z.string(), done: z.boolean(), document: z.string() },
                 async (v) => {
                   const document = v.document.replaceAll('\\', '/').replace(/^\.\//, '');
                   if (posix.isAbsolute(document) || document.startsWith('../') || document.startsWith('knowledge-graph/')) {
-                    return { content: [{ type: 'text', text: 'The document is a repository file outside knowledge-graph/, relative to the checkout' }], isError: true };
+                    return { content: [{ type: 'text', text: 'The document is a repository file outside knowledge-graph/, relative to the working directory' }], isError: true };
                   }
                   entry.interview = { ...v, document };
                   await ws.index.sql`update ${this.t(ws, 'run')} set interview = ${ws.index.sql.json(entry.interview as never)} where id = ${r.id}`;
@@ -530,7 +520,7 @@ export class Runner {
       ...(HARNESS_ONLY.includes(r.automation) ? [await this.projectsContext(ws)] : []),
     ].join('\n\n');
     entry.handle = startSession({
-      cwd: r.checkout,
+      cwd: ws.path,
       prompt: resume ? prompt : this.firstPrompt(r, prompt),
       instructions,
       agents: await this.automations.subAgents(ws, (step) => (models.mode === 'single' ? undefined : sdkModel(models.perAutomation[step]))),
@@ -585,7 +575,7 @@ export class Runner {
       if (plan) plans.push(plan);
     }
     const q = riskQuestion(rules, target, plans);
-    const answer = await ask({ cwd: r.checkout, ...q, model: ESTIMATOR, limits: config.limits, procgov: config.procgov });
+    const answer = await ask({ cwd: ws.path, ...q, model: ESTIMATOR, limits: config.limits, procgov: config.procgov });
     return parseRisk(answer);
   }
 
@@ -600,19 +590,19 @@ export class Runner {
   private context(ws: Workspace, r: RunRow, limit: number, rules: string, lifetimes: { type: string; rule: string }[]): string {
     return `# Momentum run
 
-${workspaceLine(ws, r.checkout)}
+${workspaceLine(ws)}
 ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: r.target_path })}
-- Work only in this checkout. It is a detached checkout of the main line as it stood when you started; the harness commits your changes and lands them on the main line when the run ends, the consistency guard validates them and the user verifies them through the attention feed. Never commit, never push, never create or switch branches, never touch the workspace directory.
+- Work in the project's working directory, the only one there is, on the main line; no other run works there while you do. The harness commits your changes onto the main line when the run ends, the consistency guard validates them and the user verifies them through the attention feed. Never commit, never push, never create or switch branches, never add a worktree or work in a copy of the repository anywhere else.
 
 ## Knowledge base
-- Entities live at knowledge-graph/<Domain>/<Type>/[<parent-name>/]<name>.md; the type path is Domain/Entity Type from the harness's entity types, ${config.entityTypes} (read it there or list them with the momentum-kb types tool: it is not in this checkout). Read and write them with the momentum-kb tools (search, read, references, write) or directly as files.
+- Entities live at knowledge-graph/<Domain>/<Type>/[<parent-name>/]<name>.md; the type path is Domain/Entity Type from the harness's entity types, ${config.entityTypes} (read it there or list them with the momentum-kb types tool: it is not in this repository). Read and write them with the momentum-kb tools (search, read, references, write) or directly as files.
 - Frontmatter: type, origin (user | requested | automation), verification (always unverified when you write), sync, product_impact, timeline_impact, unlocks (integers 0–5: impact on the product, impact on the timeline, how much the work unlocks — they rank the feed), references (to: entity path, relation: snake_case verb such as depends_on, implements, concerns, retires), artifacts (repository paths the entity summarizes).
 - The body starts with "# <title>" and then the card: free-form markdown within ${limit} characters, in whatever form presents the entity best (paragraph, bullets, table, PlantUML diagram in a \`\`\`plantuml code block; mermaid is not accepted). The entity is its card. An entity that does not fit is split into entities that reference each other.
 - Card presentation rules from the user: ${rules.trim() || 'none beyond the character limit'}
 - Retrieve with every fitting tool at once: call momentum-kb search, Grep, Glob and the search tools of any other MCP server side by side in one response, then read what the best of them found. The harness rates each tool by the relevance of what it brought back once the run ends.
 - Artifacts are repository files outside knowledge-graph/. Never write summaries of them yourself: when you stop, a harness hook lists the artifacts this run added, changed or deleted, for the momentum-summarization sub-agent.
 - Lifetimes per entity type: ${lifetimes.map((l) => `${l.type}: ${l.rule}`).join('; ') || 'none set'}
-- Every reference must resolve to an existing entity in this checkout.`;
+- Every reference must resolve to an existing entity in the working directory.`;
   }
 
   private firstPrompt(r: RunRow, prompt: string): string {
@@ -620,8 +610,8 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   }
 
   /**
-   * A message from the chat tool: steers the running process, or resumes the session of a run that has ended on a fresh
-   * checkout of the main line. A chat is started by the user, so it runs alongside whatever automation is running.
+   * A message from the chat tool: steers the running process, or queues the run that has ended again, to resume its
+   * session in the working directory once no other run of the project works there. The user's runs start first.
    */
   send(id: string, text: string, context: ContextItem[] = []): Promise<void> {
     return this.lifecycle.run(id, () => this.sendNow(id, text, context));
@@ -648,18 +638,16 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
       }
       return;
     }
-    // Resumed on a fresh checkout of the main line, whichever way it ended
-    const resumed = await this.transition(ws, id, ['finished', 'failed', 'killed'], 'running', { ended_at: null, error: null });
-    if (!resumed) throw new Conflict(`Run ${id} is ${r.status} and cannot take a message now`);
-    try {
-      await ensureCheckout(ws.path, resumed.checkout, ws.main);
-      await this.setStatus(ws, id, 'running', { base_commit: await head(resumed.checkout) });
-      this.guard.watch(this.ref(ws, resumed));
-      await this.launch(ws, resumed, this.ref(ws, resumed), prompt, resumed.session_id);
-    } catch (e) {
-      await this.launchFailed(ws, resumed, e as Error);
-      throw e;
-    }
+    // Whichever way it ended, it waits for the working directory; its next turn starts from the main line as it is then
+    const requeued = await this.transition(ws, id, ['finished', 'failed', 'killed'], 'queued', {
+      ended_at: null,
+      error: null,
+      base_commit: null,
+      resume_prompt: r.session_id ? prompt : null,
+      ...(r.session_id ? {} : { prompt }),
+    });
+    if (!requeued) throw new Conflict(`Run ${id} is ${r.status} and cannot take a message now`);
+    this.bus.emit('run_queued', { workspace: ws.name, runId: id });
   }
 
   /** Ends a run; one the user stops says so on its event */
@@ -716,8 +704,9 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   }
 
   /**
-   * The run ended: what it left lands on the main line, its status and usage are recorded, its checkout goes. It never
-   * rejects: nothing waits on it but a message to the run, and a run whose ending failed still ends, as failed.
+   * The run ended: what it left lands on the main line, its status and usage are recorded, and the working directory is
+   * free for the next run. It never rejects: nothing waits on it but a message to the run, and a run whose ending failed
+   * still ends, as failed.
    */
   private async finish(ws: Workspace, id: string, entry: Active, result: SessionResult): Promise<void> {
     const log = (what: string) => (e: unknown) => console.error(`run ${id}: ${what}:`, e);
@@ -784,7 +773,6 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     } finally {
       this.active.delete(id);
       await this.guard.unwatch(id).catch(log('watcher'));
-      await removeWorktree(ws.path, entry.ref.checkout).catch(log('checkout'));
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
       if (rate) void rateRetrieval(ws, { id, automation: entry.ref.automation }, entry.activity.turn).catch(log('retrieval rating'));
     }
@@ -833,7 +821,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   private async writeTranscriptFile(ws: Workspace, r: RunRow): Promise<void> {
     const messages = await ws.index.sql<{ role: string; text: string; context: ContextItem[]; at: Date }[]>`
       select role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${r.id} order by seq`;
-    const file = join(r.checkout, 'chats', `${r.id}.jsonl`);
+    const file = join(ws.path, 'chats', `${r.id}.jsonl`);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf8');
   }
@@ -852,11 +840,11 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
       path.startsWith('knowledge-graph/') || path.startsWith('chats/') || summarization.exclude.some((pattern) => posix.matchesGlob(path, pattern));
     const base = (await this.row(ws, r.id)).base_commit;
     const artifacts = new Map<string, string>();
-    for (const c of base ? await workingChanges(r.checkout, base) : []) {
+    for (const c of base ? await workingChanges(ws.path, base) : []) {
       if (!excluded(c.path)) artifacts.set(c.path, c.status === 'A' ? 'added' : c.status === 'D' ? 'deleted' : 'changed');
     }
     for (const d of entry.graphBuild?.documents ?? []) if (!excluded(d) && !artifacts.has(d)) artifacts.set(d, 'to map');
-    // Each answer resumed the session on a fresh checkout: the document is listed whether or not the last turn changed it
+    // Each answer resumes the session from the main line as it stands: the document is listed whether or not the last turn changed it
     const document = r.automation === 'interview' ? entry.interview?.document : undefined;
     if (document && !excluded(document) && !artifacts.has(document)) artifacts.set(document, 'interview');
     if (artifacts.size === 0) return null;
@@ -871,7 +859,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     // Asked once per state of the artifacts: a run that stops again after its sub-agent finished in the background
     // does not summarize the same artifacts twice
     const state = await Promise.all(
-      [...artifacts.keys()].map(async (p) => [p, await readFile(join(r.checkout, p)).then((b) => createHash('sha1').update(b).digest('hex'), () => 'gone')]),
+      [...artifacts.keys()].map(async (p) => [p, await readFile(join(ws.path, p)).then((b) => createHash('sha1').update(b).digest('hex'), () => 'gone')]),
     );
     const key = JSON.stringify(state);
     if (entry.summarized === key) return null;
@@ -888,10 +876,10 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
       : r.automation === 'implementation'
         ? ` The run's target entity is ${r.target_path}: what is written for these artifacts is the result of implementing it, so every entity written or rewritten for them references ${r.target_path} with \`implements\`, and ${[...asked].join(', ')} ${asked.size > 1 ? 'are' : 'is'} not rewritten. Pass this message on to the sub-agent as it stands.`
         : ` The run's target entity is ${r.target_path}.`;
-    return `Before you finish, ${SAY.summarize} these artifacts into entities in this checkout, passing it the character limit and presentation rules from your instructions. Run it in the foreground and wait for it to finish before you stop.${target}\n\n${lines.join('\n')}`;
+    return `Before you finish, ${SAY.summarize} these artifacts into entities in the working directory, passing it the character limit and presentation rules from your instructions. Run it in the foreground and wait for it to finish before you stop.${target}\n\n${lines.join('\n')}`;
   }
 
-  /** Whether an artifact is on the main line, for callers that must not assume a checkout */
+  /** Whether an artifact is on the main line, whatever the working directory holds uncommitted */
   async onMainLine(ws: Workspace, path: string): Promise<boolean> {
     return (await show(ws.path, `refs/heads/${ws.main}`, path)) !== null;
   }

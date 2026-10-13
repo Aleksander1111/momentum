@@ -26,7 +26,7 @@ scenario('morning-triage', { enabled: [...PROJECTS], triggers: ['consistency-che
   /** What the build mapped and waits for the user: anything of todo-cli but the harness's own entities */
   const mapped = async () => (await api.feed()).items.filter((i) => i.workspace === 'todo-cli' && !i.type.startsWith('Harness/'));
   model.on('nightly checks', { automation: 'consistency-check', kind: 'prompt' }, (t) => {
-    const ws = t.checkout.includes('handbook') ? 'handbook' : 'todo-cli';
+    const ws = t.dir.includes('handbook') ? 'handbook' : 'todo-cli';
     return [...[1, 2, 3, 4].map((n) => move.entity(t, `Harness/Issue/check-${n}`, issue(n, ws))), move.say('Four findings.')];
   });
   model.on('graph build', { automation: 'graph-build', kind: 'prompt' }, (t) => {
@@ -34,7 +34,7 @@ scenario('morning-triage', { enabled: [...PROJECTS], triggers: ['consistency-che
     const n = model.log.filter((l) => l.automation === 'graph-build' && l.step === 0 && l.kind === 'prompt').length;
     return [
       ...Array.from({ length: Math.min(room, 2) }, (_, i) =>
-        move.entity(t, `Knowledge/Faq/question-${n}-${i}`, { type: 'Knowledge/Faq', title: `Question ${n}.${i}`, card: `An answer mapped by build run ${n}.` }),
+        move.entity(t, `Knowledge/Faq/question-${n}-${i}`, { type: 'Knowledge/Faq', title: `Question ${n}.${i}`, card: `An answer mapped by build run ${n}.`, artifacts: ['docs'] }),
       ),
       move.graphBuild({ complete: n >= 4, progress: `Run ${n} done` }),
       move.say('Mapped.'),

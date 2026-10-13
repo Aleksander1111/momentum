@@ -33,10 +33,10 @@ artifacts: []
 ---
 # Work done by Claude Code runs
 
-Each run works in its own checkout of the main line and lands as one commit when it ends.
+Each run works in the project's one working directory, on the main line, and lands as one commit when it ends.
 
 - **Preparation** writes plans for tasks, issues and research; an approved entity with nothing implementing it starts **implementation**
-- **Validation** checks what landed, and the project as it stands in the background; failures and conflicts reach the feed
+- **Validation** checks what landed, and the project as it stands in the background; failures reach the feed
 - **Exploration** picks the next best action within the goals; **interview** writes a document one question at a time
 - **Optimization** proposes skills, memories and definition changes from patterns seen three times
-- Automation runs go one at a time per project, queued only while the feed has room
+- A project's runs go one at a time, the user's first; automation runs queue only while the feed has room

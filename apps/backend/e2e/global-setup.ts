@@ -20,7 +20,7 @@ export default async function globalSetup(config: FullConfig) {
   if (!config.reporter.some(([name]) => name.includes('observer'))) {
     throw new Error("The runner shows a run's progress through its reporter: run without --reporter");
   }
-  // Its own build of the web app: the development loop exports apps/app/dist again on every change
+  // Its own build of the web app: the development loop exports apps/app/dist again on every commit that changes the app
   const web = join(REPO, '.e2e-web');
   if (process.env.E2E_BUILD !== '0' || !existsSync(join(web, 'index.html'))) {
     execFileSync('pnpm', ['--filter', '@momentum/app', 'exec', 'expo', 'export', '--platform', 'web', '--output-dir', web], {

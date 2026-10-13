@@ -215,15 +215,20 @@ scenario('bug-lifecycle', { enabled: [WS], triggers: ['implementation'] }, async
   await step(4, async () => {
     await env.trigger(WS, 'consistency-check');
     const check = await until('the consistency check running', async () => (await api.runs(WS, 'consistency-check')).find((r) => r.status === 'running'), 60_000);
-    // Production is down: the user starts a fix at once, beside the automation run
+    // Production is down: the user's fix waits for the check working in the project's one working directory
     const { runId } = await api.runAutomation(WS, 'implementation', 'Hotfix: 404 answers must say which path was not found.');
+    await new Promise((r) => setTimeout(r, 9000));
+    expect((await api.run(runId)).status).toBe('queued');
+    // The user stops the check: the fix takes the working directory at once and lands
+    await api.mcp('kill_run', { id: check.id });
     const hotfix = await api.runEnded(runId, 20 * 60_000);
     expect(hotfix.status).toBe('finished');
-    expect((await api.run(check.id)).status).toBe('running');
-    // A 404 now names the path
+    const stopped = await api.run(check.id);
+    expect(stopped.status).toBe('killed');
+    expect(+new Date(hotfix.startedAt!)).toBeGreaterThanOrEqual(+new Date(stopped.endedAt!));
+    // A 404 names the path
     const missing = get('/nope');
     expect(missing.status).toBe(404);
     expect(missing.body).toContain('/nope');
-    await api.mcp('kill_run', { id: check.id });
   });
 });

@@ -154,7 +154,6 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     expect(markdown).toContain('Architecture/Component/book-store');
     const item = await until('the changed card in the feed with its diff', async () => (await api.feed()).items.find((i) => i.path === API && i.diff));
     expect(item.verification).toBe('unverified');
-    expect((await api.feed()).items.filter((i) => i.type === 'Harness/Conflict')).toEqual([]);
     await app.approve(WS, API);
     const after = await api.entity(WS, API);
     expect(after.verification).toBe('verified');

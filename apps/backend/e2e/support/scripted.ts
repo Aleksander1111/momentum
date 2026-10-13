@@ -1,4 +1,4 @@
-import { CHECKOUT, MESSAGE_FILE, RUN_LINE, SAY } from '../../src/protocol.ts';
+import { MESSAGE_FILE, RUN_LINE, SAY, WORKING_DIR } from '../../src/protocol.ts';
 import { post } from '../observer/post.ts';
 import { addTokens, emptyTokens, tokensOf, type Tokens } from '../observer/usage-fit.ts';
 import { appendFileSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 /**
  * A stand-in for the Claude API that the Claude Code processes of a scenario talk to: every run is real Claude Code,
- * with the harness's hooks, MCP servers, checkout and landing, but what the model "decides" is scripted by the
+ * with the harness's hooks, MCP servers, working directory and landing, but what the model "decides" is scripted by the
  * scenario. Runs end, fail, hang or write exactly what a real-life situation needs, and use none of the account's
  * limits.
  *
@@ -28,7 +28,8 @@ export interface Turn {
   run: string;
   automation: string;
   trigger: string;
-  checkout: string;
+  /** The project's working directory, where the run works */
+  dir: string;
   target: string | null;
   kind: TurnKind;
   /** What started this turn: the run's prompt, the user's message or the hook's request */
@@ -37,13 +38,13 @@ export interface Turn {
   inputs: string[];
   /** What a PostToolUse hook told the run about its writes so far in this turn */
   hookContext: string[];
-  /** Files the run wrote or edited so far in the conversation, relative to the checkout, with forward slashes */
+  /** Files the run wrote or edited so far in the conversation, relative to the working directory, with forward slashes */
   wrote: string[];
   /** How many replies the model gave in this turn before this one: which move of the script is next */
   step: number;
   /** What the tools the model called in this turn answered, oldest first: a script decides its next move on them */
   results: { tool: string; input: unknown; text: string }[];
-  /** A file of the checkout, for moves */
+  /** A file of the working directory, for moves */
   file(path: string): string;
 }
 
@@ -131,10 +132,10 @@ const isFault = (m: Move) => 'hang' in m || 'error' in m;
 /** Moves that are the network failing, not the model answering: they apply live too, at whatever step they come */
 export const faults = (moves: Move[]) => moves.some(isFault) && moves.every((m) => isFault(m) || 'gate' in m);
 
-/** The files the run's tool calls wrote, relative to the checkout */
-function written(messages: Message[], checkout: string): string[] {
+/** The files the run's tool calls wrote, relative to the working directory */
+function written(messages: Message[], dir: string): string[] {
   const slash = (p: string) => p.replaceAll('\\', '/');
-  const root = `${slash(checkout).replace(/\/$/, '')}/`.toLowerCase();
+  const root = `${slash(dir).replace(/\/$/, '')}/`.toLowerCase();
   const out: string[] = [];
   for (const m of messages) {
     if (m.role !== 'assistant' || typeof m.content === 'string') continue;
@@ -432,7 +433,7 @@ export class ScriptedModel {
       const answer = system.includes(SAY.riskEstimate) ? this.risk(prompt) : system.includes(SAY.rateRetrieval) ? rating(prompt) : 'OK';
       return this.reply(res, body, id, [{ text: answer }]);
     }
-    const checkout = CHECKOUT.exec(system)?.[1] ?? '';
+    const dir = WORKING_DIR.exec(system)?.[1] ?? '';
     if (!this.instructions.has(run[1]!)) this.instructions.set(run[1]!, system);
     const inputs: number[] = [];
     body.messages.forEach((m, i) => {
@@ -446,7 +447,7 @@ export class ScriptedModel {
       automation: run[2]!,
       trigger: run[3]!,
       target: run[4] ?? null,
-      checkout,
+      dir,
       kind: kindOf(input, inputs.length <= 1),
       input,
       inputs: inputs.map((i) => said(body.messages[i]!)!),
@@ -454,10 +455,10 @@ export class ScriptedModel {
         .slice(at + 1)
         .flatMap((m) => (m.role === 'system' || m.role === 'user' ? textsOf(m) : []))
         .filter((x) => x.includes(SAY.guardFlag)),
-      wrote: written(body.messages, checkout),
+      wrote: written(body.messages, dir),
       step,
       results: toolResults(body.messages.slice(at + 1)),
-      file: (p) => join(checkout, p),
+      file: (p) => join(dir, p),
     };
     let moves: Move[];
     try {

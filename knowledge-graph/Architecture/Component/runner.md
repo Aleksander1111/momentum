@@ -31,7 +31,7 @@ artifacts:
 ---
 # Runner
 
-Claude Code session per run, detached checkout
+Claude Code session per run, in the project dir
 
 - **States**: serial per run; a killed queued run never runs
 - **Messages**: in order; queued ones join the prompt

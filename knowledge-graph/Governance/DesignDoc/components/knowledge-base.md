@@ -25,5 +25,5 @@ Graph RAG over the entity types in docs/entity-types.tsv.
 - Every entity is its card, free form within a user-set limit; too big means split
 - A type is a path on disk; actions and patterns are entities, chats are not
 - A Harness/Pattern: a skill, sub-agent, memory or retrieval candidate from the chats, or a reaction pattern; proposes a change after three sightings; a reaction applies once approved
-- Runs write in their checkout, landing on the main line at run end
+- Runs write in the project folder, landing on main at run end
 - An approved plan is entity_ahead until implemented; no ingestion component

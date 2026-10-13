@@ -234,7 +234,7 @@ export async function ask(spec: AskSpec): Promise<string> {
   return text;
 }
 
-/** One Claude Code process per run, through the Agent SDK, with the run's checkout as cwd */
+/** One Claude Code process per run, through the Agent SDK, with the project's working directory as cwd */
 export function startSession(spec: SessionSpec): SessionHandle {
   const abort = new AbortController();
   /** What the run was told so far: a process started again is told all of it */

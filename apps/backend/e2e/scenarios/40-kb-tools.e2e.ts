@@ -97,7 +97,7 @@ scenario('kb-tools', { enabled: [WS] }, async ({ env, api, app, model, step }) =
       expect(hits.map((h) => h.path)).toContain(API);
       expect(hits.map((h) => h.path)).toContain(STORE);
     }
-    // The card as it stands in the run's checkout
+    // The card as it stands in the working directory
     expect(read!.text.trim()).toBe(env.show(WS, `knowledge-graph/${API}.md`));
     // Both directions, with the relation and the other end
     const refs = JSON.parse(references!.text) as { path: string; direction: string; relation: string; title: string | null; type: string | null }[];

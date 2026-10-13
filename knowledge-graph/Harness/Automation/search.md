@@ -14,7 +14,7 @@ artifacts:
 
 Answers what the user asks in the knowledge graph search, as a search page answers above its results.
 
-- One pass per question: no run, no checkout, no tools; started by the search itself, never by a trigger
+- One pass per question: no run, no tools; started by the search itself, never by a trigger
 - The search first finds the entities, by full text and meaning, and follows their references
 - Answers from those entities alone, leading with the answer; says so when they do not hold it
 - Names every entity it draws from as a link to it, so the answer opens the graph

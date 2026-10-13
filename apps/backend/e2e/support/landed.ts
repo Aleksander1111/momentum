@@ -22,7 +22,7 @@ export function filesOf(env: Env, ws: string, commits: string[]): string[] {
 
 const entityPath = (file: string) => /^knowledge-graph\/(.+)\.md$/.exec(file)?.[1] ?? null;
 
-/** Whether a file is on the main line, as the user's checkout follows it, whatever the line is called */
+/** Whether a file is on the main line, as the working directory has it checked out, whatever the line is called */
 function onMainLine(env: Env, ws: string, file: string): boolean {
   try {
     env.git(ws, 'cat-file', '-e', `HEAD:${file}`);
@@ -42,7 +42,7 @@ export async function entitiesOf(env: Env, ws: string, runId: string): Promise<s
 /** The paths an entity references with a relation */
 export const refs = (e: EntityDetail, relation: string) => e.references.filter((r) => r.direction === 'out' && r.relation === relation).map((r) => r.path);
 
-/** What a Node.js module script prints, run in the user's checkout of the main line */
+/** What a Node.js module script prints, run in the project's working directory, on the main line */
 export function runNode(env: Env, ws: string, script: string): string {
   return execFileSync(process.execPath, ['--input-type=module', '-e', script], { cwd: env.path(ws), encoding: 'utf8', timeout: 60_000, windowsHide: true });
 }
@@ -51,8 +51,8 @@ export function runNode(env: Env, ws: string, script: string): string {
 export const plainText = (text: string) => text.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
 
 /**
- * Whether an npm script of the project passes in the user's checkout of the main line, with the dependencies the
- * checkout has installed; what it printed, without colours
+ * Whether an npm script of the project passes in its working directory, on the main line, with the dependencies
+ * installed there; what it printed, without colours
  */
 export function npmPasses(env: Env, ws: string, script: string): { ok: boolean; output: string } {
   try {
@@ -64,7 +64,7 @@ export function npmPasses(env: Env, ws: string, script: string): { ok: boolean; 
   }
 }
 
-/** Whether the project's own tests pass on the main line, as the user's checkout has it */
+/** Whether the project's own tests pass on the main line, as the working directory has it */
 export function testsPass(env: Env, ws: string): boolean {
   try {
     execFileSync(process.execPath, ['--test'], { cwd: env.path(ws), stdio: 'pipe', timeout: 120_000, windowsHide: true });

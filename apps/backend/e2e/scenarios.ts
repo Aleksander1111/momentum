@@ -27,14 +27,14 @@ export const SCENARIOS: Scenario[] = [
     covers: [
       'project.discover', 'project.enable', 'definition.materialize', 'trigger.defaults', 'trigger.off',
       'automation.graph-build', 'orchestrator.feed-room', 'feed.size', 'feed.approve', 'state.verification',
-      'kb.index', 'kb.types', 'kb.validate', 'run.checkout', 'run.usage-share', 'run.process-limits', 'automation.summarization',
+      'kb.index', 'kb.types', 'kb.validate', 'run.working-dir', 'run.usage-share', 'run.process-limits', 'automation.summarization',
     ],
     steps: [
       'Project listed disabled; enabling it materializes the definitions and proposes the default triggers',
       'The default triggers, switched off in this world, start nothing',
       'Graph build runs until the feed is full, pauses, and continues as items are approved',
       'Build is measured complete by the harness each run and ends complete; every written entity is valid and typed',
-      'Each run records its usage share and leaves no checkout behind',
+      "Each run records its usage share and works in the project's one working directory, with no worktree beside it",
     ],
     // The features each step checks, step by step
     checks: [
@@ -42,7 +42,7 @@ export const SCENARIOS: Scenario[] = [
       ['trigger.off'],
       ['automation.graph-build', 'orchestrator.feed-room', 'feed.size', 'feed.approve'],
       ['automation.graph-build', 'kb.index', 'kb.types', 'kb.validate', 'automation.summarization'],
-      ['run.checkout', 'run.usage-share', 'run.process-limits'],
+      ['run.working-dir', 'run.usage-share', 'run.process-limits'],
     ],
   },
   {
@@ -52,7 +52,7 @@ export const SCENARIOS: Scenario[] = [
     real: true,
     covers: [
       'trigger.schedule', 'trigger.event', 'automation.exploration', 'automation.preparation', 'automation.summarization',
-      'automation.implementation', 'automation.validation', 'state.entity-ahead', 'guard.land', 'orchestrator.serial-automations',
+      'automation.implementation', 'automation.validation', 'state.entity-ahead', 'guard.land', 'orchestrator.one-run-per-project',
       'kb.mcp', 'kb.search',
     ],
     steps: [
@@ -68,7 +68,7 @@ export const SCENARIOS: Scenario[] = [
       ['state.entity-ahead', 'automation.preparation', 'automation.summarization'],
       ['automation.implementation', 'guard.land', 'trigger.event'],
       ['automation.validation', 'trigger.event'],
-      ['orchestrator.serial-automations'],
+      ['orchestrator.one-run-per-project'],
     ],
   },
   {
@@ -230,18 +230,18 @@ export const SCENARIOS: Scenario[] = [
     projects: ['todo-cli', 'bookshelf-api', 'handbook'],
     real: false,
     covers: [
-      'orchestrator.feed-room', 'orchestrator.serial-automations', 'orchestrator.parallel-user-runs',
+      'orchestrator.feed-room', 'orchestrator.one-run-per-project', 'orchestrator.user-runs-first',
       'orchestrator.concurrent-total', 'trigger.schedule', 'trigger.on-demand', 'feed.rank', 'feed.size',
     ],
     steps: [
       'Due loops queue only while the feed has room, across all three projects',
-      'One automation run per project at a time; user runs start at once; the total is never passed',
+      "One run per project at a time; the user's runs wait only for the run of their project and start first; the total is never passed",
       'The feed ranks across projects and holds at most the feed size',
     ],
     // The features each step checks, step by step
     checks: [
       ['orchestrator.feed-room', 'trigger.schedule'],
-      ['orchestrator.serial-automations', 'orchestrator.parallel-user-runs', 'orchestrator.concurrent-total', 'trigger.on-demand'],
+      ['orchestrator.one-run-per-project', 'orchestrator.user-runs-first', 'orchestrator.concurrent-total', 'trigger.on-demand'],
       ['feed.rank', 'feed.size'],
     ],
   },
@@ -256,7 +256,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       'Disabling stops the build; enabling resumes it',
       'A run lost at restart is queued again, and failed past the limit',
-      'Reset leaves no entity, checkout or index row and builds afresh; the harness workspace refuses',
+      'Reset leaves no entity or index row and builds afresh; the harness workspace refuses',
     ],
     // The features each step checks, step by step
     checks: [
@@ -341,22 +341,22 @@ export const SCENARIOS: Scenario[] = [
     covers: [
       'automation.exploration', 'automation.preparation', 'automation.implementation', 'automation.validation', 'automation.summarization',
       'automation.chat', 'trigger.schedule', 'trigger.event', 'trigger.in-effect', 'trigger.off', 'state.entity-ahead', 'guard.land',
-      'feed.issue-options', 'orchestrator.serial-automations', 'metrics.implementation', 'run.checkout',
+      'feed.issue-options', 'orchestrator.one-run-per-project', 'metrics.implementation', 'run.working-dir',
     ],
     steps: [
       'Exploration on its schedule, switched on and not yet reviewed, proposes research and a feature that advances a goal',
       'An approved feature waits as entity_ahead while implementation is switched off; preparation writes a plan, summarized into a Harness/Plan',
       'Approving the plan starts implementation: code, tests and the updated card land in one commit; approving the result brings the plan in sync',
       'The finished implementation starts validation, which raises a defect; the user resolves it in their own words and the fix lands',
-      'Automation runs of the project never overlapped and left no checkout behind',
+      "Runs of the project never overlapped and left nothing uncommitted and no worktree in its working directory",
     ],
     // The features each step checks, step by step
     checks: [
       ['automation.exploration', 'trigger.schedule', 'trigger.in-effect'],
-      ['state.entity-ahead', 'trigger.off', 'automation.preparation', 'automation.summarization', 'trigger.schedule', 'orchestrator.serial-automations'],
+      ['state.entity-ahead', 'trigger.off', 'automation.preparation', 'automation.summarization', 'trigger.schedule', 'orchestrator.one-run-per-project'],
       ['trigger.event', 'automation.implementation', 'automation.summarization', 'guard.land', 'state.entity-ahead'],
       ['automation.validation', 'trigger.event', 'feed.issue-options', 'automation.chat', 'metrics.implementation'],
-      ['orchestrator.serial-automations', 'run.checkout', 'trigger.schedule'],
+      ['orchestrator.one-run-per-project', 'run.working-dir', 'trigger.schedule'],
     ],
   },
   {
@@ -494,7 +494,7 @@ export const SCENARIOS: Scenario[] = [
     projects: ['handbook'],
     real: false,
     scripted: true,
-    covers: ['project.discover', 'project.churn', 'project.enable', 'project.disable', 'trigger.defaults', 'orchestrator.serial-automations', 'feed.rank', 'run.checkout'],
+    covers: ['project.discover', 'project.churn', 'project.enable', 'project.disable', 'trigger.defaults', 'orchestrator.one-run-per-project', 'feed.rank', 'run.working-dir'],
     steps: [
       'A repository cloned under the root while the harness runs is listed, disabled, without a restart',
       'Enabled, a project whose main line is master gets its triggers there and its runs land on master',
@@ -504,8 +504,8 @@ export const SCENARIOS: Scenario[] = [
     // The features each step checks, step by step
     checks: [
       ['project.discover', 'project.churn'],
-      ['project.enable', 'project.churn', 'trigger.defaults', 'run.checkout'],
-      ['project.disable', 'project.enable', 'orchestrator.serial-automations', 'feed.rank'],
+      ['project.enable', 'project.churn', 'trigger.defaults', 'run.working-dir'],
+      ['project.disable', 'project.enable', 'orchestrator.one-run-per-project', 'feed.rank'],
       ['project.churn', 'feed.rank'],
     ],
   },
@@ -517,7 +517,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'guard.main-line-index', 'state.artifact-ahead', 'state.updating', 'state.summarized-once', 'automation.summarization', 'settings.persist',
-      'orchestrator.serial-automations', 'run.failure', 'guard.summarization-checked',
+      'orchestrator.one-run-per-project', 'run.failure', 'guard.summarization-checked',
     ],
     steps: [
       'One commit editing two documents starts one summarization run that rewrites both cards',
@@ -532,7 +532,7 @@ export const SCENARIOS: Scenario[] = [
       ['guard.main-line-index', 'state.artifact-ahead', 'state.updating', 'automation.summarization'],
       ['state.summarized-once', 'automation.summarization'],
       ['run.failure', 'state.summarized-once', 'state.artifact-ahead', 'automation.summarization'],
-      ['orchestrator.serial-automations', 'automation.summarization'],
+      ['orchestrator.one-run-per-project', 'automation.summarization'],
       ['settings.persist', 'automation.summarization'],
       ['guard.summarization-checked', 'state.artifact-ahead'],
     ],
@@ -594,14 +594,14 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'automation.chat', 'automation.implementation', 'automation.validation', 'trigger.event', 'trigger.schedule', 'metrics.implementation',
-      'feed.issue-options', 'orchestrator.parallel-user-runs', 'trigger.on-demand',
+      'feed.issue-options', 'orchestrator.user-runs-first', 'trigger.on-demand',
     ],
     steps: [
       'A bug the user files through the chat is counted open',
       'Approved, the bug is fixed and validated; it counts as fixed once the fix is approved',
       'A duplicate report is sent back and removed by the chat, its timeline event listing what went',
       'The nightly validation catches a regression the user committed; picking the fix option repairs it',
-      'A hotfix started on demand runs at once beside the automation run in progress',
+      'A hotfix started on demand waits only for the run working in the project, and starts the moment the user stops it',
     ],
     // The features each step checks, step by step
     checks: [
@@ -609,7 +609,7 @@ export const SCENARIOS: Scenario[] = [
       ['automation.implementation', 'automation.validation', 'trigger.event', 'metrics.implementation'],
       ['automation.chat', 'metrics.implementation'],
       ['trigger.schedule', 'automation.validation', 'feed.issue-options', 'metrics.implementation'],
-      ['orchestrator.parallel-user-runs', 'trigger.on-demand'],
+      ['orchestrator.user-runs-first', 'trigger.on-demand'],
     ],
   },
   {
@@ -640,13 +640,13 @@ export const SCENARIOS: Scenario[] = [
     real: false,
     scripted: true,
     covers: [
-      'feed.rank', 'feed.send-back', 'orchestrator.serial-automations', 'orchestrator.parallel-user-runs', 'run.retry', 'run.failure',
+      'feed.rank', 'feed.send-back', 'orchestrator.one-run-per-project', 'orchestrator.user-runs-first', 'run.retry', 'run.failure',
       'metrics.attention', 'metrics.per-automation', 'app.timeline',
     ],
     steps: [
       'Sprint planning in the chat writes the sprint and its tasks, ranked by impact',
       'A task too big is sent back, split in two and removed by the chat',
-      'Approved tasks are implemented one at a time in order, while the user chats',
+      'Approved tasks are implemented one at a time in order; a question the user asks meanwhile goes next, ahead of the queued task',
       'A failed implementation leaves its task to do; started again on demand, it lands',
       'The sprint review: metrics and the timeline show the sprint',
     ],
@@ -654,7 +654,7 @@ export const SCENARIOS: Scenario[] = [
     checks: [
       ['feed.rank'],
       ['feed.send-back'],
-      ['orchestrator.serial-automations', 'orchestrator.parallel-user-runs'],
+      ['orchestrator.one-run-per-project', 'orchestrator.user-runs-first'],
       ['run.retry', 'run.failure'],
       ['metrics.attention', 'metrics.per-automation', 'app.timeline', 'run.failure'],
     ],
@@ -766,42 +766,42 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'busy-chat-day',
-    title: 'A busy day of chats within the total of runs',
+    title: 'A busy day of chats in one project',
     projects: ['bookshelf-api'],
     real: false,
     scripted: true,
-    covers: ['run.queue', 'orchestrator.concurrent-total', 'orchestrator.parallel-user-runs', 'run.messages', 'feed.once', 'run.kill'],
+    covers: ['run.queue', 'orchestrator.one-run-per-project', 'run.messages', 'feed.once', 'run.kill'],
     steps: [
-      'Five questions at once: three run, two wait, oldest first',
+      'Five questions at once: one runs in the working directory, four wait, and they go one after another, oldest first',
       'A follow-up to a waiting chat joins its first question and is answered with it',
       'A send back of the entity a chat is working on joins that chat',
       'A waiting chat stopped by the user never starts',
     ],
     // The features each step checks, step by step
     checks: [
-      ['run.queue', 'orchestrator.concurrent-total', 'orchestrator.parallel-user-runs'],
-      ['run.queue', 'run.messages'],
+      ['run.queue', 'orchestrator.one-run-per-project'],
+      ['run.queue', 'run.messages', 'orchestrator.one-run-per-project'],
       ['feed.once', 'run.messages'],
-      ['run.kill', 'run.queue', 'orchestrator.concurrent-total'],
+      ['run.kill', 'run.queue'],
     ],
   },
   {
     id: 'working-alongside',
-    title: 'The user and the harness in one repository at once',
+    title: 'The user and the harness in one working directory',
     projects: ['todo-cli'],
     real: false,
     scripted: true,
-    covers: ['guard.conflict', 'guard.user-checkout', 'guard.land', 'run.checkout', 'automation.chat'],
+    covers: ['guard.alongside-user', 'guard.land', 'run.working-dir', 'automation.chat'],
     steps: [
-      "A run and the user change the same line of a file: the run's version lands on top of the user's commit, with a Harness/Conflict in the same commit over the entity concerned, waiting in the feed",
-      "The user's uncommitted edit and untracked file stay as a run lands changes to other files; the checkout follows the main line",
-      "The user's uncommitted edit to the very file a run lands is kept in their checkout, while the main line takes the run's version",
+      "A chat writes in the project's own working directory, with no worktree beside it, and lands as one commit right on top of where it started",
+      "The user commits a file of their own while a chat works: the chat's commit lands on top of it, on one straight line, and keeps both",
+      "An approval the user makes while a chat works reaches the working directory beside the chat's edit, and the chat's commit keeps it",
     ],
     // The features each step checks, step by step
     checks: [
-      ['guard.conflict', 'guard.land', 'run.checkout', 'automation.chat'],
-      ['guard.user-checkout', 'guard.land'],
-      ['guard.user-checkout', 'guard.land'],
+      ['run.working-dir', 'guard.land', 'automation.chat'],
+      ['guard.alongside-user', 'guard.land'],
+      ['guard.alongside-user', 'guard.land'],
     ],
   },
   {
@@ -867,17 +867,17 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'project.dependencies', 'project.history', 'project.enable', 'automation.graph-build', 'automation.summarization', 'automation.implementation',
-      'automation.validation', 'guard.land', 'run.checkout', 'trigger.event', 'trigger.schedule',
+      'automation.validation', 'guard.land', 'run.working-dir', 'trigger.event', 'trigger.schedule',
     ],
     steps: [
       'Enabled, the build maps the repository over several runs until every source file is an artifact of an entity; the history stays as it was, each run one commit on top',
-      "An approved user story is implemented: the run installs the dependencies in its checkout, type-checks and tests there; code, test and card land in one commit, and the user's checkout passes",
+      "An approved user story is implemented: the run installs the dependencies in the project's working directory, type-checks and tests there; code, test and card land in one commit, and the main line passes in the working directory",
       'Validation installs and checks the landed work and raises nothing; a commit of the user that breaks the type check is raised by the nightly validation with what the compiler said',
     ],
     // The features each step checks, step by step
     checks: [
       ['project.enable', 'project.history', 'automation.graph-build', 'automation.summarization'],
-      ['project.dependencies', 'automation.implementation', 'guard.land', 'run.checkout', 'project.history'],
+      ['project.dependencies', 'automation.implementation', 'guard.land', 'run.working-dir', 'project.history'],
       ['project.dependencies', 'automation.validation', 'trigger.event', 'trigger.schedule'],
     ],
   },
@@ -933,19 +933,19 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'run-accounting',
     title: "What each run took of the account and of the machine",
-    projects: ['bookshelf-api'],
+    projects: ['bookshelf-api', 'todo-cli'],
     real: false,
     scripted: true,
-    covers: ['run.usage-share', 'run.process-limits', 'metrics.per-automation', 'orchestrator.parallel-user-runs', 'automation.chat'],
+    covers: ['run.usage-share', 'run.process-limits', 'metrics.per-automation', 'automation.chat'],
     steps: [
       'A run alone takes the whole rise of the account limits between its readings, shown on the run and in the metrics',
-      'Two runs at once split a rise evenly; a run started after it gets none of it, only its own',
+      'Two runs at once, in two projects, split a rise evenly; a run started after it gets none of it, only its own',
       'Each run is held to the memory and CPU limits set for runs, as its own job reports from inside; a command that would pass the memory limit does not get it',
     ],
     // The features each step checks, step by step
     checks: [
       ['run.usage-share', 'metrics.per-automation', 'automation.chat'],
-      ['run.usage-share', 'orchestrator.parallel-user-runs'],
+      ['run.usage-share'],
       ['run.process-limits'],
     ],
   },
@@ -958,9 +958,9 @@ export const SCENARIOS: Scenario[] = [
     covers: ['project.linear', 'project.enable', 'project.disable', 'guard.land', 'feed.approve', 'app.timeline'],
     steps: [
       'A project with a second branch cannot be enabled; the refusal says why, and without the branch it enables',
-      'A branch or a detached HEAD appearing in an enabled project switches it off at once, says why, and nothing of it runs',
+      'A branch, a worktree or a detached HEAD appearing in an enabled project switches it off at once, says why, and nothing of it runs',
       'A merge commit landing on the line switches it off the same way',
-      'Runs and approvals keep one straight line: one branch, no merge commits',
+      'Runs and approvals keep one straight line in one working directory: one branch, no worktree, no merge commits',
     ],
     // The features each step checks, step by step
     checks: [

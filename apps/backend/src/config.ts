@@ -18,8 +18,6 @@ function tailnetAddress(): string {
 export interface Config {
   /** Root of the workspaces: every git repository directly under it is a workspace */
   root: string;
-  /** Where run checkouts live: <runs>\<workspace>\<run-id> */
-  runs: string;
   /** This repository: the harness workspace */
   harness: string;
   harnessName: string;
@@ -42,7 +40,6 @@ const root = process.env.MOMENTUM_ROOT ?? 'C:\\Projects';
 
 export const config: Config = {
   root,
-  runs: process.env.MOMENTUM_RUNS ?? join(root, '.runs'),
   harness: REPO,
   harnessName: 'momentum',
   entityTypes: join(REPO, 'docs', 'entity-types.tsv'),

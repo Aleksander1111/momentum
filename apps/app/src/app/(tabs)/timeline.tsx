@@ -67,7 +67,7 @@ function tone(e: TimelineEvent): string {
     case 'graph_build_complete':
       return C.ok;
     case 'changes_landed':
-      return e.facts.issues || e.facts.conflicts?.length ? C.warn : C.ok;
+      return e.facts.issues ? C.warn : C.ok;
   }
   return e.actor === 'user' ? C.stateUpdating : e.actor === 'automation' ? C.stateArtifactAhead : C.muted;
 }
@@ -153,7 +153,6 @@ function factRows(e: TimelineEvent): [string, string][] {
     ['Usage', usage || null],
     ['Model', f.model ? `${f.model}${f.risk ? ` · ${f.risk} risk` : ''}` : null],
     ['Issues', f.issues ? String(f.issues) : null],
-    ['Conflicts', f.conflicts?.length ? String(f.conflicts.length) : null],
     ['Read for', f.timeSpentMs ? took(f.timeSpentMs) : null],
     ['Commit', f.commit ? f.commit.slice(0, 7) : null],
   ];

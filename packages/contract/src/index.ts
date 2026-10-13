@@ -361,7 +361,6 @@ export const Run = z.object({
   id: z.string(),
   workspace: z.string(),
   automation: AutomationName,
-  checkout: z.string(),
   trigger: RunTrigger,
   targetPath: z.string().nullable(),
   status: RunStatus,
@@ -834,7 +833,6 @@ export const TimelineFacts = z
     /** Entities a run removed, with the titles they had */
     removed: z.array(z.object({ path: z.string(), title: z.string() })),
     issues: z.number().int(),
-    conflicts: z.array(z.string()),
     /** Time the user spent on a feed item before reacting */
     timeSpentMs: z.number(),
     /** Settings the user changed, by name */

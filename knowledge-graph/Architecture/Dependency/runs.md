@@ -27,4 +27,4 @@ kind: internal library
 |---|---|
 | session | `startSession`: one steerable, resumable Claude Code process a run; one dead before its session starts is started once more, told all so far; 5h/weekly usage %; tool calls, results, tokens; `ask`: one tool-less turn |
 | process | `spawnLimited`: procgov CPU/memory limits; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` becomes `DATABASE_URL`); `killTree` |
-| git | waits 5 s on locks; detached checkout at main tip; changes read as stored (`autocrlf=input`); `land`: one commit, fast-forward or replay, conflicts: run's side; `nonLinear`; `restorePath`; `fileHistory` |
+| git | waits 5 s on locks; changes read as stored (`autocrlf=input`); `land`: one commit in place on main; reactions merged in; `nonLinear` (branches, worktrees, merges); `restorePath`; `fileHistory` |

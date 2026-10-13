@@ -18,7 +18,7 @@ const kg = (p: string) => `knowledge-graph/${p}.md`;
 /** A slip in the README the user fixes later: the fix changes nothing a card says */
 const TYPO = ['No dependencies:', 'No dependancies:'] as const;
 
-/** An entity file of the checkout with a new card, unverified as a run leaves it */
+/** An entity file of the working directory with a new card, unverified as a run leaves it */
 const recard = (t: Turn, path: string, card: string, extra: (text: string) => string = (x) => x) => {
   const text = readFileSync(t.file(kg(path)), 'utf8').replace('verification: verified', 'verification: unverified');
   return extra(text.replace(/(\n# [^\n]+\n)[\s\S]*$/, `$1\n${card}\n`));

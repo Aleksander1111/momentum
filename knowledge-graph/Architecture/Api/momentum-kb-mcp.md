@@ -23,8 +23,8 @@ In-process MCP server the SDK gives every run: the knowledge base of the run's w
 | Tool | Does |
 |---|---|
 | search | Full text + semantic, expanded along references |
-| read | An entity from the run's checkout, else from the index |
+| read | An entity from the project's working directory, else from the index |
 | references | Both directions, with relation and titles |
 | types | Entity types by path |
-| write | Writes `knowledge-graph/<path>.md` in the run checkout, entities linked where named and referenced; returns validation issues |
+| write | Writes `knowledge-graph/<path>.md` in the working directory, entities linked where named and referenced; returns validation issues |
 | record_agent_metric | Misalignments and recurring issues found by the run |

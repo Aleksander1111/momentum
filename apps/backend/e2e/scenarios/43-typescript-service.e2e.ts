@@ -17,13 +17,13 @@ const kg = (p: string) => `knowledge-graph/${p}.md`;
 /** Source files a build run maps at once */
 const BATCH = 4;
 
-/** Files under a folder of a checkout, relative, with forward slashes */
+/** Files under a folder of a working directory, relative, with forward slashes */
 const filesUnder = (dir: string, under: string): string[] =>
   readdirSync(join(dir, under), { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? filesUnder(dir, `${under}/${d.name}`) : [`${under}/${d.name}`]));
 /** The entity a source file maps to: src/routes/notes.ts → routes-notes */
 const slug = (file: string) => file.replace(/^src\//, '').replace(/\.ts$/, '').replace(/\//g, '-');
-/** A checkout's path as the run's shell takes it */
-const sh = (checkout: string) => checkout.replaceAll('\\', '/');
+/** A path as the run's shell takes it */
+const sh = (path: string) => path.replaceAll('\\', '/');
 const INSTALL = 'npm ci --prefer-offline --no-audit --no-fund';
 const CHECKS = 'npm run typecheck && npm test';
 /** Whether a check's output says it failed: the compiler's errors, failing tests or npm giving up */
@@ -54,7 +54,7 @@ test('pinning a missing note is 404', async () => {
 });
 `;
 
-/** The implementation's edits, each the checkout's file with the pin support in it */
+/** The implementation's edits, each the working directory's file with the pin support in it */
 const edits = (t: Turn): [string, string][] => {
   const read = (f: string) => readFileSync(t.file(f), 'utf8');
   return [
@@ -105,7 +105,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
   const commandsOf = (t: Turn) => t.results.filter((r) => r.tool === 'Bash').map((r) => String((r.input as { command?: string }).command ?? ''));
 
   model.on('graph build', { automation: 'graph-build', kind: 'prompt' }, (t) => {
-    const source = filesUnder(t.checkout, 'src');
+    const source = filesUnder(t.dir, 'src');
     // What was mapped before this run: the script is asked again at every step, so what it wrote this turn does not count
     const dir = t.file('knowledge-graph/Architecture/Component');
     const wrote = new Set(t.wrote);
@@ -180,9 +180,9 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     shells.set(t.run, checks(t));
     commands.set(t.run, commandsOf(t));
     return [
-      move.bash(`cd "${sh(t.checkout)}" && ${INSTALL}`),
+      move.bash(`cd "${sh(t.dir)}" && ${INSTALL}`),
       ...edits(t).map(([file, content]) => move.write(t, file, content)),
-      move.bash(`cd "${sh(t.checkout)}" && ${CHECKS}`),
+      move.bash(`cd "${sh(t.dir)}" && ${CHECKS}`),
       move.say(checks(t).length >= 2 && !failed(checks(t)[1]!) ? 'Pinned notes list first; the type check and the suite pass.' : 'Pinned notes list first.'),
     ];
   });
@@ -206,7 +206,7 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     const broken = t.step >= 1 && failed(output);
     const said = output.split(/\r?\n/).find((l) => /error TS\d+/.test(l)) ?? output.slice(0, 200);
     return [
-      move.bash(`cd "${sh(t.checkout)}" && ${INSTALL} && ${CHECKS}`),
+      move.bash(`cd "${sh(t.dir)}" && ${INSTALL} && ${CHECKS}`),
       ...(broken
         ? [
             move.entity(t, 'Harness/Issue/checks-fail-on-main', {
@@ -249,14 +249,14 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     const run = await api.automationRan(WS, 'implementation', since, 30 * 60_000);
     expect(run.status).toBe('finished');
     expect(run.target_path).toBe(STORY);
-    // It installed into its own checkout and ran the checks there, which passed
+    // It installed into the project's working directory and ran the checks there, which passed
     // Scripted, the install and then the checks; live, the model runs what it likes in between, and may silence the install
     const outputs = shells.get(run.id) ?? [];
     if (model.live) expect(commands.get(run.id) ?? [], 'the install ran').toContainEqual(expect.stringMatching(/\bnpm (ci|install|i)\b/));
     else expect(outputs[0], 'the install ran').toMatch(INSTALLED);
     const checked = model.live ? outputs.findLast((o) => PASSED.test(o)) : outputs[1];
     expect(checked, `the checks ran: ${JSON.stringify(checked?.slice(-200))}`).toMatch(PASSED);
-    // Live, a run may fix what a check found and check again in part: the user's checkout below judges the landed work
+    // Live, a run may fix what a check found and check again in part: the working directory below judges the landed work
     if (!model.live) expect(failed(checked ?? 'npm error')).toBe(false);
     // One commit on top of the approval: code, test and cards, and nothing of the install
     const own = await commitsOf(env, WS, run.id);
@@ -270,13 +270,15 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     expect(files.filter((f) => f.startsWith('node_modules/') || f === 'package-lock.json')).toEqual([]);
     const results = (await Promise.all((await entitiesOf(env, WS, run.id)).map((p) => api.entity(WS, p)))).filter((e) => refs(e, 'implements').includes(STORY));
     expect(results.length, 'an entity implementing the story').toBeGreaterThan(0);
-    // The user's checkout, with the dependencies it has, passes the checks on the landed work
+    // The working directory, with the dependencies installed there, passes the checks on the landed work, once the
+    // validation the landing started has left it: it installs the dependencies there again
+    await api.idle(WS, 30 * 60_000);
     expect(npmPasses(env, WS, 'typecheck').ok).toBe(true);
     const tests = npmPasses(env, WS, 'test');
     expect(tests.ok, tests.output).toBe(true);
     expect(tests.output).toMatch(model.live ? PASSED : /^\W{0,3}pass 16\s*$/m);
-    // Its checkout, node_modules and all, is gone; the validation it started may be working in one of its own
-    expect(existsSync(join(env.dir, 'runs', WS, run.id))).toBe(false);
+    // No worktree beside the working directory, and one straight line
+    expect(env.git(WS, 'worktree', 'list').split('\n').filter(Boolean)).toHaveLength(1);
     expect(env.git(WS, 'rev-list', '--merges', 'main')).toBe('');
     return run;
   });
@@ -312,9 +314,9 @@ scenario('typescript-service', { settings: { feedSize: 60 } }, async ({ env, api
     if (model.live) expect(item.issue!.options.length).toBeGreaterThanOrEqual(2);
     else expect(item.issue!.options.length).toBe(2);
     await app.entity(WS, raised[0]!);
-    // Every run's checkout went when the run ended, the dependencies installed in it too
+    // Every run worked in the project's one working directory: no worktree, nothing left uncommitted
     await api.idle(WS, 10 * 60_000);
-    await until('no checkout left', async () => !existsSync(join(env.dir, 'runs', WS)) || readdirSync(join(env.dir, 'runs', WS)).length === 0, 60_000);
-    expect(env.git(WS, 'worktree', 'list').split('\n')).toHaveLength(1);
+    expect(env.git(WS, 'worktree', 'list').split('\n').filter(Boolean)).toHaveLength(1);
+    expect(env.git(WS, 'diff', '--name-only', 'HEAD')).toBe('');
   });
 });

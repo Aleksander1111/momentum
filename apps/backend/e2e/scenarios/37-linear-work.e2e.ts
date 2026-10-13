@@ -1,4 +1,6 @@
 import type { TimelineResponse } from '@momentum/contract';
+import { rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 import { entitiesOf } from '../support/landed.ts';
@@ -7,7 +9,7 @@ import { entityText, move } from '../support/scripted.ts';
 const WS = 'todo-cli';
 const FEATURE = 'Product/Feature/due-dates';
 
-// Momentum works on one line, one change after another: the harness refuses anything else
+// Momentum works on one line in one working directory, one change after another: the harness refuses anything else
 scenario('linear-work', {}, async ({ env, api, app, model, step }) => {
   const enable = () => api.call('PUT', '/settings', { projects: [{ name: WS, enabled: true }] });
   const enabled = async () => (await api.settings()).projects.find((p) => p.name === WS)?.enabled === true;
@@ -15,7 +17,7 @@ scenario('linear-work', {}, async ({ env, api, app, model, step }) => {
     await until('the project switched off', async () => !(await enabled()), 60_000);
     const { events } = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&actor=harness&limit=20`);
     const off = events.find((e) => e.kind === 'project_disabled');
-    expect(off?.title).toBe(`Disabled ${WS}: it is not one straight line`);
+    expect(off?.title).toBe(`Disabled ${WS}: it is not one straight line in one working directory`);
     expect(off?.detail).toMatch(why);
   };
   const branches = () => env.git(WS, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').split('\n').filter(Boolean);
@@ -49,6 +51,15 @@ scenario('linear-work', {}, async ({ env, api, app, model, step }) => {
     // The build the user stopped stays stopped through the switch off and on
     expect((await api.graphBuild(WS)).state).toBe('stopped');
 
+    // A second working directory of the repository, detached and on no branch, is refused too
+    const linked = join(env.dir, 'todo-cli-elsewhere');
+    env.git(WS, 'worktree', 'add', '-q', '--detach', linked);
+    await switchedOff(/a worktree besides its working directory: .*todo-cli-elsewhere/);
+    await expect(enable()).rejects.toMatchObject({ status: 409, message: expect.stringContaining('worktree') });
+    env.git(WS, 'worktree', 'remove', '--force', linked);
+    rmSync(linked, { recursive: true, force: true });
+    await enable();
+
     env.git(WS, 'checkout', '-q', '--detach');
     await switchedOff(/HEAD is detached/);
     await expect(enable()).rejects.toMatchObject({ status: 409, message: expect.stringContaining('detached') });
@@ -78,7 +89,7 @@ scenario('linear-work', {}, async ({ env, api, app, model, step }) => {
     await api.idle(WS, 10 * 60_000);
     expect(branches()).toEqual(['main']);
     expect(env.git(WS, 'rev-list', '--merges', `${since}..main`)).toBe('');
-    expect(env.git(WS, 'worktree', 'list').split('\n')).toHaveLength(1);
+    expect(env.git(WS, 'worktree', 'list').split('\n').filter(Boolean)).toHaveLength(1);
     expect(await enabled()).toBe(true);
   });
 });

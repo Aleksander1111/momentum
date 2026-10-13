@@ -45,11 +45,11 @@ Defined by responsibility; definitions and triggers are entities.
 | Preparation | plans in `plans/` |
 | Consistency check | raises issues; counts contradictions |
 | Retention | retires spent entities |
-| Implementation | own checkout; lands on the main line |
+| Implementation | in the project folder; lands on main |
 | Validation | checks landed work; failures raise issues |
 | Optimization | proposes fixes for what recurs in chats |
 | Summarization | Stop-hook sub-agent; one run per main-line change |
-| Chat | user-started, alongside the loops |
+| Chat | user-started, ahead of the loops |
 | Graph build | builds graph on enable |
 | Interview | one document, question by question |
 | Search | graph answers, no run |

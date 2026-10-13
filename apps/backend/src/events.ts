@@ -23,7 +23,6 @@ export interface Events {
       removed: { path: string; title: string }[];
       valid: boolean;
       issues: number;
-      conflicts: string[];
       /** What the transaction did to the counts of entities by state */
       states: EntityStates;
     },
@@ -40,6 +39,8 @@ export interface Events {
   definition_changed: [{ path: string }];
   /** A run ended; the orchestrator may start queued runs */
   run_ended: [{ workspace: string; runId: string }];
+  /** A run that had ended took a message and waits for the working directory again */
+  run_queued: [{ workspace: string; runId: string }];
   /** The feed shrank: loops paused at the feed size may continue */
   feed_changed: [];
 }

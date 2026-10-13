@@ -4,7 +4,7 @@ import { expect, scenario } from '../support/fixtures.ts';
 import { move } from '../support/scripted.ts';
 
 const PROJECTS: Project[] = ['todo-cli', 'bookshelf-api', 'handbook'];
-const TOTAL = 4;
+const TOTAL = 2;
 
 // The runs never get an answer: each stays running until the scenario ends, so the order the orchestrator keeps stands
 // still long enough to be read. Offline their requests go nowhere; live the stand-in holds every one of them
@@ -33,30 +33,37 @@ scenario(
     });
 
     await step(1, async () => {
-      for (const p of PROJECTS) {
-        await until(`an automation running in ${p}`, async () => (await api.runs(p)).some((r) => r.status === 'running'));
-        const rows = await api.runs(p);
-        expect(rows.filter((r) => r.status === 'running')).toHaveLength(1);
-        expect(rows.filter((r) => r.status === 'queued')).toHaveLength(1);
-      }
-      expect(open(await all()).filter((r) => r.status === 'running')).toHaveLength(PROJECTS.length);
+      const running = async (p: Project) => (await api.runs(p)).filter((r) => r.status === 'running');
+      const counts = async () => Promise.all(PROJECTS.map(async (p) => (await running(p)).length));
+      // One run per project at a time, in its one working directory, and never more than the total across them
+      await until('runs in as many projects as the total allows', async () => (await counts()).reduce((a, b) => a + b, 0) === TOTAL);
+      expect(Math.max(...(await counts()))).toBe(1);
+      const busy = PROJECTS[(await counts()).indexOf(1)]!;
+      const idle = PROJECTS[(await counts()).indexOf(0)]!;
 
-      // On demand, by the user: it starts at once next to the automation run of its project
-      const { runId } = await api.runAutomation('todo-cli', 'consistency-check', 'Check the project now.');
+      // On demand, by the user, in a project a run works in: it waits for that run, not beside it
+      const { runId } = await api.runAutomation(busy, 'consistency-check', 'Check the project now.');
+      await expect(api.runAutomation(busy, 'exploration')).rejects.toThrow(/does not start on demand/);
+      await new Promise((r) => setTimeout(r, 9000));
+      expect((await api.run(runId)).status).toBe('queued');
+      expect(await running(busy)).toHaveLength(1);
+
+      // The run working there ends: the user's run takes the working directory ahead of the automation runs queued
+      // before it, in its project and in the project waiting for the total
+      const [working] = await running(busy);
+      await api.mcp('kill_run', { id: working!.id });
       await until('the on-demand run to start', async () => (await api.run(runId)).status === 'running');
-      await expect(api.runAutomation('todo-cli', 'exploration')).rejects.toThrow(/does not start on demand/);
-      expect((await all()).filter((r) => r.status === 'running')).toHaveLength(TOTAL);
+      expect((await api.runs(busy)).filter((r) => r.trigger === 'schedule' && r.status === 'queued')).toHaveLength(1);
+      expect(await running(idle)).toEqual([]);
 
-      // Past the total, a run the user starts waits too
-      const chat = await app.chat('handbook', 'Which policies does the handbook have?');
+      // Past the total, a chat the user starts waits too, and takes the first place that frees ahead of every automation run
+      const chat = await app.chat(idle, 'What does this project hold?');
       await new Promise((r) => setTimeout(r, 9000));
       expect((await api.run(chat)).status).toBe('queued');
-      expect((await all()).filter((r) => r.status === 'running')).toHaveLength(TOTAL);
-
-      // A run ending frees a place, and the user's chat takes it ahead of the queued automation run of its project
       await api.mcp('kill_run', { id: runId });
       await until('the chat to start', async () => (await api.run(chat)).status === 'running');
-      expect((await all()).filter((r) => r.status === 'running')).toHaveLength(TOTAL);
+      expect((await counts()).reduce((a, b) => a + b, 0)).toBe(TOTAL);
+      expect(Math.max(...(await counts()))).toBe(1);
     });
 
     await step(2, async () => {

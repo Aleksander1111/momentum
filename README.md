@@ -46,7 +46,7 @@ Momentum works in **three layers**. Attention is shared across all projects; und
 |---|---|
 | **Attention** | One feed across enabled projects, ranked by `product_impact + timeline_impact + unlocks`. Your reactions: approve, send back, resolve an issue, won't resolve. |
 | **Understanding** | The knowledge graph: entity cards in each project's `knowledge-graph/`, indexed for Graph RAG search. The consistency guard validates every change. |
-| **Implementation** | Claude Code runs, one process and one detached checkout of the main line each, started by the orchestrator and landed on the main line when they end. |
+| **Implementation** | Claude Code runs, one process each, working in the project's own working directory on the main line, one at a time per project, started by the orchestrator and landed on the main line when they end. |
 
 The **harness** is what you use and what runs it:
 
@@ -96,7 +96,7 @@ Beyond the feed:
 One loop, for every enabled project:
 
 1. **Triggers** queue runs on a schedule, on an event, or on demand. The orchestrator checks them every 30 seconds and on every event.
-2. **Runs** start, each a Claude Code session in its own detached checkout of the main line. Automation runs go one at a time per project. Runs you start go at once. All of them count toward the concurrent-runs limit.
+2. **Runs** start, each a Claude Code session in the project's one working directory, on the main line. A project's runs go one at a time there, the ones you start first. All of them count toward the concurrent-runs limit.
 3. **Work**: the run writes code, plans, documents and entity cards. The guard checks every write as it happens.
 4. **Summarization**: before the run ends, its Stop hook hands every artifact it changed to the summarization sub-agent, which turns them into entity cards.
 5. **Consistency guard**: the run lands as one transaction and one commit on the main line. Every entity it wrote lands unverified. What fails validation lands too, with a `Harness/Issue` over it.
@@ -119,7 +119,7 @@ Frontmatter:
 
 | Field | Values |
 |---|---|
-| `type` | `<Domain>/<Type>`, one of the 151 types |
+| `type` | `<Domain>/<Type>`, one of the 150 types |
 | `origin` | `user`, `requested` or `automation` |
 | `verification` | `unverified` (default) or `verified` |
 | `sync` | `synced` (default), `entity_ahead`, `artifact_ahead` or `updating` |
@@ -137,7 +137,7 @@ Frontmatter:
 
 ![Entity types](docs/slide-images/05-entity-types.png)
 
-**151 types in 12 domains**, listed with a description each in [docs/entity-types.tsv](docs/entity-types.tsv). Each type is a directory: `knowledge-graph/<Domain>/<Type>/`.
+**150 types in 12 domains**, listed with a description each in [docs/entity-types.tsv](docs/entity-types.tsv). Each type is a directory: `knowledge-graph/<Domain>/<Type>/`.
 
 | Domain | Types | Domain | Types |
 |---|---|---|---|
@@ -148,7 +148,7 @@ Frontmatter:
 | Data | 18 | Knowledge | 5 |
 | Frontend | 10 | Harness | 8 |
 
-The **Harness** domain is Momentum's own: `Automation`, `Trigger`, `Issue`, `Conflict`, `Plan`, `Research`, `Pattern` and `Report`.
+The **Harness** domain is Momentum's own: `Automation`, `Trigger`, `Issue`, `Plan`, `Research`, `Pattern` and `Report`.
 
 Seven types are **implementable**: approving one with nothing implementing it starts an implementation. They are `Product/Feature`, `FeatureRequest`, `UserStory`, `DevTask`, `Bug`, `TechDebt` and `Harness/Plan`.
 
@@ -197,12 +197,12 @@ Twelve automations, each defined by its responsibility:
 | **Interview** | Interviews you one question at a time to write one document in `interviews/` | You |
 | **Search** | Answers a question from the entities a search found, in one pass | You, in Explorer; one model turn, no run |
 
-**One project, two lanes:**
+**One project, one working directory, one run at a time:**
 
-- **Automation runs** queue and run one at a time per project. Different projects run side by side.
-- **Runs you start** (a chat, an interview, a send back, an issue resolution, a run on demand) start at once, alongside them.
+- **Every run** of a project works in the project's own folder, on the main line, and waits while another run works there. Different projects run side by side.
+- **Runs you start** (a chat, an interview, a send back, an issue resolution, a run on demand) wait only for the run working in their project, and start ahead of every automation run queued there.
 
-Both lanes share the **concurrent runs in total** limit (8 by default).
+All runs share the **concurrent runs in total** limit (8 by default).
 
 ## Triggers
 
@@ -257,7 +257,7 @@ You can **stop a run** (what it wrote still lands; a queued run never starts), *
 
 What a run's agent can use:
 
-- **Claude Code built-in tools**, all of them, with permissions bypassed, in the run's own checkout. The checkout's project settings apply, including its hooks.
+- **Claude Code built-in tools**, all of them, with permissions bypassed, in the project's working directory. The project's settings apply, including its hooks.
 - **`momentum-kb`** (in-process MCP), the project's knowledge base:
 
   | Tool | Does |
@@ -350,8 +350,6 @@ Every entity is validated for:
 5. Raises a `Harness/Issue` over what failed. **Everything lands.**
 6. Commits, lands and indexes in one step, and updates the index and metrics database.
 
-A run whose files changed on the main line meanwhile lands with a `Harness/Conflict` (see [Versioning](#versioning)).
-
 The **consistency check** runs every night at 03:00. It reads the knowledge graph only, never the artifacts, trusting the summaries, and raises one `Harness/Issue` per finding, `concerning` the entities involved.
 
 ## Consistency issue types
@@ -385,7 +383,7 @@ The consistency check sets exactly one `category` per issue.
 - Offers 2–4 `options`, each a label and a change, with a `recommended` one when one is clearly best.
 - Is scored on `product_impact`, `timeline_impact` and `unlocks`.
 
-The guard's own issues (`source: guard`) and conflicts carry no category or options.
+The guard's own issues (`source: guard`) carry no category or options.
 
 ## Consistency issue resolution
 
@@ -400,21 +398,19 @@ A resolution starts a **chat run** that applies it to the concerned entities and
 
 **Won't resolve** needs a reason. It is one commit that keeps the issue, verified, with the reason in its `wont_resolve` frontmatter. The check skips findings an existing issue covers, and the issue no longer counts as a contradiction.
 
-A guard issue or a conflict has no options: approve it, or send it back to start a chat run on it.
+A guard issue has no options: approve it, or send it back to start a chat run on it.
 
 ## Versioning
 
 ![Versioning](docs/slide-images/16-git.png)
 
-**The main line is the only branch.** Enabling a project with another branch, a detached HEAD or a merge is refused, and an enabled project that gains one is switched off.
+**The main line is the only branch, and the project's folder the only working directory.** Enabling a project with another branch, a worktree, a detached HEAD or a merge is refused, and an enabled project that gains one is switched off.
 
-- **Every run** works in its own detached checkout, created when it starts and removed when it ends.
-- **One commit per run**, by `Momentum <momentum@localhost>`, with the message the run wrote. A run that changed nothing makes no commit.
-- **Untouched tip**: the main line fast-forwards to the run's commit.
-- **Moved tip**: the run is replayed onto the new tip as one commit, by a three-way merge. Files that conflict take the run's version whole, and a `Harness/Conflict` lands in the same commit.
-- **Reactions** (approve, won't resolve, default triggers) are commits too, made without touching any working tree. A reaction to a card that changed meanwhile is refused.
+- **Every run** works in the project's own working directory, on the main line. No worktree, no copy, no branch: one run at a time works there.
+- **One commit per run**, by `Momentum <momentum@localhost>`, with the message the run wrote, made in the working directory on top of the main line as it stands. A run that changed nothing makes no commit.
+- **Your commits** made while a run works stay; the run's commit lands on top of them, on one straight line.
+- **Reactions** (approve, won't resolve, default triggers) are commits too. The working directory follows: clean files take the new content, files a run is changing keep its changes with the reaction merged in. A reaction to a card that changed meanwhile is refused.
 - **Your commits** are indexed on every orchestrator tick (see [Summarization](#summarization)).
-- **Your checkout follows** the main line: clean files are updated, files you changed are left alone.
 
 ## Metrics
 
@@ -426,7 +422,7 @@ The **Metrics** tab shows one project at a time over the last **24 h, 7 d or 30 
 |---|---|---|
 | **Usage** | Share of the rolling 5-hour and weekly limits, in total and per automation | From every limit reading a run reports; each rise is split evenly among the runs running |
 | **Attention** | Time per item, approved, rejected, sent back, patterns automated | One row per reaction, with the time you spent on the card |
-| **Understanding** | Consistency, open issues | With every validated transaction. Consistency is the share of entities whose references all resolve; open issues are the unverified issues and conflicts |
+| **Understanding** | Consistency, open issues | With every validated transaction. Consistency is the share of entities whose references all resolve; open issues are the unverified issues |
 | **Entities** | Counts by verification and by sync state | From the history of every entity's state |
 | **Implementation** | Outstanding issues, bugs, defects | With every validated transaction. Bugs are `Product/Bug` entities not yet verified and synced; defects are open issues raised by validation |
 | **Agents** | Runs, failures, average time and usage per automation; misalignments, recurring issues | Every run. Misalignments and recurring issues are recorded by optimization |
@@ -497,7 +493,6 @@ MOMENTUM_HOST=127.0.0.1
 | `MOMENTUM_HOST` | the Tailscale IPv4 address | Address the API listens on |
 | `MOMENTUM_PORT` | `7300` | API port |
 | `MOMENTUM_PROCGOV` | `procgov` | Process Governor executable |
-| `MOMENTUM_RUNS` | `<root>\.runs` | Run checkouts |
 | `MOMENTUM_RUN_MEMORY` | `4G` | Memory per run, child processes included |
 | `MOMENTUM_RUN_CPUS` | `4` | CPU cores per run |
 | `MOMENTUM_RUN_DATABASE_URL` | none | A database a run may use, given to it as `DATABASE_URL` |
@@ -519,7 +514,7 @@ The server does not start without a password. Generate one; it is written to `<r
 pnpm momentum generate-password
 ```
 
-Start the back end and the web app. The back end restarts on every change. The web app is exported from the main line, never from uncommitted edits, again whenever a commit changes the app or the contract:
+Start the back end and the web app. Both serve the main line: the back end restarts whenever a commit changes its sources, and the web app is exported again whenever a commit changes the app or the contract. Edits in progress in the working directory, a run's or yours, never restart or reach them:
 
 ```bash
 pnpm dev

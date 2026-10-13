@@ -103,8 +103,7 @@ const subjectOf = (message: string | null | undefined) => {
 export function describeRun(automation: string, kind: TimelineKind, facts: TimelineFacts, detail: string | null): string {
   // The automation is shown beside the title and the icon says what happened: the title is what the run did
   const own = facts.runTitle ? `: ${facts.runTitle}` : '';
-  const counts = [facts.issues ? plural(facts.issues, 'issue') : '', facts.conflicts?.length ? plural(facts.conflicts.length, 'conflict') : ''].filter(Boolean);
-  const did = facts.subject ? `${facts.subject}${counts.length ? ` · ${counts.join(', ')}` : ''}` : null;
+  const did = facts.subject ? `${facts.subject}${facts.issues ? ` · ${plural(facts.issues, 'issue')}` : ''}` : null;
   switch (kind) {
     case 'run_failed':
       return `Failed: ${firstLine(detail) ?? 'no reason given'}`;
@@ -190,18 +189,16 @@ interface Landed {
   paths: string[];
   removed?: { path: string; title: string }[];
   issues: number;
-  conflicts: string[];
   /** What landing did to the counts of entities by state */
   states?: EntityStates;
   at?: Date;
 }
 
 /** What one or more landings of a run add to its event */
-const landedFacts = (l: Pick<Landed, 'paths' | 'removed' | 'issues' | 'conflicts' | 'commit' | 'message'>): TimelineFacts => ({
+const landedFacts = (l: Pick<Landed, 'paths' | 'removed' | 'issues' | 'commit' | 'message'>): TimelineFacts => ({
   paths: l.paths,
   ...(l.removed?.length ? { removed: l.removed } : {}),
   issues: l.issues,
-  conflicts: l.conflicts,
   ...(l.commit ? { commit: l.commit } : {}),
   ...(subjectOf(l.message) ? { subject: subjectOf(l.message)! } : {}),
 });

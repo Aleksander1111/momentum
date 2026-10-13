@@ -22,7 +22,7 @@ function rewrite(t: Turn, entity: string, docs: string[]): string {
     .replace(/(\n# [^\n]+\n)[\s\S]*$/, `$1\n${bullets.slice(0, 600)}\n`);
 }
 
-/** Whether an entity in the checkout points at an entity */
+/** Whether an entity in the working directory points at an entity */
 function referenced(t: Turn, entity: string): boolean {
   const root = t.file('knowledge-graph');
   const to = new RegExp(`^\\s*- to: ${entity}\\s*$`, 'm');

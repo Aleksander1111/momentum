@@ -17,6 +17,6 @@ A self-hosted harness: the single entry point between one user and the work arou
 |---|---|
 | Attention | One feed across projects, ranked by product, timeline and unlock impact. Only approved work counts |
 | Understanding | A Graph RAG knowledge base per workspace. A guard validates every change |
-| Implementation | Claude Code runs, one process and detached checkout each, landed on the main line; automation runs queued per project, paused at the feed limit |
+| Implementation | Claude Code runs, one at a time per project in its folder, landed on the main line; automation runs paused at the feed limit |
 
 Enabling a project starts its graph build. A Stop hook summarizes every run's artifacts. Usage: % of the 5-hour and weekly limits.

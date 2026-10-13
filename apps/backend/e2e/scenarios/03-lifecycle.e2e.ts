@@ -1,5 +1,3 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 
@@ -47,6 +45,6 @@ scenario('lifecycle', { enabled: [WS], graphBuild: 'building' }, async ({ env, a
     expect((await api.entities(WS)).every((e) => e.type === 'Harness/Trigger')).toBe(true);
     const runs = await api.runs(WS);
     expect(runs.every((r) => r.automation === 'graph-build')).toBe(true);
-    expect(existsSync(join(env.dir, 'runs', WS)) ? runs.length : 0).toBeLessThanOrEqual(1);
+    expect(env.git(WS, 'worktree', 'list').split('\n').filter(Boolean)).toHaveLength(1);
   });
 });

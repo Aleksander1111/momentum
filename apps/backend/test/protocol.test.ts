@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { kindOf, messageFileOf } from '../e2e/support/scripted.ts';
 import { bookkeeping } from '../src/hooks.ts';
-import { CHECKOUT, messageRequest, RUN_LINE, runLine, SAY, workspaceLine } from '../src/protocol.ts';
+import { messageRequest, RUN_LINE, runLine, SAY, WORKING_DIR, workspaceLine } from '../src/protocol.ts';
 
 // The end-to-end stand-in for the model reads what the harness writes: both sides use one protocol
 describe('the protocol between the harness and what reads its runs', () => {
-  const file = 'C:/Projects/.runs/momentum/ab12cd34/.git/worktrees/ab12cd34/MOMENTUM_MSG';
+  const file = 'C:/Projects/momentum/.git/MOMENTUM_MSG';
 
   it('asks for the commit message where the stand-in finds it, as bookkeeping', () => {
     const request = messageRequest(file);
@@ -31,7 +31,6 @@ describe('the protocol between the harness and what reads its runs', () => {
       undefined,
     ]);
     expect(RUN_LINE.exec(runLine({ ...run, targetPath: 'Product/Feature/search' }))?.[4]).toBe('Product/Feature/search');
-    const checkout = 'C:/Projects/.runs/my app/ab12cd34';
-    expect(CHECKOUT.exec(workspaceLine({ name: 'my-app', path: 'C:/Projects/my app', main: 'main' }, checkout))?.[1]).toBe(checkout);
+    expect(WORKING_DIR.exec(workspaceLine({ name: 'my-app', path: 'C:/Projects/my app', main: 'main' }))?.[1]).toBe('C:/Projects/my app');
   });
 });

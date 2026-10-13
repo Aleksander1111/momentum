@@ -8,6 +8,8 @@ import { plainText } from '../support/landed.ts';
 import { move, type Turn } from '../support/scripted.ts';
 
 const WS = 'bookshelf-api';
+/** A second project: two runs at once are runs of two projects, each in its own working directory */
+const OTHER = 'todo-cli';
 const SUPPORT = join(REPO, 'apps', 'backend', 'e2e', 'support').replaceAll('\\', '/');
 /** The limits this world sets for runs, tighter than the defaults: what the jobs report shows they came from here */
 const LIMITS = { MOMENTUM_RUN_MEMORY: '2G', MOMENTUM_RUN_CPUS: '2' };
@@ -23,7 +25,7 @@ interface JobLimits {
 }
 
 // The account's limits are what the scripted answers report, as the real API's headers do: the scenario moves them
-scenario('run-accounting', { enabled: [WS], env: LIMITS }, async ({ env, api, app, model, step }) => {
+scenario('run-accounting', { enabled: [WS, OTHER], env: LIMITS }, async ({ env, api, app, model, step }) => {
   test.skip(model.live, 'The account limits are the real ones when live: the rises cannot be set');
   model.limits = { fiveHour: 10, week: 5 };
   let gate = Promise.resolve();
@@ -35,9 +37,9 @@ scenario('run-accounting', { enabled: [WS], env: LIMITS }, async ({ env, api, ap
   const readings = async (since: Date) =>
     (await env.sql<{ n: number }[]>`select count(*)::int as n from harness.usage_sample where at >= ${since}`)[0]!.n;
   /** A chat whose first answer waits, once a reading was taken while it ran, so the next rise is partly its own */
-  const started = async (question: string) => {
+  const started = async (question: string, ws: string = WS) => {
     const since = new Date();
-    const { runId } = await api.chat(WS, question);
+    const { runId } = await api.chat(ws, question);
     await until(`${runId} waiting on its answer`, async () => model.turns(runId).length > 0, 2 * 60_000, 500);
     await until(`a reading while ${runId} runs`, async () => (await readings(since)) > 0, 60_000, 500);
     return runId;
@@ -64,7 +66,7 @@ scenario('run-accounting', { enabled: [WS], env: LIMITS }, async ({ env, api, ap
 
   await step(1, async () => {
     hold();
-    const [first, second] = [await started('Usage: which route creates a book?'), await started('Usage: where are the books kept?')];
+    const [first, second] = [await started('Usage: which route creates a book?'), await started('Usage: where are the to-dos kept?', OTHER)];
     // Both running and both read: ten points go, split between them
     expect((await api.run(first)).status).toBe('running');
     model.limits = { fiveHour: 26, week: 12 };

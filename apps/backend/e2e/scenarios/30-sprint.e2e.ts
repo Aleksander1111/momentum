@@ -54,7 +54,7 @@ scenario('sprint', { enabled: [WS], graphBuild: 'complete', triggers: ['implemen
   model.on('implementation', { automation: 'implementation', kind: 'prompt' }, (t) => {
     // The API refuses the export's first try: an outage, injected at the network, live too
     if (t.target === tasks.export && failExport) return [move.error(400, 'Injected: the request was refused')];
-    // Search waits to start until the user has asked how the sprint goes: held at the network, live too
+    // Search is held until the user has asked how the sprint goes: held at the network, live too
     if (t.target === tasks.search) return [move.gate(held), move.write(t, 'src/find.js', 'export const find = (todos, words) => todos.filter((t) => t.text.includes(words));\n'), move.say('Search done.')];
     return t.target ? [move.write(t, `src/${t.target.split('/').pop()}.js`, '// done\n'), move.say('Done.')] : [move.say('Nothing to implement.')];
   });
@@ -69,7 +69,7 @@ scenario('sprint', { enabled: [WS], graphBuild: 'complete', triggers: ['implemen
       move.say('Summarized.'),
     ];
   });
-  model.on('a question during the sprint', (t) => t.automation === 'chat' && t.kind === 'prompt' && /how far/i.test(t.input), () => [move.say('Search is being implemented.')]);
+  model.on('a question during the sprint', (t) => t.automation === 'chat' && t.kind === 'prompt' && /how far/i.test(t.input), () => [move.say('Search has landed; the export is next.')]);
 
   await step(0, async () => {
     env.commit(WS, TODO_GRAPH, 'Map the repository');
@@ -114,15 +114,20 @@ scenario('sprint', { enabled: [WS], graphBuild: 'complete', triggers: ['implemen
     await app.approve(WS, tasks.search);
     await app.approve(WS, tasks.export);
     const search = await until('search under way', async () => (await api.runs(WS, 'implementation')).find((r) => r.target_path === tasks.search && r.status === 'running'), 2 * 60_000);
-    // The user asks how it goes; the chat answers at once, beside the implementation
+    // The user asks how it goes: the chat waits for the run working in the project's one working directory
     const chat = await app.chat(WS, 'How far is the sprint?');
-    expect((await api.runEnded(chat, 10 * 60_000)).status).toBe('finished');
-    expect((await api.runs(WS, 'implementation')).find((r) => r.target_path === tasks.export)?.status).toBe('queued');
+    await new Promise((r) => setTimeout(r, 9000));
+    expect((await api.run(chat)).status).toBe('queued');
     open();
     expect((await api.runEnded(search.id, 30 * 60_000)).status).toBe('finished');
+    // The user's chat goes next, ahead of the task approved before it
+    const answered = await api.runEnded(chat, 10 * 60_000);
+    expect(answered.status).toBe('finished');
     const exp = await until('the export run to end', async () => (await api.runs(WS, 'implementation')).find((r) => r.target_path === tasks.export && r.status === 'failed'), 5 * 60_000);
+    const searched = (await api.runs(WS, 'implementation')).find((r) => r.id === search.id)!;
+    expect(+new Date(answered.startedAt!)).toBeGreaterThanOrEqual(+searched.ended_at!);
     // In approval order, one at a time
-    expect(+exp.started_at!).toBeGreaterThanOrEqual(+(await api.runs(WS, 'implementation')).find((r) => r.id === search.id)!.ended_at!);
+    expect(+exp.started_at!).toBeGreaterThanOrEqual(+new Date(answered.endedAt!));
     expect(exp.created_at >= since).toBe(true);
   });
 

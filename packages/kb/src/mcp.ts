@@ -11,8 +11,8 @@ import type { WorkspaceIndex } from './workspace-index.ts';
 export interface KbServerContext {
   index: WorkspaceIndex;
   embed: Embed;
-  /** The workspace's run checkout; reads prefer it and writes land in it, on the main line when the run ends */
-  checkout: string;
+  /** The project's working directory, where the run works; reads prefer it and writes go to it, onto the main line when the run ends */
+  dir: string;
   runId: string;
   validation: () => Promise<Omit<ValidationContext, 'resolves'>>;
   /** The entity types a path may start with, Domain/Type, with what each is for */
@@ -26,7 +26,7 @@ const text = (value: unknown) => ({
 
 /** momentum-kb: the knowledge base for a run, started by the SDK in-process */
 export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInstance {
-  const resolves = (checkout: string) => (p: string) => existsSync(join(checkout, fileOf(p)));
+  const resolves = (dir: string) => (p: string) => existsSync(join(dir, fileOf(p)));
   return createSdkMcpServer({
     name: 'momentum-kb',
     version: '0.0.0',
@@ -42,10 +42,10 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
       ),
       tool(
         'read',
-        'Read one entity by path (e.g. Product/Feature/offline-feed): its markdown file as it stands in this run\'s checkout, or from the index when the checkout does not have it.',
+        'Read one entity by path (e.g. Product/Feature/offline-feed): its markdown file as it stands in the working directory, or from the index when the working directory does not have it.',
         { path: z.string().min(1) },
         async ({ path }) => {
-          const file = join(ctx.checkout, fileOf(path));
+          const file = join(ctx.dir, fileOf(path));
           if (existsSync(file)) return text(await readFile(file, 'utf8'));
           const d = await ctx.index.detail(path);
           return text(d ? { ...d, card: undefined } : `No entity at ${path}`);
@@ -70,7 +70,7 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
       ),
       tool(
         'write',
-        'Write an entity to knowledge-graph/<path>.md in this run\'s checkout; it lands on the main line when the run ends. The path starts with the type path (Domain/Type from entity-types.tsv; the types tool lists them). The body is the card without its title, which is written as its heading: free-form markdown within the character limit in your instructions, in the form that presents the entity best. Where naming another entity helps the reading, link it where it is named, [its title](Domain/Type/name); every entity linked is also in references. Returns validation issues, which the consistency guard will also raise.',
+        'Write an entity to knowledge-graph/<path>.md in the working directory; it lands on the main line when the run ends. The path starts with the type path (Domain/Type from entity-types.tsv; the types tool lists them). The body is the card without its title, which is written as its heading: free-form markdown within the character limit in your instructions, in the form that presents the entity best. Where naming another entity helps the reading, link it where it is named, [its title](Domain/Type/name); every entity linked is also in references. Returns validation issues, which the consistency guard will also raise.',
         {
           path: z.string().min(1),
           title: z.string().min(1),
@@ -84,10 +84,10 @@ export function createKbServer(ctx: KbServerContext): McpSdkServerConfigWithInst
           const heading = /^\s*#[ \t]+(.+?)[ \t]*(?:\r?\n|$)/.exec(body);
           const card = heading && heading[1]!.toLowerCase() === title.trim().toLowerCase() ? body.slice(heading[0].length).replace(/^\s+/, '') : body;
           const markdown = serializeEntity({ frontmatter: fm.data, title, body: card });
-          const file = join(ctx.checkout, fileOf(path));
+          const file = join(ctx.dir, fileOf(path));
           await mkdir(dirname(file), { recursive: true });
           await writeFile(file, markdown, 'utf8');
-          const { issues } = validateText(path, markdown, { ...(await ctx.validation()), resolves: resolves(ctx.checkout) });
+          const { issues } = validateText(path, markdown, { ...(await ctx.validation()), resolves: resolves(ctx.dir) });
           return text(issues.length === 0 ? `Wrote ${fileOf(path)}` : { wrote: fileOf(path), issues });
         },
       ),

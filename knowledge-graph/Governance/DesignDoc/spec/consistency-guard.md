@@ -18,6 +18,5 @@ Keeps the knowledge base consistent despite free access, reacting to every chang
 - Groups the changes of one run into a transaction, validates it and lands it on the main line as one commit
 - Validates types and the references between entities
 - Changes that cannot be made consistent land all the same, with an issue entity over them
-- A change conflicting with the main line meanwhile lands on the run's side, raised as a conflict entity
 - Updates the index and metrics database in every validated transaction
 - Maintains sync: `updating`, `artifact_ahead`, `entity_ahead`, `synced`

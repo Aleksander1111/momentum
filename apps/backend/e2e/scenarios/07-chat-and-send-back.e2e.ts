@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs';
 import { until } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
 
@@ -61,8 +60,9 @@ scenario('chat-and-send-back', { enabled: [WS] }, async ({ env, api, app, step }
     await api.mcp('kill_run', { id: chat });
     const r = await api.runEnded(chat);
     expect(r.status).toBe('killed');
-    expect(existsSync(r.checkout)).toBe(false);
-    // Whatever it wrote before it was killed landed on the main line
+    // Whatever it wrote before it was killed landed on the main line, in the project's one working directory
+    expect(env.git(WS, 'worktree', 'list').split('\n').filter(Boolean)).toHaveLength(1);
+    expect(env.git(WS, 'diff', '--name-only', 'HEAD')).toBe('');
     const [t] = await env.sql<{ run_id: string }[]>`select run_id from ${env.sql('ws_bookshelf_api.transaction')} where run_id = ${chat}`;
     expect(t?.run_id).toBe(chat);
   });

@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
@@ -74,8 +74,9 @@ export async function currentBranch(cwd: string): Promise<string> {
 }
 
 /**
- * What keeps a repository from being one straight line: a detached HEAD, any branch besides the one checked out, and
- * merge commits on it since `since`. Work happens on one line, one change after another; none of these is allowed.
+ * What keeps a repository from being one straight line in one working directory: a detached HEAD, any branch besides
+ * the one checked out, a worktree besides its own working directory, and merge commits on it since `since`. Work happens
+ * on one line in one place, one change after another; none of these is allowed.
  */
 export async function nonLinear(repo: string, since?: string | null): Promise<string[]> {
   const reasons: string[] = [];
@@ -85,6 +86,8 @@ export async function nonLinear(repo: string, since?: string | null): Promise<st
   // Detached, the one branch there is is the line it left, not a second one
   const others = line ? branches.filter((b) => b !== line) : branches.length > 1 ? branches : [];
   if (others.length > 0) reasons.push(`it has ${others.length === 1 ? 'a branch' : 'branches'} besides ${line ?? 'its line'}: ${others.join(', ')}`);
+  const linked = await linkedWorktrees(repo);
+  if (linked.length > 0) reasons.push(`it has ${linked.length === 1 ? 'a worktree' : 'worktrees'} besides its working directory: ${linked.join(', ')}`);
   if (since && line) {
     const merges = await mergesBetween(repo, since, `refs/heads/${line}`);
     if (merges.length > 0) reasons.push(`merge commits landed on ${line}: ${merges.map((m) => m.slice(0, 7)).join(', ')}`);
@@ -99,8 +102,7 @@ export async function mergesBetween(repo: string, from: string, to: string): Pro
 
 /**
  * What a run leaves is read as the repository keeps its text: a run on Windows may write a file back with CRLF, which
- * would change every line and turn any change the main line made meanwhile into a conflict. Files the repository
- * holds with CRLF stay so.
+ * would change every line of it. Files the repository holds with CRLF stay so.
  */
 const AS_STORED = ['-c', 'core.autocrlf=input'];
 
@@ -109,65 +111,60 @@ export async function isClean(cwd: string): Promise<boolean> {
   return !(await git(cwd, [...AS_STORED, 'status', '--porcelain'])).trim();
 }
 
-/**
- * The run checkout of a workspace: one detached worktree, at the tip of the main line, where every run of the
- * workspace works one after another. Nothing is branched: what a run leaves lands on the main line when it ends.
- */
-export async function ensureCheckout(repo: string, checkout: string, main: string): Promise<void> {
-  if (existsSync(checkout)) return;
-  await mkdir(dirname(checkout), { recursive: true });
-  await git(repo, ['worktree', 'prune']);
-  await git(repo, ['worktree', 'add', '--detach', checkout, `refs/heads/${main}`]);
-}
-
-/** Moves a clean checkout to a commit, so a run starts from the main line as it stands */
-export async function moveCheckout(checkout: string, ref: string): Promise<void> {
-  await git(checkout, ['checkout', '-q', '--detach', ref]);
-}
-
-export async function removeWorktree(repo: string, checkout: string): Promise<void> {
-  // Twice --force: a worktree left locked by an interrupted add goes too, and so does its entry once the directory is gone
-  if (existsSync(checkout)) await git(repo, ['worktree', 'remove', '--force', '--force', checkout]);
-  else await git(repo, ['worktree', 'unlock', checkout]).catch(() => {});
-  await git(repo, ['worktree', 'prune']);
-}
-
-/** Directories of the repository's linked worktrees */
-export async function worktreeDirs(repo: string): Promise<string[]> {
+/** Directories of the repository's linked worktrees, besides its own working directory */
+async function linkedWorktrees(repo: string): Promise<string[]> {
   const out = await git(repo, ['worktree', 'list', '--porcelain']);
-  return out
+  const dirs = out
     .split('\n')
     .filter((l) => l.startsWith('worktree '))
     .map((l) => l.slice('worktree '.length).trim());
+  return dirs.slice(1);
+}
+
+/**
+ * Commits that change the main line of one repository go one after another: a run's commit and a reaction committed
+ * meanwhile never read the same index or the same tip
+ */
+const committing = new Map<string, Promise<unknown>>();
+function oneAtATime<T>(repo: string, fn: () => Promise<T>): Promise<T> {
+  const key = resolve(repo).toLowerCase();
+  const next = (committing.get(key) ?? Promise.resolve()).catch(() => {}).then(fn);
+  committing.set(key, next);
+  void next
+    .finally(() => {
+      if (committing.get(key) === next) committing.delete(key);
+    })
+    .catch(() => {});
+  return next;
 }
 
 const IDENTITY = ['-c', 'user.name=Momentum', '-c', 'user.email=momentum@localhost'];
 const ADD = [...AS_STORED, 'add', '-A'];
 
-/** Commits everything in the checkout; returns the new commit, or null when nothing changed */
-export async function commitAll(checkout: string, message: string): Promise<string | null> {
-  await git(checkout, ADD);
-  if (await isClean(checkout)) return null;
-  await git(checkout, [...IDENTITY, 'commit', '-q', '-m', message]);
-  return head(checkout);
+/** Commits everything in the working directory; returns the new commit, or null when nothing changed */
+export async function commitAll(cwd: string, message: string): Promise<string | null> {
+  await git(cwd, ADD);
+  if (await isClean(cwd)) return null;
+  await git(cwd, [...IDENTITY, 'commit', '-q', '-m', message]);
+  return head(cwd);
 }
 
-/** Where a run leaves the commit message for its changes: the checkout's own git directory, so it is never committed */
-export async function messageFile(checkout: string): Promise<string> {
-  return resolve(checkout, (await git(checkout, ['rev-parse', '--git-path', 'MOMENTUM_MSG'])).trim());
+/** Where a run leaves the commit message for its changes: the repository's git directory, so it is never committed */
+export async function messageFile(cwd: string): Promise<string> {
+  return resolve(cwd, (await git(cwd, ['rev-parse', '--git-path', 'MOMENTUM_MSG'])).trim());
 }
 
 /**
- * The tree the checkout would commit, untracked files included, without touching its index: the same tree for the
- * same changes. A copy of the index keeps its stat cache, so unchanged files are not hashed again.
+ * The tree the working directory would commit, untracked files included, without touching its index: the same tree for
+ * the same changes. A copy of the index keeps its stat cache, so unchanged files are not hashed again.
  */
-export async function workingTree(checkout: string): Promise<string> {
+export async function workingTree(cwd: string): Promise<string> {
   const index = join(tmpdir(), `momentum-index-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const env = { ...process.env, GIT_INDEX_FILE: index };
   try {
-    await copyFile(resolve(checkout, (await git(checkout, ['rev-parse', '--git-path', 'index'])).trim()), index);
-    await exec('git', ADD, { cwd: checkout, env, ...OPTIONS });
-    return (await exec('git', ['write-tree'], { cwd: checkout, env, ...OPTIONS })).stdout.trim();
+    await copyFile(resolve(cwd, (await git(cwd, ['rev-parse', '--git-path', 'index'])).trim()), index);
+    await exec('git', ADD, { cwd, env, ...OPTIONS });
+    return (await exec('git', ['write-tree'], { cwd, env, ...OPTIONS })).stdout.trim();
   } finally {
     await rm(index, { force: true });
   }
@@ -211,14 +208,14 @@ export async function show(cwd: string, ref: string, path: string): Promise<stri
   }
 }
 
-/** Puts a path of a checkout back as `base` has it: its content there, or gone when it had none there */
-export async function restorePath(checkout: string, base: string, path: string): Promise<void> {
-  if ((await git(checkout, ['ls-tree', '--name-only', base, '--', path])).trim()) {
-    await git(checkout, ['checkout', base, '--', path]);
+/** Puts a path of a working directory back as `base` has it: its content there, or gone when it had none there */
+export async function restorePath(cwd: string, base: string, path: string): Promise<void> {
+  if ((await git(cwd, ['ls-tree', '--name-only', base, '--', path])).trim()) {
+    await git(cwd, ['checkout', base, '--', path]);
     return;
   }
-  await git(checkout, ['rm', '-q', '-f', '--cached', '--ignore-unmatch', '--', path]);
-  await rm(join(checkout, path), { force: true });
+  await git(cwd, ['rm', '-q', '-f', '--cached', '--ignore-unmatch', '--', path]);
+  await rm(join(cwd, path), { force: true });
 }
 
 /** Commits that changed a file, newest first, up to `ref` */
@@ -249,167 +246,119 @@ function withIndex(repo: string) {
 }
 
 /**
- * Commits the given file contents onto `targetBranch` without touching any working tree;
- * then brings the files up to date in the checkout that has the branch checked out, where they were clean.
+ * Commits the given file contents onto `targetBranch` without touching the working directory's index or files first;
+ * then brings the files up to date in the working directory, which has the branch checked out
  */
-export async function commitPathsFrom(
+export function commitPathsFrom(
   repo: string,
   targetBranch: string,
   files: { path: string; content: string | null }[],
   message: string,
 ): Promise<string> {
-  const first = await head(repo, `refs/heads/${targetBranch}`);
-  let parent = first;
-  // A run may land on the branch while this commit is built: built again on the new tip, unless it touched these files
-  for (let attempt = 0; ; attempt++) {
-    const { run, done } = withIndex(repo);
-    try {
-      await run(['read-tree', parent]);
-      for (const f of files) {
-        if (f.content === null) {
-          await run(['update-index', '--force-remove', '--', f.path]);
-        } else {
-          const blob = await run(['hash-object', '-w', '--stdin'], f.content);
-          await run(['update-index', '--add', '--cacheinfo', `100644,${blob},${f.path}`]);
+  return oneAtATime(repo, async () => {
+    const first = await head(repo, `refs/heads/${targetBranch}`);
+    let parent = first;
+    // The user may commit while this commit is built: built again on the new tip, unless they touched these files
+    for (let attempt = 0; ; attempt++) {
+      const { run, done } = withIndex(repo);
+      try {
+        await run(['read-tree', parent]);
+        for (const f of files) {
+          if (f.content === null) {
+            await run(['update-index', '--force-remove', '--', f.path]);
+          } else {
+            const blob = await run(['hash-object', '-w', '--stdin'], f.content);
+            await run(['update-index', '--add', '--cacheinfo', `100644,${blob},${f.path}`]);
+          }
         }
+        const tree = await run(['write-tree']);
+        const commit = await run([...IDENTITY, 'commit-tree', tree, '-p', parent, '-m', message]);
+        const moved = await git(repo, ['update-ref', `refs/heads/${targetBranch}`, commit, parent]).then(
+          () => false,
+          (e) => {
+            if (attempt >= 4) throw e;
+            return true;
+          },
+        );
+        if (!moved) {
+          await followInWorkingDir(repo, targetBranch, parent, files.map((f) => f.path));
+          return commit;
+        }
+      } finally {
+        await done();
       }
-      const tree = await run(['write-tree']);
-      const commit = await run([...IDENTITY, 'commit-tree', tree, '-p', parent, '-m', message]);
-      const moved = await git(repo, ['update-ref', `refs/heads/${targetBranch}`, commit, parent]).then(
-        () => false,
-        (e) => {
-          if (attempt >= 4) throw e;
-          return true;
-        },
-      );
-      if (!moved) {
-        await syncCheckedOut(repo, targetBranch, parent, files.map((f) => f.path));
-        return commit;
-      }
-    } finally {
-      await done();
+      const tip = await head(repo, `refs/heads/${targetBranch}`);
+      const ours = new Set(files.map((f) => f.path));
+      const touched = (await changes(repo, first, tip)).map((c) => c.path).filter((p) => ours.has(p));
+      if (touched.length > 0) throw new PathsChanged(touched);
+      parent = tip;
     }
-    const tip = await head(repo, `refs/heads/${targetBranch}`);
-    const ours = new Set(files.map((f) => f.path));
-    const touched = (await changes(repo, first, tip)).map((c) => c.path).filter((p) => ours.has(p));
-    if (touched.length > 0) throw new PathsChanged(touched);
-    parent = tip;
-  }
+  });
 }
 
-/** Updates the files in the working tree that has `branch` checked out, where they matched the previous commit */
-async function syncCheckedOut(repo: string, branch: string, previous: string, paths: string[]): Promise<void> {
-  const list = await git(repo, ['worktree', 'list', '--porcelain']);
-  const tree = list
-    .split('\n\n')
-    .map((block) => ({
-      dir: /^worktree (.+)$/m.exec(block)?.[1],
-      branch: /^branch refs\/heads\/(.+)$/m.exec(block)?.[1],
-    }))
-    .find((w) => w.branch === branch)?.dir;
-  if (!tree) return;
+/**
+ * Brings the files a commit made beside the working directory up to date in it, when it has `branch` checked out. A
+ * file as the previous commit had it takes the new content; one with changes of its own keeps them, with the commit's
+ * change merged in beside them, its own side where both changed the same lines. The index follows the commit either way.
+ */
+async function followInWorkingDir(repo: string, branch: string, previous: string, paths: string[]): Promise<void> {
+  if ((await currentBranch(repo).catch(() => null)) !== branch) return;
   for (const path of paths) {
-    const dirty = (await git(tree, ['diff', '--name-only', previous, '--', path])).trim();
-    const untracked = (await git(tree, ['ls-files', '--others', '--exclude-standard', '--', path])).trim();
-    if (dirty || untracked) continue;
-    const exists = (await git(tree, ['ls-tree', '--name-only', 'HEAD', '--', path])).trim();
-    if (exists) await git(tree, ['checkout', 'HEAD', '--', path]);
-    else {
-      await git(tree, ['rm', '-q', '--cached', '--ignore-unmatch', '--', path]);
-      await rm(`${tree}/${path}`, { force: true });
+    const file = join(repo, path);
+    const dirty = (await git(repo, [...AS_STORED, 'diff', '--name-only', previous, '--', path])).trim();
+    const untracked = (await git(repo, ['ls-files', '--others', '--exclude-standard', '--', path])).trim();
+    const now = await show(repo, 'HEAD', path);
+    if (!dirty && !untracked) {
+      if (now !== null) await git(repo, ['checkout', 'HEAD', '--', path]);
+      else {
+        await git(repo, ['rm', '-q', '--cached', '--ignore-unmatch', '--', path]);
+        await rm(file, { force: true });
+      }
+      continue;
     }
+    if (now !== null && existsSync(file)) {
+      await writeFile(file, await mergeText(repo, await readFile(file, 'utf8'), (await show(repo, previous, path)) ?? '', now));
+    }
+    await git(repo, ['reset', '-q', 'HEAD', '--', path]);
   }
 }
 
-/** Files to land along with a commit whose changes conflicted: what the harness raises over the conflicts */
-export type OnConflicts = (conflicts: string[]) => Promise<{ path: string; content: string }[]>;
+/** A three-way merge of one text, `ours` winning where both sides changed the same lines; the line endings stay ours */
+async function mergeText(repo: string, ours: string, base: string, theirs: string): Promise<string> {
+  const lf = (s: string) => s.replace(/\r\n/g, '\n');
+  const dir = join(tmpdir(), `momentum-merge-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  await mkdir(dir, { recursive: true });
+  try {
+    const [o, b, t] = [join(dir, 'ours'), join(dir, 'base'), join(dir, 'theirs')];
+    await writeFile(o, lf(ours));
+    await writeFile(b, lf(base));
+    await writeFile(t, lf(theirs));
+    const merged = (await gitStatus(repo, ['merge-file', '-p', '--ours', o, b, t])).stdout;
+    return ours.includes('\r\n') ? merged.replace(/\n/g, '\r\n') : merged;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
 export interface Landed {
   commit: string;
-  /** Files whose changes conflicted with the main line; resolved in favour of the landing commit */
-  conflicts: string[];
   /** Files the main line changed by this landing */
   changed: string[];
 }
 
 /**
- * Lands a commit on the main line without a branch: fast-forwarded when the main line has not moved since the
- * commit's base, replayed onto the new tip as one commit otherwise, so the history stays one line. A conflicting file
- * takes the landing side whole, and `onConflicts` may add files to the same commit. Returns null when the main line
- * moved while landing; the caller tries again.
+ * What a run left in the repository's working directory, committed onto the main line there as one commit; null when
+ * it changed nothing. The working directory has the main line checked out: it is the only place a run works.
  */
-export async function landCommit(repo: string, main: string, tip: string, message: string, onConflicts?: OnConflicts): Promise<Landed | null> {
-  const target = `refs/heads/${main}`;
-  const current = await head(repo, target);
-  const base = await mergeBase(repo, current, tip);
-  if (base === current) {
-    try {
-      await git(repo, ['update-ref', target, tip, current]);
-    } catch {
-      return null;
-    }
-    const changed = (await changes(repo, current, tip)).map((c) => c.path);
-    await syncCheckedOut(repo, main, current, changed);
-    return { commit: tip, conflicts: [], changed };
-  }
-  const merged = await gitStatus(repo, ['merge-tree', '--write-tree', '--name-only', '--no-messages', `--merge-base=${base}`, current, tip]);
-  if (merged.code > 1) throw new GitError(`git merge-tree: exit ${merged.code}`, '');
-  const [treeLine, ...rest] = merged.stdout.split('\n');
-  const mergedTree = treeLine!.trim();
-  const conflicts = [...new Set(rest.map((l) => l.trim()).filter(Boolean))];
-  const { run, done } = withIndex(repo);
-  try {
-    await run(['read-tree', mergedTree]);
-    for (const path of conflicts) {
-      const landing = await show(repo, tip, path);
-      if (landing === null) {
-        await run(['update-index', '--force-remove', '--', path]);
-      } else {
-        const blob = await run(['hash-object', '-w', '--stdin'], landing);
-        await run(['update-index', '--add', '--cacheinfo', `100644,${blob},${path}`]);
-      }
-    }
-    for (const f of conflicts.length && onConflicts ? await onConflicts(conflicts) : []) {
-      const blob = await run(['hash-object', '-w', '--stdin'], f.content);
-      await run(['update-index', '--add', '--cacheinfo', `100644,${blob},${f.path}`]);
-    }
-    const tree = await run(['write-tree']);
-    const commit = await run([...IDENTITY, 'commit-tree', tree, '-p', current, '-m', message]);
-    try {
-      await git(repo, ['update-ref', target, commit, current]);
-    } catch {
-      return null;
-    }
-    const changed = (await changes(repo, current, commit)).map((c) => c.path);
-    await syncCheckedOut(repo, main, current, changed);
-    return { commit, conflicts, changed };
-  } finally {
-    await done();
-  }
-}
-
-/**
- * What a run left in the checkout, committed and landed on the main line; the checkout then stands at the landed
- * commit. Returns null when the run changed nothing.
- */
-export async function land(repo: string, main: string, checkout: string, message: string, onConflicts?: OnConflicts): Promise<Landed | null> {
-  // A run told never to commit may still have: its own commits land like the changes it left
-  const tip = (await commitAll(checkout, message)) ?? (await ownCommits(repo, main, checkout));
-  if (!tip) return null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const landed = await landCommit(repo, main, tip, message, onConflicts);
-    if (landed) {
-      await git(checkout, ['reset', '-q', '--hard', landed.commit]);
-      return landed;
-    }
-  }
-  throw new GitError(`could not land ${tip} on ${main}: the main line kept moving`, '');
-}
-
-/** The checkout's head when it has commits the main line does not */
-async function ownCommits(repo: string, main: string, checkout: string): Promise<string | null> {
-  const tip = await head(checkout);
-  return (await mergeBase(repo, `refs/heads/${main}`, tip)) === tip ? null : tip;
+export function land(repo: string, main: string, message: string): Promise<Landed | null> {
+  return oneAtATime(repo, async () => {
+    const line = await currentBranch(repo).catch(() => null);
+    if (line !== main) throw new GitError(`${repo} does not have ${main} checked out${line ? `; it is on ${line}` : ''}`, '');
+    const before = await head(repo);
+    const commit = await commitAll(repo, message);
+    if (!commit) return null;
+    return { commit, changed: (await changes(repo, before, commit)).map((c) => c.path) };
+  });
 }
 
 /** Changes of the working tree against `base`, committed or not, including untracked files */

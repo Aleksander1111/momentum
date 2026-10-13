@@ -139,7 +139,6 @@ create table if not exists ${s}.automation (
 create table if not exists ${s}.run (
   id text primary key,
   automation text not null,
-  checkout text not null,
   trigger text not null,
   target_path text,
   -- Entities the run works on besides its target, such as those a summarization run rewrites
@@ -250,7 +249,6 @@ create table if not exists ${s}.transaction (
   paths text[] not null,
   status text not null,
   issues jsonb not null default '[]',
-  conflicts text[] not null default '{}',
   created_at timestamptz not null default now()
 );
 create index if not exists transaction_run on ${s}.transaction (run_id);
@@ -316,6 +314,9 @@ create table if not exists ${s}.implementation_metric (
   recorded_at timestamptz not null default now()
 );
 create index if not exists implementation_metric_recorded on ${s}.implementation_metric (recorded_at);
+-- Runs work in the project's working directory, one at a time: none has a directory of its own or lands beside another
+alter table ${s}.run drop column if exists checkout;
+alter table ${s}.transaction drop column if exists conflicts;
 ${checksDdl(s)}
 `;
 }

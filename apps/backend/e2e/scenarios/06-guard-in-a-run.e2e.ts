@@ -14,20 +14,21 @@ const ASK = ask(FILE, 'to-do priorities (low, normal, high; list sorts by priori
 const bad = (text: string, missing = 'Product/Feature/tags') => text.includes(missing);
 
 scenario('guard-in-a-run', { enabled: [WS] }, async ({ env, api, app, step }) => {
-  const watchCheckout = (runId: string) => {
+  /** The project's working directory, where the run writes */
+  const dir = env.path(WS);
+  const watchWorkingDir = () => {
     let seenBad = false;
-    const timer = setInterval(async () => {
-      const r = await api.run(runId).catch(() => null);
-      const file = r && join(r.checkout, FILE);
-      if (file && existsSync(file) && bad(readFileSync(file, 'utf8'))) seenBad = true;
+    const timer = setInterval(() => {
+      const file = join(dir, FILE);
+      if (existsSync(file) && bad(readFileSync(file, 'utf8'))) seenBad = true;
     }, 500);
     return { stop: () => clearInterval(timer), seen: () => seenBad };
   };
 
   const first = await step(0, async () => {
     const runId = await app.chat(WS, ASK);
-    const watch = watchCheckout(runId);
-    await until('the bad entity in the checkout', async () => watch.seen(), 10 * 60_000);
+    const watch = watchWorkingDir();
+    await until('the bad entity in the working directory', async () => watch.seen(), 10 * 60_000);
     return { runId, watch };
   });
 
@@ -52,10 +53,7 @@ scenario('guard-in-a-run', { enabled: [WS] }, async ({ env, api, app, step }) =>
     // Not tags: a real run may have fixed step 1 by writing the tags feature
     const missing = 'Product/Feature/recurrence';
     const runId = await app.chat(WS, ask(file, 'reminders for to-dos', missing));
-    await until('the bad entity in the checkout', async () => {
-      const r = await api.run(runId);
-      return existsSync(join(r.checkout, file)) && bad(readFileSync(join(r.checkout, file), 'utf8'), missing);
-    }, 10 * 60_000, 300);
+    await until('the bad entity in the working directory', async () => existsSync(join(dir, file)) && bad(readFileSync(join(dir, file), 'utf8'), missing), 10 * 60_000, 300);
     await api.mcp('kill_run', { id: runId });
     expect((await api.runEnded(runId)).status).toBe('killed');
     expect(env.show(WS, file)).not.toBeNull();

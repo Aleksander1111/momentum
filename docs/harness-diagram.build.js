@@ -16,9 +16,9 @@ const HARNESS = [
   ['Metrics', ['Share of the usage limits', 'Entities by state', 'Runs per automation', '24 h, 7 d or 30 d'], 'FaChartLine'],
   ['Settings', ['Projects and graph build', 'Feed size', 'Cards and lifetimes', 'Concurrent runs'], 'FaGear'],
   ['API', ['Typed routes, OpenAPI', 'Session on every route but sign-in', 'Voice sockets', 'MCP tools'], 'FaPlug'],
-  ['Orchestrator', ['Triggers due, feed room left', 'Events start runs', 'One automation per project', 'Your runs at once'], 'FaSitemap'],
-  ['Runner', ['Claude Code, one per run', 'Own main-line checkout', 'Stop hook summarizes', 'Lost runs resume'], 'FaTerminal'],
-  ['Consistency Guard', ['Checks every write', 'One commit per run', 'Issues, conflicts, reports', 'Index true to the main line'], 'FaShieldHalved'],
+  ['Orchestrator', ['Triggers due, feed room left', 'Events start runs', 'One run per project', 'Your runs first'], 'FaSitemap'],
+  ['Runner', ['Claude Code, one per run', 'In the project folder', 'Stop hook summarizes', 'Lost runs resume'], 'FaTerminal'],
+  ['Consistency Guard', ['Checks every write', 'One commit per run', 'Issues and reports', 'Index true to the main line'], 'FaShieldHalved'],
 ];
 
 // ---------------------------------------------------------------- geometry (inches, 13.333 x 7.5)

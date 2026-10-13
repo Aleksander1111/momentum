@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { graphIssues } from '../support/check.ts';
@@ -25,8 +25,8 @@ scenario('onboard', { settings: { feedSize: FEED } }, async ({ env, api, app, st
       return rows.length === TRIGGERS ? rows : null;
     });
     expect(triggers.every((t) => t.verification === 'unverified')).toBe(true);
-    // The user's checkout follows the main line, file by file, and is clean once it has
-    await until('the checkout to follow the main line', async () => env.git(WS, 'status', '--porcelain') === '', 60_000);
+    // The working directory follows the main line, file by file, and is clean once it has
+    await until('the working directory to follow the main line', async () => env.git(WS, 'status', '--porcelain') === '', 60_000);
   });
 
   await step(1, async () => {
@@ -75,9 +75,9 @@ scenario('onboard', { settings: { feedSize: FEED } }, async ({ env, api, app, st
     expect(usage.every((u) => u.usage_five_hour !== null)).toBe(true);
     const metrics = await env.sql<{ run_id: string }[]>`select run_id from ${env.sql('ws_todo_cli.agent_metric')}`;
     expect(new Set(metrics.map((m) => m.run_id))).toEqual(new Set(runs.map((r) => r.id)));
-    const checkouts = join(env.dir, 'runs', WS);
-    expect(existsSync(checkouts) ? readdirSync(checkouts) : []).toEqual([]);
-    expect(env.git(WS, 'worktree', 'list').split('\n')).toHaveLength(1);
+    // Every run worked in the project's one working directory: no worktree, nothing left uncommitted
+    expect(env.git(WS, 'worktree', 'list').split('\n').filter(Boolean)).toHaveLength(1);
+    expect(env.git(WS, 'diff', '--name-only', 'HEAD')).toBe('');
     expect(readFileSync(env.log, 'utf8')).not.toContain('procgov could not limit');
   });
 });

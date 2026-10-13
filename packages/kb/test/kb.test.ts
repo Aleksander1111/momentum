@@ -47,7 +47,7 @@ describe('migrations', () => {
 
   it('refuse a value the contract does not have', async () => {
     const run = (automation: string, status: string) =>
-      sql.unsafe(`insert into ws_kbtest.run (id, automation, checkout, trigger, status) values ($1, $2, 'x', 'event', $3)`, [`${automation}-${status}`, automation, status]);
+      sql.unsafe(`insert into ws_kbtest.run (id, automation, trigger, status) values ($1, $2, 'event', $3)`, [`${automation}-${status}`, automation, status]);
     await run('exploration', 'queued');
     await expect(run('mapping', 'queued')).rejects.toThrow(/run_automation_check/);
     await expect(run('exploration', 'paused')).rejects.toThrow(/run_status_check/);

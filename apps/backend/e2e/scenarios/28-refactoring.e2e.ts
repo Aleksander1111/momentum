@@ -46,7 +46,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 }
 `;
 
-/** An entity in the checkout with its artifacts replaced, unverified as summarization leaves it */
+/** An entity in the working directory with its artifacts replaced, unverified as summarization leaves it */
 const reartifact = (t: Turn, path: string, artifacts: string[]) =>
   readFileSync(t.file(kg(path)), 'utf8')
     .replace('verification: verified', 'verification: unverified')

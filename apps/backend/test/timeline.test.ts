@@ -50,7 +50,7 @@ describe('timeline', () => {
     timeline.listen(bus);
     const run = { id: 'g1', automation: 'graph-build', title: 'Knowledge graph', trigger: 'event' as const, model: 'sonnet' };
     await timeline.record({ actor: 'user', kind: 'signed_in', title: 'Signed in' });
-    const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, conflicts: [], removed: [], states: {} };
+    const base = { workspace: 'shop', automation: 'graph-build', message: 'Map the API\n\n- Books API', valid: true, issues: 0, removed: [], states: {} };
     // Landing and ending one right after the other, as a run does: neither is lost
     bus.emit('transaction', { ...base, runId: 'g1', commit: 'def', paths: ['Architecture/Api/a', 'Architecture/Api/b'], issues: 1, states: { unverified: 2, artifact_ahead: 2, updating: -2 } });
     await timeline.run(runEvent('shop', run, 'run_finished', { facts: { status: 'finished', durationMs: 5000, states: { updating: -1, synced: 1 } } }));
@@ -80,7 +80,7 @@ describe('timeline', () => {
   it('gives a chat an event only for what it lands, and skips a run that changed nothing', async () => {
     const bus = createBus();
     timeline.listen(bus);
-    const base = { workspace: 'shop', automation: 'chat', message: 'Rename the goal', valid: true, issues: 0, conflicts: [], removed: [], states: {} };
+    const base = { workspace: 'shop', automation: 'chat', message: 'Rename the goal', valid: true, issues: 0, removed: [], states: {} };
     bus.emit('transaction', { ...base, runId: 'c0', commit: null, paths: [] });
     bus.emit('transaction', { ...base, runId: 'c3', commit: 'fed', paths: ['Product/Goal/a'] });
     await new Promise((r) => setTimeout(r, 200));
@@ -104,8 +104,8 @@ describe('run titles', () => {
     expect(describeRun('exploration', 'run_finished', {}, null)).toBe('No changes');
     expect(describeRun('summarization', 'run_finished', { paths: ['a', 'b'] }, null)).toBe('Updated 2 entities');
     expect(describeRun('implementation', 'run_failed', {}, 'Tests failed\nat step 3')).toBe('Failed: Tests failed');
-    expect(describeRun('summarization', 'run_finished', { subject: 'Update Books API and 2 more', conflicts: ['a'] }, null)).toBe(
-      'Update Books API and 2 more · 1 conflict',
+    expect(describeRun('summarization', 'run_finished', { subject: 'Update Books API and 2 more', issues: 2 }, null)).toBe(
+      'Update Books API and 2 more · 2 issues',
     );
     expect(runEvent('shop', { id: 'x', automation: 'consistency-check' }, 'run_killed').title).toBe('Stopped');
     expect(runEvent('shop', { id: 'x', automation: 'chat', title: 'Ask' }, 'run_killed', { byUser: true }).title).toBe('Stopped by you: Ask');

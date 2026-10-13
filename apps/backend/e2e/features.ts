@@ -7,11 +7,11 @@ export const FEATURES = {
   'project.discover': 'Repositories under the workspaces root are listed as projects, disabled until enabled',
   'project.enable': 'Enabling materializes definitions, indexes the main line, proposes default triggers and starts the graph build',
   'project.disable': 'Disabling stops a graph build in progress; enabling again resumes it',
-  'project.reset': 'Reset ends runs, removes checkouts, deletes the knowledge graph in one commit, drops the index and builds afresh',
+  'project.reset': 'Reset ends runs, deletes the knowledge graph in one commit, drops the index and builds afresh',
   'project.harness-protected': 'The harness workspace cannot be reset',
-  'project.linear': 'A project is one straight line: another branch, a detached HEAD or a merge commit keeps it from being enabled and switches it off',
+  'project.linear': 'A project is one straight line in one working directory: another branch, a worktree, a detached HEAD or a merge commit keeps it from being enabled and switches it off',
   'project.churn': 'A repository cloned under the root or removed from it is seen without a restart; a main line other than main is followed',
-  'project.dependencies': 'A project with dependencies, a type check and a test suite: runs install into their own checkout and run the checks there; validation raises what fails with what the tools said',
+  'project.dependencies': "A project with dependencies, a type check and a test suite: runs install into the project's working directory and run the checks there; validation raises what fails with what the tools said",
   'project.history': 'A repository with a history of commits keeps it: every landing is one commit on top, nothing is rewritten or merged',
 
   // Definitions and triggers
@@ -28,20 +28,20 @@ export const FEATURES = {
 
   // Orchestrator
   'orchestrator.feed-room': 'Scheduled loops and the graph build queue only while the feed has room',
-  'orchestrator.serial-automations': 'Automation runs of one project go one at a time',
-  'orchestrator.parallel-user-runs': 'Runs the user starts go at once, alongside automation runs',
+  'orchestrator.one-run-per-project': "Runs of one project go one at a time in its one working directory, the user's and the automations' alike",
+  'orchestrator.user-runs-first': 'A run the user starts waits only for the run working in its project, and starts ahead of every automation run queued before it',
   'orchestrator.concurrent-total': 'The total of active runs across projects never passes the setting',
   'orchestrator.restart-recovery': 'A run lost at restart is queued again, and failed past the limit',
 
   // Runs
-  'run.checkout': 'Each run works in its own checkout of the main line, removed when it ends',
+  'run.working-dir': "Each run works in the project's one working directory, on the main line; no worktree or copy of the repository is made",
   'run.messages': 'The user posts messages to a running chat and reads its transcript',
   'run.kill': 'A killed run ends as killed; what it wrote so far still lands and reaches the feed',
   'run.context': 'Card parts added to a chat reach the agent as references',
   'run.process-limits': 'Each run process is held to the memory and CPU limits set for runs, in a job its commands run in too',
   'run.usage-share': 'A rise in the account limits, read before, during and after each turn, is split evenly among the runs active at both readings and recorded per run',
   'run.models': 'The model of a run follows the mode: single, per automation, or by risk estimated from the rules',
-  'run.queue': 'Runs past the total wait in order; a message to a waiting chat joins its first one; a waiting run stopped never starts',
+  'run.queue': "Runs wait in order for their project's working directory and within the total; a message to a waiting chat joins its first one; a waiting run stopped never starts",
   'run.retry': 'An implementation that failed is started again on demand for the same entity',
   'run.failure': 'A run the API fails for ends failed with the reason; a chat resumes on the next message; a build failing three times in a row stops',
 
@@ -53,8 +53,7 @@ export const FEATURES = {
   'guard.summarization-checked': "What a run handed its summarization step and the step never saw is summarized after the run lands, not taken as done",
   'guard.harness-scope': "In the harness's own repository a run lands only what its automation may change there; the rest is put back and raised as an issue",
   'guard.main-line-index': 'The main line is indexed on every tick; a user commit is picked up',
-  'guard.conflict': "A file a run and the user both changed lands on the run's side, with a Harness/Conflict raised in the same commit over the entities concerned, waiting in the feed",
-  'guard.user-checkout': "The user's checkout follows each landing file by file; their uncommitted edits and untracked files are never overwritten",
+  'guard.alongside-user': "What the user commits while a run works stays on the main line, the run's commit landing on top of it; an approval made meanwhile reaches the working directory and the run's commit keeps it",
 
   // Summary states
   'state.verification': 'Entities are unverified until approved, verified after',
