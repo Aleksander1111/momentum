@@ -9,6 +9,7 @@ import { T } from './Text';
 import { Icon } from './icons';
 import { Markdown } from './Markdown';
 import { EntityRefs } from './EntityRef';
+import { useFrame } from './parts';
 
 const ASKING =
   /^(what|whats|what's|how|why|when|where|who|whom|whose|which|is|are|was|were|does|do|did|can|could|should|would|will|has|have|explain|summarize|summarise|describe|list|show|tell|compare)\b/i;
@@ -48,6 +49,7 @@ function Pending() {
  */
 export function Answer({ ws, q }: { ws: string; q: string }) {
   const wide = useWide();
+  const frame = useFrame();
   const [showAll, setShowAll] = useState(false);
   const answer = useQuery({
     queryKey: ['ask', ws, q.trim().toLowerCase()],
@@ -69,7 +71,7 @@ export function Answer({ ws, q }: { ws: string; q: string }) {
   return (
     <View
       accessibilityLabel="Answer"
-      style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, marginBottom: 14, gap: 10 }}
+      style={[frame, { padding: frame.borderWidth ? 14 : 0, marginBottom: 14, gap: 10 }]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Icon name="agent" size={17} color={C.accent} />

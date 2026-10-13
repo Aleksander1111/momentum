@@ -4,6 +4,7 @@ import type { RetrievalRating, RunStep, RunTurn } from '@momentum/contract';
 import { C, F } from './theme';
 import { T } from './Text';
 import { Chevron } from './icons';
+import { useFrame } from './parts';
 
 /** "0:07", "1:42", "1:02:05" */
 export function clock(ms: number): string {
@@ -112,6 +113,7 @@ function Retrieval({ r }: { r: RetrievalRating }) {
  */
 export function TurnActivity({ turn, live }: { turn: RunTurn; live: boolean }) {
   const [open, setOpen] = useState(false);
+  const frame = useFrame(12);
   const now = useNow(live);
   const started = new Date(turn.startedAt).getTime();
   const answered = turn.answeredAt ? new Date(turn.answeredAt).getTime() : null;
@@ -135,7 +137,7 @@ export function TurnActivity({ turn, live }: { turn: RunTurn; live: boolean }) {
         : null;
 
   return (
-    <View style={{ alignSelf: 'stretch', borderWidth: 1, borderColor: C.line, borderRadius: 12, backgroundColor: C.card }}>
+    <View style={[{ alignSelf: 'stretch' }, frame, frame.borderWidth ? { backgroundColor: C.card } : null]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={open ? 'Hide what the agent did' : 'Show what the agent did'}

@@ -1,6 +1,6 @@
 ---
 type: Frontend/UiComponent
-origin: automation
+origin: requested
 verification: unverified
 sync: synced
 product_impact: 1
@@ -16,13 +16,14 @@ artifacts:
 ---
 # Shared parts
 
-The building blocks the screens are made of.
+The screens' building blocks.
 
-- Section heading, optionally led by an icon such as a project logo
-- List and Row: a bordered list of rows, a row pressable and marked selected
-- Row text: a title over a muted sub-line, which can hold styled text such as a coloured run state; a path may break anywhere
-- Count pill; primary and ghost buttons, small to fit a row
+- Section heading, optionally led by an icon, e.g. a project logo
+- useFrame: outlined panel on wide screens, none on phone
+- List and Row: pressable rows, one selected; unframed on phone, rows aligned with headings; `float` keeps it for drop-downs
+- Row text: title over a muted sub-line that can hold styled text (a coloured run state); paths break anywhere
+- Count pill; primary, ghost buttons, small for rows
 - Back: to the screen beneath, the tab it came from, or the tab's home
-- Close on back: Android back closes an open picker or pane, only on the screen in front
-- Picker: serif value with a chevron and a dropdown, opening up at the bottom
+- Close on back: Android back closes an open picker or pane, front screen only
+- Picker: serif value, chevron, dropdown opening up at the bottom
 - Segmented: a row of choices, one on

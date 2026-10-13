@@ -1,6 +1,6 @@
 ---
 type: Frontend/Screen
-origin: automation
+origin: requested
 verification: unverified
 sync: synced
 product_impact: 1
@@ -15,12 +15,12 @@ kind: page
 ---
 # Entity screen
 
-One entity in full: its card with verification, sync and contradiction badges, then its references and artifacts, folded until opened.
+One entity in full: its card with verification, sync and contradiction badges, then references and artifacts, folded till opened.
 
-- References both ways, each with its relation, opening its entity; artifacts with their kind
+- References both ways, each with its relation, opening its entity, unframed on phone; artifacts with their kind
 - Linked entities show their type's glyph and colour and open on a press; other links go to the web
 - Changed since verified: the diff, as in the feed; a wide table scrolls sideways
-- Selected text and diagram shapes can be added to the chat context
+- Selected text and diagram shapes go into the chat context
 - A mic: a spoken command changes the entity, a question asks about it, in its chat
 - A link to a retired or resolved entity says so and points to the timeline
-- Wide: beside the Explorer tree; mobile: its own page
+- Wide: beside the Explorer tree; else its own page

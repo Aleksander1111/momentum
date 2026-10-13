@@ -8,7 +8,7 @@ import { C } from './theme';
 import { H, T } from './Text';
 import { States } from './StateBadge';
 import { CardView } from './CardView';
-import { Chevron, Count, List, Row, RowText } from './parts';
+import { Chevron, Count, List, Row, RowText, useFrame } from './parts';
 import { EntityLinks, EntityRefs, entityName } from './EntityRef';
 import { MicButton } from './MicButton';
 import { useVoice } from '../lib/voice';
@@ -58,6 +58,7 @@ export function EntityView({
 }) {
   const { data: e, error } = useEntity(ws, path);
   const wide = useWide();
+  const frame = useFrame();
   const qc = useQueryClient();
   // Said about this entity: a command changes it, a question asks about it; either opens its chat
   const mic = useVoice({ kind: 'entity', workspace: ws, path }, (o) => {
@@ -87,7 +88,7 @@ export function EntityView({
       />
       {e.references.length ? (
         <Fold title="References" count={e.references.length}>
-          <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14 }}>
+          <View style={[frame, { padding: frame.borderWidth ? 14 : 0 }]}>
             <EntityRefs
               workspace={e.workspace}
               items={e.references.map((r) => ({ path: r.path, title: r.title, type: r.type, note: relationNote(r) }))}

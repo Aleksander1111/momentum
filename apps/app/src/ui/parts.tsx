@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { BackHandler, Platform, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { router, useFocusEffect, useNavigation, type Href } from 'expo-router';
-import { C } from './theme';
+import { C, useWide } from './theme';
 import { H, T } from './Text';
 import { Chevron } from './icons';
 
@@ -17,11 +17,23 @@ export function Sect({ children, first, icon }: { children: ReactNode; first?: b
   );
 }
 
-export function List({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+/** A raised, outlined panel on a wide screen; on a phone nothing, so the screen's width goes to what it holds */
+export function useFrame(radius = 14): ViewStyle {
+  return useWide() ? { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: radius } : {};
+}
+
+/** On a phone a list has no frame: its rows, divided by lines, line up with the screen's text. One floating over others keeps it. */
+export function List({ children, style, float }: { children: ReactNode; style?: StyleProp<ViewStyle>; float?: boolean }) {
+  const frame = useFrame();
   return (
     <View
       style={[
-        { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden' },
+        float
+          ? { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14 }
+          : frame.borderWidth
+            ? frame
+            : { marginHorizontal: -14 },
+        { overflow: 'hidden' },
         style,
       ]}
     >
@@ -213,7 +225,7 @@ export function Pick({
         />
       </Pressable>
       {open ? (
-        <List style={[{ position: 'absolute', left: 0, minWidth: 220, boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, up ? { bottom: 30 } : { top: 30 }]}>
+        <List float style={[{ position: 'absolute', left: 0, minWidth: 220, boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, up ? { bottom: 30 } : { top: 30 }]}>
           {options.map((o, i) => (
             <Row
               key={o}

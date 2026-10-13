@@ -1,6 +1,6 @@
 ---
 type: Frontend/Screen
-origin: automation
+origin: requested
 verification: unverified
 sync: synced
 product_impact: 2
@@ -25,13 +25,13 @@ artifacts:
 ---
 # Sessions screen
 
-The user's chats and interviews beside automation runs.
+User chats and interviews beside automation runs.
 
-- By workspace under its logo, polled every 15 s; rows: who started it, title, kind, state, age
-- Filter All, Yours, Automations, kept on the device; project picker, shared
+- By workspace under its logo, polled 15 s; rows: starter, title, kind, state, age
+- Filter All, Yours, Automations, kept on device; shared project picker
 - Composer: Enter sends, Shift+Enter breaks; context chips; unsent says why; mic
-- State in its [colour](Frontend/UiComponent/theme), bold if running or failed
-- Run head: state dot (amber while stopping, red ring if failed), automation, state, 5-h usage, entity; Stop
-- Per turn: time, tools, tokens, live call, RAG score; opens to calls, bookkeeping, tool ratings
-- Polled 2 s while active or rating (≤3 min)
+- State in its [colour](Frontend/UiComponent/theme), bold running or failed
+- Run head: state dot (amber stopping, red ring failed), automation, state, 5-h usage, entity, Stop
+- Per turn, unframed on phone as an interview's document: time, tools, tokens, live call, RAG; opens to calls, bookkeeping, tool ratings
+- Polled 2 s if active or rating (≤3 min)
 - Wide: beside the list, back closes it; else a page

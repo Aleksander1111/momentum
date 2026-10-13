@@ -1,6 +1,6 @@
 ---
 type: Frontend/Screen
-origin: automation
+origin: requested
 verification: unverified
 sync: synced
 product_impact: 1
@@ -22,13 +22,13 @@ kind: page
 ---
 # Explorer screen
 
-Browse a workspace's entities by domain and type, search or ask them, or hand the exploration to an agent.
+Browse a workspace's entities by domain and type, search or ask them, or hand exploring to an agent.
 
 - Picker of included projects, logos, entity total; a domain/type tree with counts; rows: domain, title, states
-- No project included: says there is no graph, links to Settings
+- No project included: says no graph, links to Settings
 - Search, by words and meaning, replaces the tree; no match offers Enter to ask
-- A question, or Enter, is answered by [the search automation](Harness/Automation/search), linking its sources
+- A question, or Enter, is answered by [the search automation](Harness/Automation/search), linking its sources; unframed on phone
 - A mic: spoken words search, a question is asked
 - "Explore through an agent" opens Chat, composer focused
-- A link opens the tree at one folder; an empty one says so
+- A link opens the tree at one folder; empty says so
 - Wide: the entity beside the tree; narrow: pushed

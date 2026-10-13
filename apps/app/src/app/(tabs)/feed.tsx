@@ -36,26 +36,32 @@ const FLING = 800;
 /** How far a card is pulled up to open the chat on it */
 const UP = 70;
 
-/** With the chat on the card open, the card leaves room below it for the chat; above it, room for the cards behind */
+/**
+ * With the chat on the card open, the card leaves room below it for the chat; above it, room for the cards behind.
+ * On a phone the card takes the whole screen below the counters, with nothing behind it.
+ */
 function cardFrame(wide: boolean, chat = false): ViewStyle {
   return wide
     ? { position: 'absolute', left: '50%', marginLeft: -280, width: 560, top: 40, bottom: chat ? 12 : 40 }
-    : { position: 'absolute', left: 16, right: 16, top: 28, bottom: 12 };
+    : { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 };
 }
 
-/** Read while rendering, as every colour is: a constant would keep the scheme the module was loaded in */
-function cardSkin(): ViewStyle {
+/**
+ * Read while rendering, as every colour is: a constant would keep the scheme the module was loaded in. On a phone the
+ * card has no frame: it is the screen, until a swipe lifts it (see TopCard).
+ */
+function cardSkin(wide: boolean): ViewStyle {
   return {
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 18,
+    ...(wide ? { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 18 } : null),
     paddingTop: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: wide ? 20 : 16,
     paddingBottom: 16,
     overflow: 'hidden',
   };
 }
+
+/** How far a card moves before it shows as a card in full, lifted off the screen */
+const LIFT = 40;
 
 const VERIFICATION: Verification[] = ['unverified', 'verified'];
 const SYNC: Sync[] = ['synced', 'entity_ahead', 'artifact_ahead', 'updating'];
@@ -220,17 +226,38 @@ function TopCard({
   const noStamp = useAnimatedStyle(() => ({
     opacity: Math.max(hold.value, interpolate(tx.value, [-80, 0], [1, 0], 'clamp')),
   }));
+  // On a phone the card at rest is the screen; moved, it takes on its edge, corners and shadow. Plain values for the
+  // worklet, as for the wash.
+  const looks = [C.screen, C.surface, C.line];
+  const lifted = useAnimatedStyle(() => {
+    if (wide) return {};
+    const p = Math.max(hold.value, interpolate(Math.max(Math.abs(tx.value), -ty.value * 2), [0, LIFT], [0, 1], 'clamp'));
+    return {
+      backgroundColor: interpolateColor(p, [0, 1], [looks[0]!, looks[1]!]),
+      borderColor: interpolateColor(p, [0, 1], [looks[0]!, looks[2]!]),
+      borderWidth: 1,
+      borderRadius: 18 * p,
+      boxShadow: `0 2px 8px rgba(30,41,59,${(0.14 * p).toFixed(3)})`,
+    };
+  }, [wide, ...looks]);
 
   return (
     // At its end the browser keeps only the finger moving down, which scrolls back up; where pan-up is unknown, pan-y stays
     <GestureDetector gesture={pan} touchAction={canPullUp ? 'pan-up' : 'pan-y'}>
       <Animated.View
-        style={[cardFrame(wide, chatOpen), cardSkin(), { paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0, boxShadow: '0 2px 8px rgba(30,41,59,.14)' }, moving]}
+        style={[
+          cardFrame(wide, chatOpen),
+          cardSkin(wide),
+          { paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0 },
+          wide ? { boxShadow: '0 2px 8px rgba(30,41,59,.14)' } : null,
+          lifted,
+          moving,
+        ]}
       >
         {/* A card longer than the screen scrolls within it: nothing of it, an issue's options included, is out of reach */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: 20, paddingHorizontal: 20, paddingBottom: 16 }}
+          contentContainerStyle={{ paddingTop: wide ? 20 : 12, paddingHorizontal: wide ? 20 : 16, paddingBottom: 16 }}
           scrollEventThrottle={32}
           onScroll={(e) => {
             scroll.current.y = e.nativeEvent.contentOffset.y;
@@ -254,7 +281,7 @@ function TopCard({
           ) : null}
         </ScrollView>
         {/* A card that goes on below fades out at its bottom edge, so it reads as one to scroll, not one cut off */}
-        {atEnd ? null : <Fade />}
+        {atEnd ? null : <Fade colour={wide ? C.surface : C.screen} />}
         {/* Each stamp sits on the edge the card trails, so it stays on screen as the card leaves */}
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 22, top: issue ? 150 : 210 }, okStamp]}>
           <Stamp kind="ok" label={issue ? 'RESOLVE' : 'APPROVE'} />
@@ -270,14 +297,14 @@ function TopCard({
   );
 }
 
-function Fade() {
+function Fade({ colour }: { colour: string }) {
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 48 }}>
       <Svg width="100%" height="100%" preserveAspectRatio="none">
         <Defs>
           <LinearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={C.surface} stopOpacity={0} />
-            <Stop offset="1" stopColor={C.surface} stopOpacity={1} />
+            <Stop offset="0" stopColor={colour} stopOpacity={0} />
+            <Stop offset="1" stopColor={colour} stopOpacity={1} />
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#fade)" />
@@ -428,9 +455,9 @@ function CardChat({
   return (
     <View
       style={[
-        wide ? { alignSelf: 'center', width: 560, marginBottom: 40 } : { marginHorizontal: 16, marginBottom: 12 },
-        cardSkin(),
-        { paddingTop: 10, paddingBottom: 14, paddingHorizontal: 14, gap: 8 },
+        wide ? { alignSelf: 'center', width: 560, marginBottom: 40 } : { borderTopWidth: 1, borderTopColor: C.line },
+        cardSkin(wide),
+        { paddingTop: 10, paddingBottom: 14, paddingHorizontal: wide ? 14 : 16, gap: 8 },
         runId ? { height: Math.round(height * (wide ? 0.4 : 0.45)) } : null,
       ]}
     >
@@ -584,21 +611,21 @@ export default function Feed() {
     <Animated.View style={[{ flex: 1 }, washStyle]}>
       {view ? <Counters counts={view.counts} wide={wide} /> : null}
       <View style={{ flex: 1 }}>
-        {items.length > 2 ? (
+        {wide && items.length > 2 ? (
           <View
             style={[
               cardFrame(wide),
-              cardSkin(),
+              cardSkin(wide),
               // Scaled from its top edge, so that edge shows above the card in front
               { backgroundColor: C.behind2, transformOrigin: 'top', transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
             ]}
           />
         ) : null}
-        {items.length > 1 ? (
+        {wide && items.length > 1 ? (
           <View
             style={[
               cardFrame(wide),
-              cardSkin(),
+              cardSkin(wide),
               { backgroundColor: C.behind1, transformOrigin: 'top', transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
             ]}
           />

@@ -8,7 +8,7 @@ import { automationLabel, usagePct } from '../../lib/format';
 import { useCurrentWorkspace } from '../../lib/workspace';
 import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
-import { Pick, Segmented } from '../../ui/parts';
+import { Pick, Segmented, useFrame } from '../../ui/parts';
 import { ProjectLogo } from '../../ui/ProjectLogo';
 import { useCornerRoom } from '../../ui/SettingsButton';
 import { STATE_LABEL } from '../../ui/StateBadge';
@@ -42,20 +42,9 @@ const duration: Fmt = (s) => (s < 60 ? `${Math.round(s)} s` : minutes(s));
 const show = (v: number | null, f: Fmt) => (v === null ? '—' : f(v));
 
 function Panel({ title, children, style }: { title: string; children: ReactNode; style?: object }) {
+  const frame = useFrame();
   return (
-    <View
-      style={[
-        {
-          backgroundColor: C.surface,
-          borderWidth: 1,
-          borderColor: C.line,
-          borderRadius: 14,
-          paddingVertical: 12,
-          paddingHorizontal: 14,
-        },
-        style,
-      ]}
-    >
+    <View style={[frame, { paddingVertical: 12, paddingHorizontal: frame.borderWidth ? 14 : 0 }, style]}>
       <H style={{ fontSize: 15, marginBottom: 4 }}>{title}</H>
       {children}
     </View>

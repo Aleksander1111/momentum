@@ -10,7 +10,7 @@ import { T } from './Text';
 import { hasWideBlocks, Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
 import { chatContext, useChatContext } from '../lib/context';
-import { Btn } from './parts';
+import { Btn, useFrame } from './parts';
 import { EntityLinks, EntityRef } from './EntityRef';
 import { useEntity } from './EntityView';
 import { TurnActivity } from './Activity';
@@ -93,6 +93,7 @@ const bubbleText = { fontSize: 14.5, lineHeight: 20 };
 /** The document an interview writes, as it stands on the main line after the last answer */
 function InterviewDocument({ run }: { run: RunDetail }) {
   const document = run.interview?.document;
+  const frame = useFrame(12);
   const { data } = useQuery({
     queryKey: ['artifact', run.workspace, document, run.messages.length, run.status],
     queryFn: () => api.artifact(run.workspace, document as string),
@@ -101,7 +102,7 @@ function InterviewDocument({ run }: { run: RunDetail }) {
   });
   if (!data) return null;
   return (
-    <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 }}>
+    <View style={[frame, { paddingVertical: 10, paddingHorizontal: frame.borderWidth ? 14 : 0 }]}>
       <Markdown text={data.text} style={{ fontSize: 13.5, lineHeight: 19 }} />
     </View>
   );
