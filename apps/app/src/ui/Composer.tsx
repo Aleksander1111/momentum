@@ -1,8 +1,11 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Platform, Pressable, View, type NativeSyntheticEvent, type TextInput, type TextInputKeyPressEventData } from 'react-native';
 import type { ContextItem, VoiceItem, VoiceOutcome, VoiceTarget } from '@momentum/contract';
 import { chatContext } from '../lib/context';
 import { HttpError, NetworkError } from '../lib/api';
+import { chatFiles, uploading, useChatFiles } from '../lib/attachments';
+import { listenForFiles, pickFiles } from '../lib/pickFiles';
+import { PendingFileChip } from './Attachments';
 import { useVoice } from '../lib/voice';
 import { C, F, useTheme } from './theme';
 import { DomainIcon, domainColour } from './domains';
@@ -60,8 +63,10 @@ export interface ComposerVoice {
 }
 
 /**
- * Field plus round accent send button; the context items waiting for this chat as chips above them. With `voice`, a mic
- * beside send: while it listens the field shows the text as heard so far; an item that failed comes back to the field.
+ * Field plus round accent send button; the context items waiting for this chat as chips above them. With `attachTo`, a
+ * paperclip before the field picks files for that project's next message, and on the web files pasted into the field or
+ * dropped on the composer join them; they wait as chips beside the context and send waits for their upload. With `voice`,
+ * a mic beside send: while it listens the field shows the text as heard so far; an item that failed comes back to the field.
  * With `onStop`, a stop button beside send ends the answer being written.
  */
 export const Composer = forwardRef<
@@ -71,10 +76,20 @@ export const Composer = forwardRef<
     onSend: (text: string) => Promise<unknown> | void;
     autoFocus?: boolean;
     context?: ContextItem[];
+    /** The project whose next message takes the files attached here */
+    attachTo?: string | null;
     voice?: ComposerVoice;
     onStop?: () => Promise<unknown>;
   }
->(function Composer({ placeholder, onSend, autoFocus, context, voice, onStop }, ref) {
+>(function Composer({ placeholder, onSend, autoFocus, context, attachTo, voice, onStop }, ref) {
+  const field = useRef<TextInput>(null);
+  const area = useRef<View>(null);
+  useImperativeHandle(ref, () => field.current!, []);
+  const files = useChatFiles(attachTo ?? null);
+  useEffect(() => {
+    if (!attachTo) return;
+    return listenForFiles(field.current, area.current, (picked) => chatFiles.add(attachTo, picked));
+  }, [attachTo]);
   const [text, setText] = useState('');
   const [stopping, setStopping] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -90,6 +105,7 @@ export const Composer = forwardRef<
   const send = async () => {
     const t = text.trim();
     if (!t || busy) return;
+    if (uploading(files)) return setFailed('Not sent yet: the files are still uploading.');
     setBusy(true);
     setFailed(null);
     try {
@@ -114,17 +130,31 @@ export const Composer = forwardRef<
     void send();
   };
   return (
-    <View style={{ gap: 8 }}>
-      {context?.length ? (
+    <View ref={area} style={{ gap: 8 }}>
+      {context?.length || files.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {context.map((c, i) => (
+          {(context ?? []).map((c, i) => (
             <ContextChip key={i} item={c} onRemove={() => chatContext.remove(c)} />
+          ))}
+          {files.map((f) => (
+            <PendingFileChip key={f.key} file={f} />
           ))}
         </View>
       ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
+        {attachTo ? (
+          <Pressable
+            onPress={() => pickFiles((picked) => chatFiles.add(attachTo, picked), () => setFailed('The files could not be read.'))}
+            accessibilityRole="button"
+            accessibilityLabel="Attach files"
+            hitSlop={6}
+            style={{ height: 40, justifyContent: 'center' }}
+          >
+            <Icon name="attach" size={21} color={C.muted} />
+          </Pressable>
+        ) : null}
         <Field
-          ref={ref}
+          ref={field}
           placeholder={placeholder}
           value={heard ? (mic.partial ?? '') : text}
           onChangeText={(v) => {

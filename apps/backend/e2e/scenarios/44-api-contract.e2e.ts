@@ -139,8 +139,23 @@ scenario('api-contract', { enabled: [WS, OTHER] }, async ({ env, api, model, ste
     await ok('POST', '/feed/{path}/resolve', `/feed/${encodeURIComponent(ISSUES[0]!)}/resolve`, { workspace: WS, option: 0, timeSpentMs: 800 });
     await ok('POST', '/feed/{path}/wont-resolve', `/feed/${encodeURIComponent(ISSUES[1]!)}/wont-resolve`, { workspace: WS, comment: 'Not worth it.', timeSpentMs: 800 });
 
+    // A file attached to a chat: kept on the PC, refused empty, read back as it was attached
+    const notes = 'Policies first.';
+    const kept = await ok<{ id: string; name: string }>('POST', '/workspaces/{ws}/attachments', `/workspaces/${WS}/attachments`, {
+      name: 'notes.txt',
+      data: `data:text/plain;base64,${Buffer.from(notes).toString('base64')}`,
+    });
+    expect(kept.name).toBe('notes.txt');
+    expect((await call('POST', '/workspaces/{ws}/attachments', `/workspaces/${WS}/attachments`, { name: 'empty.txt', data: 'data:text/plain;base64,' })).status).toBe(400);
+    // The file itself, not JSON: read as it is
+    const file = await fetch(`${env.url}/workspaces/${WS}/attachments/${kept.id}`, { headers: { authorization: `Bearer ${env.token}` } });
+    called.add('GET /workspaces/{ws}/attachments/{id}');
+    expect(file.status).toBe(200);
+    expect(await file.text()).toBe(notes);
+    expect((await call('GET', '/workspaces/{ws}/attachments/{id}', `/workspaces/${WS}/attachments/0000000000000000`)).status).toBe(404);
+
     // Chats and runs
-    const { runId } = await ok<{ runId: string }>('POST', '/workspaces/{ws}/chats', `/workspaces/${WS}/chats`, { text: 'Which policies are there?' });
+    const { runId } = await ok<{ runId: string }>('POST', '/workspaces/{ws}/chats', `/workspaces/${WS}/chats`, { text: 'Which policies are there?', attachments: [kept.id] });
     await api.runEnded(runId, 5 * 60_000);
     await ok('GET', '/workspaces/{ws}/chats', `/workspaces/${WS}/chats`);
     await ok('GET', '/runs/{id}', `/runs/${runId}`);

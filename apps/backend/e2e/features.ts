@@ -38,6 +38,7 @@ export const FEATURES = {
   'run.messages': 'The user posts messages to a running chat and reads its transcript',
   'run.kill': 'A killed run ends as killed; what it wrote so far still lands and reaches the feed',
   'run.context': 'Card parts added to a chat reach the agent as references',
+  'run.attachments': "Files attached to a chat message, picked, pasted or dropped, are kept on the PC outside the project's working directory; the agent reads them where they are and the bubble shows them",
   'run.process-limits': 'Each run process is held to the memory and CPU limits set for runs, in a job its commands run in too',
   'run.usage-share': 'A rise in the account limits, read before, during and after each turn, is split evenly among the runs active at both readings and recorded per run',
   'run.models': 'The model of a run follows the mode: single, per automation, or by risk estimated from the rules',

@@ -314,7 +314,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'automation.chat', 'run.messages', 'run.context', 'automation.summarization', 'feed.diff', 'feed.approve', 'app.pages', 'run.failure',
-      'state.summarized-once', 'feed.once',
+      'state.summarized-once', 'feed.once', 'run.attachments',
     ],
     steps: [
       'A question asked in the Chat tab is answered in the conversation, with the card parts added as context reaching the agent',
@@ -322,6 +322,7 @@ export const SCENARIOS: Scenario[] = [
       'A chat asked to change an entity lands it unverified; the card shows a diff against the verified version until approved',
       'A chat the API fails for ends failed with the reason; the next message resumes it and gets an answer',
       'Approving or sending back one item from two devices at once acts once',
+      'A log picked with the paperclip and a screenshot dropped on the composer reach the agent, which reads them; the bubbles show them; a file over 10 MB is refused',
     ],
     // The features each step checks, step by step
     checks: [
@@ -330,6 +331,7 @@ export const SCENARIOS: Scenario[] = [
       ['automation.chat', 'feed.diff', 'feed.approve'],
       ['run.failure', 'run.messages'],
       ['feed.once', 'feed.approve'],
+      ['run.attachments', 'run.messages', 'app.pages'],
     ],
   },
   {

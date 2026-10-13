@@ -18,6 +18,13 @@ export async function typeInto(field: Locator, text: string): Promise<void> {
   }, text);
 }
 
+/** A file as the user attaches it to a chat message */
+export interface AttachedFile {
+  name: string;
+  mimeType: string;
+  buffer: Buffer;
+}
+
 declare global {
   interface Window {
     loadApp(url: string): Promise<boolean>;
@@ -299,9 +306,34 @@ export class App {
 
   // Chat
 
-  /** Starts a chat from the Sessions tab; the run it started */
-  async chat(ws: string, text: string): Promise<string> {
+  /**
+   * Attaches files in the composer on screen, as the user does: picked with the paperclip, or dropped on the composer;
+   * waits until each is uploaded
+   */
+  async attach(files: AttachedFile[], how: 'pick' | 'drop' = 'pick'): Promise<void> {
+    const f = this.frame();
+    const clip = f.getByLabel('Attach files', { exact: true }).last();
+    await pace('action', `${how === 'pick' ? 'Attach' : 'Drop'} ${files.map((x) => x.name).join(', ')}`);
+    if (how === 'pick') {
+      const chooser = this.observer.waitForEvent('filechooser');
+      await clip.click();
+      await (await chooser).setFiles(files);
+    } else {
+      // The composer is the paperclip's row and the chips above it
+      await clip.locator('xpath=../..').evaluate((area, list) => {
+        const dt = new DataTransfer();
+        for (const x of list) dt.items.add(new File([Uint8Array.from(atob(x.data), (c) => c.charCodeAt(0))], x.name, { type: x.mimeType }));
+        area.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+      }, files.map((x) => ({ name: x.name, mimeType: x.mimeType, data: x.buffer.toString('base64') })));
+    }
+    for (const x of files) await expect(f.getByLabel(`Attached ${x.name}`, { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(f.getByText('Uploading…', { exact: true })).toHaveCount(0, { timeout: 30_000 });
+  }
+
+  /** Starts a chat from the Sessions tab, with the files attached first; the run it started */
+  async chat(ws: string, text: string, files: AttachedFile[] = []): Promise<string> {
     await this.go(`/chat?ws=${encodeURIComponent(ws)}&compose=1`);
+    if (files.length) await this.attach(files);
     const since = new Date();
     const input = this.frame().getByPlaceholder(/^Ask/).first();
     await pace('action', `Ask "${text}"`);
@@ -310,9 +342,10 @@ export class App {
     return (await until('the chat run', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
   }
 
-  /** Opens a chat and sends the next message in it */
-  async reply(runId: string, text: string): Promise<void> {
+  /** Opens a chat and sends the next message in it, with the files attached first */
+  async reply(runId: string, text: string, files: AttachedFile[] = [], how: 'pick' | 'drop' = 'pick'): Promise<void> {
     await this.go(`/chat/${runId}`);
+    if (files.length) await this.attach(files, how);
     const input = this.frame().getByRole('textbox').last();
     await pace('action', `Reply "${text}"`);
     await typeInto(input, text);

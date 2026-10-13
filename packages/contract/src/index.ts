@@ -388,11 +388,39 @@ export const ContextItem = z
   .refine((c) => c.quote === undefined || c.element === undefined, 'A quote or a diagram element, not both');
 export type ContextItem = z.infer<typeof ContextItem>;
 
+/** The largest file a chat message takes, and how many files one message takes */
+export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const ATTACHMENTS_PER_MESSAGE = 10;
+
+/** A file the user attached to a chat message: kept on the PC, read by the agent from there */
+export const Attachment = z.object({
+  id: z.string().regex(/^[0-9a-f]{16}$/),
+  name: z.string().min(1),
+  /** The media type, from the file name */
+  type: z.string(),
+  size: z.number(),
+});
+export type Attachment = z.infer<typeof Attachment>;
+
+/** A file to attach, as a data URL; it is kept until a message carries it */
+export const PostAttachment = z.object({
+  name: z.string().min(1).max(200),
+  data: z
+    .string()
+    .regex(/^data:[^;,]*(;[^;,]+)*;base64,[A-Za-z0-9+/]*=*$/, 'A file is sent as a base64 data URL')
+    .max(Math.ceil(ATTACHMENT_MAX_BYTES / 3) * 4 + 200, 'A file is at most 10 MB'),
+});
+export type PostAttachment = z.infer<typeof PostAttachment>;
+
+/** The files a message carries, by the ids their upload returned */
+export const AttachmentIds = z.array(Attachment.shape.id).max(ATTACHMENTS_PER_MESSAGE, `A message carries at most ${ATTACHMENTS_PER_MESSAGE} files`);
+
 export const RunMessage = z.object({
   seq: z.number(),
   role: z.enum(['user', 'assistant']),
   text: z.string(),
   context: z.array(ContextItem).default([]),
+  attachments: z.array(Attachment).default([]),
   at: z.string(),
 });
 export type RunMessage = z.infer<typeof RunMessage>;
@@ -473,7 +501,11 @@ export const RunDetail = Run.extend({
 });
 export type RunDetail = z.infer<typeof RunDetail>;
 
-export const PostRunMessage = z.object({ text: z.string().min(1), context: z.array(ContextItem).default([]) });
+export const PostRunMessage = z.object({
+  text: z.string().min(1),
+  context: z.array(ContextItem).default([]),
+  attachments: AttachmentIds.default([]),
+});
 export type PostRunMessage = z.infer<typeof PostRunMessage>;
 
 export const ChatListItem = z.object({
@@ -496,6 +528,7 @@ export const CreateChatRequest = z.object({
   text: z.string().min(1),
   targetPath: z.string().optional(),
   context: z.array(ContextItem).default([]),
+  attachments: AttachmentIds.default([]),
 });
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 
@@ -503,7 +536,13 @@ export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 
 /** Where the next spoken item goes: the screen the user is on, declared by the app */
 export const VoiceTarget = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('chat'), workspace: z.string(), runId: z.string().optional(), context: z.array(ContextItem).default([]) }),
+  z.object({
+    kind: z.literal('chat'),
+    workspace: z.string(),
+    runId: z.string().optional(),
+    context: z.array(ContextItem).default([]),
+    attachments: AttachmentIds.default([]),
+  }),
   z.object({ kind: z.literal('search'), workspace: z.string() }),
   z.object({ kind: z.literal('entity'), workspace: z.string(), path: z.string() }),
   z.object({ kind: z.literal('interview'), workspace: z.string(), runId: z.string() }),

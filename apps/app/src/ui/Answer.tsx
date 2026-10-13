@@ -59,7 +59,7 @@ export function Answer({ ws, q }: { ws: string; q: string }) {
     retry: false,
   });
   const chat = useMutation({
-    mutationFn: () => api.createChat(ws, { text: q, context: [] }),
+    mutationFn: () => api.createChat(ws, { text: q, context: [], attachments: [] }),
     onSuccess: ({ runId }) => openRun(runId, wide),
   });
   const data = answer.data;

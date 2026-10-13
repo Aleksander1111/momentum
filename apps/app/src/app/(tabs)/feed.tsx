@@ -16,6 +16,7 @@ import { useMutation, useMutationState, useQuery, useQueryClient } from '@tansta
 import type { ContextItem, FeedCounts, FeedItem, FeedResponse, Sync, Verification } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { chatContext, useChatContext } from '../../lib/context';
+import { attachmentIds, chatFiles, useChatFiles } from '../../lib/attachments';
 import { REACTIONS, type ApproveVars, type ResolveVars, type SendBackVars } from '../../lib/query';
 import { withoutItem } from '../../lib/feed';
 import { entityKey } from '../../lib/format';
@@ -444,6 +445,7 @@ function CardChat({
   const qc = useQueryClient();
   const { height } = useWindowDimensions();
   const context = useChatContext(item.workspace);
+  const files = attachmentIds(useChatFiles(item.workspace));
   useCloseOnBack(true, onClose);
   // A part of the card selected while the chat is open is asked about next: the field takes the keys
   const field = useRef<TextInput>(null);
@@ -477,9 +479,11 @@ function CardChat({
           placeholder="Ask about this card"
           autoFocus
           context={context}
+          attachTo={item.workspace}
           onSend={async (text) => {
-            const { runId: started } = await api.createChat(item.workspace, { text, targetPath: item.path, context });
+            const { runId: started } = await api.createChat(item.workspace, { text, targetPath: item.path, context, attachments: files });
             chatContext.clear(item.workspace);
+            chatFiles.clear(item.workspace);
             void qc.invalidateQueries({ queryKey: ['chats', item.workspace] });
             onStarted(started);
           }}

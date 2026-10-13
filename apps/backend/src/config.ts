@@ -18,6 +18,8 @@ function tailnetAddress(): string {
 export interface Config {
   /** Root of the workspaces: every git repository directly under it is a workspace */
   root: string;
+  /** Where the files attached to chat messages live: <attachments>\<workspace>\<id>\<file name> */
+  attachments: string;
   /** This repository: the harness workspace */
   harness: string;
   harnessName: string;
@@ -40,6 +42,7 @@ const root = process.env.MOMENTUM_ROOT ?? 'C:\\Projects';
 
 export const config: Config = {
   root,
+  attachments: process.env.MOMENTUM_ATTACHMENTS ?? join(root, '.attachments'),
   harness: REPO,
   harnessName: 'momentum',
   entityTypes: join(REPO, 'docs', 'entity-types.tsv'),

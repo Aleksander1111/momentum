@@ -81,6 +81,7 @@ The other tabs:
 Beyond the feed:
 
 - **Chat** and **interview**, by text or by voice ("interview \<topic\>").
+- **Attach files** to a chat message: pick them with the paperclip, paste them into the field or drop them on it, up to 10 files of 10 MB each. They are kept on the PC, outside the project, and the agent reads them where they are.
 - **Stop a run** from its conversation: what it wrote still lands.
 - **Run an automation on demand**, through the `run_automation` tool.
 - **Enable, build or reset projects** in Settings.
@@ -494,6 +495,7 @@ MOMENTUM_HOST=127.0.0.1
 | `MOMENTUM_HOST` | the Tailscale IPv4 address | Address the API listens on |
 | `MOMENTUM_PORT` | `7300` | API port |
 | `MOMENTUM_PROCGOV` | `procgov` | Process Governor executable |
+| `MOMENTUM_ATTACHMENTS` | `<root>\.attachments` | Files attached to chat messages |
 | `MOMENTUM_RUN_MEMORY` | `4G` | Memory per run, child processes included |
 | `MOMENTUM_RUN_CPUS` | `4` | CPU cores per run |
 | `MOMENTUM_RUN_DATABASE_URL` | none | A database a run may use, given to it as `DATABASE_URL` |

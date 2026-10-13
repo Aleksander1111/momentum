@@ -10,6 +10,8 @@ import { T } from './Text';
 import { hasWideBlocks, Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
 import { chatContext, useChatContext } from '../lib/context';
+import { attachmentIds, chatFiles, useChatFiles } from '../lib/attachments';
+import { MessageAttachment } from './Attachments';
 import { Btn, useFrame } from './parts';
 import { EntityLinks, EntityRef } from './EntityRef';
 import { useEntity } from './EntityView';
@@ -134,11 +136,12 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
   });
   const context = useChatContext(run?.workspace ?? null);
   const interview = run?.automation === 'interview';
+  const files = attachmentIds(useChatFiles(run && !interview ? run.workspace : null));
   const target: VoiceTarget | null = !run
     ? null
     : interview
       ? { kind: 'interview', workspace: run.workspace, runId }
-      : { kind: 'chat', workspace: run.workspace, runId, context };
+      : { kind: 'chat', workspace: run.workspace, runId, context, attachments: files };
 
   return (
     // Entities the messages name open from them
@@ -183,6 +186,13 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
                   ))}
                 </View>
               ) : null}
+              {m.attachments.length ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+                  {m.attachments.map((a) => (
+                    <MessageAttachment key={a.id} workspace={run!.workspace} attachment={a} />
+                  ))}
+                </View>
+              ) : null}
               <T style={[bubbleText, { color: C.surface }]}>{m.text}</T>
             </View>
             <Turns run={run!} at={m.seq} />
@@ -210,12 +220,16 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
       <Composer
         placeholder={interview ? 'Answer' : 'Message'}
         context={interview ? undefined : context}
+        attachTo={run && !interview ? run.workspace : null}
         voice={{
           target,
           onOutcome: (o) => {
             if (!o.runId) return;
             if (o.runId !== runId) return openRun(o.runId, wide);
-            if (run && !interview) chatContext.clear(run.workspace);
+            if (run && !interview) {
+              chatContext.clear(run.workspace);
+              chatFiles.clear(run.workspace);
+            }
             void qc.invalidateQueries({ queryKey: ['run', runId] });
           },
         }}
@@ -229,8 +243,11 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
             : undefined
         }
         onSend={async (text) => {
-          await api.postMessage(runId, { text, context: interview ? [] : context });
-          if (run && !interview) chatContext.clear(run.workspace);
+          await api.postMessage(runId, { text, context: interview ? [] : context, attachments: interview ? [] : files });
+          if (run && !interview) {
+            chatContext.clear(run.workspace);
+            chatFiles.clear(run.workspace);
+          }
           await qc.invalidateQueries({ queryKey: ['run', runId] });
         }}
       />

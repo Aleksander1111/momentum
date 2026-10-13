@@ -1,7 +1,10 @@
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { safeName, typeOf } from '../src/attachments.ts';
+import { config } from '../src/config.ts';
 import { measureCompleteness } from '../src/completeness.ts';
 import { graphBuildPrompt } from '../src/graph-build.ts';
-import { withContext } from '../src/runner.ts';
+import { userPrompt, withAttachments, withContext } from '../src/runner.ts';
 import { SequenceTracker } from '../src/voice/feed.ts';
 
 describe('following the command stream', () => {
@@ -56,5 +59,35 @@ describe('parts of cards handed to a run', () => {
     expect(text).toContain('knowledge-graph/Architecture/System/shop.md > < Checkout >');
     expect(text.endsWith('Why?')).toBe(true);
     expect(text.indexOf('search.md')).toBeLessThan(text.indexOf('shop.md'));
+  });
+});
+
+describe('files attached to a message', () => {
+  it('names where each file is kept, after the card parts and ahead of the message', () => {
+    const shot = { id: '0123456789abcdef', name: 'error.png', type: 'image/png', size: 84 * 1024 };
+    const log = { id: 'fedcba9876543210', name: 'server.log', type: 'text/plain', size: 2_400_000 };
+    expect(withAttachments('shop', [], 'Why?')).toBe('Why?');
+    const one = withAttachments('shop', [shot], 'Why?');
+    expect(one).toContain('The user attached a file to this message; read it where it is:');
+    expect(one).toContain(`- ${join(config.attachments, 'shop', shot.id, 'error.png')} (image/png, 84 KB)`);
+    expect(one.endsWith('\n\nWhy?')).toBe(true);
+    expect(withAttachments('shop', [shot, log], 'Why?')).toContain('2 files to this message; read them where they are:');
+    expect(withAttachments('shop', [shot, log], 'Why?')).toContain('server.log (text/plain, 2.3 MB)');
+    const card = { workspace: 'shop', path: 'Product/Feature/search', title: 'Search', heading: [] };
+    const both = userPrompt('shop', [card], [shot], 'Why?');
+    expect(both.indexOf('search.md')).toBeLessThan(both.indexOf('error.png'));
+    expect(both.indexOf('error.png')).toBeLessThan(both.indexOf('Why?'));
+  });
+
+  it('keeps a file under a name Windows takes, typed by its extension', () => {
+    expect(safeName('C:\\Users\\me\\Desktop\\shot.png')).toBe('shot.png');
+    expect(safeName('../../etc/passwd')).toBe('passwd');
+    expect(safeName('a<b>:c?.txt')).toBe('a_b__c_.txt');
+    expect(safeName('notes. ')).toBe('notes');
+    expect(safeName('..')).toBe('file');
+    expect(safeName('')).toBe('file');
+    expect(typeOf('Shot.PNG')).toBe('image/png');
+    expect(typeOf('report.pdf')).toBe('application/pdf');
+    expect(typeOf('data.bin')).toBe('application/octet-stream');
   });
 });

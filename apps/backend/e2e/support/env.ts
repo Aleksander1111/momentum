@@ -242,6 +242,7 @@ export class Env {
       DATABASE_URL: this.databaseUrl,
       MOMENTUM_ROOT: this.root,
       MOMENTUM_MODELS: MODELS,
+      MOMENTUM_ATTACHMENTS: join(this.dir, 'attachments'),
       MOMENTUM_HOST: '127.0.0.1',
       MOMENTUM_PORT: String(this.port),
       MOMENTUM_TICK_MS: process.env.E2E_TICK_MS ?? '3000',

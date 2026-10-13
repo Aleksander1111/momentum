@@ -1,4 +1,5 @@
-import type { MetricsResponse, TimelineResponse } from '@momentum/contract';
+import type { Attachment, MetricsResponse, RunDetail, TimelineResponse } from '@momentum/contract';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { REPO } from '../support/env.ts';
@@ -12,6 +13,18 @@ const ANSWER = 'GET /books lists every book, GET /books/:id reads one, POST /boo
 const ROUTES = [/GET\W+\/books\b/, /\/books\/:id/, /POST\W+\/books\b/];
 const UNKNOWN = 'Say on the card that any other route answers 404 with the error "not found".';
 const MISSING = 'Also say that a missing book answers 404 with the error "book not found".';
+const LOG = { name: 'server.log', mimeType: 'text/plain', buffer: Buffer.from('12:04:31 GET /books/7 failed: ECONNRESET from the book store\n') };
+/** A one-pixel PNG, as a screenshot stands in */
+const SHOT = {
+  name: 'error.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
+};
+/** The file a prompt names for the agent to read */
+const named = (input: string, name: string) => {
+  const line = input.split('\n').find((l) => l.startsWith('- ') && l.includes(`\\${name} (`));
+  return line?.slice(2, line.lastIndexOf(' ('));
+};
 
 // Real Claude Code runs and harness; the model's side is scripted, or the real model's live
 scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step }) => {
@@ -194,5 +207,54 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     const runs = new Set(sent.flatMap((r) => (r.status === 'fulfilled' ? [r.value.runId] : [])));
     expect(runs.size).toBe(1);
     expect((await api.runs(WS, 'chat')).filter((r) => r.target_path === b!.path)).toHaveLength(1);
+  });
+
+  await step(5, async () => {
+    // The agent reads each file where the prompt says it is kept, and answers from what it holds
+    model.on('reads the attached log', { automation: 'chat', kind: 'prompt' }, (t) => {
+      const file = named(t.input, LOG.name);
+      if (!file) return undefined;
+      const read = t.results.find((r) => r.tool === 'Read')?.text ?? '';
+      return [{ tool: 'Read', input: { file_path: file } }, move.say(/ECONNRESET/.test(read) ? 'GET /books/7 failed: the book store reset the connection (ECONNRESET).' : 'The log could not be read.')];
+    });
+    model.on('looks at the dropped screenshot', { automation: 'chat', kind: 'message' }, (t) => {
+      const file = named(t.input, SHOT.name);
+      return file ? [{ tool: 'Read', input: { file_path: file } }, move.say('The screenshot shows the same failure.')] : undefined;
+    });
+    const chat = await app.chat(WS, 'What does the attached log say went wrong?', [LOG]);
+    expect((await api.runEnded(chat, 5 * 60_000)).status).toBe('finished');
+    expect(await api.answer(chat)).toMatch(/ECONNRESET/);
+    const first = model.turns(chat).find((t) => t.kind === 'prompt')!;
+    expect(first.input).toContain('The user attached a file to this message; read it where it is:\n- ');
+    expect(first.input).toContain(`\\${LOG.name} (text/plain, ${LOG.buffer.length} B)`);
+    // Kept on the PC as it was attached, outside the working directory, so nothing of it lands on the main line
+    const [kept] = (await api.run(chat)).messages[0]!.attachments;
+    expect(kept).toMatchObject({ name: LOG.name, type: 'text/plain', size: LOG.buffer.length });
+    expect(readFileSync(named(first.input, LOG.name)!, 'utf8')).toBe(LOG.buffer.toString());
+    expect(env.git(WS, 'log', '--all', '--format=%H', '--', '*.log')).toBe('');
+    // The app reads it back as it was, and whatever it holds never runs as a page of the app's origin
+    const r = await fetch(`${env.url}/workspaces/${WS}/attachments/${kept!.id}`, { headers: { authorization: `Bearer ${env.token}`, accept: 'text/html' } });
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toMatch(/^text\/plain/);
+    expect(r.headers.get('content-security-policy')).toBe('sandbox');
+    expect(await r.text()).toBe(LOG.buffer.toString());
+    await expect(app.frame().getByRole('link', { name: LOG.name, exact: true })).toBeVisible({ timeout: 30_000 });
+
+    // A screenshot dropped on the composer goes with the next message, shown as a picture on the user's bubble
+    await app.reply(chat, 'And the screenshot?', [SHOT], 'drop');
+    expect((await api.answered(chat, 2)).status).toBe('finished');
+    const second = (await api.run(chat)).messages.filter((m) => m.role === 'user')[1]!;
+    expect(second.attachments.map((a: Attachment) => [a.name, a.type])).toEqual([[SHOT.name, 'image/png']]);
+    expect(model.turns(chat).some((t) => t.kind === 'message' && named(t.input, SHOT.name))).toBe(true);
+    const picture = app.frame().getByRole('link', { name: SHOT.name, exact: true }).locator('img').first();
+    await expect(picture).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(1);
+    await app.frame().locator('body').screenshot({ path: join(REPO, 'test-results', 'chat-attachments.png') });
+
+    // Refused: a file over 10 MB, and a message naming a file that was never attached
+    const big = `data:application/octet-stream;base64,${Buffer.alloc(10 * 1024 * 1024 + 1).toString('base64')}`;
+    await expect(api.call('POST', `/workspaces/${WS}/attachments`, { name: 'big.bin', data: big })).rejects.toThrow(/400 .*at most 10 MB/);
+    await expect(api.call('POST', `/runs/${chat}/messages`, { text: 'This one?', attachments: ['0000000000000000'] })).rejects.toThrow(/404/);
+    expect((await api.call<RunDetail>('GET', `/runs/${chat}`)).messages.filter((m) => m.role === 'user')).toHaveLength(2);
   });
 });

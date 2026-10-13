@@ -1,5 +1,6 @@
 import type {
   AskResponse,
+  Attachment,
   AutomationName,
   ChatsResponse,
   ContextItem,
@@ -22,6 +23,7 @@ import type {
 import { crossProjectEntityCounts, crossProjectFeed, type Embed, type Sql } from '@momentum/kb';
 import { show } from '@momentum/runs';
 import { Answers } from './answer.ts';
+import { attachmentFile, attachments } from './attachments.ts';
 import type { Approval } from './approval.ts';
 import type { Automations } from './automations.ts';
 import type { HarnessSettings } from './harness.ts';
@@ -214,8 +216,9 @@ export class Momentum {
     };
   }
 
-  async createChat(workspace: string, text: string, targetPath?: string, context: ContextItem[] = []): Promise<{ runId: string }> {
+  async createChat(workspace: string, text: string, targetPath?: string, context: ContextItem[] = [], attached: string[] = []): Promise<{ runId: string }> {
     const ws = await this.workspaces.get(workspace);
+    const files = await attachments.of(workspace, attached);
     // A chat on an entity marks it updating
     const [runId, states] = await measured(ws.index, () =>
       this.runner.create({
@@ -226,6 +229,7 @@ export class Momentum {
         title: text.split('\n')[0]!.slice(0, 80),
         targetPath: targetPath ?? null,
         context,
+        attachments: files,
       }),
     );
     await this.timeline.record({
@@ -286,8 +290,22 @@ export class Momentum {
     return this.runner.detail(id);
   }
 
-  async postMessage(id: string, text: string, context: ContextItem[] = []): Promise<void> {
+  /** A file to attach to a chat message, kept until a message carries it */
+  async attach(workspace: string, name: string, data: string): Promise<Attachment> {
+    await this.workspaces.get(workspace);
+    return attachments.save(workspace, name, data);
+  }
+
+  /** An attached file, for the app to show or open */
+  async attachment(workspace: string, id: string): Promise<{ attachment: Attachment; file: string }> {
+    await this.workspaces.get(workspace);
+    const attachment = await attachments.get(workspace, id);
+    return { attachment, file: attachmentFile(workspace, attachment) };
+  }
+
+  async postMessage(id: string, text: string, context: ContextItem[] = [], attached: string[] = []): Promise<void> {
     const run = await this.runOf(id);
+    const files = await attachments.of(run.workspace, attached);
     await this.timeline.record({
       workspace: run.workspace,
       actor: 'user',
@@ -297,7 +315,7 @@ export class Momentum {
       runId: id,
       automation: run.automation,
     });
-    await this.runner.send(id, text, context);
+    await this.runner.send(id, text, context, files);
   }
 
   /** Ends a run: its process is killed; what it wrote so far still passes the guard and reaches the feed */

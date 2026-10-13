@@ -174,9 +174,12 @@ create table if not exists ${s}.run_message (
   text text not null,
   -- Parts of cards the user added to the message: quotes and diagram elements
   context jsonb not null default '[]',
+  -- Files the user attached to the message: id, name, media type and size; the files are kept on the PC
+  attachments jsonb not null default '[]',
   at timestamptz not null default now(),
   primary key (run_id, seq)
 );
+alter table ${s}.run_message add column if not exists attachments jsonb not null default '[]';
 -- A turn of a chat or an interview: one session, from the user's message to its end
 create table if not exists ${s}.run_turn (
   run_id text not null references ${s}.run (id) on delete cascade,
@@ -193,6 +196,7 @@ create table if not exists ${s}.run_turn (
   retrieval jsonb,
   primary key (run_id, turn)
 );
+alter table ${s}.run_turn add column if not exists retrieval_state text not null default 'none';
 -- The tool calls of a turn, with the start of what each returned for rating the retrieval
 create table if not exists ${s}.run_step (
   run_id text not null references ${s}.run (id) on delete cascade,
@@ -213,6 +217,7 @@ create table if not exists ${s}.run_step (
   result text,
   primary key (run_id, id)
 );
+alter table ${s}.run_step add column if not exists response text;
 -- Each retrieval tool's rating in a turn, against the other tools of the turn
 create table if not exists ${s}.retrieval_metric (
   id bigserial primary key,
@@ -281,6 +286,8 @@ create table if not exists ${s}.attention_pattern (
   accepted_at timestamptz,
   detected_at timestamptz not null default now()
 );
+alter table ${s}.attention_pattern add column if not exists entity_path text;
+alter table ${s}.attention_pattern add column if not exists accepted_at timestamptz;
 create table if not exists ${s}.understanding_metric (
   consistency real not null,
   open_issues int not null,

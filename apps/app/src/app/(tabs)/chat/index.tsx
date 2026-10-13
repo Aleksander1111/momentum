@@ -7,6 +7,7 @@ import { api } from '../../../lib/api';
 import { useCurrentWorkspace } from '../../../lib/workspace';
 import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { chatContext, useChatContext } from '../../../lib/context';
+import { attachmentIds, chatFiles, useChatFiles } from '../../../lib/attachments';
 import { relativeTime, runKind, runStatus, yours } from '../../../lib/format';
 import { C, runColour, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
@@ -68,6 +69,7 @@ export default function Sessions() {
   }, [params.ws, params.compose]);
 
   const context = useChatContext(target);
+  const files = attachmentIds(useChatFiles(target));
   const [filter, setFilter] = useFilter();
   const shown = (automation: Parameters<typeof yours>[0]) => filter === 'all' || (filter === 'yours') === yours(automation);
   const lists = names.map((ws, i) => (chats[i]?.data?.chats ?? []).filter((c) => shown(c.automation)));
@@ -149,19 +151,24 @@ export default function Sessions() {
           ref={composer}
           placeholder={`Ask ${target ?? ''}`.trim()}
           context={context}
+          attachTo={target}
           voice={{
-            target: target ? { kind: 'chat', workspace: target, context } : null,
+            target: target ? { kind: 'chat', workspace: target, context, attachments: files } : null,
             onOutcome: (o) => {
               if (!o.runId || !o.workspace) return;
-              if (o.created && o.workspace === target) chatContext.clear(target);
+              if (o.created && o.workspace === target) {
+                chatContext.clear(target);
+                chatFiles.clear(target);
+              }
               void qc.invalidateQueries({ queryKey: ['chats', o.workspace] });
               openRun(o.runId);
             },
           }}
           onSend={async (text) => {
             if (!target) return;
-            const { runId } = await api.createChat(target, { text, context });
+            const { runId } = await api.createChat(target, { text, context, attachments: files });
             chatContext.clear(target);
+            chatFiles.clear(target);
             await qc.invalidateQueries({ queryKey: ['chats', target] });
             openRun(runId);
           }}

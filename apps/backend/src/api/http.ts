@@ -8,6 +8,8 @@ import {
   ApproveRequest,
   AskRequest,
   AskResponse,
+  Attachment,
+  ATTACHMENT_MAX_BYTES,
   ChatsResponse,
   CreateChatRequest,
   EntityDetail,
@@ -16,6 +18,7 @@ import {
   GraphBuildStatus,
   MetricsRange,
   MetricsResponse,
+  PostAttachment,
   PostRunMessage,
   PutGraphBuild,
   PutProjectLogo,
@@ -42,7 +45,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
-import { existsSync } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import type { Auth } from '../auth.ts';
@@ -71,6 +74,8 @@ function nullableEnums<T>(doc: T): T {
 export const COOKIE = 'momentum_session';
 /** The routes anyone may reach: signing in, the API document and the web app's files. Every other route needs a session */
 const PUBLIC = new Set(['POST /session', 'GET /openapi.json', 'GET /*']);
+/** Routes the browser opens as a page that answer with something other than the web app */
+const NOT_PAGES = new Set(['/openapi.json', '/workspaces/:ws/attachments/:id']);
 
 /**
  * Decided by the route the request matched, never by its raw URL: the router decodes the path, so `/%77orkspaces` is
@@ -117,7 +122,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
   // Page loads of the web app get the app; the app's own requests get the API
   app.addHook('onRequest', async (req, reply) => {
     const wantsPage = req.method === 'GET' && (req.headers.accept ?? '').includes('text/html');
-    if (wantsPage && spa && req.routeOptions.url !== '/openapi.json') return page(reply);
+    if (wantsPage && spa && !NOT_PAGES.has(req.routeOptions.url ?? '')) return page(reply);
     if (isPublic(req)) return;
     if (!(await auth.check(tokenOf(req)))) return reply.code(401).send({ error: 'Sign in first' });
   });
@@ -222,7 +227,31 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
   app.post(
     '/workspaces/:ws/chats',
     { schema: { params: ws, body: CreateChatRequest, response: { 200: z.object({ runId: z.string() }), ...errors } } },
-    (req) => momentum.createChat(req.params.ws, req.body.text, req.body.targetPath, req.body.context),
+    (req) => momentum.createChat(req.params.ws, req.body.text, req.body.targetPath, req.body.context, req.body.attachments),
+  );
+
+  // A file is sent as a base64 data URL in JSON: a third larger than the file, and a little more for the name
+  app.post(
+    '/workspaces/:ws/attachments',
+    { bodyLimit: Math.ceil(ATTACHMENT_MAX_BYTES / 3) * 4 + 64 * 1024, schema: { params: ws, body: PostAttachment, response: { 200: Attachment, ...errors } } },
+    (req) => momentum.attach(req.params.ws, req.body.name, req.body.data),
+  );
+
+  // The file as it was attached; whatever it holds runs nowhere: no script of it reaches the app's origin
+  app.get(
+    '/workspaces/:ws/attachments/:id',
+    { schema: { params: ws.extend({ id: z.string() }), response: { 200: z.unknown().describe('The file as it was attached, of its own type'), ...errors } } },
+    async (req, reply) => {
+      const { attachment, file } = await momentum.attachment(req.params.ws, req.params.id);
+      return reply
+        .type(attachment.type)
+        .header('content-length', attachment.size)
+        .header('content-disposition', `inline; filename*=UTF-8''${encodeURIComponent(attachment.name)}`)
+        .header('content-security-policy', 'sandbox')
+        .header('x-content-type-options', 'nosniff')
+        .header('cache-control', 'private, max-age=31536000, immutable')
+        .send(createReadStream(file));
+    },
   );
 
   app.get('/runs', { schema: { querystring: ActiveRunsQuery, response: { 200: ActiveRunsResponse, ...errors } } }, (req) =>
@@ -237,7 +266,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
     '/runs/:id/messages',
     { schema: { params: z.object({ id: z.string() }), body: PostRunMessage, response: { 202: z.null(), ...errors } } },
     async (req, reply) => {
-      await momentum.postMessage(req.params.id, req.body.text, req.body.context);
+      await momentum.postMessage(req.params.id, req.body.text, req.body.context, req.body.attachments);
       return reply.code(202).send(null);
     },
   );

@@ -48,8 +48,15 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
     // No trigger is approved yet, so nothing starts on demand
     await expect(api.runAutomation(WS, 'exploration')).rejects.toThrow(/does not start on demand/);
 
-    const { runId } = await api.mcp<{ runId: string }>('chat', { workspace: WS, text: 'Which routes does the API have?' });
-    expect((await api.mcp<{ id: string }>('run', { id: runId })).id).toBe(runId);
+    const notes = await api.mcp<{ id: string; name: string }>('attach', { workspace: WS, name: 'notes.txt', data: `data:text/plain;base64,${Buffer.from('Routes first.').toString('base64')}` });
+    expect(notes.name).toBe('notes.txt');
+    const kept = `${env.url}/workspaces/${WS}/attachments/${notes.id}`;
+    expect((await fetch(kept)).status).toBe(401);
+    expect(await (await fetch(kept, { headers: { authorization: `Bearer ${env.token}` } })).text()).toBe('Routes first.');
+    const { runId } = await api.mcp<{ runId: string }>('chat', { workspace: WS, text: 'Which routes does the API have?', attachments: [notes.id] });
+    const run = await api.mcp<{ id: string; messages: { attachments: { name: string }[] }[] }>('run', { id: runId });
+    expect(run.id).toBe(runId);
+    expect(run.messages[0]!.attachments.map((a) => a.name)).toEqual(['notes.txt']);
     await api.mcp('message', { id: runId, text: 'Answer in one line.' });
     expect((await api.mcp<{ chats: { runId: string }[] }>('chats', { workspace: WS })).chats.map((c) => c.runId)).toContain(runId);
     await api.mcp('kill_run', { id: runId });

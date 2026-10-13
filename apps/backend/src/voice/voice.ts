@@ -5,8 +5,8 @@ import { CommandFeed, type StreamEvent } from './feed.ts';
 
 /** What the voice router does with a spoken item: the harness's own handlers */
 export interface VoiceActions {
-  createChat(workspace: string, text: string, targetPath?: string, context?: ContextItem[]): Promise<{ runId: string }>;
-  postMessage(id: string, text: string, context?: ContextItem[]): Promise<void>;
+  createChat(workspace: string, text: string, targetPath?: string, context?: ContextItem[], attachments?: string[]): Promise<{ runId: string }>;
+  postMessage(id: string, text: string, context?: ContextItem[], attachments?: string[]): Promise<void>;
   startInterview(workspace: string, topic: string): Promise<{ runId: string }>;
   entity(workspace: string, path: string): Promise<{ title: string }>;
 }
@@ -211,13 +211,13 @@ export class Voice {
         return { kind: 'search', workspace, text: item.text };
       case 'chat': {
         if (target.runId) {
-          await this.actions.postMessage(target.runId, item.text, target.context);
-          this.targets.set(this.floor!, { ...target, context: [] });
+          await this.actions.postMessage(target.runId, item.text, target.context, target.attachments);
+          this.targets.set(this.floor!, { ...target, context: [], attachments: [] });
           return { kind: 'chat', workspace, runId: target.runId };
         }
-        const { runId } = await this.actions.createChat(workspace, item.text, undefined, target.context);
+        const { runId } = await this.actions.createChat(workspace, item.text, undefined, target.context, target.attachments);
         // The next item goes on in this chat, even before the app has opened it
-        this.targets.set(this.floor!, { ...target, runId, context: [] });
+        this.targets.set(this.floor!, { ...target, runId, context: [], attachments: [] });
         return { kind: 'chat', workspace, runId, created: true };
       }
       case 'entity': {

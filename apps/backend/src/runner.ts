@@ -1,5 +1,5 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
-import type { ActiveRun, AutomationName, ContextItem, EntityFrontmatter, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
+import type { ActiveRun, Attachment, AutomationName, ContextItem, EntityFrontmatter, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
 import { ask, changedSince, show, startSession, workingTree, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
@@ -8,6 +8,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { z } from 'zod';
 import { Activity, turnsOf } from './activity.ts';
+import { attachmentFile } from './attachments.ts';
 import { HARNESS_ONLY, type Automations } from './automations.ts';
 import { config } from './config.ts';
 import type { Bus } from './events.ts';
@@ -64,6 +65,8 @@ export interface NewRun {
   message?: string;
   /** Parts of cards the user added to the chat's first message; the prompt carries them as references */
   context?: ContextItem[];
+  /** Files the user attached to the chat's first message; the prompt names where they are */
+  attachments?: Attachment[];
 }
 
 /**
@@ -81,6 +84,21 @@ export function withContext(context: ContextItem[], text: string): string {
   });
   return `${refs.join('')}${text}`;
 }
+
+const size = (bytes: number) => (bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
+
+/** The files the user attached to a message, ahead of it: where each is kept on this machine, for the agent to read */
+export function withAttachments(workspace: string, attached: Attachment[], text: string): string {
+  if (attached.length === 0) return text;
+  const lines = attached.map((a) => `- ${attachmentFile(workspace, a)} (${a.type}, ${size(a.size)})`);
+  const one = attached.length === 1;
+  const head = `The user attached ${one ? 'a file' : `${attached.length} files`} to this message; read ${one ? 'it where it is' : 'them where they are'}:`;
+  return `${head}\n${lines.join('\n')}\n\n${text}`;
+}
+
+/** A user's message as the agent reads it: the card parts, then the files, then what they wrote */
+export const userPrompt = (workspace: string, context: ContextItem[], attached: Attachment[], text: string) =>
+  withContext(context, withAttachments(workspace, attached, text));
 
 export interface QueuedRun {
   workspace: string;
@@ -181,8 +199,8 @@ export class Runner {
   async detail(id: string): Promise<RunDetail> {
     const ws = await this.workspaceOf(id);
     const r = await this.row(ws, id);
-    const messages = await ws.index.sql<{ seq: number; role: RunMessage['role']; text: string; context: ContextItem[]; at: Date }[]>`
-      select seq, role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${id} order by seq`;
+    const messages = await ws.index.sql<{ seq: number; role: RunMessage['role']; text: string; context: ContextItem[]; attachments: Attachment[]; at: Date }[]>`
+      select seq, role, text, context, attachments, at from ${this.t(ws, 'run_message')} where run_id = ${id} order by seq`;
     return {
       ...this.view(ws, r),
       messages: messages.map((m) => ({ ...m, at: m.at.toISOString() })),
@@ -211,11 +229,18 @@ export class Runner {
    * Messages of one run are written one after another: each takes the next sequence number, so two arriving together
    * (the assistant's text and the user's message) must not both read the same last one
    */
-  private addMessage(ws: Workspace, id: string, role: RunMessage['role'], text: string, context: ContextItem[] = []): Promise<void> {
+  private addMessage(
+    ws: Workspace,
+    id: string,
+    role: RunMessage['role'],
+    text: string,
+    context: ContextItem[] = [],
+    attached: Attachment[] = [],
+  ): Promise<void> {
     return this.messageWrites.run(id, async () => {
-      await ws.index.sql`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context)
+      await ws.index.sql`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context, attachments)
         values (${id}, (select coalesce(max(seq), 0) + 1 from ${this.t(ws, 'run_message')} where run_id = ${id}), ${role}, ${text},
-          ${ws.index.sql.json(context as never)})`;
+          ${ws.index.sql.json(context as never)}, ${ws.index.sql.json(attached as never)})`;
     });
   }
 
@@ -240,12 +265,12 @@ export class Runner {
         targets: spec.targets ?? [],
         status: 'queued',
         title: spec.title ?? '',
-        prompt: withContext(spec.context ?? [], spec.prompt),
+        prompt: userPrompt(ws.name, spec.context ?? [], spec.attachments ?? [], spec.prompt),
       })}`;
       if (spec.automation === 'chat') await tx`insert into ${this.t(ws, 'chat')} ${tx({ run_id: id, entity_path: null })}`;
       if (first) {
-        await tx`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context)
-          values (${id}, 1, 'user', ${spec.message ?? spec.prompt}, ${tx.json(first as never)})`;
+        await tx`insert into ${this.t(ws, 'run_message')} (run_id, seq, role, text, context, attachments)
+          values (${id}, 1, 'user', ${spec.message ?? spec.prompt}, ${tx.json(first as never)}, ${tx.json((spec.attachments ?? []) as never)})`;
       }
     });
     for (const path of new Set([spec.targetPath, ...(spec.targets ?? [])])) if (path) await this.guard.markUpdating(ws, path);
@@ -617,14 +642,14 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
    * A message from the chat tool: steers the running process, or queues the run that has ended again, to resume its
    * session in the working directory once no other run of the project works there. The user's runs start first.
    */
-  send(id: string, text: string, context: ContextItem[] = []): Promise<void> {
-    return this.lifecycle.run(id, () => this.sendNow(id, text, context));
+  send(id: string, text: string, context: ContextItem[] = [], attached: Attachment[] = []): Promise<void> {
+    return this.lifecycle.run(id, () => this.sendNow(id, text, context, attached));
   }
 
-  private async sendNow(id: string, text: string, context: ContextItem[]): Promise<void> {
+  private async sendNow(id: string, text: string, context: ContextItem[], attached: Attachment[]): Promise<void> {
     const ws = await this.workspaceOf(id);
-    await this.addMessage(ws, id, 'user', text, context);
-    const prompt = withContext(context, text);
+    await this.addMessage(ws, id, 'user', text, context, attached);
+    const prompt = userPrompt(ws.name, context, attached, text);
     const entry = this.active.get(id);
     if (entry?.handle.send(prompt)) {
       // What it answers to the user's message is for the user again
@@ -823,8 +848,8 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   }
 
   private async writeTranscriptFile(ws: Workspace, r: RunRow): Promise<void> {
-    const messages = await ws.index.sql<{ role: string; text: string; context: ContextItem[]; at: Date }[]>`
-      select role, text, context, at from ${this.t(ws, 'run_message')} where run_id = ${r.id} order by seq`;
+    const messages = await ws.index.sql<{ role: string; text: string; context: ContextItem[]; attachments: Attachment[]; at: Date }[]>`
+      select role, text, context, attachments, at from ${this.t(ws, 'run_message')} where run_id = ${r.id} order by seq`;
     const file = join(ws.path, 'chats', `${r.id}.jsonl`);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf8');

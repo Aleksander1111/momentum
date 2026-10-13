@@ -2,6 +2,7 @@ import { crossProjectFeed, pruneHarness, pruneWorkspace } from '@momentum/kb';
 import { commitPathsFrom, listFiles, nonLinear } from '@momentum/runs';
 import { CronExpressionParser } from 'cron-parser';
 import { fileOf, KNOWLEDGE_GRAPH } from '@momentum/entity';
+import { attachments } from './attachments.ts';
 import { HARNESS_ONLY, TRIGGER_TYPE, type Automations, type Trigger } from './automations.ts';
 import { config } from './config.ts';
 import type { Bus, Moved } from './events.ts';
@@ -108,6 +109,8 @@ export class Orchestrator {
         await commitPathsFrom(ws.path, ws.main, files.map((path) => ({ path, content: null })), 'Reset the knowledge graph');
       }
       await this.workspaces.drop(ws.name);
+      // The chats go with the index, and the files attached to them with the chats
+      await attachments.drop(ws.name);
       await this.settings.resetProject(ws.name);
     } finally {
       if (enabled) await this.settings.setEnabled(ws.name, true);

@@ -4,6 +4,7 @@ import { onlineManager } from '@tanstack/react-query';
 import {
   ActiveRunsResponse,
   AskResponse,
+  Attachment,
   ChatsResponse,
   EntityDetail,
   FeedResponse,
@@ -20,6 +21,7 @@ import {
   type TimelineActor,
   type ApproveRequest,
   type CreateChatRequest,
+  type PostAttachment,
   type PostRunMessage,
   type PutGraphBuild,
   type PutSettings,
@@ -170,6 +172,13 @@ export const api = {
     const res = await request('POST', `/workspaces/${seg(ws)}/chats`, req);
     return RunIdResponse.parse(await res.json());
   },
+  /** Keeps a file on the PC for the next message; the message carries it by the id this returns */
+  async attach(ws: string, req: PostAttachment): Promise<Attachment> {
+    const res = await request('POST', `/workspaces/${seg(ws)}/attachments`, req);
+    return Attachment.parse(await res.json());
+  },
+  /** Where an attached file is read: on the web the session cookie goes with it, natively the token must */
+  attachmentUrl: (ws: string, id: string) => `${BASE}/workspaces/${seg(ws)}/attachments/${seg(id)}`,
   run: (id: string) => get(`/runs/${seg(id)}`, RunDetail),
   async postMessage(id: string, req: PostRunMessage): Promise<void> {
     await request('POST', `/runs/${seg(id)}/messages`, req);
