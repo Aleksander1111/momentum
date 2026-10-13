@@ -12,6 +12,9 @@ import { T } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
 import { SettingsButton } from '../../ui/SettingsButton';
 
+// Android browsers keep the page above the system bar themselves, yet Firefox reports a tall bottom inset that left empty space below the tabs
+const androidBrowser = Platform.OS === 'web' && /Android/i.test(globalThis.navigator?.userAgent ?? '');
+
 const TABS = [
   { name: 'feed', label: 'Feed' },
   { name: 'explorer', label: 'Explorer' },
@@ -49,7 +52,7 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
               borderTopColor: C.line,
               paddingTop: 10,
               paddingHorizontal: 6,
-              paddingBottom: 16 + insets.bottom,
+              paddingBottom: 16 + (androidBrowser ? 0 : insets.bottom),
             }
       }
     >
