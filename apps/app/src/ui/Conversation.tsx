@@ -5,7 +5,7 @@ import type { RunDetail, VoiceTarget } from '@momentum/contract';
 import { api } from '../lib/api';
 import { automationLabel, duration, runStatus, usagePct } from '../lib/format';
 import { openRun } from '../lib/runs';
-import { C, F, useWide } from './theme';
+import { C, F, runColour, useWide } from './theme';
 import { T } from './Text';
 import { hasWideBlocks, Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
@@ -59,8 +59,8 @@ function RunHead({ run, onStop, compact }: { run: RunDetail; onStop: () => Promi
           width: 9,
           height: 9,
           borderRadius: 5,
-          backgroundColor: running ? C.ok : C.muted,
-          boxShadow: running ? `0 0 0 3px ${C.washOk}` : undefined,
+          backgroundColor: stopping && ACTIVE.has(run.status) ? C.warn : runColour(run.status),
+          boxShadow: running ? `0 0 0 3px ${C.washOk}` : run.status === 'failed' ? `0 0 0 3px ${C.washNo}` : undefined,
         }}
       />
       <View style={{ flex: 1 }}>

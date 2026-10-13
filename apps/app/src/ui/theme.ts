@@ -95,6 +95,14 @@ export const C: Palette = Object.defineProperties(
   Object.fromEntries(Object.keys(LIGHT).map((k) => [k, { enumerable: true, get: () => current[k as keyof Palette] }])),
 ) as Palette;
 
+/** The colour a run's state is told by: green while running, amber while queued, red once failed, muted otherwise */
+export function runColour(status: string): string {
+  if (status === 'running') return C.ok;
+  if (status === 'queued') return C.warn;
+  if (status === 'failed') return C.no;
+  return C.muted;
+}
+
 /** Makes `C` return the colours of `scheme`; called by the appearance provider before its subtree renders. */
 export function applyScheme(scheme: Scheme): void {
   current = PALETTES[scheme];

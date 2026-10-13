@@ -65,7 +65,7 @@ export function Row({
 }
 
 /** Row body: main line plus optional muted sub-line; a sub-line without spaces, such as a path, may break anywhere. */
-export function RowText({ title, sub, size = 15, breakAnywhere }: { title: string; sub?: string; size?: number; breakAnywhere?: boolean }) {
+export function RowText({ title, sub, size = 15, breakAnywhere }: { title: string; sub?: ReactNode; size?: number; breakAnywhere?: boolean }) {
   return (
     <View style={{ flex: 1, minWidth: 0 }}>
       <T style={{ fontSize: size }}>{title}</T>

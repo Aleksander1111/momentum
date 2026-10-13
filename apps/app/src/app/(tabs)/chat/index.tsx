@@ -8,7 +8,7 @@ import { useCurrentWorkspace } from '../../../lib/workspace';
 import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { chatContext, useChatContext } from '../../../lib/context';
 import { relativeTime, runKind, runStatus, yours } from '../../../lib/format';
-import { C, useTheme, useWide } from '../../../ui/theme';
+import { C, runColour, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
 import { Icon } from '../../../ui/icons';
 import { List, Pick, Row, RowText, Sect, Segmented, useCloseOnBack } from '../../../ui/parts';
@@ -123,7 +123,15 @@ export default function Sessions() {
                     </View>
                     <RowText
                       title={c.title}
-                      sub={`${runKind(c.automation)} · ${runStatus(c.status)} · ${relativeTime(c.updatedAt)}`}
+                      sub={
+                        <>
+                          {`${runKind(c.automation)} · `}
+                          <T style={{ color: runColour(c.status), fontWeight: c.status === 'running' || c.status === 'failed' ? '600' : undefined }}>
+                            {runStatus(c.status)}
+                          </T>
+                          {` · ${relativeTime(c.updatedAt)}`}
+                        </>
+                      }
                     />
                     <States verification={c.verification} sync={c.sync} />
                   </Row>

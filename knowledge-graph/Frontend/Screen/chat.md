@@ -13,6 +13,8 @@ references:
     relation: shows
   - to: Architecture/Component/retrieval-rater
     relation: shows
+  - to: Frontend/UiComponent/theme
+    relation: uses
 artifacts:
   - apps/app/src/app/(tabs)/chat/index.tsx
   - apps/app/src/app/(tabs)/chat/[runId].tsx
@@ -23,13 +25,13 @@ artifacts:
 ---
 # Sessions screen
 
-The user's chats and interviews beside the automations' runs.
+The user's chats and interviews beside automation runs.
 
-- Grouped by workspace under its logo, polled every 15 s; rows: yours/automation icon, title, kind, status, age
-- Filter All, Yours, Automations, kept on the device
-- A project picker shared with Explorer and Metrics
-- Composer: Enter breaks a line, button or Ctrl+Enter sends; stop ends the answer; context chips; mic
-- Run head: automation, state, 5-hour usage, entity; Stop shows Stopping
-- Per turn: time, tools, tokens, call under way, RAG score; opens to calls, bookkeeping, tool ratings
-- Polled every 2 s while active or a rating is pending (≤3 min)
-- Wide: beside the list, back closes it; narrow: a page
+- By workspace under its logo, polled every 15 s; rows: who started it, title, kind, state, age
+- Filter All, Yours, Automations, kept on the device; project picker, shared
+- Composer: Enter sends, Shift+Enter breaks; context chips; unsent says why; mic
+- State in its [colour](Frontend/UiComponent/theme), bold if running or failed
+- Run head: state dot (amber while stopping, red ring if failed), automation, state, 5-h usage, entity; Stop
+- Per turn: time, tools, tokens, live call, RAG score; opens to calls, bookkeeping, tool ratings
+- Polled 2 s while active or rating (≤3 min)
+- Wide: beside the list, back closes it; else a page
