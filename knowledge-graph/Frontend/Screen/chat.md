@@ -28,7 +28,7 @@ The user's chats and interviews beside the automations' runs.
 - Grouped by workspace under its logo, polled every 15 s; rows: yours/automation icon, title, kind, status, age
 - Filter All, Yours, Automations, kept on the device
 - A project picker shared with Explorer and Metrics
-- Composer: Enter sends, Shift+Enter breaks a line; context as chips; unsent says why; mic dictation
+- Composer: Enter breaks a line, button or Ctrl+Enter sends; stop ends the answer; context chips; mic
 - Run head: automation, state, 5-hour usage, entity; Stop shows Stopping
 - Per turn: time, tools, tokens, call under way, RAG score; opens to calls, bookkeeping, tool ratings
 - Polled every 2 s while active or a rating is pending (≤3 min)

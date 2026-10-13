@@ -62,6 +62,7 @@ export interface ComposerVoice {
 /**
  * Field plus round accent send button; the context items waiting for this chat as chips above them. With `voice`, a mic
  * beside send: while it listens the field shows the text as heard so far; an item that failed comes back to the field.
+ * With `onStop`, a stop button beside send ends the answer being written.
  */
 export const Composer = forwardRef<
   TextInput,
@@ -71,9 +72,11 @@ export const Composer = forwardRef<
     autoFocus?: boolean;
     context?: ContextItem[];
     voice?: ComposerVoice;
+    onStop?: () => Promise<unknown>;
   }
->(function Composer({ placeholder, onSend, autoFocus, context, voice }, ref) {
+>(function Composer({ placeholder, onSend, autoFocus, context, voice, onStop }, ref) {
   const [text, setText] = useState('');
+  const [stopping, setStopping] = useState(false);
   const [busy, setBusy] = useState(false);
   // Why the last message did not go, until the text changes
   const [failed, setFailed] = useState<string | null>(null);
@@ -104,9 +107,9 @@ export const Composer = forwardRef<
       setBusy(false);
     }
   };
-  // On a keyboard Enter sends and Shift+Enter starts a new line; on a phone the return key starts one and the button sends
-  const onKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData & { shiftKey?: boolean }>) => {
-    if (Platform.OS !== 'web' || e.nativeEvent.key !== 'Enter' || e.nativeEvent.shiftKey) return;
+  // Enter starts a new line and the button sends; on a keyboard Ctrl+Enter (Cmd+Enter on a Mac) sends too
+  const onKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData & { ctrlKey?: boolean; metaKey?: boolean }>) => {
+    if (Platform.OS !== 'web' || e.nativeEvent.key !== 'Enter' || !(e.nativeEvent.ctrlKey || e.nativeEvent.metaKey)) return;
     e.preventDefault();
     void send();
   };
@@ -140,9 +143,34 @@ export const Composer = forwardRef<
         {voice ? (
           <MicButton listening={mic.listening} available={mic.available && !!voice.target} onPress={mic.listening ? mic.stop : mic.start} />
         ) : null}
+        {onStop ? (
+          <Pressable
+            onPress={() => {
+              setStopping(true);
+              onStop().finally(() => setStopping(false));
+            }}
+            disabled={stopping}
+            accessibilityRole="button"
+            accessibilityLabel="Stop answering"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              borderWidth: 1.5,
+              borderColor: C.ink,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: stopping ? 0.6 : 1,
+            }}
+          >
+            <Icon name="stop" size={14} color={C.ink} />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={send}
           disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel="Send"
           style={{
             width: 40,
             height: 40,

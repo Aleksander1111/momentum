@@ -218,6 +218,15 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
             void qc.invalidateQueries({ queryKey: ['run', runId] });
           },
         }}
+        // While the agent is answering, stop ends its turn; the next message resumes the chat
+        onStop={
+          run && ACTIVE.has(run.status)
+            ? async () => {
+                await api.killRun(runId).catch(() => {});
+                await qc.invalidateQueries({ queryKey: ['run', runId] });
+              }
+            : undefined
+        }
         onSend={async (text) => {
           await api.postMessage(runId, { text, context: interview ? [] : context });
           if (run && !interview) chatContext.clear(run.workspace);

@@ -259,7 +259,7 @@ export class App {
     const input = this.frame().getByPlaceholder('Ask about this card');
     await pace('action', `Ask "${text}"`);
     await typeInto(input, text);
-    await input.press('Enter');
+    await input.press('Control+Enter');
     return (await until('the chat on the card', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
   }
 
@@ -285,7 +285,7 @@ export class App {
     const input = this.frame().getByPlaceholder('Ask about this card');
     await pace('action', `Ask "${text}"`);
     await typeInto(input, text);
-    await input.press('Enter');
+    await input.press('Control+Enter');
     return (await until('the chat on the card', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
   }
 
@@ -294,7 +294,7 @@ export class App {
     const input = this.frame().getByPlaceholder('Message', { exact: true });
     await pace('action', `Reply "${text}"`);
     await typeInto(input, text);
-    await input.press('Enter');
+    await input.press('Control+Enter');
   }
 
   // Chat
@@ -306,7 +306,7 @@ export class App {
     const input = this.frame().getByPlaceholder(/^Ask/).first();
     await pace('action', `Ask "${text}"`);
     await typeInto(input, text);
-    await input.press('Enter');
+    await input.press('Control+Enter');
     return (await until('the chat run', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
   }
 
@@ -316,7 +316,7 @@ export class App {
     const input = this.frame().getByRole('textbox').last();
     await pace('action', `Reply "${text}"`);
     await typeInto(input, text);
-    await input.press('Enter');
+    await input.press('Control+Enter');
   }
 
   // Settings
