@@ -20,11 +20,11 @@ artifacts:
 ---
 # Unit tests
 
-Vitest, `pnpm test` at the root, 60 s a test. No server, runs or model: those are the end-to-end scenarios' to cover.
+Vitest, `pnpm test` at the root, 60 s a test. No server, runs or model: end-to-end scenarios cover those.
 
 | Where | Covers |
 |---|---|
-| apps/backend/test | Approval rules over a real repository and index; password, sessions, refused requests; completeness; models by risk; the model protocol both sides share; command stream; serial calls; timeline; usage readings; run histograms; tool names and details, retrieval rating |
-| packages/entity/test | Card length, parsing, validation and card diffs |
+| apps/backend/test | Approval rules over a real repository and index; password, sessions, refusals; completeness; models by risk; model protocol; command stream; serial calls; timeline; usage readings; run histograms; tool names, retrieval rating |
+| packages/entity/test | Card length, parsing, validation, card diffs |
 | packages/kb/test | Migrations and the index, on a test database |
-| packages/runs/test | Paths put back before landing, the run environment, rate-limit events |
+| packages/runs/test | One line in one working directory; landing on the user's commits; reactions merged into a run's files; paths put back; run environment; rate limits |

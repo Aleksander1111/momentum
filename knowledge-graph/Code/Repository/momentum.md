@@ -32,4 +32,4 @@ pnpm 10 monorepo of the harness: TypeScript, Node 24
 | knowledge-graph/ | This knowledge base |
 | examples/ | Projects the e2e scenarios run over |
 
-Scripts: `pnpm dev` (back-end on watch, web app [built from main](Architecture/Workflow/web-export-from-main)), `backend`, `test` (vitest), `typecheck`, `momentum` (CLI), `e2e [args]` (test runner only), `e2e:runner` (port 7400), `deck` (slides), `video` (voice, score, render).
+`pnpm dev` serves main: the back-end restarts when a commit changes its sources, the web app is [built from main](Architecture/Workflow/web-export-from-main). Also `test`, `typecheck`, `momentum` (CLI), `e2e`, `e2e:runner` (port 7400), `deck`, `video`.
