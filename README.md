@@ -407,6 +407,7 @@ A guard issue has no options: approve it, or send it back to start a chat run on
 **The main line is the only branch, and the project's folder the only working directory.** Enabling a project with another branch, a worktree, a detached HEAD or a merge is refused, and an enabled project that gains one is switched off.
 
 - **Every run** works in the project's own working directory, on the main line. No worktree, no copy, no branch: one run at a time works there.
+- **What you leave uncommitted** there stays yours: a run commits only what it changed itself, and puts back only its own changes.
 - **One commit per run**, by `Momentum <momentum@localhost>`, with the message the run wrote, made in the working directory on top of the main line as it stands. A run that changed nothing makes no commit.
 - **Your commits** made while a run works stay; the run's commit lands on top of them, on one straight line.
 - **Reactions** (approve, won't resolve, default triggers) are commits too. The working directory follows: clean files take the new content, files a run is changing keep its changes with the reaction merged in. A reaction to a card that changed meanwhile is refused.

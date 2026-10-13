@@ -1,6 +1,6 @@
 import type { HookCallbackMatcher, HookEvent, HookInput, SyncHookJSONOutput } from '@anthropic-ai/claude-agent-sdk';
 import { fileOf, type ValidationIssue } from '@momentum/entity';
-import { head, messageFile, workingTree } from '@momentum/runs';
+import { changedSince, head, messageFile, workingTree } from '@momentum/runs';
 import { isAbsolute, join } from 'node:path';
 import type { Guard, RunRef } from './guard.ts';
 import { messageRequest, SAY } from './protocol.ts';
@@ -95,7 +95,9 @@ export function guardHooks(
             }
             if (!describe()) return {};
             const tree = await workingTree(run.dir);
-            if (tree === described || tree === (await head(run.dir, 'HEAD^{tree}'))) return {};
+            // Nothing of its own to describe: what it found in the working directory is not its to land
+            const unchanged = run.since ? (await changedSince(run.dir, run.since)).length === 0 : tree === (await head(run.dir, 'HEAD^{tree}'));
+            if (tree === described || unchanged) return {};
             described = tree;
             return { decision: 'block', reason: messageRequest(await messageFile(run.dir)) };
           },

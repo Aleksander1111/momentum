@@ -54,6 +54,7 @@ export const FEATURES = {
   'guard.harness-scope': "In the harness's own repository a run lands only what its automation may change there; the rest is put back and raised as an issue",
   'guard.main-line-index': 'The main line is indexed on every tick; a user commit is picked up',
   'guard.alongside-user': "What the user commits while a run works stays on the main line, the run's commit landing on top of it; an approval made meanwhile reaches the working directory and the run's commit keeps it",
+  'guard.user-work-kept': 'What the user leaves uncommitted in the working directory stays theirs: a run commits, and puts back, only what it changed itself',
 
   // Summary states
   'state.verification': 'Entities are unverified until approved, verified after',

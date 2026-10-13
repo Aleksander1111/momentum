@@ -2,7 +2,7 @@ import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import type { ActiveRun, AutomationName, ContextItem, EntityFrontmatter, InterviewState, ModelChoice, ModelSettings, Risk, Run, RunDetail, RunMessage, RunStatus, RunTrigger } from '@momentum/contract';
 import { fileOf } from '@momentum/entity';
 import { createKbServer, type Embed } from '@momentum/kb';
-import { ask, head, show, startSession, workingChanges, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
+import { ask, changedSince, show, startSession, workingTree, type SessionHandle, type SessionResult, type Usage } from '@momentum/runs';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
@@ -31,7 +31,8 @@ interface RunRow {
   status: RunStatus;
   title: string;
   prompt: string;
-  base_commit: string | null;
+  /** The working directory as the run found it: a tree of everything there, committed or not; what differs from it is the run's */
+  base_tree: string | null;
   session_id: string | null;
   /** A message to a chat whose run has ended: queued again, the run resumes its session with it */
   resume_prompt: string | null;
@@ -219,7 +220,7 @@ export class Runner {
   }
 
   private ref(ws: Workspace, r: RunRow): RunRef {
-    return { id: r.id, workspace: ws.name, automation: r.automation, dir: ws.path, targetPath: r.target_path, targets: r.targets ?? [] };
+    return { id: r.id, workspace: ws.name, automation: r.automation, dir: ws.path, since: r.base_tree, targetPath: r.target_path, targets: r.targets ?? [] };
   }
 
   /** A queued run: it starts in the project's working directory once no other run works there */
@@ -409,13 +410,16 @@ export class Runner {
     // Taken off the queue in one step: a run killed or started since the orchestrator listed it stays as it is
     const r = await this.transition(ws, id, ['queued'], 'running', { started_at: new Date(), error: null });
     if (!r) return;
-    const ref = this.ref(ws, r);
     try {
       const prompt = r.resume_prompt ?? (r.session_id ? RESUME : r.prompt);
-      await this.setStatus(ws, id, 'running', { base_commit: r.base_commit ?? (await head(ws.path)), resume_prompt: null });
+      // What is in the working directory already, the user's uncommitted work included, is not the run's; a run queued
+      // again after a restart goes on from where it first started
+      const run = { ...r, base_tree: r.base_tree ?? (await workingTree(ws.path)) };
+      await this.setStatus(ws, id, 'running', { base_tree: run.base_tree, resume_prompt: null });
+      const ref = this.ref(ws, run);
       this.guard.watch(ref);
       // A run queued again after a restart, or a chat the user wrote to, resumes its session
-      await this.launch(ws, r, ref, prompt, r.session_id);
+      await this.launch(ws, run, ref, prompt, r.session_id);
     } catch (e) {
       await this.launchFailed(ws, r, e as Error);
     }
@@ -642,7 +646,7 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     const requeued = await this.transition(ws, id, ['finished', 'failed', 'killed'], 'queued', {
       ended_at: null,
       error: null,
-      base_commit: null,
+      base_tree: null,
       resume_prompt: r.session_id ? prompt : null,
       ...(r.session_id ? {} : { prompt }),
     });
@@ -838,9 +842,9 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     const { summarization } = await this.settings.values();
     const excluded = (path: string) =>
       path.startsWith('knowledge-graph/') || path.startsWith('chats/') || summarization.exclude.some((pattern) => posix.matchesGlob(path, pattern));
-    const base = (await this.row(ws, r.id)).base_commit;
+    const since = (await this.row(ws, r.id)).base_tree;
     const artifacts = new Map<string, string>();
-    for (const c of base ? await workingChanges(ws.path, base) : []) {
+    for (const c of since ? await changedSince(ws.path, since) : []) {
       if (!excluded(c.path)) artifacts.set(c.path, c.status === 'A' ? 'added' : c.status === 'D' ? 'deleted' : 'changed');
     }
     for (const d of entry.graphBuild?.documents ?? []) if (!excluded(d) && !artifacts.has(d)) artifacts.set(d, 'to map');

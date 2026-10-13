@@ -16,7 +16,7 @@ import {
   type ValidationIssue,
 } from '@momentum/entity';
 import type { Embed } from '@momentum/kb';
-import { changes, fileHistory, head, land, listFiles, mergesBetween, messageFile, moves, restorePath, show, workingChanges, type Landed } from '@momentum/runs';
+import { changedSince, changes, fileHistory, head, land, listFiles, mergesBetween, messageFile, moves, restorePath, show, workingChanges, type Change, type Landed } from '@momentum/runs';
 import { HARNESS_SCOPE } from './automations.ts';
 import type { Moved } from './events.ts';
 import { watch, type FSWatcher } from 'chokidar';
@@ -48,6 +48,11 @@ export interface RunRef {
   automation: string;
   /** The project's working directory: the one place the run works, on the main line */
   dir: string;
+  /**
+   * The working directory as the run found it, a tree of everything there, committed or not: what differs from it is the
+   * run's; what was left uncommitted before it is not. Null for a run that never recorded it: everything uncommitted is
+   */
+  since: string | null;
   targetPath: string | null;
   /** Entities the run works on besides its target, such as those a summarization run rewrites */
   targets?: string[];
@@ -401,7 +406,7 @@ export class Guard {
     const summarized = await this.summarizedBy(ws, run, written, deleted);
     // Landed and indexed in one go, so the artifacts the run summarized itself are never taken for the user's changes
     const landed = await this.exclusive(ws, async () => {
-      const l = await this.land(ws, message);
+      const l = await this.land(ws, run, message);
       await this.indexNow(ws, summarized);
       return l;
     });
@@ -437,16 +442,15 @@ export class Guard {
 
   /**
    * In the harness's own repository a run lands only what its automation may change there (HARNESS_SCOPE): anything
-   * else it changed is put back as the main line had it, before it is validated or landed, and named in its issue
+   * else it changed is put back as the run found it, before it is validated or landed, and named in its issue
    */
   private async confine(ws: Workspace, run: RunRef): Promise<ValidationIssue[]> {
     if (ws.name !== config.harnessName) return [];
     const scope = HARNESS_SCOPE[run.automation as keyof typeof HARNESS_SCOPE] ?? [];
     if (scope === 'any') return [];
     const allowed = [`${KNOWLEDGE_GRAPH}/`, ...scope];
-    const base = await head(ws.path, `refs/heads/${ws.main}`);
-    const refused = (await workingChanges(run.dir, base)).filter((c) => !allowed.some((p) => c.path.startsWith(p)));
-    for (const c of refused) await restorePath(run.dir, base, c.path);
+    const refused = (await this.changes(run)).filter((c) => !allowed.some((p) => c.path.startsWith(p)));
+    for (const c of refused) await restorePath(run.dir, run.since ?? 'HEAD', c.path);
     return refused.map((c) => ({
       path: c.path,
       code: 'out_of_scope' as const,
@@ -459,8 +463,7 @@ export class Guard {
    * the feed; it is in effect as it lands, materialized into every project from the harness main line
    */
   private async definitionsToReview(ws: Workspace, run: RunRef, written: { path: string; entity: ParsedEntity }[]): Promise<void> {
-    const base = await head(ws.path, `refs/heads/${ws.main}`);
-    const files = (await workingChanges(run.dir, base)).filter((c) => !entityPathOf(c.path)).map((c) => c.path);
+    const files = (await this.changes(run)).filter((c) => !entityPathOf(c.path)).map((c) => c.path);
     for (const file of files) {
       for (const path of await ws.index.byArtifact(file)) {
         if (written.some((w) => w.path === path) || (await ws.index.row(path))?.type !== DEFINITION) continue;
@@ -481,14 +484,19 @@ export class Guard {
     await rm(file, { force: true });
     if (text) return text;
     const titles = new Map(written.map((w) => [w.path, w.entity.title]));
-    const names = (await workingChanges(run.dir, await head(run.dir))).map((c) => titles.get(entityPathOf(c.path) ?? '') ?? c.path);
+    const names = (await this.changes(run)).map((c) => titles.get(entityPathOf(c.path) ?? '') ?? c.path);
     if (names.length <= 1) return `Update ${names[0] ?? 'the knowledge graph'}`;
     return `Update ${names[0]} and ${names.length - 1} more\n\n${names.map((n) => `- ${n}`).join('\n')}`;
   }
 
-  /** Commits what the run left in the working directory onto the main line */
-  private land(ws: Workspace, message: string): Promise<Landed | null> {
-    return land(ws.path, ws.main, message);
+  /** Commits what the run changed in the working directory onto the main line, and nothing it found there */
+  private land(ws: Workspace, run: RunRef, message: string): Promise<Landed | null> {
+    return land(ws.path, ws.main, message, run.since);
+  }
+
+  /** What the run changed in the working directory, committed or not */
+  private async changes(run: RunRef): Promise<Change[]> {
+    return run.since ? changedSince(run.dir, run.since) : workingChanges(run.dir, await head(run.dir));
   }
 
   /** One entity file as a run just wrote it: the issues the guard would raise, for the PostToolUse hook */
@@ -506,8 +514,7 @@ export class Guard {
    */
   async check(run: RunRef): Promise<{ written: { path: string; entity: ParsedEntity }[]; deleted: string[]; issues: ValidationIssue[] }> {
     const ws = await this.workspaces.get(run.workspace);
-    const base = await head(ws.path, `refs/heads/${ws.main}`);
-    const kg = (await workingChanges(run.dir, base)).filter((c) => entityPathOf(c.path));
+    const kg = (await this.changes(run)).filter((c) => entityPathOf(c.path));
     const resolves = (p: string) => existsSync(join(run.dir, fileOf(p)));
     const ctx = { ...(await this.validation()), resolves };
 

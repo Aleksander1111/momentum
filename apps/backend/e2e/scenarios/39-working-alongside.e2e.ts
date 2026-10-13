@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { until } from '../support/api.ts';
 import { expect, scenario } from '../support/fixtures.ts';
-import { commitsOf } from '../support/landed.ts';
+import { commitsOf, filesOf } from '../support/landed.ts';
 import { TODO_GRAPH } from '../support/life.ts';
 import { entityText, messageFileOf, move, type Move } from '../support/scripted.ts';
 
@@ -10,11 +10,13 @@ const WS = 'todo-cli';
 const STORE = 'Architecture/Component/store';
 const STORE_JS = 'src/store.js';
 const CLI_JS = 'src/cli.js';
+const TEST_JS = 'test/store.test.js';
 /** The line of the store a chat changes */
 const LINE = "throw new Error('a to-do needs some text');";
 const RUN_LINE = "throw new Error('a to-do needs some text; nothing was added');";
 const CLI_COMMENT = '// The command line';
 const STORE_COMMENT = '// Everything the CLI keeps';
+const TEST_COMMENT = '// The store, tested';
 /** A goal the user wrote and approves while a chat works */
 const GOAL = 'Product/Goal/offline';
 const NOTE = 'A note the user commits while a chat works.';
@@ -44,6 +46,10 @@ scenario('working-alongside', { enabled: [WS], graphBuild: 'complete' }, async (
   ]);
   model.on('a chat comments the store', (t) => t.automation === 'chat' && t.kind === 'prompt' && t.input.includes(STORE_COMMENT), (t) => [
     move.write(t, STORE_JS, `${STORE_COMMENT}\n${readFileSync(t.file(STORE_JS), 'utf8')}`),
+    move.say('Commented.'),
+  ]);
+  model.on('a chat comments the tests', (t) => t.automation === 'chat' && t.kind === 'prompt' && t.input.includes(TEST_COMMENT), (t) => [
+    move.write(t, TEST_JS, `${TEST_COMMENT}\n${readFileSync(t.file(TEST_JS), 'utf8')}`),
     move.say('Commented.'),
   ]);
   // Each chat describes its work only once the scenario has looked at the working directory: held at the network, live too
@@ -122,5 +128,25 @@ scenario('working-alongside', { enabled: [WS], graphBuild: 'complete' }, async (
     expect((await api.entity(WS, GOAL)).verification).toBe('verified');
     expect(status()).toEqual(clean);
     await app.tab('Timeline');
+  });
+
+  await step(3, async () => {
+    await api.idle(WS, 5 * 60_000);
+    // Work in progress the user leaves uncommitted: an edit, and a file git does not know
+    const readme = `${mine('README.md')}\nA note the user has not committed yet.\n`;
+    writeFileSync(join(dir, 'README.md'), readme);
+    writeFileSync(join(dir, 'notes.txt'), 'scratch\n');
+    const chat = await working(`Add the comment "${TEST_COMMENT}" as the first line of ${TEST_JS}. Change nothing else.`);
+    release();
+    expect((await api.runEnded(chat, 10 * 60_000)).status).toBe('finished');
+    // The chat's commit holds what it changed, and nothing of what it found there
+    const [landed] = await commitsOf(env, WS, chat);
+    expect(filesOf(env, WS, [landed!]).sort()).toEqual([`chats/${chat}.jsonl`, TEST_JS]);
+    expect(env.show(WS, TEST_JS)!.startsWith(TEST_COMMENT)).toBe(true);
+    expect(env.show(WS, 'README.md')).not.toContain('not committed yet');
+    // The user's work stays theirs, as they left it, uncommitted
+    expect(mine('README.md')).toBe(readme);
+    expect(mine('notes.txt')).toBe('scratch\n');
+    expect(status()).toEqual({ changed: ['README.md'], staged: [], untracked: ['notes.txt'] });
   });
 });

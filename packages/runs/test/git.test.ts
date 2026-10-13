@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { commitAll, commitPathsFrom, head, land, nonLinear, restorePath, show, workingChanges } from '../src/git.ts';
+import { changedSince, commitAll, commitPathsFrom, head, land, nonLinear, restorePath, show, workingChanges, workingTree } from '../src/git.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'momentum-git-'));
 const git = (cwd: string, ...args: string[]) =>
@@ -102,6 +102,31 @@ describe('landing in the working directory', () => {
     expect(await show(root, 'refs/heads/main', 'b.txt')).toBe('user\n');
     expect(git(root, 'status', '--porcelain')).toBe('');
     expect(await land(root, 'main', 'Nothing')).toBeNull();
+  });
+
+  it("lands only what the run changed: the user's uncommitted work it found stays as it was, uncommitted", async () => {
+    const root = repository('since', { 'a.txt': 'a\n', 'mine.txt': 'mine\n', 'src/auth.ts': 'safe\n' });
+    // The user's work in progress, before the run starts: an edit and a new file
+    write(root, 'mine.txt', 'mine, half done\n');
+    write(root, 'notes.txt', 'scratch\n');
+    const since = await workingTree(root);
+    // The run: one change it may land, one it may not
+    write(root, 'a.txt', 'run\n');
+    write(root, 'src/auth.ts', 'changed\n');
+    expect((await changedSince(root, since)).map((c) => c.path).sort()).toEqual(['a.txt', 'src/auth.ts']);
+    await restorePath(root, since, 'src/auth.ts');
+
+    const landed = await land(root, 'main', 'The run', since);
+    expect(landed?.changed).toEqual(['a.txt']);
+    expect(await show(root, 'refs/heads/main', 'mine.txt')).toBe('mine\n');
+    expect(await show(root, 'refs/heads/main', 'notes.txt')).toBeNull();
+    expect(readFileSync(join(root, 'mine.txt'), 'utf8')).toBe('mine, half done\n');
+    expect(readFileSync(join(root, 'notes.txt'), 'utf8')).toBe('scratch\n');
+    expect(git(root, 'diff', '--name-only', 'HEAD').split('\n').filter(Boolean)).toEqual(['mine.txt']);
+    expect(git(root, 'diff', '--cached', '--name-only')).toBe('');
+    expect(git(root, 'ls-files', '--others', '--exclude-standard').trim()).toBe('notes.txt');
+    // Nothing of its own left: nothing more to land
+    expect(await land(root, 'main', 'Again', since)).toBeNull();
   });
 
   it('refuses a working directory that does not have the main line checked out', async () => {

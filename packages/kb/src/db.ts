@@ -150,7 +150,8 @@ create table if not exists ${s}.run (
   resume_prompt text,
   -- An interview as its last turn left it: the question asked, whether it is done, the document it writes
   interview jsonb,
-  base_commit text,
+  -- The working directory as the run found it: a git tree of everything there, committed or not
+  base_tree text,
   session_id text,
   model text,
   risk text,
@@ -316,6 +317,8 @@ create table if not exists ${s}.implementation_metric (
 create index if not exists implementation_metric_recorded on ${s}.implementation_metric (recorded_at);
 -- Runs work in the project's working directory, one at a time: none has a directory of its own or lands beside another
 alter table ${s}.run drop column if exists checkout;
+alter table ${s}.run add column if not exists base_tree text;
+alter table ${s}.run drop column if exists base_commit;
 alter table ${s}.transaction drop column if exists conflicts;
 ${checksDdl(s)}
 `;

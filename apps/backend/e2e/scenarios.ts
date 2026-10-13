@@ -791,17 +791,19 @@ export const SCENARIOS: Scenario[] = [
     projects: ['todo-cli'],
     real: false,
     scripted: true,
-    covers: ['guard.alongside-user', 'guard.land', 'run.working-dir', 'automation.chat'],
+    covers: ['guard.alongside-user', 'guard.user-work-kept', 'guard.land', 'run.working-dir', 'automation.chat'],
     steps: [
       "A chat writes in the project's own working directory, with no worktree beside it, and lands as one commit right on top of where it started",
       "The user commits a file of their own while a chat works: the chat's commit lands on top of it, on one straight line, and keeps both",
       "An approval the user makes while a chat works reaches the working directory beside the chat's edit, and the chat's commit keeps it",
+      "The user's uncommitted edit and untracked file stay as they are, uncommitted, while a chat lands a change to another file",
     ],
     // The features each step checks, step by step
     checks: [
       ['run.working-dir', 'guard.land', 'automation.chat'],
       ['guard.alongside-user', 'guard.land'],
       ['guard.alongside-user', 'guard.land'],
+      ['guard.user-work-kept', 'guard.land'],
     ],
   },
   {

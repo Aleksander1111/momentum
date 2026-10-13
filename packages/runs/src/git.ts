@@ -208,13 +208,15 @@ export async function show(cwd: string, ref: string, path: string): Promise<stri
   }
 }
 
-/** Puts a path of a working directory back as `base` has it: its content there, or gone when it had none there */
-export async function restorePath(cwd: string, base: string, path: string): Promise<void> {
-  if ((await git(cwd, ['ls-tree', '--name-only', base, '--', path])).trim()) {
-    await git(cwd, ['checkout', base, '--', path]);
+/**
+ * Puts a file of a working directory back as `source` (a commit or a tree) has it: its content there, or gone when it
+ * had none there. The index is left as it is.
+ */
+export async function restorePath(cwd: string, source: string, path: string): Promise<void> {
+  if ((await git(cwd, ['ls-tree', '--name-only', source, '--', path])).trim()) {
+    await git(cwd, ['restore', `--source=${source}`, '--worktree', '--', path]);
     return;
   }
-  await git(cwd, ['rm', '-q', '-f', '--cached', '--ignore-unmatch', '--', path]);
   await rm(join(cwd, path), { force: true });
 }
 
@@ -347,18 +349,42 @@ export interface Landed {
 }
 
 /**
- * What a run left in the repository's working directory, committed onto the main line there as one commit; null when
- * it changed nothing. The working directory has the main line checked out: it is the only place a run works.
+ * What a run changed in the repository's working directory, committed onto the main line there as one commit; null
+ * when it changed nothing. `since` is the working directory as the run found it (`workingTree`): only the files that
+ * differ from it are the run's, and whatever else is left uncommitted there stays as it is. Without it, everything is.
+ * The working directory has the main line checked out: it is the only place a run works.
  */
-export function land(repo: string, main: string, message: string): Promise<Landed | null> {
+export function land(repo: string, main: string, message: string, since: string | null = null): Promise<Landed | null> {
   return oneAtATime(repo, async () => {
     const line = await currentBranch(repo).catch(() => null);
     if (line !== main) throw new GitError(`${repo} does not have ${main} checked out${line ? `; it is on ${line}` : ''}`, '');
     const before = await head(repo);
-    const commit = await commitAll(repo, message);
+    const commit = since === null ? await commitAll(repo, message) : await commitPaths(repo, (await changedSince(repo, since)).map((c) => c.path), message);
     if (!commit) return null;
     return { commit, changed: (await changes(repo, before, commit)).map((c) => c.path) };
   });
+}
+
+/** Commits these paths of the working directory as they stand, and nothing else; null when they hold no change */
+async function commitPaths(cwd: string, paths: string[], message: string): Promise<string | null> {
+  if (paths.length === 0) return null;
+  const list = `${paths.join('\n')}\n`;
+  await git(cwd, [...AS_STORED, 'add', '-A', '--pathspec-from-file=-'], list);
+  const staged = new Set((await git(cwd, ['diff', '--cached', '--name-only', '--no-renames'])).split('\n').filter(Boolean));
+  if (!paths.some((p) => staged.has(p))) return null;
+  await git(cwd, [...IDENTITY, 'commit', '-q', '-m', message, '--pathspec-from-file=-'], list);
+  return head(cwd);
+}
+
+/**
+ * What a run changed in the working directory: the files that differ from `since`, the working directory as the run
+ * found it, and are not on the main line as they stand. Changes left there before the run, by the user or a session of
+ * theirs, are not the run's; nor is a reaction the harness committed meanwhile, which the working directory took.
+ */
+export async function changedSince(cwd: string, since: string): Promise<Change[]> {
+  const now = await workingTree(cwd);
+  const offMain = new Set((await changes(cwd, 'HEAD', now)).map((c) => c.path));
+  return (await changes(cwd, since, now)).filter((c) => offMain.has(c.path));
 }
 
 /** Changes of the working tree against `base`, committed or not, including untracked files */
