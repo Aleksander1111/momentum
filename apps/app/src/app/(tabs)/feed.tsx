@@ -11,6 +11,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ContextItem, FeedCounts, FeedItem, FeedResponse, Sync, Verification } from '@momentum/contract';
 import { api } from '../../lib/api';
@@ -35,11 +36,11 @@ const FLING = 800;
 /** How far a card is pulled up to open the chat on it */
 const UP = 70;
 
-/** With the chat on the card open, the card leaves room below it for the chat */
+/** With the chat on the card open, the card leaves room below it for the chat; above it, room for the cards behind */
 function cardFrame(wide: boolean, chat = false): ViewStyle {
   return wide
     ? { position: 'absolute', left: '50%', marginLeft: -280, width: 560, top: 40, bottom: chat ? 12 : 40 }
-    : { position: 'absolute', left: 16, right: 16, top: 14, bottom: 12 };
+    : { position: 'absolute', left: 16, right: 16, top: 28, bottom: 12 };
 }
 
 /** Read while rendering, as every colour is: a constant would keep the scheme the module was loaded in */
@@ -252,6 +253,8 @@ function TopCard({
             </>
           ) : null}
         </ScrollView>
+        {/* A card that goes on below fades out at its bottom edge, so it reads as one to scroll, not one cut off */}
+        {atEnd ? null : <Fade />}
         {/* Each stamp sits on the edge the card trails, so it stays on screen as the card leaves */}
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 22, top: issue ? 150 : 210 }, okStamp]}>
           <Stamp kind="ok" label={issue ? 'RESOLVE' : 'APPROVE'} />
@@ -264,6 +267,22 @@ function TopCard({
         </Animated.View>
       </Animated.View>
     </GestureDetector>
+  );
+}
+
+function Fade() {
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 48 }}>
+      <Svg width="100%" height="100%" preserveAspectRatio="none">
+        <Defs>
+          <LinearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={C.surface} stopOpacity={0} />
+            <Stop offset="1" stopColor={C.surface} stopOpacity={1} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#fade)" />
+      </Svg>
+    </View>
   );
 }
 
