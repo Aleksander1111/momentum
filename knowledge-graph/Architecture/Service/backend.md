@@ -21,6 +21,8 @@ references:
     relation: depends_on
   - to: Architecture/Dependency/runs
     relation: depends_on
+  - to: Architecture/Workflow/web-export-from-main
+    relation: serves
 artifacts:
   - apps/backend/package.json
   - apps/backend/tsconfig.json
@@ -32,8 +34,8 @@ artifacts:
 ---
 # Back-end
 
-One Node process, `apps/backend`: API, orchestrator and consistency guard; runs, search answers and risk estimates are the only separate processes. The "Momentum" scheduled task (`install.ps1`) serves it at every logon: `serve.ps1` runs `pnpm dev`, restarted on every change on main.
+One Node process, `apps/backend`, API, orchestrator, consistency guard; only runs, search answers, risk estimates run apart. The "Momentum" logon task (`install.ps1`) runs `serve.ps1`, which reruns `pnpm dev` when it exits; that restarts it on source changes and runs the [web export](Architecture/Workflow/web-export-from-main).
 
 - `createMomentum` wires Postgres, workspaces, settings, bus, timeline, automations, embedder, guard, runner, approval, orchestrator, auth, voice
-- Server: no password, no start; recovers runs, indexes the harness first, materializes definitions, listens, starts orchestrator and voice
-- CLI `pnpm momentum` (passwords, enable, disable, logo, index, openapi) goes through the server's API
+- Server: no password, no start; recovers runs, indexes the harness, materializes definitions, listens, starts orchestrator and voice
+- CLI `pnpm momentum` (passwords, enable, disable, logo, index, openapi) uses the API

@@ -19,3 +19,4 @@ apps/backend/service/*.wrapper.log
 .e2e-usage-points.jsonl
 .e2e-usage-readings.jsonl
 test-results/
+.build/

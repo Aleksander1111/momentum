@@ -519,7 +519,7 @@ The server does not start without a password. Generate one; it is written to `<r
 pnpm momentum generate-password
 ```
 
-Start the back end and the web app. The back end restarts on every change, and the web app is exported again when its sources change:
+Start the back end and the web app. The back end restarts on every change. The web app is exported from the main line, never from uncommitted edits, again whenever a commit changes the app or the contract:
 
 ```bash
 pnpm dev
@@ -582,7 +582,7 @@ pnpm e2e
 | `examples` | Sample projects for the end-to-end scenarios |
 | `docs` | Slide deck and its sources, slide images, entity types |
 | `video` | The walkthrough video (Remotion) |
-| `scripts` | `dev.mjs`, the development server |
+| `scripts` | `dev.mjs`, the development server; `export-web.mjs`, the web export from the main line |
 
 `pnpm deck` builds `docs/harness-diagram.pptx`. `pnpm video` renders `video/out/momentum.mp4`; its voice step needs a separate speech project.
 
