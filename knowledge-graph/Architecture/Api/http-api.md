@@ -24,10 +24,12 @@ Fastify routes, contract zod; OpenAPI 3.0 at `/openapi.json`.
 | Session | POST, DELETE /session |
 | Feed | GET /feed; POST /feed/{path}/approve, send-back, resolve, wont-resolve |
 | Entities | …/entities/*, artifact/*, types, search, ask |
-| Chats, runs | …/chats; /runs (under way), /runs/{id}, messages, kill |
+| Chats, runs | …/chats, …/attachments[/{id}]; /runs, /runs/{id}, messages, kill |
 | Projects | /workspaces; metrics, graph-build, reset, logo |
 | Other | /timeline, /settings |
 
-Public: POST /session, the document, web app. Every other route, judged by the matched route, not the raw URL, needs a session (bearer or cookie).
+Files go up as base64 data URLs, come back sandboxed.
 
-Refusals `{error}`: 400, 401, 404, 409; 503 rebuilding. Nullable enums list null. Sockets, `/mcp` undocumented.
+Public: POST /session, the document, web app. Others, by matched route, need a session (bearer or cookie).
+
+Refusals `{error}`: 400, 401, 404, 409; 503 rebuilding. Sockets, `/mcp` undocumented.

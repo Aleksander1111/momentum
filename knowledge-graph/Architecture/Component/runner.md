@@ -34,9 +34,9 @@ artifacts:
 Claude Code session per run, in the project dir
 
 - **States**: serial per run; a killed queued run never runs
-- **Messages**: in order; queued ones join the prompt
-- **Base**: the dir as found, uncommitted work too; the run's is what differs
-- **Stop hook**: its changes, build docs summarized; results `implements` target
+- **Messages**: in order; card parts, attached files' paths, ahead of text
+- **Base**: the dir as found, uncommitted too; the run's is what differs
+- **Stop hook**: changes, build docs summarized; `implements` target
 - **Finish**: never rejects; guard lands; usage, metrics; 3 failed builds halt
 - **Restart**: lost runs resume ≤2×; chats, interviews fail, resume on message
 - **Activity**: turns of calls, tokens; rated by the [retrieval rater](Architecture/Component/retrieval-rater)

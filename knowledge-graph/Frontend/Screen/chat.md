@@ -15,6 +15,8 @@ references:
     relation: shows
   - to: Frontend/UiComponent/theme
     relation: uses
+  - to: Product/Feature/chat-attachments
+    relation: shows
 artifacts:
   - apps/app/src/app/(tabs)/chat/index.tsx
   - apps/app/src/app/(tabs)/chat/[runId].tsx
@@ -29,9 +31,8 @@ User chats and interviews beside automation runs.
 
 - By workspace under its logo, polled 15 s; rows: starter, title, kind, state, age
 - Filter All, Yours, Automations, kept on device; shared project picker
-- Composer: Enter sends, Shift+Enter breaks; context chips; unsent says why; mic
+- Composer: Enter sends, Shift+Enter breaks; context and [file](Product/Feature/chat-attachments) chips; unsent says why; mic; bubbles show files
 - State in its [colour](Frontend/UiComponent/theme), bold running or failed
-- Run head: state dot (amber stopping, red ring failed), automation, state, 5-h usage, entity, Stop
-- Per turn, unframed on phone as an interview's document: time, tools, tokens, live call, RAG; opens to calls, bookkeeping, tool ratings
-- Polled 2 s if active or rating (≤3 min)
+- Head: state dot (amber stopping, red ring failed), automation, 5-h usage, entity, Stop
+- Per turn: time, tools, tokens, live call, RAG; opens to calls, ratings; polled 2 s while active
 - Wide: beside the list, back closes it; else a page

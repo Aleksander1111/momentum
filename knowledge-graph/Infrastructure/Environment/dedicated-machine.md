@@ -14,10 +14,10 @@ artifacts:
 ---
 # Dedicated machine
 
-The one self-hosted, resource-rich machine that runs the back-end, the runs and the knowledge base: this PC, Windows 11, workspaces root `C:\Projects`.
+The one self-hosted machine that runs the back-end, the runs and the knowledge base: this PC, Windows 11, workspaces root `C:\Projects`.
 
 - Every git repository directly under the root is a workspace; its runs work in its own folder, the one working directory
-- Tailscale: the API listens only on the tailnet address, port 7300; no port on the public internet
+- Tailscale: the API listens only on the tailnet address, port 7300; nothing on the public internet
 - Node 24, pnpm, Claude Code CLI, Docker with Postgres 18 + pgvector; procgov caps each run (4 GB, 4 cores by default)
-- Back-end served by the "Momentum" scheduled task at every logon, hidden under the user's account: waits for Postgres, restarts when it stops
-- Password in `C:\Projects\.momentum\password.txt`
+- Back-end served by the "Momentum" scheduled task at logon, hidden: waits for Postgres, restarts when it stops
+- Password in `C:\Projects\.momentum\password.txt`; chat attachments in `C:\Projects\.attachments`

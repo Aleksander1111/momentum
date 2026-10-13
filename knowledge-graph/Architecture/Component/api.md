@@ -24,7 +24,7 @@ The backend's interface: Fastify routes typed by contract zod, at `/openapi.json
 |---|---|
 | Session | `/session` |
 | Feed | `/feed`; approve, send back, (won't) resolve |
-| Workspaces | entities, artifacts, types, search, ask, chats, metrics, graph build, reset, logo |
+| Workspaces | entities, artifacts, types, search, ask, chats, attachments, metrics, build, reset, logo |
 | Runs | `/runs` under way, `/runs/:id`, messages, kill |
 | Other | `/timeline`, `/settings`, `/voice`, `/voice/audio` |
 

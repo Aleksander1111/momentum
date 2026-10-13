@@ -24,7 +24,7 @@ Vitest, `pnpm test` at the root, 60 s a test. No server, runs or model: end-to-e
 
 | Where | Covers |
 |---|---|
-| apps/backend/test | Approval rules over a real repo and index; password, sessions, refusals; completeness; models by risk; model protocol; command stream; serial calls; timeline; usage readings; run histograms; tool names, retrieval rating |
-| packages/entity/test | Card length, parsing, validation, card diffs |
+| apps/backend/test | Approval rules over a real repo and index; password, sessions, refusals; completeness; attached files in the prompt, safe names; models by risk; model protocol; command stream; serial calls; timeline; usage; histograms; retrieval rating |
+| packages/entity/test | Card length, parsing, validation, diffs |
 | packages/kb/test | Migrations and the index, on a test database |
-| packages/runs/test | One line, one working dir; lands on user commits, only its own changes, user's uncommitted kept; reactions merged; paths put back; run environment; rate limits |
+| packages/runs/test | One line, one working dir; lands on user commits, only its changes, user's uncommitted kept; reactions merged; paths put back; run env; rate limits |

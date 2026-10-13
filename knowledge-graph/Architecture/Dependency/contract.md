@@ -24,10 +24,10 @@ kind: internal library
 | Card | blocks, PlantUML SVG, parts; diff marks, spans |
 | Feed | items, versions, diffs, issue options, counts; reactions |
 | Search | results, ask, sources |
-| Runs, chats | automations, status, usage, context, interview, turns, steps, retrieval ratings |
+| Runs, chats | automations, status, usage, context, attachments, interview, turns, steps, ratings |
 | Timeline | actor, kind, facts, state moves, page |
 | Voice | screen, status, partials |
 | Build, metrics | completeness, estimate; series; retrieval per automation, tool |
-| Settings | projects, logo, feed size, cards, lifetimes, models, limits |
+| Settings | projects, logo, feed, cards, lifetimes, models, limits |
 
 `openapi.json`: OpenAPI 3.0
