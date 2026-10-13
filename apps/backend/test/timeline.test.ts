@@ -89,6 +89,18 @@ describe('timeline', () => {
     expect(events[0]).toMatchObject({ runId: 'c3', kind: 'changes_landed', title: 'Rename the goal' });
   });
 
+  it('keeps one event per chat for the writes in it, the most recent', async () => {
+    const write = (runId: string, detail: string) =>
+      timeline.record({ workspace: 'shop', actor: 'user', kind: 'message_sent', title: 'Wrote in “Rename”', detail, runId, automation: 'chat' });
+    await write('c4', 'First');
+    await write('c5', 'Elsewhere');
+    await write('c4', 'Second');
+    await write('c4', 'Third');
+    const { events } = await timeline.list({ workspace: 'shop', actor: 'user', limit: 100 });
+    const writes = events.filter((e) => e.kind === 'message_sent');
+    expect(writes.map((e) => [e.runId, e.detail])).toEqual([['c4', 'Third'], ['c5', 'Elsewhere']]);
+  });
+
 });
 
 describe('state moves', () => {

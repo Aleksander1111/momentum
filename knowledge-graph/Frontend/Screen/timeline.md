@@ -16,10 +16,11 @@ kind: page
 What happened in the harness, newest first, grouped by day:
 
 - The user's actions: sign-ins, reactions, chats, settings, projects on and off
+- One event per chat for its writes: the latest
 - One event per run once it lands or ends
-- What the harness did on its own, such as switching off a project
-- Beside each title only how it moved the entity state counts, an icon and ±n each
-- Filtered by included project, and by actor: all, you, runs, harness
-- Beside the actors, one choice with them, a pill Queued n, Running m: running, then queued runs, time, why queued, model, risk; a run opens on a press
-- The newest page and runs under way polled every 4 s; Show older fetches older pages once
+- What the harness did on its own, e.g. switching off a project
+- Beside each title how it moved entity state counts, an icon and ±n each
+- Filtered by project and by actor: all, you, runs, harness
+- A pill Queued n, Running m beside the actors: running, then queued runs, time, why queued, model, risk; a run opens on a press
+- Newest page and runs under way polled every 4 s; Show older pages back
 - An entity an event names opens on a press

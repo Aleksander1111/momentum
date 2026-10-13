@@ -231,11 +231,23 @@ export class Timeline {
     await this.sql`create unique index if not exists timeline_event_run on harness.timeline_event (run_id) where actor = 'automation'`;
     // Runs were once shown while they waited and ran; only what came of them is shown now
     await this.sql`delete from harness.timeline_event where kind in ('run_queued', 'run_requeued', 'run_started', 'run_resumed')`;
+    // Every write in a chat was once an event of its own: only the most recent of each run is kept
+    await this.sql`delete from harness.timeline_event e where kind = 'message_sent' and run_id is not null
+      and exists (select 1 from harness.timeline_event n where n.kind = 'message_sent' and n.run_id = e.run_id and (n.at, n.id) > (e.at, e.id))`;
   }
 
   /** Recording never fails the action it records: a lost event is logged */
   async record(e: NewEvent): Promise<void> {
-    await this.insert([e]).catch((err) => console.error(`timeline ${e.kind}:`, err));
+    await this.write(e).catch((err) => console.error(`timeline ${e.kind}:`, err));
+  }
+
+  /** The writes in one run are one event, for the most recent of them: a new one replaces the one before */
+  private async write(e: NewEvent): Promise<void> {
+    if (e.kind !== 'message_sent' || !e.runId) return this.insert([e]);
+    await this.sql.begin(async (tx) => {
+      await tx`delete from harness.timeline_event where kind = 'message_sent' and run_id = ${e.runId!}`;
+      await tx`insert into harness.timeline_event ${tx(this.row(e) as never)}`;
+    });
   }
 
   /** The event of a run, as it came out: the first adds it, every later one replaces it and moves it to now */
