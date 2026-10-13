@@ -35,9 +35,10 @@ Claude Code session per run, in the project dir
 
 - **States**: serial per run; a killed queued run never runs
 - **Messages**: in order; queued ones join the prompt
-- **Stop hook**: artifacts, build docs summarized, no chats; results `implements` target
+- **Base**: the dir as found, uncommitted work too; the run's is what differs
+- **Stop hook**: its changes, build docs summarized; results `implements` target
 - **Finish**: never rejects; guard lands; usage, metrics; 3 failed builds halt
 - **Restart**: lost runs resume ≤2×; chats, interviews fail, resume on message
-- **Activity**: a session is a turn of calls, tokens; if it retrieved, rated at run end by the [retrieval rater](Architecture/Component/retrieval-rater); prompts: tools in parallel
-- **Timeline**: an end event with state moves
+- **Activity**: turns of calls, tokens; rated by the [retrieval rater](Architecture/Component/retrieval-rater)
+- **Timeline**: end event, state moves
 - **Under way**: queued, running; chats to `chats/<id>.jsonl`
