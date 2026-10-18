@@ -21,10 +21,10 @@ kind: internal library
 ---
 # runs
 
-`@momentum/runs`: how the backend executes runs.
+`@momentum/runs`: how the backend runs runs.
 
 | Module | Provides |
 |---|---|
-| session | `startSession`: one steerable, resumable Claude Code process a run; one dead before its session starts is started once more, told all so far; 5h/weekly usage %; tool calls, results, tokens; `ask`: one tool-less turn |
-| process | `spawnLimited`: procgov CPU/memory limits; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` becomes `DATABASE_URL`); `killTree` |
-| git | waits 5 s on locks; changes read as stored (`autocrlf=input`); `land`: the run's changes only, one commit on main; reactions merged in; `nonLinear` (branches, worktrees, merges); `restorePath`; `fileHistory` |
+| session | `startSession`: one steerable, resumable Claude Code process a run; one dead before its session starts is restarted, told all so far; 5h/weekly usage %; tool calls, results, tokens; `ask`: one tool-less turn |
+| process | `spawnLimited`: procgov CPU/memory limits; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` as `DATABASE_URL`); `killTree` |
+| git | 5 s lock wait; changes read as stored (`autocrlf=input`); `land`: the run's changes only, one commit on main; reactions merged in; `nonLinear` (branches, worktrees, merges); `restorePath`; `fileHistory`; `lastCommitMessage` |

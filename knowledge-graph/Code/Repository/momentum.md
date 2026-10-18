@@ -9,6 +9,8 @@ unlocks: 2
 references:
   - to: Architecture/Workflow/web-export-from-main
     relation: consists_of
+  - to: Infrastructure/CiCdPipeline/github-actions
+    relation: consists_of
 artifacts:
   - package.json
   - pnpm-workspace.yaml
@@ -19,7 +21,7 @@ artifacts:
 ---
 # Momentum repository
 
-pnpm 10 monorepo of the harness: TypeScript, Node 24
+pnpm 10 monorepo of the harness: TypeScript, Node 24, Windows only
 
 | Path | Holds |
 |---|---|
@@ -28,8 +30,9 @@ pnpm 10 monorepo of the harness: TypeScript, Node 24
 | packages/ | contract, entity, kb, runs |
 | docs/ | Deck, entity-types.tsv |
 | video/ | Harness video (Remotion) |
-| automations/ | Automation definitions |
-| knowledge-graph/ | This knowledge base |
-| examples/ | Projects the e2e scenarios run over |
+| automations/ | Definitions |
+| knowledge-graph/ | This graph |
+| examples/ | e2e example projects |
+| .github/ | [Checks on Linux](Infrastructure/CiCdPipeline/github-actions) |
 
-`pnpm dev` serves main: the back-end restarts when a commit changes its sources, the web app is [built from main](Architecture/Workflow/web-export-from-main). Also `test`, `typecheck`, `momentum` (CLI), `e2e`, `e2e:runner` (port 7400), `deck`, `video`.
+`pnpm dev` serves main: back-end restarted on commits to it, web app [built from main](Architecture/Workflow/web-export-from-main). Also `test`, `typecheck`, `momentum` (CLI), `e2e`, `e2e:runner` (7400), `deck`, `video`.
