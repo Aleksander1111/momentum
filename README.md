@@ -14,25 +14,98 @@ https://github.com/user-attachments/assets/97e31b2e-efcc-4aca-b49c-1f102181a758
 
 ## Contents
 
-1. [Harness and products](#harness-and-products)
-2. [User actions](#user-actions)
-3. [How everything works together](#how-everything-works-together)
-4. [Entities](#entities)
-5. [Entity types](#entity-types)
-6. [Entity states](#entity-states)
-7. [Automations](#automations)
-8. [Triggers](#triggers)
-9. [Automation management](#automation-management)
-10. [Agent tools](#agent-tools)
-11. [Summarization](#summarization)
-12. [Graph completeness](#graph-completeness)
-13. [Consistency guard](#consistency-guard)
-14. [Consistency issue types](#consistency-issue-types)
-15. [Consistency issue resolution](#consistency-issue-resolution)
-16. [Versioning](#versioning)
-17. [Metrics](#metrics)
-18. [Settings](#settings)
-19. [Getting started](#getting-started)
+1. [Quick start](#quick-start)
+2. [Harness and products](#harness-and-products)
+3. [User actions](#user-actions)
+4. [How everything works together](#how-everything-works-together)
+5. [Entities](#entities)
+6. [Entity types](#entity-types)
+7. [Entity states](#entity-states)
+8. [Automations](#automations)
+9. [Triggers](#triggers)
+10. [Automation management](#automation-management)
+11. [Agent tools](#agent-tools)
+12. [Summarization](#summarization)
+13. [Graph completeness](#graph-completeness)
+14. [Consistency guard](#consistency-guard)
+15. [Consistency issue types](#consistency-issue-types)
+16. [Consistency issue resolution](#consistency-issue-resolution)
+17. [Versioning](#versioning)
+18. [Metrics](#metrics)
+19. [Settings](#settings)
+20. [Getting started](#getting-started)
+
+---
+
+## Quick start
+
+From a clean Windows machine to a project Momentum works on, and back out of any automation that project does not want. [Getting started](#getting-started) has every option.
+
+**What it gives you**: Claude Code automations explore, plan, implement, validate and summarize the work in each enabled project, and everything they write waits for your approval in one feed across projects.
+
+### 1. Install
+
+Install the [requirements](#requirements): Windows, Node.js 24+, pnpm 10, git, Claude Code signed in, [Process Governor](https://github.com/lowleveldesign/process-governor) and Docker for Postgres. Then:
+
+```bash
+docker run -d --name momentum-db -e POSTGRES_PASSWORD=momentum -e POSTGRES_DB=momentum -p 5432:5432 pgvector/pgvector:pg17
+```
+
+```bash
+git clone https://github.com/Aleksander1111/momentum C:\Projects\momentum
+```
+
+In `C:\Projects\momentum`:
+
+```bash
+pnpm install
+```
+
+`C:\Projects\momentum\.env`, for one machine without Tailscale:
+
+```ini
+DATABASE_URL=postgres://postgres:momentum@127.0.0.1:5432/momentum
+MOMENTUM_ROOT=C:\Projects
+MOMENTUM_PROCGOV=C:\Tools\procgov.exe
+MOMENTUM_HOST=127.0.0.1
+```
+
+### 2. Run
+
+```bash
+pnpm momentum generate-password
+```
+
+```bash
+pnpm dev
+```
+
+Open `http://127.0.0.1:7300` and sign in with the password from `C:\Projects\.momentum\password.txt`.
+
+### 3. Check that it works
+
+```bash
+pnpm typecheck
+```
+
+```bash
+pnpm test
+```
+
+Both pass against the Postgres above. Then enable a project: any git repository directly under `C:\Projects`, on one straight line with no other branch or worktree:
+
+```bash
+pnpm momentum enable <workspace>
+```
+
+Within a minute **Sessions** shows the project's **Knowledge graph** run, and the **Feed** shows the project's default triggers as cards waiting for your review. Its first entity cards follow as the build goes on.
+
+### 4. Tighten or switch off an automation in one project
+
+Both are a commit on the project's main line, in effect at once. The other projects keep the shared definition.
+
+- **Tighten**: copy `automations/<name>/agents/momentum-<name>.md` from this repository to the same path in the project, edit the prompt, and commit it with the reasons in the message. The Timeline shows the override with that message. Delete the file to go back to the shared prompt. See [Automation management](#automation-management).
+- **Switch off**: in the project's `knowledge-graph/Harness/Trigger/<name>.md`, remove `schedule`, set `events: []` and `on_demand: false`, and commit. The automation no longer runs in that project. Put the values back to switch it on. See [Triggers](#triggers).
 
 ---
 
