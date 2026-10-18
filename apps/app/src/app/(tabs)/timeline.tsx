@@ -108,6 +108,8 @@ function glyph(e: TimelineEvent): keyof typeof PATHS {
     case 'logo_changed':
     case 'settings_changed':
       return 'settings';
+    case 'definition_overridden':
+      return 'agent';
     case 'run_finished':
       return e.facts.commit || e.facts.paths?.length ? 'commit' : 'check';
     case 'changes_landed':

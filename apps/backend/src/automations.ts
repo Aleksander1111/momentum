@@ -1,7 +1,7 @@
 import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
 import { AutomationName, TriggerFields } from '@momentum/contract';
 import { parseEntity } from '@momentum/entity';
-import { show } from '@momentum/runs';
+import { lastCommitMessage, show } from '@momentum/runs';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, posix, relative, sep } from 'node:path';
@@ -49,6 +49,19 @@ export interface Trigger extends TriggerFields {
   path: string;
 }
 
+/** A project's own file at the path of a definition artifact, as it stands on the project's main line */
+export interface Override {
+  automation: AutomationName;
+  /** The artifact's path, the same in the harness and in the project: automations/<name>/... */
+  path: string;
+  /** The file within the definition: agents/momentum-<name>.md is the automation's prompt */
+  file: string;
+  /** The project's content, or null once the project removed its file and the harness definition applies again */
+  content: string | null;
+  /** The message of the project's last commit that changed the file: the reasons for the override, or for its removal */
+  message: string;
+}
+
 const EXCLUDES = ['.claude/agents/momentum-*', '.claude/skills/momentum-*'];
 
 function agentFile(text: string): { description: string; prompt: string } {
@@ -58,9 +71,18 @@ function agentFile(text: string): { description: string; prompt: string } {
   return { description: fm.description ?? '', prompt: (m[2] ?? '').trim() };
 }
 
+/** A definition artifact that is materialized: a Claude Code file of the automation, not its default trigger or the risk rules */
+function materialized(name: string, artifact: string): string | null {
+  const prefix = `automations/${name}/`;
+  if (!artifact.startsWith(prefix) || artifact.endsWith('trigger.md') || artifact === RISK_RULES) return null;
+  return artifact.slice(prefix.length);
+}
+
 /**
  * Definitions are entities in the harness workspace (Harness/Automation) whose artifacts are the Claude Code files in
- * automations/<name>/; approved definitions are materialized into every workspace under <workspace>\.claude\.
+ * automations/<name>/; approved definitions are materialized into every workspace under <workspace>\.claude\. A
+ * project overrides a definition's file by committing its own at the same path to its main line: the project's file
+ * is materialized there in place of the harness's, as it lands, and its commit message holds the reasons.
  */
 export class Automations {
   constructor(private readonly workspaces: Workspaces) {}
@@ -96,13 +118,16 @@ export class Automations {
       await appendFile(exclude, `${current.endsWith('\n') || !current ? '' : '\n'}${missing.join('\n')}\n`);
     }
     const harness = await this.workspaces.harness();
+    // In the harness the project's file at the path is the definition itself
+    const project = ws.name === config.harnessName ? null : ws;
     for (const def of await this.definitions()) {
       for (const artifact of def.artifacts) {
-        const prefix = `automations/${def.name}/`;
-        if (!artifact.startsWith(prefix) || artifact.endsWith('trigger.md') || artifact === RISK_RULES) continue;
-        const content = await show(harness.path, `refs/heads/${harness.main}`, artifact);
+        const file = materialized(def.name, artifact);
+        if (file === null) continue;
+        const own = project ? await show(project.path, `refs/heads/${project.main}`, artifact) : null;
+        const content = own ?? (await show(harness.path, `refs/heads/${harness.main}`, artifact));
         if (content === null) continue;
-        const target = join(ws.path, '.claude', artifact.slice(prefix.length));
+        const target = join(ws.path, '.claude', file);
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, content, 'utf8');
       }
@@ -140,6 +165,28 @@ export class Automations {
 
   async materializeAll(): Promise<void> {
     for (const ws of await this.workspaces.enabled()) await this.materialize(ws);
+  }
+
+  /**
+   * The project's overrides among `paths` (every definition artifact's path when not given): its own files at those
+   * paths on its main line, and the ones it removed, each with the message of the commit that did it. A path no
+   * definition materializes is not an override, whatever the project holds there.
+   */
+  async overrides(ws: Workspace, paths?: string[]): Promise<Override[]> {
+    if (ws.name === config.harnessName) return [];
+    const out: Override[] = [];
+    for (const def of await this.definitions()) {
+      for (const artifact of def.artifacts) {
+        const file = materialized(def.name, artifact);
+        const automation = AutomationName.safeParse(def.name);
+        if (file === null || !automation.success || (paths && !paths.includes(artifact))) continue;
+        const content = await show(ws.path, `refs/heads/${ws.main}`, artifact);
+        if (content === null && !paths) continue;
+        const message = await lastCommitMessage(ws.path, `refs/heads/${ws.main}`, artifact);
+        out.push({ automation: automation.data, path: artifact, file, content, message });
+      }
+    }
+    return out;
   }
 
   /** The automation table of a workspace: responsibility, definition and trigger */

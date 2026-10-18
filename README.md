@@ -245,8 +245,9 @@ Automations are entities too, so they change through the feed like everything el
 
 - **Definitions** are `Harness/Automation` entities in the harness workspace (this repository). Their artifacts are the Claude Code files in `automations/<name>/`: the agent `agents/momentum-<name>.md`, the default `trigger.md`, and for implementation the risk rules `risk.md`.
 - **Triggers** are `Harness/Trigger` entities in each workspace. When you enable a project that has none, the defaults are committed to its main line; they take effect at once and wait in the feed for review.
-- **Materialization**: each definition is copied into every enabled workspace's `.claude/` (kept out of git through `.git/info/exclude`). This happens on enable and whenever a definition changes on the harness main line.
-- **In effect as they stand**: definitions and triggers work as soon as they land on the main line. Verification is your review, not a gate.
+- **Materialization**: each definition is copied into every enabled workspace's `.claude/` (kept out of git through `.git/info/exclude`). This happens on enable, whenever a definition changes on the harness main line, and whenever a project's override changes on its main line.
+- **Overrides per project**: a project replaces an automation's prompt by committing its own `automations/<name>/agents/momentum-<name>.md` to its main line, the path the harness keeps the definition's agent file at. The project's file is materialized there in place of the harness's. The commit message gives the reasons, and the Timeline shows the override, and its removal, with that message. The shared definition stays the one in this repository: the other projects keep it.
+- **In effect as they stand**: definitions, overrides and triggers work as soon as they land on the main line. Verification is your review, not a gate.
 - **Optimization** tracks each recurring pattern as a `Harness/Pattern` and proposes a change once it has seen it three times.
 - **Scope in the harness repository**: chat, interview and implementation may change anything; preparation only `plans/`; optimization only `automations/`; every other automation only `knowledge-graph/`. Changes outside the scope are put back.
 

@@ -37,6 +37,8 @@ export interface Events {
   triggers_changed: [{ workspace: string }];
   /** A definition entity or its files changed on the harness main line */
   definition_changed: [{ path: string }];
+  /** A project's own files at the paths of definition artifacts changed on its main line: its overrides */
+  override_changed: [{ workspace: string; paths: string[] }];
   /** A run ended; the orchestrator may start queued runs */
   run_ended: [{ workspace: string; runId: string }];
   /** A run that had ended took a message and waits for the working directory again */

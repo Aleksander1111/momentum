@@ -846,6 +846,7 @@ export const TimelineKind = z.enum([
   'changes_landed',
   // The harness
   'graph_build_complete',
+  'definition_overridden',
 ]);
 export type TimelineKind = z.infer<typeof TimelineKind>;
 

@@ -246,6 +246,11 @@ export class Guard {
       const touched = [...changed].find((p) => p.startsWith('Harness/Automation/')) ?? artifactFiles.find((f) => f.startsWith('automations/'));
       if (touched) this.bus.emit('definition_changed', { path: touched });
     }
+    // A project's own files at the definition artifacts' paths override them there: as they land, like the definitions
+    if (ws.name !== config.harnessName) {
+      const overrides = artifactFiles.filter((f) => f.startsWith('automations/'));
+      if (overrides.length) this.bus.emit('override_changed', { workspace: ws.name, paths: overrides });
+    }
     await this.recordMetrics(ws);
   }
 

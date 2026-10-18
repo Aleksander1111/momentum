@@ -10,7 +10,7 @@ import type { Guard } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { completeness, graphBuildPrompt } from './graph-build.ts';
 import type { Runner } from './runner.ts';
-import type { Timeline } from './timeline.ts';
+import { automationLabel, type Timeline } from './timeline.ts';
 import { Conflict, type Workspace, type Workspaces } from './workspaces.ts';
 
 /** How often expired sessions and readings past what the metrics show are deleted */
@@ -47,6 +47,7 @@ export class Orchestrator {
     // Summarization runs as a step and has no trigger entity; artifacts changed on the main line start it directly
     bus.on('artifact_ahead', ({ workspace, entities, added, deleted, moved }) => void this.summarizeMainLine(workspace, entities, added, deleted, moved));
     bus.on('definition_changed', () => void this.automations.materializeAll());
+    bus.on('override_changed', ({ workspace, paths }) => void this.overridesChanged(workspace, paths));
     bus.on('run_ended', () => void this.tick());
     bus.on('run_queued', () => void this.tick());
     bus.on('feed_changed', () => void this.tick());
@@ -73,6 +74,30 @@ export class Orchestrator {
     const { state } = await this.settings.graphBuild(ws.name);
     if (state !== 'complete' && !(state === 'stopped' && (await this.stoppedByUser(ws.name)))) await this.settings.setGraphBuild(ws.name, 'building');
     void this.tick();
+  }
+
+  /**
+   * A project's own files at the paths of definition artifacts changed on its main line: the definitions are written
+   * into the project again, the project's files in place of the harness's, and the timeline keeps each change with
+   * the reasons its commit gives
+   */
+  private async overridesChanged(workspace: string, paths: string[]): Promise<void> {
+    const ws = await this.workspaces.get(workspace);
+    await this.automations.materialize(ws);
+    for (const o of await this.automations.overrides(ws, paths)) {
+      const what = o.file === `agents/momentum-${o.automation}.md` ? 'prompt' : o.file;
+      const title = o.content === null ? `${automationLabel(o.automation)} ${what} follows the harness definition again` : `${automationLabel(o.automation)} ${what} overridden by ${ws.name}`;
+      const subject = o.message.split('\n')[0]?.trim();
+      await this.timeline.record({
+        workspace,
+        actor: 'harness',
+        kind: 'definition_overridden',
+        title,
+        detail: o.message || null,
+        automation: o.automation,
+        facts: subject ? { subject } : {},
+      });
+    }
   }
 
   /** The user stopped the build themselves: it stays stopped until they start it, whatever switches the project off and on */

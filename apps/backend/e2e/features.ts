@@ -19,6 +19,7 @@ export const FEATURES = {
   'definition.land': 'A definition as it lands on the harness main line is materialized into every enabled project, whatever its verification',
   'definition.variant': 'A definition variant is recorded on each run of its automation for comparison',
   'definition.review': 'A definition whose files a run changed is in effect as it lands and waits in the feed, unverified, for the user to review',
+  'definition.override': "A file a project commits at the path of a definition's agent file is the automation's prompt in that project as it lands, with the commit's reasons on the timeline; removing it restores the harness definition",
   'trigger.defaults': 'Default triggers land on the main line, in effect at once, and wait unverified in the feed for review',
   'trigger.in-effect': 'A trigger starts its automation as it lands on the main line, before the user reviews it',
   'trigger.schedule': 'A trigger with a cron schedule queues a run once per due time',

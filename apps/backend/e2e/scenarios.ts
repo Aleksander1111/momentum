@@ -447,7 +447,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: [
       'run.models', 'settings.persist', 'automation.optimization', 'metrics.agent', 'definition.land', 'definition.materialize',
-      'definition.variant', 'definition.review', 'trigger.on-demand', 'trigger.schedule', 'guard.harness-scope',
+      'definition.variant', 'definition.review', 'definition.override', 'trigger.on-demand', 'trigger.schedule', 'guard.harness-scope',
     ],
     steps: [
       'Per automation, each run starts on the model the settings give its automation',
@@ -456,6 +456,7 @@ export const SCENARIOS: Scenario[] = [
       'A definition a chat changes is in every project as it lands, waiting in the feed for review; its variant is recorded on the runs it shapes, and an agent file no definition produces is removed',
       'Triggers the user edits by hand take effect: without on_demand it refuses starts, and a new schedule is followed',
       "An exploration in the harness lands its research, while the code it changed is put back and raised as an issue",
+      "A chat prompt the project commits in its own repository shapes its chats as it lands, with the commit's reasons on the timeline, and the harness definition is back once the project removes it",
     ],
     // The features each step checks, step by step
     checks: [
@@ -465,6 +466,7 @@ export const SCENARIOS: Scenario[] = [
       ['definition.land', 'definition.materialize', 'definition.variant', 'definition.review'],
       ['trigger.on-demand', 'trigger.schedule'],
       ['guard.harness-scope'],
+      ['definition.override'],
     ],
   },
   {

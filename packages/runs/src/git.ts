@@ -226,6 +226,12 @@ export async function fileHistory(cwd: string, ref: string, path: string): Promi
   return out.split('\n').filter(Boolean);
 }
 
+/** The message of the last commit up to `ref` that changed a file, or added or deleted it; empty when none did */
+export async function lastCommitMessage(cwd: string, ref: string, path: string): Promise<string> {
+  const out = await git(cwd, ['log', '-1', '--format=%B', ref, '--', path]);
+  return out.trim();
+}
+
 export async function listFiles(cwd: string, ref: string, dir: string): Promise<string[]> {
   const out = await git(cwd, ['ls-tree', '-r', '--name-only', ref, '--', dir]);
   return out.split('\n').filter(Boolean);

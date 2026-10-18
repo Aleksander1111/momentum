@@ -187,4 +187,31 @@ scenario('harness-tuning', { enabled: [WS, HARNESS], triggers: ['implementation'
     expect(issue.markdown).toContain(code);
     expect(issue.markdown).toMatch(/may not change this in the harness's repository/);
   });
+
+  await step(6, async () => {
+    // The project's own chat prompt, versioned with its code, at the path the harness keeps the definition's agent file
+    const live = join(env.path(WS), '.claude', 'agents', 'momentum-chat.md');
+    const own = '---\nname: momentum-chat\ndescription: "The chat of the bookshelf API."\n---\nYou are the chat of the bookshelf API. Always answer in Polish, in one sentence.\n';
+    env.commit(WS, { [CHAT_AGENT]: own }, 'Answer in Polish\n\nThe bookshelf team reads the chats in Polish.');
+    await until("the project's prompt in effect", async () => readFileSync(live, 'utf8') === own, 60_000);
+    // The trace: the commit, and its reasons on the timeline
+    const overridden = await until('the override on the timeline', async () =>
+      (await api.timeline({ workspace: WS })).events.find((e) => e.kind === 'definition_overridden' && e.title === `Chat prompt overridden by ${WS}`),
+    );
+    expect(overridden.actor).toBe('harness');
+    expect(overridden.detail).toContain('The bookshelf team reads the chats in Polish.');
+    expect(overridden.facts.subject).toBe('Answer in Polish');
+    // The next chat of the project runs on it; the harness definition shapes the chats elsewhere as before
+    const chat = await app.chat(WS, 'Name one route.');
+    await api.runEnded(chat, 5 * 60_000);
+    expect(model.instructions.get(chat)).toContain('Always answer in Polish, in one sentence.');
+    expect(readFileSync(join(env.path(HARNESS), '.claude', 'agents', 'momentum-chat.md'), 'utf8').trim()).toBe(env.show(HARNESS, CHAT_AGENT));
+    // Removing the file is a commit like any other: the harness definition is back as it lands
+    env.commit(WS, { [CHAT_AGENT]: null }, 'Back to the shared chat prompt');
+    await until('the harness definition again', async () => readFileSync(live, 'utf8').trim() === env.show(HARNESS, CHAT_AGENT), 60_000);
+    const restored = await until('the removal on the timeline', async () =>
+      (await api.timeline({ workspace: WS })).events.find((e) => e.kind === 'definition_overridden' && e.title === 'Chat prompt follows the harness definition again'),
+    );
+    expect(restored.facts.subject).toBe('Back to the shared chat prompt');
+  });
 });

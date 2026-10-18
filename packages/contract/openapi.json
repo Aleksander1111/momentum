@@ -7720,7 +7720,8 @@
                               "run_failed",
                               "run_killed",
                               "changes_landed",
-                              "graph_build_complete"
+                              "graph_build_complete",
+                              "definition_overridden"
                             ]
                           },
                           "title": {
