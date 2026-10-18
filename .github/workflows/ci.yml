@@ -1,0 +1,44 @@
+# The checks every change to the main line passes on Linux: the type check, the unit tests and the validation of the
+# automation definitions. The back end, the runs and the end-to-end scenarios run on Windows only (see the README).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: momentum
+          POSTGRES_DB: momentum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://postgres:momentum@127.0.0.1:5432/momentum
+      MOMENTUM_ROOT: ${{ github.workspace }}/..
+      MOMENTUM_MODELS: ${{ github.workspace }}/.models
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Embedding model cache
+        uses: actions/cache@v4
+        with:
+          path: .models
+          key: bge-small-en-v1.5
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test

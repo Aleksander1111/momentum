@@ -463,7 +463,7 @@ Every settings change is recorded on the Timeline.
 
 ### Requirements
 
-- **Windows**. Runs are held in Windows job objects and the service scripts are PowerShell.
+- **Windows**. Momentum runs on Windows only: runs are held in Windows job objects and the service scripts are PowerShell. On Linux only the [checks](#continuous-integration) run.
 - **Node.js 24+** and **pnpm 10**.
 - **git**, with a user name and email configured.
 - **PostgreSQL with pgvector**, for example the `pgvector/pgvector` Docker image. Create the database first; the extension and schemas are created on start.
@@ -559,11 +559,17 @@ pnpm test
 pnpm typecheck
 ```
 
+Among the unit tests, `apps/backend/test/definitions.test.ts` validates the automation definitions this repository ships: one directory per automation, the entity over its files, an agent file with its name, description and prompt, and a default trigger with valid fields.
+
 The end-to-end scenarios run in Playwright on Firefox, through a test runner at `127.0.0.1:7400` (`pnpm e2e:runner` opens it). Some scenarios call real Claude models and use your usage limits:
 
 ```bash
 pnpm e2e
 ```
+
+### Continuous integration
+
+GitHub Actions runs the checks on Linux (`.github/workflows/ci.yml`) on every push to `main` and every pull request: `pnpm typecheck` and `pnpm test`, the definition validation included, against a `pgvector/pgvector` service. The back end, the runs and the end-to-end scenarios need Windows and stay out of CI.
 
 ### Repository layout
 
@@ -582,6 +588,7 @@ pnpm e2e
 | `docs` | Slide deck and its sources, slide images, entity types |
 | `video` | The walkthrough video (Remotion) |
 | `scripts` | `dev.mjs`, the development server; `export-web.mjs`, the web export from the main line |
+| `.github/workflows` | The CI workflow: type check, unit tests and definition validation on Linux |
 
 `pnpm deck` builds `docs/harness-diagram.pptx`. `pnpm video` renders `video/out/momentum.mp4`; its voice step needs a separate speech project.
 
