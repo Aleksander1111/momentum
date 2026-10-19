@@ -7,14 +7,18 @@ import type { Workspace } from './workspaces.ts';
 
 /**
  * The prompt of one graph build run: where the previous run left off, what the harness measured missing, and how much
- * room the feed has. The runs go one at a time and each lands on the main line, so every run sees what the earlier
- * ones wrote.
+ * room the feed has, or none to mind when the build runs in full. The runs go one at a time and each lands on the main
+ * line, so every run sees what the earlier ones wrote.
  */
-export function graphBuildPrompt(progress: string | null, room: number, completeness: Completeness): string {
+export function graphBuildPrompt(progress: string | null, room: number | null, completeness: Completeness): string {
   const start = progress
     ? `Progress reported by the previous graph build run:\n\n${progress}\n\nContinue from there.`
     : 'This is the first graph build run: start from the top of the repository.';
-  return `Build the knowledge graph of this repository.\n\n${start}\n\n${gaps(completeness)}\n\nThe attention feed has room for ${room} more items: write at most ${room} entities this run, then report your progress with report_graph_build.`;
+  const limit =
+    room === null
+      ? 'The build runs in full: the attention feed does not limit it, so write every entity this layer of the repository deserves, as many as that takes, then report your progress with report_graph_build.'
+      : `The attention feed has room for ${room} more items: write at most ${room} entities this run, then report your progress with report_graph_build.`;
+  return `Build the knowledge graph of this repository.\n\n${start}\n\n${gaps(completeness)}\n\n${limit}`;
 }
 
 /** What the measure found missing, for the run to take up: the slots unfilled, and the areas not accounted for */
@@ -50,7 +54,7 @@ export async function completeness(ws: Workspace, settings: HarnessSettings): Pr
  */
 export async function graphBuildStatus(ws: Workspace, settings: HarnessSettings): Promise<GraphBuildStatus> {
   const s = ws.index.schema;
-  const { state, progress, since } = await settings.graphBuild(ws.name);
+  const { state, mode, progress, since } = await settings.graphBuild(ws.name);
   const [r] = await ws.index.sql.unsafe<
     { runs: number; entities: number; five_hour: number | null; week: number | null; spent_ms: number; active: string | null }[]
   >(
@@ -71,6 +75,7 @@ export async function graphBuildStatus(ws: Workspace, settings: HarnessSettings)
   return {
     workspace: ws.name,
     state,
+    mode,
     progress,
     since: since ? since.toISOString() : null,
     runs: r?.runs ?? 0,

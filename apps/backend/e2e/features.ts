@@ -29,6 +29,7 @@ export const FEATURES = {
 
   // Orchestrator
   'orchestrator.feed-room': 'Scheduled loops and the graph build queue only while the feed has room',
+  'orchestrator.full-build': 'A graph build set to run in full queues whatever the feed holds and writes without a limit, until complete',
   'orchestrator.one-run-per-project': "Runs of one project go one at a time in its one working directory, the user's and the automations' alike",
   'orchestrator.user-runs-first': 'A run the user starts waits only for the run working in its project, and starts ahead of every automation run queued before it',
   'orchestrator.concurrent-total': 'The total of active runs across projects never passes the setting',

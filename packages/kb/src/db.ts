@@ -35,6 +35,8 @@ create table if not exists harness.project (
 );
 -- The build's completeness is measured on the main line, no longer reported by its runs
 alter table harness.project drop column if exists graph_build_coverage;
+-- How the build is paced: by the feed's room, or in full whatever the feed holds
+alter table harness.project add column if not exists graph_build_mode text not null default 'paced';
 create table if not exists harness.setting (
   key text primary key,
   value jsonb not null

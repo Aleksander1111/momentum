@@ -26,14 +26,14 @@ export const SCENARIOS: Scenario[] = [
     real: true,
     covers: [
       'project.discover', 'project.enable', 'definition.materialize', 'trigger.defaults', 'trigger.off',
-      'automation.graph-build', 'orchestrator.feed-room', 'feed.size', 'feed.approve', 'state.verification',
+      'automation.graph-build', 'orchestrator.feed-room', 'orchestrator.full-build', 'feed.size', 'feed.approve', 'state.verification',
       'kb.index', 'kb.types', 'kb.validate', 'run.working-dir', 'run.usage-share', 'run.process-limits', 'automation.summarization',
     ],
     steps: [
       'Project listed disabled; enabling it materializes the definitions and proposes the default triggers',
       'The default triggers, switched off in this world, start nothing',
       'Graph build runs until the feed is full, pauses, and continues as items are approved',
-      'Build is measured complete by the harness each run and ends complete; every written entity is valid and typed',
+      'Set to run in full, the build goes on with the feed at its limit, is measured complete by the harness each run and ends complete; every written entity is valid and typed',
       "Each run records its usage share and works in the project's one working directory, with no worktree beside it",
     ],
     // The features each step checks, step by step
@@ -41,7 +41,7 @@ export const SCENARIOS: Scenario[] = [
       ['project.discover', 'project.enable', 'definition.materialize', 'trigger.defaults', 'state.verification'],
       ['trigger.off'],
       ['automation.graph-build', 'orchestrator.feed-room', 'feed.size', 'feed.approve'],
-      ['automation.graph-build', 'kb.index', 'kb.types', 'kb.validate', 'automation.summarization'],
+      ['automation.graph-build', 'orchestrator.full-build', 'kb.index', 'kb.types', 'kb.validate', 'automation.summarization'],
       ['run.working-dir', 'run.usage-share', 'run.process-limits'],
     ],
   },

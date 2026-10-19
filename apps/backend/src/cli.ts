@@ -64,22 +64,26 @@ try {
     }
     case 'enable':
     case 'disable': {
-      const name = args[0];
-      if (!name) throw new Error(`Usage: momentum ${command} <workspace>`);
+      const [name, flag] = args;
+      if (!name || (flag && !(command === 'enable' && flag === '--full'))) throw new Error(`Usage: momentum ${command} <workspace>${command === 'enable' ? ' [--full]' : ''}`);
       if (!(await m.settings.projects()).some((p) => p.name === name)) throw new Error(`No workspace ${name} under ${config.root}`);
       const projects = [{ name, enabled: command === 'enable' }];
+      // --full: the knowledge graph builds whatever the feed holds; without it, the build is paced by the feed's room
+      const mode = flag === '--full' ? 'full' : null;
       const s = await server();
       if (s) {
         try {
+          if (mode) await s.call('PUT', `/workspaces/${encodeURIComponent(name)}/graph-build`, { mode });
           await s.call('PUT', '/settings', { projects });
         } finally {
           await s.done();
         }
-        console.log(`${name} ${command}d by the running server.`);
+        console.log(`${name} ${command}d by the running server${mode ? '; its knowledge graph builds in full' : ''}.`);
       } else {
         // No server: the project is set up here and the server takes it from there when it starts
+        if (mode) await m.settings.setGraphBuildMode(name, mode);
         await m.momentum.putSettings({ projects });
-        console.log(`${name} ${command}d; the server starts its work when it runs.`);
+        console.log(`${name} ${command}d${mode ? ', its knowledge graph to build in full' : ''}; the server starts its work when it runs.`);
       }
       break;
     }
@@ -123,7 +127,7 @@ try {
       break;
     }
     default:
-      console.log('Commands: generate-password | set-password [password] | enable <workspace> | disable <workspace> | logo <workspace> <file | --remove> | index [workspace...] | openapi');
+      console.log('Commands: generate-password | set-password [password] | enable <workspace> [--full] | disable <workspace> | logo <workspace> <file | --remove> | index [workspace...] | openapi');
   }
 } catch (e) {
   // Exiting in `finally` would otherwise drop the error unsaid, with a success code

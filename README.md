@@ -98,7 +98,7 @@ Both pass against the Postgres above. Then enable a project: any git repository 
 pnpm momentum enable <workspace>
 ```
 
-Within a minute **Sessions** shows the project's **Knowledge graph** run, and the **Feed** shows the project's default triggers as cards waiting for your review. Its first entity cards follow as the build goes on.
+Within a minute **Sessions** shows the project's **Knowledge graph** run, and the **Feed** shows the project's default triggers as cards waiting for your review. Its first entity cards follow as the build goes on, run by run while the feed has room. `pnpm momentum enable <workspace> --full` has the build go on whatever the feed holds, until the graph is complete.
 
 ### 4. Tighten or switch off an automation in one project
 
@@ -397,7 +397,14 @@ How well a project is understood: **the mean of two halves**, measured by the ha
 - Detail types claim nothing: `Code/SourceFile`, `Class`, `Function`, `Commit`, `Data/Column`, `Index`, `Frontend/FormField` and `LocalizationString`. The graph exists to spare the reader those.
 - `knowledge-graph`, `chats`, `.claude`, `.git` and the never-summarized patterns are left out.
 
-**Graph build**: each build run is told the gaps, writes at most as many entities as the feed has room for, and reports its progress. The build is **complete** when a run reports that nothing missing can be found in the repository. Three failed build runs in a row stop it until you resume it.
+**Graph build**: each build run is told the gaps, writes entities and reports its progress. The build is **complete** when a run reports that nothing missing can be found in the repository. Three failed build runs in a row stop it until you resume it. The build runs in one of two modes, chosen per project in Settings or with `pnpm momentum enable <workspace> --full`:
+
+| Mode | When a run queues | What a run writes |
+|---|---|---|
+| **Paced** (default) | While the feed has room | At most as many entities as the feed has room for |
+| **In full** | Whatever the feed holds, until the graph is complete | Every entity the layer of the repository it covers deserves |
+
+The mode is the project's, kept through a stop, a disable and a reset.
 
 ## Consistency guard
 
@@ -513,7 +520,7 @@ The **Metrics** tab shows one project at a time over the last **24 h, 7 d or 30 
 | Section | Setting | Default |
 |---|---|---|
 | **Appearance** | Theme: System, Light or Dark, on this device | System |
-| **Included projects** | Enable a project to start its loops; its row opens on a logo and the knowledge graph build: stop, resume, reset | |
+| **Included projects** | Enable a project to start its loops; its row opens on a logo and the knowledge graph build: stop, resume, paced by the feed or in full, reset | |
 | **Feed size** | Items before loops pause | 40 |
 | **Cards** | Character limit, sized so a card fits on a phone | 700 |
 | | Presentation rules | empty |
@@ -525,6 +532,7 @@ The **Metrics** tab shows one project at a time over the last **24 h, 7 d or 30 
 | **This device** | Sign out; other devices stay signed in | |
 
 - **Enabling** a project requires one straight line. It indexes the project, proposes the default triggers and starts the graph build.
+- **In full** has a project's graph build go on whatever the feed holds, each run writing without a limit, until the graph is complete; **Pace** hands it back to the feed's room. See [Graph completeness](#graph-completeness).
 - **Reset** asks first. It ends every run, deletes the knowledge graph from the main line in one commit, drops the project's index, and builds again. The harness itself cannot be reset.
 - **By risk** applies to implementation: Haiku estimates each implementation's risk from `automations/implementation/risk.md` and picks Haiku, Sonnet or Opus. Per automation, everything is Default except search, which uses Sonnet.
 
@@ -597,7 +605,7 @@ Start the back end and the web app. Both serve the main line: the back end resta
 pnpm dev
 ```
 
-Open `http://<MOMENTUM_HOST>:7300` and sign in. Then enable a project to start its graph build and loops:
+Open `http://<MOMENTUM_HOST>:7300` and sign in. Then enable a project to start its graph build and loops, with `--full` to build the knowledge graph whatever the feed holds:
 
 ```bash
 pnpm momentum enable <workspace>

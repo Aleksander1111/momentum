@@ -97,6 +97,8 @@ function glyph(e: TimelineEvent): keyof typeof PATHS {
       return 'mic';
     case 'graph_build_started':
       return 'play';
+    case 'graph_build_mode_changed':
+      return 'settings';
     case 'graph_build_stopped':
     case 'run_killed':
       return 'stop';

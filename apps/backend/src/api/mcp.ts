@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { AttachmentIds, AutomationName, ContextItem, MetricsRange, PostAttachment, PutSettings, TimelineActor } from '@momentum/contract';
+import { AttachmentIds, AutomationName, ContextItem, GraphBuildMode, MetricsRange, PostAttachment, PutSettings, TimelineActor } from '@momentum/contract';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Momentum } from '../momentum.ts';
@@ -80,9 +80,9 @@ function createServer(m: Momentum): McpServer {
   );
   t(
     'set_graph_build',
-    'Stop the knowledge graph build of a workspace, or start it again.',
-    { workspace: z.string(), building: z.boolean() },
-    (a) => m.setGraphBuild(a.workspace, a.building),
+    'Stop the knowledge graph build of a workspace or start it again, and pace it by the feed (paced) or have it run in full whatever the feed holds (full).',
+    { workspace: z.string(), building: z.boolean().optional(), mode: GraphBuildMode.optional() },
+    (a) => m.setGraphBuild(a.workspace, a),
   );
   t(
     'reset_project',

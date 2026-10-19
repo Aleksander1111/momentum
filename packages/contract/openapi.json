@@ -6457,322 +6457,11 @@
                         null
                       ]
                     },
-                    "progress": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "since": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "runs": {
-                      "type": "number"
-                    },
-                    "entities": {
-                      "type": "number"
-                    },
-                    "usage": {
-                      "type": "object",
-                      "properties": {
-                        "fiveHour": {
-                          "nullable": true,
-                          "type": "number"
-                        },
-                        "week": {
-                          "nullable": true,
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "fiveHour",
-                        "week"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "spentMs": {
-                      "type": "number"
-                    },
-                    "completeness": {
-                      "type": "object",
-                      "properties": {
-                        "score": {
-                          "type": "number"
-                        },
-                        "understanding": {
-                          "type": "object",
-                          "properties": {
-                            "score": {
-                              "type": "number"
-                            },
-                            "slots": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "name": {
-                                    "type": "string"
-                                  },
-                                  "types": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "filled": {
-                                    "type": "boolean"
-                                  }
-                                },
-                                "required": [
-                                  "name",
-                                  "types",
-                                  "filled"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "score",
-                            "slots"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "territory": {
-                          "type": "object",
-                          "properties": {
-                            "score": {
-                              "type": "number"
-                            },
-                            "areas": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "path": {
-                                    "type": "string"
-                                  },
-                                  "score": {
-                                    "type": "number"
-                                  },
-                                  "missing": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string"
-                                    }
-                                  }
-                                },
-                                "required": [
-                                  "path",
-                                  "score",
-                                  "missing"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "score",
-                            "areas"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "detail": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "score",
-                        "understanding",
-                        "territory",
-                        "detail"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "estimate": {
-                      "nullable": true,
-                      "type": "object",
-                      "properties": {
-                        "totalMs": {
-                          "type": "number"
-                        },
-                        "usage": {
-                          "type": "object",
-                          "properties": {
-                            "fiveHour": {
-                              "nullable": true,
-                              "type": "number"
-                            },
-                            "week": {
-                              "nullable": true,
-                              "type": "number"
-                            }
-                          },
-                          "required": [
-                            "fiveHour",
-                            "week"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "required": [
-                        "totalMs",
-                        "usage"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "activeRunId": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "resettable": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "workspace",
-                    "state",
-                    "progress",
-                    "since",
-                    "runs",
-                    "entities",
-                    "usage",
-                    "spentMs",
-                    "completeness",
-                    "estimate",
-                    "activeRunId",
-                    "resettable"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "building": {
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "building"
-                ]
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "ws",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "workspace": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "nullable": true,
+                    "mode": {
                       "type": "string",
                       "enum": [
-                        "building",
-                        "stopped",
-                        "complete",
-                        null
+                        "paced",
+                        "full"
                       ]
                     },
                     "progress": {
@@ -6949,6 +6638,337 @@
                   "required": [
                     "workspace",
                     "state",
+                    "mode",
+                    "progress",
+                    "since",
+                    "runs",
+                    "entities",
+                    "usage",
+                    "spentMs",
+                    "completeness",
+                    "estimate",
+                    "activeRunId",
+                    "resettable"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "building": {
+                    "type": "boolean"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "paced",
+                      "full"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "ws",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspace": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "building",
+                        "stopped",
+                        "complete",
+                        null
+                      ]
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "paced",
+                        "full"
+                      ]
+                    },
+                    "progress": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "since": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "runs": {
+                      "type": "number"
+                    },
+                    "entities": {
+                      "type": "number"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "fiveHour": {
+                          "nullable": true,
+                          "type": "number"
+                        },
+                        "week": {
+                          "nullable": true,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "fiveHour",
+                        "week"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "spentMs": {
+                      "type": "number"
+                    },
+                    "completeness": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "number"
+                        },
+                        "understanding": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "slots": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "types": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "filled": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "types",
+                                  "filled"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "slots"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "territory": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number"
+                            },
+                            "areas": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "path": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "number"
+                                  },
+                                  "missing": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "path",
+                                  "score",
+                                  "missing"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "areas"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "detail": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "score",
+                        "understanding",
+                        "territory",
+                        "detail"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "estimate": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "totalMs": {
+                          "type": "number"
+                        },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "fiveHour": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "week": {
+                              "nullable": true,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "fiveHour",
+                            "week"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "totalMs",
+                        "usage"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "activeRunId": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "resettable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "workspace",
+                    "state",
+                    "mode",
                     "progress",
                     "since",
                     "runs",
@@ -7077,6 +7097,13 @@
                         null
                       ]
                     },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "paced",
+                        "full"
+                      ]
+                    },
                     "progress": {
                       "nullable": true,
                       "type": "string"
@@ -7251,6 +7278,7 @@
                   "required": [
                     "workspace",
                     "state",
+                    "mode",
                     "progress",
                     "since",
                     "runs",
@@ -7711,6 +7739,7 @@
                               "interview_started",
                               "graph_build_started",
                               "graph_build_stopped",
+                              "graph_build_mode_changed",
                               "project_enabled",
                               "project_disabled",
                               "project_reset",

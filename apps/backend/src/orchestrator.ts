@@ -1,4 +1,5 @@
 import { crossProjectFeed, pruneHarness, pruneWorkspace } from '@momentum/kb';
+import type { GraphBuildMode } from '@momentum/contract';
 import { commitPathsFrom, listFiles, nonLinear } from '@momentum/runs';
 import { CronExpressionParser } from 'cron-parser';
 import { fileOf, KNOWLEDGE_GRAPH } from '@momentum/entity';
@@ -228,6 +229,11 @@ export class Orchestrator {
     await this.tick();
   }
 
+  /** The user paces the build by the feed again, or has it run in full; the next tick queues the next run accordingly */
+  async setGraphBuildMode(ws: Workspace, mode: GraphBuildMode): Promise<void> {
+    await this.settings.setGraphBuildMode(ws.name, mode);
+  }
+
   /** The user stops the build, or starts it again; the next tick queues the next run while the feed has room */
   async setGraphBuild(ws: Workspace, building: boolean): Promise<void> {
     if (building) {
@@ -239,15 +245,21 @@ export class Orchestrator {
     }
   }
 
-  /** One graph build run at a time per workspace, told what the measure finds missing and how much room the feed has */
+  /**
+   * One graph build run at a time per workspace, told what the measure finds missing and how much room the feed has:
+   * paced, a run queues only while there is room; in full, it queues whatever the feed holds and writes without a limit
+   */
   private async queueGraphBuild(ws: Workspace, projects: string[]): Promise<void> {
-    const { state, progress } = await this.settings.graphBuild(ws.name);
+    const { state, mode, progress } = await this.settings.graphBuild(ws.name);
     if (state !== 'building') return;
     if (await this.runner.hasOpenRun(ws.name, 'graph-build')) return;
-    // The room as it is now: the feed's size or what fills it may have changed while the tick indexed
-    const { feedSize } = await this.settings.values();
-    const room = feedSize - (await crossProjectFeed(this.workspaces.sql, projects, feedSize)).length;
-    if (room <= 0) return;
+    let room: number | null = null;
+    if (mode === 'paced') {
+      // The room as it is now: the feed's size or what fills it may have changed while the tick indexed
+      const { feedSize } = await this.settings.values();
+      room = feedSize - (await crossProjectFeed(this.workspaces.sql, projects, feedSize)).length;
+      if (room <= 0) return;
+    }
     await this.runner.create({
       workspace: ws.name,
       automation: 'graph-build',
@@ -307,8 +319,9 @@ export class Orchestrator {
   }
 
   /**
-   * One pass: main lines indexed, scheduled loops queued while the feed has room, queued runs started within the total;
-   * a run waits while another run works in its project's working directory, and the user's runs start first
+   * One pass: main lines indexed, scheduled loops queued while the feed has room and graph builds by their mode, queued
+   * runs started within the total; a run waits while another run works in its project's working directory, and the
+   * user's runs start first
    */
   async tick(): Promise<void> {
     if (this.passive) return;
@@ -331,15 +344,15 @@ export class Orchestrator {
       const values = await this.settings.values();
       const feed = await crossProjectFeed(this.workspaces.sql, enabled.map((w) => w.name), values.feedSize);
       const room = values.feedSize - feed.length;
-      if (room > 0) {
-        for (const ws of enabled) {
+      for (const ws of enabled) {
+        if (room > 0) {
           for (const t of await this.automations.triggers(ws)) {
             if (!t.schedule || (await this.runner.hasOpenRun(ws.name, t.automation))) continue;
             if (!this.due(t, await this.runner.lastStart(ws.name, t.automation))) continue;
             await this.runner.create({ workspace: ws.name, automation: t.automation, trigger: 'schedule', prompt: PROMPTS.schedule! });
           }
-          await this.queueGraphBuild(ws, enabled.map((w) => w.name));
         }
+        await this.queueGraphBuild(ws, enabled.map((w) => w.name));
       }
       const names = new Set(enabled.map((w) => w.name));
       for (const q of await this.runner.queued()) {

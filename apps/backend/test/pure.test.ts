@@ -34,6 +34,14 @@ describe('a graph build run', () => {
     expect(next).toMatch(/report_graph_build/);
   });
 
+  it('writes without a limit when the build runs in full', () => {
+    const empty = measureCompleteness(['README.md', 'src/a.ts'], [], []);
+    const prompt = graphBuildPrompt('Mapped src/api; next: src/store.', null, empty);
+    expect(prompt).toContain('The build runs in full');
+    expect(prompt).not.toMatch(/at most \d+ entities/);
+    expect(prompt).toMatch(/report_graph_build/);
+  });
+
   it('is told what the measure finds missing, and that nothing is once it is', () => {
     const half = measureCompleteness(['README.md', 'src/a.ts', 'examples/x/a.md'], [{ artifact: 'src', type: 'Architecture/Component' }], ['Product/Product']);
     const prompt = graphBuildPrompt(null, 5, half);

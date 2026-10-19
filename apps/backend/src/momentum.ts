@@ -7,6 +7,7 @@ import type {
   EntityDetail,
   FeedResponse,
   GraphBuildStatus,
+  PutGraphBuild,
   MetricsRange,
   MetricsResponse,
   PutSettings,
@@ -329,17 +330,30 @@ export class Momentum {
     return graphBuildStatus(await this.workspaces.get(workspace), this.settings);
   }
 
-  /** Stops the build, or starts it again */
-  async setGraphBuild(workspace: string, building: boolean): Promise<GraphBuildStatus> {
+  /** Stops the build or starts it again, and paces it by the feed or has it run in full */
+  async setGraphBuild(workspace: string, change: PutGraphBuild): Promise<GraphBuildStatus> {
     const ws = await this.workspaces.get(workspace);
-    await this.orchestrator.setGraphBuild(ws, building);
-    await this.timeline.record({
-      workspace,
-      actor: 'user',
-      kind: building ? 'graph_build_started' : 'graph_build_stopped',
-      title: building ? 'Started the knowledge graph build' : 'Stopped the knowledge graph build',
-    });
-    if (building) void this.orchestrator.tick();
+    const { mode, building } = change;
+    if (mode !== undefined && mode !== (await this.settings.graphBuild(workspace)).mode) {
+      await this.orchestrator.setGraphBuildMode(ws, mode);
+      await this.timeline.record({
+        workspace,
+        actor: 'user',
+        kind: 'graph_build_mode_changed',
+        title: mode === 'full' ? 'The knowledge graph builds in full, whatever the feed holds' : 'The knowledge graph builds while the feed has room',
+        facts: { mode },
+      });
+    }
+    if (building !== undefined) {
+      await this.orchestrator.setGraphBuild(ws, building);
+      await this.timeline.record({
+        workspace,
+        actor: 'user',
+        kind: building ? 'graph_build_started' : 'graph_build_stopped',
+        title: building ? 'Started the knowledge graph build' : 'Stopped the knowledge graph build',
+      });
+    }
+    if (building || mode === 'full') void this.orchestrator.tick();
     return graphBuildStatus(ws, this.settings);
   }
 

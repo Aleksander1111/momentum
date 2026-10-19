@@ -1,5 +1,5 @@
 import { AutomationName } from '@momentum/contract';
-import type { LifetimeRule, GraphBuildState, ModelChoice, ModelSettings, ProjectSetting, PutSettings, Settings } from '@momentum/contract';
+import type { LifetimeRule, GraphBuildMode, GraphBuildState, ModelChoice, ModelSettings, ProjectSetting, PutSettings, Settings } from '@momentum/contract';
 import type { Sql } from '@momentum/kb';
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -84,11 +84,17 @@ export class HarnessSettings {
     await this.sql`update harness.project set indexed_commit = ${commit}, index_version = ${INDEX_VERSION} where name = ${name}`;
   }
 
-  /** The knowledge graph build of a project: its state, the progress its last run reported, and when it started */
-  async graphBuild(name: string): Promise<{ state: GraphBuildState | null; progress: string | null; since: Date | null }> {
-    const [r] = await this.sql<{ graph_build: GraphBuildState | null; graph_build_progress: string | null; graph_build_since: Date | null }[]>`
-      select graph_build, graph_build_progress, graph_build_since from harness.project where name = ${name}`;
-    return { state: r?.graph_build ?? null, progress: r?.graph_build_progress ?? null, since: r?.graph_build_since ?? null };
+  /** The knowledge graph build of a project: its state, how it is paced, the progress its last run reported, and when it started */
+  async graphBuild(name: string): Promise<{ state: GraphBuildState | null; mode: GraphBuildMode; progress: string | null; since: Date | null }> {
+    const [r] = await this.sql<
+      { graph_build: GraphBuildState | null; graph_build_mode: GraphBuildMode; graph_build_progress: string | null; graph_build_since: Date | null }[]
+    >`select graph_build, graph_build_mode, graph_build_progress, graph_build_since from harness.project where name = ${name}`;
+    return { state: r?.graph_build ?? null, mode: r?.graph_build_mode ?? 'paced', progress: r?.graph_build_progress ?? null, since: r?.graph_build_since ?? null };
+  }
+
+  /** How the build is paced: the mode is the user's choice for the project, kept through a stop, a disable and a reset */
+  async setGraphBuildMode(name: string, mode: GraphBuildMode): Promise<void> {
+    await this.sql`update harness.project set graph_build_mode = ${mode} where name = ${name}`;
   }
 
   async setGraphBuild(name: string, state: GraphBuildState): Promise<void> {

@@ -592,6 +592,13 @@ export const GraphBuildState = z.enum(['building', 'stopped', 'complete']);
 export type GraphBuildState = z.infer<typeof GraphBuildState>;
 
 /**
+ * How the build is paced: `paced`, a run queues only while the feed has room and writes at most that many entities;
+ * `full`, the build goes on whatever the feed holds, each run writing what the repository deserves, until complete
+ */
+export const GraphBuildMode = z.enum(['paced', 'full']);
+export type GraphBuildMode = z.infer<typeof GraphBuildMode>;
+
+/**
  * How complete the knowledge graph is, measured by the harness against what a reader needs from it, never estimated by
  * a run: the mean of understanding (the questions every product's graph answers, each a slot filled by an entity of
  * one of its types) and territory (every area of the repository accounted for by an entity, an area's score the share
@@ -615,6 +622,7 @@ export const GraphBuildStatus = z.object({
   workspace: z.string(),
   /** null until the project is enabled for the first time */
   state: GraphBuildState.nullable(),
+  mode: GraphBuildMode,
   /** Progress reported by the last graph build run, given to the next one */
   progress: z.string().nullable(),
   since: z.string().nullable(),
@@ -635,7 +643,8 @@ export const GraphBuildStatus = z.object({
 });
 export type GraphBuildStatus = z.infer<typeof GraphBuildStatus>;
 
-export const PutGraphBuild = z.object({ building: z.boolean() });
+/** Stop the build or start it again, change how it is paced, or both */
+export const PutGraphBuild = z.object({ building: z.boolean().optional(), mode: GraphBuildMode.optional() });
 export type PutGraphBuild = z.infer<typeof PutGraphBuild>;
 
 // Metrics
@@ -834,6 +843,7 @@ export const TimelineKind = z.enum([
   'interview_started',
   'graph_build_started',
   'graph_build_stopped',
+  'graph_build_mode_changed',
   'project_enabled',
   'project_disabled',
   'project_reset',
@@ -877,6 +887,8 @@ export const TimelineFacts = z
     timeSpentMs: z.number(),
     /** Settings the user changed, by name */
     changed: z.array(z.string()),
+    /** How a project's knowledge graph build is paced from now on */
+    mode: GraphBuildMode,
     /** A run's own title, such as a chat's question */
     runTitle: z.string(),
     /** The first line of the commit message of what a run landed: what it did */

@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, TextInput, View, type TextStyle } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { AutomationName, ProjectLogo as LogoSchema, Risk } from '@momentum/contract';
-import type { GraphBuildState, ModelChoice, ModelMode, ModelSettings, PutSettings, Settings as SettingsT, Workspace } from '@momentum/contract';
+import type { GraphBuildMode, GraphBuildState, ModelChoice, ModelMode, ModelSettings, PutGraphBuild, PutSettings, Settings as SettingsT, Workspace } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { pickLogo } from '../../lib/pickLogo';
 import { automationLabel, durationMs, usagePct } from '../../lib/format';
@@ -334,6 +334,8 @@ function InTheGraph({ harness, projects }: { harness: string; projects: string[]
 }
 
 const GRAPH_BUILD: Record<GraphBuildState, string> = { building: 'building', stopped: 'stopped', complete: 'complete' };
+/** How the build is paced: by the feed's room, or in full whatever the feed holds */
+const GRAPH_BUILD_MODE: Record<GraphBuildMode, string> = { paced: 'paced by the feed', full: 'in full' };
 
 /**
  * The logo of a project, shown on its cards: Upload picks an image (PNG, JPEG, WebP or SVG, at most 256 KB),
@@ -372,9 +374,11 @@ function LogoRow({ name, logo }: { name: string; logo: string | null }) {
 }
 
 /**
- * The knowledge graph build of a project: its state, what it produced and what it used, refreshed while it
- * builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again. Reset removes every
- * entity and database entry of the project and builds the knowledge graph afresh; it asks for a second tap first.
+ * The knowledge graph build of a project: its state, how it is paced, what it produced and what it used, refreshed
+ * while it builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again. In full
+ * has the build go on whatever the feed holds, each run writing without a limit, Paced has the feed's room pace it
+ * again. Reset removes every entity and database entry of the project and builds the knowledge graph afresh; it asks
+ * for a second tap first.
  */
 function GraphBuildRow({ name }: { name: string }) {
   const qc = useQueryClient();
@@ -384,7 +388,7 @@ function GraphBuildRow({ name }: { name: string }) {
     refetchInterval: (q) => (q.state.data?.state === 'building' ? 5_000 : 30_000),
   });
   const set = useMutation({
-    mutationFn: (building: boolean) => api.putGraphBuild(name, { building }),
+    mutationFn: (change: PutGraphBuild) => api.putGraphBuild(name, change),
     onSuccess: (next) => qc.setQueryData(['graph-build', name], next),
     onError: () => void qc.invalidateQueries({ queryKey: ['graph-build', name] }),
   });
@@ -430,6 +434,7 @@ function GraphBuildRow({ name }: { name: string }) {
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tone }} />
             <T style={{ fontSize: 12, color: tone }}>{reset.isPending ? 'resetting' : GRAPH_BUILD[m.state]}</T>
           </View>
+          <T style={small}>{GRAPH_BUILD_MODE[m.mode]}</T>
           <T style={small}>
             {m.runs} {m.runs === 1 ? 'run' : 'runs'} {'\u00b7'} {m.entities} {m.entities === 1 ? 'entity' : 'entities'}
           </T>
@@ -476,7 +481,17 @@ function GraphBuildRow({ name }: { name: string }) {
           kind="ghost"
           label={m.state === 'building' ? 'Stop' : 'Resume'}
           disabled={set.isPending || reset.isPending}
-          onPress={() => set.mutate(m.state !== 'building')}
+          onPress={() => set.mutate({ building: m.state !== 'building' })}
+        />
+      ) : null}
+      {m.state !== 'complete' && !armed ? (
+        <Btn
+          small
+          kind="ghost"
+          label={m.mode === 'full' ? 'Pace' : 'In full'}
+          disabled={set.isPending || reset.isPending}
+          onPress={() => set.mutate({ mode: m.mode === 'full' ? 'paced' : 'full' })}
+          style={{ marginLeft: 6 }}
         />
       ) : null}
       {m.resettable ? (

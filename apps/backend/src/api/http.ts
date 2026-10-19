@@ -291,7 +291,7 @@ export async function createHttp(momentum: Momentum, auth: Auth, voice?: Voice) 
   );
 
   app.put('/workspaces/:ws/graph-build', { schema: { params: ws, body: PutGraphBuild, response: { 200: GraphBuildStatus, ...errors } } }, (req) =>
-    momentum.setGraphBuild(req.params.ws, req.body.building),
+    momentum.setGraphBuild(req.params.ws, req.body),
   );
 
   app.post(

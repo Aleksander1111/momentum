@@ -39,4 +39,4 @@ Each run works in the project's one working directory, on the main line, and lan
 - **Validation** checks what landed, and the project as it stands in the background; failures reach the feed
 - **Exploration** picks the next best action within the goals; **interview** writes a document one question at a time
 - **Optimization** proposes skills, memories and definition changes from patterns seen three times
-- A project's runs go one at a time, the user's first; automation runs queue only while the feed has room
+- A project's runs go one at a time, the user's first; automation runs queue only while the feed has room, except a graph build set to run in full

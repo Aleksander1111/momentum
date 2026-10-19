@@ -1,4 +1,4 @@
-import type { TimelineResponse } from '@momentum/contract';
+import type { GraphBuildStatus, TimelineResponse } from '@momentum/contract';
 import { until } from '../support/api.ts';
 import { graphIssues } from '../support/check.ts';
 import { expect, scenario } from '../support/fixtures.ts';
@@ -149,11 +149,20 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
 
   await step(4, async () => {
     failing = false;
-    // Room for the rest of the build
-    await api.putSettings({ feedSize: 40 });
-    await api.call('PUT', `/workspaces/${WS}/graph-build`, { building: true });
+    // No room at all: the triggers alone fill the feed, and the build set to run in full goes on regardless
+    await api.putSettings({ feedSize: TRIGGERS });
+    expect((await api.feed()).items.length).toBe(TRIGGERS);
+    const full = await api.call<GraphBuildStatus>('PUT', `/workspaces/${WS}/graph-build`, { mode: 'full', building: true });
+    expect(full.mode).toBe('full');
+    expect(full.state).toBe('building');
     await until('the build to complete', async () => (await api.graphBuild(WS)).state === 'complete', 20 * 60_000, 5000);
     const status = await api.graphBuild(WS);
+    expect(status.mode).toBe('full');
+    const last = (await builds()).find((r) => r.status === 'finished' && model.turns(r.id)[0]?.input.includes('The build runs in full'));
+    expect(last, 'a run told to build in full').toBeTruthy();
+    expect(model.turns(last!.id)[0]!.input).not.toMatch(/at most \d+ entities/);
+    await app.openProject(WS);
+    await expect(app.text('in full', false)).toBeVisible();
     expect(status.completeness.score).toBeGreaterThan(0);
     expect(status.completeness.score).toBeLessThanOrEqual(1);
     expect(status.estimate).not.toBeNull();
@@ -169,6 +178,7 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
     expect(graphIssues(env, WS)).toEqual([]);
     const { events } = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&limit=50`);
     expect(events.some((e) => e.kind === 'graph_build_complete')).toBe(true);
+    expect(events.some((e) => e.kind === 'graph_build_mode_changed' && e.actor === 'user')).toBe(true);
     const m = await api.metrics(WS);
     expect(m.agents.automations.find((a) => a.automation === 'graph-build')?.runs.value).toBe((await builds()).length);
   });

@@ -15,7 +15,7 @@ artifacts:
 Builds the knowledge graph of a workspace from its repository.
 
 - Starts when the project is enabled; no trigger entity
-- One run at a time, each writing at most the room the feed has
+- One run at a time; paced by the feed (default), a run queues while the feed has room and writes at most that many entities; in full (`enable --full`, or Settings), it goes on whatever the feed holds and writes without a limit
 - Every run lands on the main line and reports its progress to the next; the harness measures completeness on the main line and tells each run what is missing
 - Completeness: the mean of the questions a reader needs answered (eight, from product to rules) and the areas of the repository entities account for; a directory artifact claims all in it; file, class or function cards count for nothing
 - Ends when a run reports nothing missing can be filled; stopped by the user, by disabling or by three failed runs
