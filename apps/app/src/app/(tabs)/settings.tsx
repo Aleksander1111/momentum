@@ -336,7 +336,7 @@ function InTheGraph({ harness, projects }: { harness: string; projects: string[]
 const GRAPH_BUILD: Record<GraphBuildState, string> = { building: 'building', stopped: 'stopped', complete: 'complete' };
 
 /**
- * The logo of an enabled project, shown on its cards: Upload picks an image (PNG, JPEG, WebP or SVG, at most 256 KB),
+ * The logo of a project, shown on its cards: Upload picks an image (PNG, JPEG, WebP or SVG, at most 256 KB),
  * Remove goes back to the one drawn from the name.
  */
 function LogoRow({ name, logo }: { name: string; logo: string | null }) {
@@ -372,7 +372,7 @@ function LogoRow({ name, logo }: { name: string; logo: string | null }) {
 }
 
 /**
- * The knowledge graph build of an enabled project: its state, what it produced and what it used, refreshed while it
+ * The knowledge graph build of a project: its state, what it produced and what it used, refreshed while it
  * builds; Stop ends the run in progress and keeps the next from starting, Resume queues it again. Reset removes every
  * entity and database entry of the project and builds the knowledge graph afresh; it asks for a second tap first.
  */
@@ -498,6 +498,14 @@ export default function Settings() {
   const wide = useWide();
   const qc = useQueryClient();
   const { data: s, refetch } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  // The projects whose rows are open on their logo and knowledge graph build; opening one is separate from enabling it
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  const toggleOpen = (name: string) =>
+    setOpened((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(name)) next.add(name);
+      return next;
+    });
   // The tab stays mounted: coming back to it reads the projects as they are now, cloned or removed meanwhile
   useFocusEffect(
     useCallback(() => {
@@ -542,9 +550,10 @@ export default function Settings() {
       <List>
         {s.projects.map((p, i) => (
           <View key={p.name}>
-            <Row first={i === 0}>
+            <Row first={i === 0} onPress={() => toggleOpen(p.name)}>
               <ProjectLogo name={p.name} size={32} />
               <RowText title={p.name} sub={p.path} breakAnywhere />
+              <Chevron open={opened.has(p.name)} />
               <Switch
                 on={p.enabled}
                 onToggle={() => {
@@ -554,8 +563,8 @@ export default function Settings() {
                 }}
               />
             </Row>
-            {p.enabled ? <LogoRow name={p.name} logo={p.logo} /> : null}
-            {p.enabled ? <GraphBuildRow name={p.name} /> : null}
+            {opened.has(p.name) ? <LogoRow name={p.name} logo={p.logo} /> : null}
+            {opened.has(p.name) ? <GraphBuildRow name={p.name} /> : null}
           </View>
         ))}
       </List>

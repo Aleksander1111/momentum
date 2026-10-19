@@ -122,7 +122,7 @@ scenario('graph-build-cycle', { settings: { feedSize: FEED } }, async ({ env, ap
     hanging = true;
     await approveWritten();
     const run = await until('a build run in progress', async () => (await builds()).find((r) => r.status === 'running' && model.turns(r.id).length > 0), 2 * 60_000);
-    await app.tab('Settings');
+    await app.openProject(WS);
     await app.text('Stop').click();
     expect((await api.runEnded(run.id, 60_000)).status).toBe('killed');
     expect((await api.graphBuild(WS)).state).toBe('stopped');

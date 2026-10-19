@@ -364,6 +364,16 @@ export class App {
     await until(`${name} ${enabled ? 'enabled' : 'disabled'}`, async () => (await this.api.settings()).projects.find((p) => p.name === name)?.enabled === enabled);
   }
 
+  /** Opens a project's row in Settings on its logo and knowledge graph build, which the row's chevron shows */
+  async openProject(name: string): Promise<void> {
+    await this.tab('Settings');
+    await this.text('Included projects').waitFor();
+    const row = this.frame().locator('div', { has: this.frame().getByText(name, { exact: true }) }).filter({ has: this.frame().getByRole('switch') }).last();
+    await pace('action', `Open ${name}`);
+    await row.getByText(name, { exact: true }).click();
+    await this.text('Knowledge graph').waitFor();
+  }
+
   /** Holds the mic of the screen open, so what the command stream hears goes where this screen sends it */
   async speak(): Promise<void> {
     await pace('action', 'Tap the mic');
