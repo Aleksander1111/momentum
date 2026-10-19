@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { request } from 'node:http';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
@@ -19,6 +20,24 @@ async function ask(question: string): Promise<string> {
   return answer;
 }
 
+/**
+ * One HTTP request to the server, over node:http: a second fetch in this process leaves a handle closing when the
+ * process exits, which Node asserts on under Windows
+ */
+function http(method: string, url: string, headers: Record<string, string> = {}, body?: string, timeoutMs = 60_000): Promise<{ status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const req = request(url, { method, headers: { ...headers, connection: 'close' }, timeout: timeoutMs }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString('utf8') }));
+      res.on('error', reject);
+    });
+    req.on('timeout', () => req.destroy(new Error(`${method} ${url} timed out`)));
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
 /** The running server, signed in for this one command; null when none answers on this machine */
 async function server(): Promise<{ call: (method: string, path: string, body?: unknown) => Promise<void>; done: () => Promise<void> } | null> {
   let base: string;
@@ -27,17 +46,18 @@ async function server(): Promise<{ call: (method: string, path: string, body?: u
   } catch {
     return null;
   }
-  const up = await fetch(`${base}/openapi.json`, { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false);
+  const up = await http('GET', `${base}/openapi.json`, {}, undefined, 2000).then((r) => r.status === 200, () => false);
   if (!up) return null;
   const { token } = await m.auth.createSession();
   return {
     call: async (method, path, body) => {
-      const res = await fetch(`${base}${path}`, {
+      const res = await http(
         method,
-        headers: { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`The server refused ${method} ${path}: ${res.status} ${await res.text()}`);
+        `${base}${path}`,
+        { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+        body === undefined ? undefined : JSON.stringify(body),
+      );
+      if (res.status < 200 || res.status >= 300) throw new Error(`The server refused ${method} ${path}: ${res.status} ${res.text}`);
     },
     done: () => m.auth.endSession(token),
   };

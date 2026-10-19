@@ -623,7 +623,7 @@ To serve Momentum at every logon, run `apps/backend/service/install.ps1` once. I
 |---|---|
 | `generate-password` | Writes a new password to `<root>\.momentum\password.txt` and ends all sessions |
 | `set-password [password]` | Sets the password, asking for it if not given, and ends all sessions |
-| `enable <workspace>` / `disable <workspace>` | Starts or stops a project's loops |
+| `enable <workspace> [--full]` / `disable <workspace>` | Starts or stops a project's loops; `--full` has its knowledge graph build whatever the feed holds |
 | `logo <workspace> <file \| --remove>` | Sets the project's logo (.png, .jpg, .webp, .svg); a relative path is read from `apps/backend` |
 | `index [workspace...]` | Indexes the main line afresh |
 | `openapi` | Writes `packages/contract/openapi.json` |
