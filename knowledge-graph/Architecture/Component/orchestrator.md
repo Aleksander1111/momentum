@@ -25,8 +25,7 @@ artifacts:
 
 Runs enabled projects' loops; the CLI's never ticks.
 
-- **Tick**: rediscovers repos; disables a project no longer one line, skips what git can't read; hourly prune; indexes; with feed room queues due triggers, a build; starts queued runs: one per project, user runs first, `concurrentTotal` in all
-- **Events**: entity_ahead → implementation unless one is open on the same planned work; implementation_finished → validation; artifact_ahead → one summarization run; override_changed → the project's definitions written again, each override or its removal on the timeline with its commit message
-- **Enable**: only if one line; materializes, indexes, commits default triggers, builds unless complete or stopped
-- **Materialize**: the harness definitions' files into `.claude/`; a project's own file committed at the same `automations/<name>/...` path replaces the harness's there
-- **Disable**: stops a build; **reset** (not harness): ends runs, deletes the graph, drops index and attachments
+- **Tick**: disables a project no longer one line; prunes; indexes; with feed room queues due triggers; a build by mode: paced, only with room, at most that many entities; full, whatever the feed holds, no limit; starts queued runs: one per project, user's first, `concurrentTotal` in all
+- **Events**: entity_ahead → implementation unless one is open on that work; implementation_finished → validation; artifact_ahead → summarization; override_changed → redefines
+- **Enable**: if one line; materializes, indexes, default triggers, builds
+- **Disable** stops a build; **reset** ends runs, deletes graph, index, attachments; mode outlives both

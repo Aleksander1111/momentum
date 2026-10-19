@@ -20,13 +20,13 @@ artifacts:
 ---
 # Settings
 
-Changes save when editing ends; projects reload on open.
+Saves when editing ends; projects reload on open.
 
 | Section | Controls |
 |---|---|
 | Appearance | System, light, dark |
-| Included projects | Switch enables; chevron opens logo and graph-build rows |
-| Graph build | State, runs, entities, usage; completeness, estimate; Stop/Resume; Reset |
+| Included projects | Switch enables; chevron opens logo, build rows |
+| Graph build | State, mode, runs, entities, usage; completeness, estimate; Stop/Resume; In full/Pace; Reset |
 | Feed size | Items before loops pause |
 | Cards | Limit, presentation rules |
 | Summarization | Excluded paths |
