@@ -2,7 +2,7 @@
   "name": "@momentum/app",
   "version": "0.0.0",
   "private": true,
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "scripts": {
     "dev": "expo start",
     "web": "expo start --web",

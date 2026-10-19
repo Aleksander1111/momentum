@@ -146,7 +146,7 @@ try {
       const file = out ?? join(config.root, '.momentum', 'exports', `${name}-knowledge-graph.zip`);
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, await exportGraph(m.momentum, name));
-      console.log(`Wrote ${file}: unpacked, open.cmd (Windows) or open.sh (macOS, Linux) opens the Explorer of ${name}.`);
+      console.log(`Wrote ${file}: unpacked, its index.html opens the Explorer of ${name} in any browser.`);
       break;
     }
     case 'openapi': {

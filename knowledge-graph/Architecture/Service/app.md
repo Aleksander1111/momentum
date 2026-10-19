@@ -29,4 +29,5 @@ One Expo (React Native) app, `apps/app`, for web and mobile.
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
 - Out of reach: queries pause, reactions queue, a 5 s probe restores them, a refusal says why; a phone shows a bar above the tabs
 - Typed contract client; 401 sends to sign-in; sign-out ends this device's session
-- Exported with one project's graph (`snapshot.js` sets `momentumSnapshot` before the app; `pnpm momentum export-graph`): the Explorer alone, no tabs, mic, agent, questions or context; workspaces, types, entities and search answered from the graph, no server reached
+- Own entry `index.ts` → `src/App.tsx`: `ExpoRoot` over the routes under `src/app`
+- Exported with one project's graph (`snapshot.js` sets `momentumSnapshot` before the app; `pnpm momentum export-graph`): the Explorer alone, no tabs, mic, agent, questions or context; workspaces, types, entities and search answered from the graph, no server reached. Opened from its file, it starts on `/explorer` and `snapshot.js` keeps the browser's history in memory, as the file's address cannot change

@@ -12,6 +12,12 @@ declare global {
 export const snapshot: GraphSnapshot | null =
   typeof globalThis.momentumSnapshot === 'undefined' ? null : GraphSnapshot.parse(globalThis.momentumSnapshot);
 
+/**
+ * The export opened from its own file, by a double click on index.html: no server, so no page path to start from, and
+ * `snapshot.js` keeps the browser's history in memory, as the file's address cannot change
+ */
+export const fromFile = snapshot !== null && typeof location !== 'undefined' && location.protocol === 'file:';
+
 const entities = new Map((snapshot?.entities ?? []).map((e) => [e.path, e]));
 
 export const snapshotEntity = (path: string): EntityDetail | null => entities.get(path) ?? null;

@@ -626,7 +626,7 @@ To serve Momentum at every logon, run `apps/backend/service/install.ps1` once. I
 | `enable <workspace> [--full]` / `disable <workspace>` | Starts or stops a project's loops; `--full` has its knowledge graph build whatever the feed holds |
 | `logo <workspace> <file \| --remove>` | Sets the project's logo (.png, .jpg, .webp, .svg); a relative path is read from `apps/backend` |
 | `index [workspace...]` | Indexes the main line afresh |
-| `export-graph <workspace> [zip file]` | Writes a zip of the web app with the project's knowledge graph beside it, `<root>\.momentum\exports\<workspace>-knowledge-graph.zip` unless a file is given, for someone without Momentum: unpacked, `open.cmd` (Windows) or `open.sh` (macOS, Linux; Python 3) serves the folder to the browser on that computer and opens the Explorer of that one project, which searches the graph it carries and reaches no server |
+| `export-graph <workspace> [zip file]` | Writes a zip of the web app with the project's knowledge graph beside it, `<root>\.momentum\exports\<workspace>-knowledge-graph.zip` unless a file is given, for someone without Momentum: unpacked, its `index.html` opens in any browser on any computer, from the file itself, as the Explorer of that one project, which searches the graph it carries and reaches no server |
 | `openapi` | Writes `packages/contract/openapi.json` |
 
 ### Test

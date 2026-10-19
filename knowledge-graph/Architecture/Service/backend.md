@@ -41,4 +41,4 @@ One Node process, `apps/backend`: API, orchestrator, guard; runs, search, risk e
 - `createMomentum` wires Postgres, workspaces, settings, bus, timeline, automations, embedder, guard, runner, approval, orchestrator, auth, voice
 - Server: no password, no start; recovers runs, indexes harness, materializes, listens, starts orchestrator, voice
 - CLI `pnpm momentum` (passwords, enable [--full: whole graph], disable, logo, index, export-graph, openapi) calls the API over node:http, as two fetches crash Node on exit on Windows
-- `export-graph <workspace> [zip]` (`export.ts`, `zip.ts`): the served web app with the project's graph in `snapshot.js` before its page, `serve.ps1`/`serve.py` behind `open.cmd`/`open.sh`, zipped without a dependency; for someone without Momentum
+- `export-graph <workspace> [zip]` (`export.ts`, `zip.ts`): the served web app with the project's graph in `snapshot.js` before its page, the page's addresses made relative and allowed from `file:`, zipped without a dependency; its `index.html` opens from the file in any browser, for someone without Momentum

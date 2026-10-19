@@ -8,13 +8,10 @@ import { zip, type ZipEntry } from './zip.ts';
 
 /**
  * One project's knowledge graph to hand to someone without Momentum: the served web app with the graph beside its
- * page, in a zip. Unpacked, `open.cmd` (Windows) or `open.sh` (macOS, Linux) serves the folder to the browser on that
- * computer alone and opens the Explorer; the app reads the graph from `snapshot.js` and reaches no server.
+ * page, in a zip. Unpacked, `index.html` opens in any browser on any computer, from the file itself: the page's
+ * addresses are relative, the app reads the graph from `snapshot.js`, keeps its history in memory and reaches no
+ * server.
  */
-
-/** The ports the folder is served on: the first one free */
-const FIRST_PORT = 7301;
-const LAST_PORT = 7399;
 
 /** Every entity path in the tree, in its order */
 function paths(nodes: TypeNode[], out: string[] = []): string[] {
@@ -36,93 +33,60 @@ export async function graphSnapshot(momentum: Momentum, name: string): Promise<G
   return { exportedAt: new Date().toISOString(), workspace: { ...workspace, enabled: true }, types, entities };
 }
 
+/**
+ * Opened from a file, the page's address cannot change, so the browser's history lives here: the router's pushes,
+ * replacements and steps back land in this list, each step answered with the `popstate` the router waits for. The
+ * browser's own Back button leaves the page, as there is nothing of the app in its history.
+ */
+const fileHistory = `if (location.protocol === 'file:') (() => {
+  const h = window.history;
+  const entries = [{ state: h.state }];
+  let at = 0;
+  const show = (state) => Object.defineProperty(h, 'state', { configurable: true, get: () => state });
+  h.pushState = (state) => {
+    entries.splice(at + 1);
+    entries.push({ state });
+    at = entries.length - 1;
+    show(state);
+  };
+  h.replaceState = (state) => {
+    entries[at] = { state };
+    show(state);
+  };
+  h.go = (n) => {
+    const to = at + (n || 0);
+    if (!n || to < 0 || to >= entries.length) return;
+    at = to;
+    show(entries[to].state);
+    setTimeout(() => window.dispatchEvent(new PopStateEvent('popstate', { state: entries[to].state })));
+  };
+  h.back = () => h.go(-1);
+  h.forward = () => h.go(1);
+  Object.defineProperty(h, 'length', { configurable: true, get: () => entries.length });
+})();
+`;
+
 /** The graph as a script the page loads before the app: nothing in it can end the script early */
-const snapshotScript = (s: GraphSnapshot) => `globalThis.momentumSnapshot = ${JSON.stringify(s).replace(/</g, '\\u003c')};\n`;
-
-const serveScript = (name: string) => `# Serves this folder to the browser on this computer alone and opens the Explorer; close this window to stop
-$root = [IO.Path]::GetFullPath($PSScriptRoot)
-$listener = $null
-foreach ($p in ${FIRST_PORT}..${LAST_PORT}) {
-  $l = New-Object System.Net.HttpListener
-  $l.Prefixes.Add("http://localhost:$p/")
-  try { $l.Start(); $listener = $l; $port = $p; break } catch { }
-}
-if (-not $listener) { Write-Host 'No free port between ${FIRST_PORT} and ${LAST_PORT}'; exit 1 }
-$types = @{ '.html' = 'text/html; charset=utf-8'; '.js' = 'text/javascript'; '.css' = 'text/css'; '.json' = 'application/json'; '.map' = 'application/json'; '.png' = 'image/png'; '.ico' = 'image/x-icon'; '.svg' = 'image/svg+xml'; '.woff' = 'font/woff'; '.woff2' = 'font/woff2'; '.ttf' = 'font/ttf'; '.txt' = 'text/plain' }
-$url = "http://localhost:$port/explorer?ws=${encodeURIComponent(name)}"
-Write-Host "Knowledge graph of ${name}: $url"
-Write-Host 'Close this window to stop.'
-Start-Process $url
-while ($listener.IsListening) {
-  try {
-    $ctx = $listener.GetContext()
-    $path = [Uri]::UnescapeDataString($ctx.Request.Url.AbsolutePath).TrimStart('/')
-    $file = [IO.Path]::GetFullPath((Join-Path $root $path))
-    # Any page of the app is its one page; nothing outside this folder is served
-    if ($path -eq '' -or -not $file.StartsWith($root) -or -not (Test-Path -LiteralPath $file -PathType Leaf)) { $file = Join-Path $root 'index.html' }
-    $bytes = [IO.File]::ReadAllBytes($file)
-    $ext = [IO.Path]::GetExtension($file).ToLower()
-    $ctx.Response.ContentType = if ($types.ContainsKey($ext)) { $types[$ext] } else { 'application/octet-stream' }
-    $ctx.Response.ContentLength64 = $bytes.Length
-    $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
-    $ctx.Response.Close()
-  } catch { }
-}
-`;
-
-const servePython = (name: string) => `# Serves this folder to the browser on this computer alone and opens the Explorer; Ctrl+C stops it
-import os, webbrowser
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import quote
-
-ROOT = os.path.dirname(os.path.abspath(__file__))
-START, END = ${FIRST_PORT}, ${LAST_PORT}
-
-class Page(SimpleHTTPRequestHandler):
-    def __init__(self, *a, **k):
-        super().__init__(*a, directory=ROOT, **k)
-
-    # Any page of the app is its one page
-    def send_head(self):
-        if not os.path.isfile(self.translate_path(self.path)):
-            self.path = '/index.html'
-        return super().send_head()
-
-    def log_message(self, *a):
-        pass
-
-for port in range(START, END + 1):
-    try:
-        server = HTTPServer(('127.0.0.1', port), Page)
-        break
-    except OSError:
-        server = None
-if server is None:
-    raise SystemExit(f'No free port between {START} and {END}')
-url = f'http://localhost:{port}/explorer?ws=' + quote(${JSON.stringify(name)})
-print(f'Knowledge graph of ${name}: {url}')
-print('Ctrl+C stops.')
-webbrowser.open(url)
-server.serve_forever()
-`;
-
-const openCmd = `@echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0serve.ps1"
-`;
-
-const openSh = `#!/bin/sh
-cd "$(dirname "$0")" && exec python3 serve.py
-`;
+const snapshotScript = (s: GraphSnapshot) =>
+  `${fileHistory}globalThis.momentumSnapshot = ${JSON.stringify(s).replace(/</g, '\\u003c')};\n`;
 
 const readme = (name: string, when: string) => `Knowledge graph of ${name}
 Exported from Momentum on ${when}.
 
-Windows: open open.cmd.  macOS or Linux: run ./open.sh (needs Python 3).
-Either serves this folder to your browser on this computer alone and opens the Explorer; nothing is sent anywhere.
-Close the window it opened to stop.
+Open index.html in your browser (a double click does): the Explorer of ${name} opens, from this folder alone.
+Nothing is sent anywhere. Keep the files together.
 `;
 
-/** The served web app's files, with the graph script loaded before the app on its page */
+/** The page with every address relative to it, allowed from a file, and the graph loaded before the app */
+function pageFromFile(html: string): string {
+  const relative = html.replace(/\b(src|href)="\/(?!\/)/g, '$1="./');
+  const allowed = relative.replace(/'self'/g, "'self' file:");
+  const at = allowed.indexOf('<script');
+  if (at < 0) throw new Error('The web app page loads no script');
+  return `${allowed.slice(0, at)}<script src="./snapshot.js"></script>\n${allowed.slice(at)}`;
+}
+
+/** The served web app's files, its page made to open from a file, with the graph beside them */
 async function appFiles(snapshot: GraphSnapshot): Promise<ZipEntry[]> {
   const dist = config.appDist;
   if (!existsSync(join(dist, 'index.html'))) throw new Error(`The web app is not built: no index.html under ${dist}`);
@@ -132,28 +96,14 @@ async function appFiles(snapshot: GraphSnapshot): Promise<ZipEntry[]> {
     const file = join(f.parentPath, f.name);
     const name = relative(dist, file).split('\\').join('/');
     const data = await readFile(file);
-    entries.push({ name, data: name === 'index.html' ? Buffer.from(withSnapshot(data.toString('utf8')), 'utf8') : data });
+    entries.push({ name, data: name === 'index.html' ? Buffer.from(pageFromFile(data.toString('utf8')), 'utf8') : data });
   }
   entries.push({ name: 'snapshot.js', data: Buffer.from(snapshotScript(snapshot), 'utf8') });
   return entries;
 }
 
-function withSnapshot(html: string): string {
-  const at = html.indexOf('<script');
-  if (at < 0) throw new Error('The web app page loads no script');
-  return `${html.slice(0, at)}<script src="/snapshot.js"></script>\n${html.slice(at)}`;
-}
-
-/** The zip: the web app, the graph, the scripts that open it, a note on how */
+/** The zip: the web app, the graph, a note on how to open it */
 export async function exportGraph(momentum: Momentum, name: string): Promise<Buffer> {
   const snapshot = await graphSnapshot(momentum, name);
-  const when = snapshot.exportedAt.slice(0, 10);
-  return zip([
-    ...(await appFiles(snapshot)),
-    { name: 'serve.ps1', data: Buffer.from(serveScript(name), 'utf8') },
-    { name: 'serve.py', data: Buffer.from(servePython(name), 'utf8') },
-    { name: 'open.cmd', data: Buffer.from(openCmd, 'utf8') },
-    { name: 'open.sh', data: Buffer.from(openSh, 'utf8'), executable: true },
-    { name: 'README.txt', data: Buffer.from(readme(name, when), 'utf8') },
-  ]);
+  return zip([...(await appFiles(snapshot)), { name: 'README.txt', data: Buffer.from(readme(name, snapshot.exportedAt.slice(0, 10)), 'utf8') }]);
 }

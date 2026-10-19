@@ -4,8 +4,6 @@ export interface ZipEntry {
   /** The path inside the archive, with forward slashes */
   name: string;
   data: Buffer;
-  /** Runs as a program once unpacked on macOS or Linux */
-  executable?: boolean;
 }
 
 const VERSION_UNIX = 0x031e;
@@ -21,7 +19,7 @@ function dosTime(d: Date): { time: number; date: number } {
   };
 }
 
-/** A zip archive of the entries, deflated, with UTF-8 names and the unix mode of each, in memory */
+/** A zip archive of the entries, deflated, with UTF-8 names, in memory */
 export function zip(entries: ZipEntry[], now = new Date()): Buffer {
   const { time, date } = dosTime(now);
   const parts: Buffer[] = [];
@@ -59,7 +57,7 @@ export function zip(entries: ZipEntry[], now = new Date()): Buffer {
     dir.writeUInt16LE(0, 32);
     dir.writeUInt16LE(0, 34);
     dir.writeUInt16LE(0, 36);
-    dir.writeUInt32LE(((e.executable ? 0o100755 : 0o100644) << 16) >>> 0, 38);
+    dir.writeUInt32LE((0o100644 << 16) >>> 0, 38);
     dir.writeUInt32LE(offset, 42);
     parts.push(local, name, packed);
     central.push(dir, name);
