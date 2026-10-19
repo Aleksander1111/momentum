@@ -18,3 +18,4 @@ artifacts: []
 - **Auth:** single user, generated or set password; httpOnly cookie on web, SecureStore on mobile, bearer for MCP; API on Tailscale only
 - **Voice tools:** API doubles as MCP server at `/mcp`, plus `run_automation`
 - **Mobile:** sideloaded Android APK; iPhone uses the web PWA
+- **Handing a graph out:** `export-graph` zips the web app with one project's knowledge graph; opened on any computer, it serves itself on localhost and shows the Explorer alone, without Momentum

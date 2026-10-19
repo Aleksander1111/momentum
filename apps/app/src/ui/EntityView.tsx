@@ -12,6 +12,7 @@ import { Chevron, Count, List, Row, RowText, useFrame } from './parts';
 import { EntityLinks, EntityRefs, entityName } from './EntityRef';
 import { MicButton } from './MicButton';
 import { useVoice } from '../lib/voice';
+import { snapshot } from '../lib/snapshot';
 import { openRun } from '../lib/runs';
 import { useWide } from './theme';
 
@@ -107,9 +108,11 @@ export function EntityView({
           </List>
         </Fold>
       ) : null}
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
-        <MicButton listening={mic.listening} available={mic.available} onPress={mic.listening ? mic.stop : mic.start} />
-      </View>
+      {snapshot ? null : (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
+          <MicButton listening={mic.listening} available={mic.available} onPress={mic.listening ? mic.stop : mic.start} />
+        </View>
+      )}
     </EntityLinks>
   );
 }

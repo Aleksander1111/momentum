@@ -12,6 +12,7 @@ artifacts:
   - apps/app/app.json
   - apps/app/src/app/(tabs)/_layout.tsx
   - apps/app/src/lib/api.ts
+  - apps/app/src/lib/snapshot.ts
   - apps/app/tsconfig.json
   - apps/app/assets
   - apps/app/public
@@ -28,3 +29,4 @@ One Expo (React Native) app, `apps/app`, for web and mobile.
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
 - Out of reach: queries pause, reactions queue, a 5 s probe restores them, a refusal says why; a phone shows a bar above the tabs
 - Typed contract client; 401 sends to sign-in; sign-out ends this device's session
+- Exported with one project's graph (`snapshot.js` sets `momentumSnapshot` before the app; `pnpm momentum export-graph`): the Explorer alone, no tabs, mic, agent, questions or context; workspaces, types, entities and search answered from the graph, no server reached

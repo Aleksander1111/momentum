@@ -974,4 +974,16 @@ export type PutProjectLogo = z.infer<typeof PutProjectLogo>;
 export const Workspace = ProjectSetting;
 export type Workspace = z.infer<typeof Workspace>;
 
+/**
+ * One project's knowledge graph as the Explorer shows it, carried by an export of the web app beside its page: whoever
+ * opens the export explores the graph without Momentum, and the app reaches no server
+ */
+export const GraphSnapshot = z.object({
+  exportedAt: z.string(),
+  workspace: Workspace,
+  types: TypesResponse,
+  entities: z.array(EntityDetail),
+});
+export type GraphSnapshot = z.infer<typeof GraphSnapshot>;
+
 export const ErrorResponse = z.object({ error: z.string() });

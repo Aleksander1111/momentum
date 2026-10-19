@@ -7,6 +7,7 @@ import { ProjectLogo } from '@momentum/contract';
 import { createHttp } from './api/http.ts';
 import { createMomentum } from './app.ts';
 import { config } from './config.ts';
+import { exportGraph } from './export.ts';
 
 const [command, ...args] = process.argv.slice(2);
 const LOGO_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
@@ -138,6 +139,16 @@ try {
       }
       break;
     }
+    case 'export-graph': {
+      // A project's knowledge graph for someone without Momentum: the web app with the graph beside it, in a zip
+      const [name, out] = args;
+      if (!name) throw new Error('Usage: momentum export-graph <workspace> [zip file]');
+      const file = out ?? join(config.root, '.momentum', 'exports', `${name}-knowledge-graph.zip`);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, await exportGraph(m.momentum, name));
+      console.log(`Wrote ${file}: unpacked, open.cmd (Windows) or open.sh (macOS, Linux) opens the Explorer of ${name}.`);
+      break;
+    }
     case 'openapi': {
       const http = await createHttp(m.momentum, m.auth);
       await http.ready();
@@ -147,7 +158,7 @@ try {
       break;
     }
     default:
-      console.log('Commands: generate-password | set-password [password] | enable <workspace> [--full] | disable <workspace> | logo <workspace> <file | --remove> | index [workspace...] | openapi');
+      console.log('Commands: generate-password | set-password [password] | enable <workspace> [--full] | disable <workspace> | logo <workspace> <file | --remove> | index [workspace...] | export-graph <workspace> [zip file] | openapi');
   }
 } catch (e) {
   // Exiting in `finally` would otherwise drop the error unsaid, with a success code

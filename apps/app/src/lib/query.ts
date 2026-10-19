@@ -16,6 +16,7 @@ import {
 import { api, HttpError, NetworkError, UnauthorizedError } from './api';
 import { withoutItem } from './feed';
 import { notify } from './notice';
+import { snapshot } from './snapshot';
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -112,7 +113,8 @@ function deserialize(cached: string): PersistedClient {
 }
 
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
-  persister: createAsyncStoragePersister({ storage: AsyncStorage, key: 'momentum.cache', throttleTime: 1_000, deserialize }),
+  // The exported app keeps its own cache: what it carries never mixes with what the live app loaded on this browser
+  persister: createAsyncStoragePersister({ storage: AsyncStorage, key: snapshot ? 'momentum.export' : 'momentum.cache', throttleTime: 1_000, deserialize }),
   maxAge: WEEK,
   buster: '2',
   dehydrateOptions: {

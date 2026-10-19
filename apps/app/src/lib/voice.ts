@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { VoiceDown, type VoiceItem, type VoiceOutcome, type VoiceTarget } from '@momentum/contract';
 import { openSocket } from './socket';
 import { startMic, type Mic } from './mic';
+import { snapshot } from './snapshot';
 
 /**
  * Voice: this device's microphone streams to the PC, which transcribes it; the harness acts on each spoken item where
@@ -98,7 +99,8 @@ async function open() {
 
 function subscribe(l: () => void) {
   listeners.add(l);
-  void connect();
+  // The exported app has no PC to hear it: the mic stays dimmed and no socket opens
+  if (!snapshot) void connect();
   return () => {
     listeners.delete(l);
     if (listeners.size > 0) return;

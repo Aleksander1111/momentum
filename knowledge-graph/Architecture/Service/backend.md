@@ -29,6 +29,8 @@ artifacts:
   - apps/backend/src/app.ts
   - apps/backend/src/server.ts
   - apps/backend/src/cli.ts
+  - apps/backend/src/export.ts
+  - apps/backend/src/zip.ts
   - apps/backend/service/install.ps1
   - apps/backend/service/serve.ps1
 ---
@@ -38,4 +40,5 @@ One Node process, `apps/backend`: API, orchestrator, guard; runs, search, risk e
 
 - `createMomentum` wires Postgres, workspaces, settings, bus, timeline, automations, embedder, guard, runner, approval, orchestrator, auth, voice
 - Server: no password, no start; recovers runs, indexes harness, materializes, listens, starts orchestrator, voice
-- CLI `pnpm momentum` (passwords, enable [--full: whole graph], disable, logo, index, openapi) calls the API over node:http, as two fetches crash Node on exit on Windows
+- CLI `pnpm momentum` (passwords, enable [--full: whole graph], disable, logo, index, export-graph, openapi) calls the API over node:http, as two fetches crash Node on exit on Windows
+- `export-graph <workspace> [zip]` (`export.ts`, `zip.ts`): the served web app with the project's graph in `snapshot.js` before its page, `serve.ps1`/`serve.py` behind `open.cmd`/`open.sh`, zipped without a dependency; for someone without Momentum

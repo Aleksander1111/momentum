@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import { snapshot } from '../lib/snapshot';
 import { C } from './theme';
 import { T } from './Text';
 
@@ -9,8 +10,9 @@ import { T } from './Text';
  */
 export const AddsAtOnce = createContext(false);
 
-/** The button that adds the selected text or the picked diagram element to the chat's context */
+/** The button that adds the selected text or the picked diagram element to the chat's context; the exported app has no chat */
 export function AddToContext({ onPress, style }: { onPress: () => void; style?: StyleProp<ViewStyle> }) {
+  if (snapshot) return null;
   return (
     <Pressable
       onPress={onPress}

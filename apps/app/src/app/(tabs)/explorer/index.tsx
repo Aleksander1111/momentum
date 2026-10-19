@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { EntityListItem, TypeNode } from '@momentum/contract';
 import { api } from '../../../lib/api';
 import { useCurrentWorkspace, useWorkspaces } from '../../../lib/workspace';
+import { snapshot } from '../../../lib/snapshot';
 import { ProjectLogo } from '../../../ui/ProjectLogo';
 import { C, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
@@ -117,11 +118,12 @@ export default function Explorer() {
     setOpen((s) => new Set([...s, ...segs.map((_, i) => segs.slice(0, i + 1).join('/'))]));
   }, [params.ws, params.folder]);
   const dq = useDebounced(q.trim(), 300);
-  // What was asked of the graph: Enter asks whatever is typed; a question asks itself once typing pauses
+  // What was asked of the graph: Enter asks whatever is typed; a question asks itself once typing pauses. The exported
+  // app has no one to ask: it searches, and nothing more
   const [asked, setAsked] = useState<string | null>(null);
   const idle = useDebounced(q.trim(), 1100);
   useEffect(() => {
-    if (isQuestion(idle)) setAsked(idle);
+    if (!snapshot && isQuestion(idle)) setAsked(idle);
   }, [idle]);
   useEffect(() => {
     if (!q.trim()) setAsked(null);
@@ -131,7 +133,7 @@ export default function Explorer() {
     if (dq && !isQuestion(dq)) setAsked((a) => (a === dq ? a : null));
   }, [dq]);
   const askNow = () => {
-    if (q.trim()) setAsked(q.trim());
+    if (!snapshot && q.trim()) setAsked(q.trim());
   };
   // Spoken search words fill the search, and a spoken question is asked at once; an interview started by voice opens
   const mic = useVoice(ws ? { kind: 'search', workspace: ws } : null, (o) => {
@@ -213,33 +215,37 @@ export default function Explorer() {
       ) : null}
       <Field
         icon="search"
-        placeholder="Search or ask a question"
+        placeholder={snapshot ? 'Search' : 'Search or ask a question'}
         value={mic.partial ?? q}
         onChangeText={setQ}
         onSubmitEditing={askNow}
         returnKeyType="search"
         autoCorrect={false}
         editable={!mic.listening}
-        trailing={<MicButton bare listening={mic.listening} available={mic.available && !!ws} onPress={mic.listening ? mic.stop : mic.start} />}
+        trailing={snapshot ? undefined : <MicButton bare listening={mic.listening} available={mic.available && !!ws} onPress={mic.listening ? mic.stop : mic.start} />}
       />
-      <Pressable
-        onPress={() => ws && router.navigate({ pathname: '/chat', params: { ws, compose: '1' } })}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 10,
-          backgroundColor: C.card,
-          borderRadius: 12,
-          paddingVertical: 11,
-          paddingHorizontal: 14,
-          marginTop: 10,
-          marginBottom: 14,
-        }}
-      >
-        <Icon name="agent" size={20} color={C.ink} />
-        <T style={{ fontSize: 14.5 }}>Explore through an agent</T>
-      </Pressable>
-      {dq && asked !== dq && !isQuestion(dq) ? (
+      {snapshot ? (
+        <View style={{ marginBottom: 14 }} />
+      ) : (
+        <Pressable
+          onPress={() => ws && router.navigate({ pathname: '/chat', params: { ws, compose: '1' } })}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            backgroundColor: C.card,
+            borderRadius: 12,
+            paddingVertical: 11,
+            paddingHorizontal: 14,
+            marginTop: 10,
+            marginBottom: 14,
+          }}
+        >
+          <Icon name="agent" size={20} color={C.ink} />
+          <T style={{ fontSize: 14.5 }}>Explore through an agent</T>
+        </Pressable>
+      )}
+      {!snapshot && dq && asked !== dq && !isQuestion(dq) ? (
         <Pressable onPress={askNow} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -4, marginBottom: 12 }}>
           <Icon name="agent" size={15} color={C.accent} />
           <T numberOfLines={1} style={{ flexShrink: 1, fontSize: 13.5, color: C.accent }}>{`Ask the graph about “${dq}”`}</T>
@@ -256,7 +262,9 @@ export default function Explorer() {
         <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 }}>{`No ${emptyFolder.split('/').join(' · ')} entities in ${ws} yet`}</T>
       ) : null}
       {dq && search.isSuccess && rows.length === 0 && !asked ? (
-        <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 }}>No entity matches; press Enter to ask the graph</T>
+        <T style={{ color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 }}>
+          {snapshot ? 'No entity matches' : 'No entity matches; press Enter to ask the graph'}
+        </T>
       ) : null}
     </ScrollView>
   );

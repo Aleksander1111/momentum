@@ -30,6 +30,7 @@ import {
   type WontResolveRequest,
   type SessionRequest,
 } from '@momentum/contract';
+import { snapshot, snapshotEntity, snapshotSearch } from './snapshot';
 import { clearToken, getToken, setToken } from './token';
 
 /** Web is served same-origin by the back-end; native reaches it over the mesh. */
@@ -130,7 +131,7 @@ const SearchResponse = {
   parse: (d: unknown) => ({ results: SearchResult.array().parse((d as { results: unknown }).results) }),
 };
 
-export const api = {
+const live = {
   async session(req: SessionRequest): Promise<SessionResponse> {
     const res = await request('POST', '/session', req, false);
     const out = SessionResponse.parse(await res.json());
@@ -217,3 +218,17 @@ export const api = {
     return Settings.parse(await res.json());
   },
 };
+
+/** The exported app answers the Explorer's reads from the graph it carries; it holds nothing else */
+const exported = snapshot && {
+  workspaces: async (): Promise<Workspace[]> => [snapshot!.workspace],
+  types: async (_ws: string): Promise<TypesResponse> => snapshot!.types,
+  entity: async (_ws: string, path: string): Promise<EntityDetail> => {
+    const e = snapshotEntity(path);
+    if (!e) throw new HttpError(404, `No entity ${path} in this export`);
+    return e;
+  },
+  search: async (_ws: string, q: string): Promise<{ results: SearchResult[] }> => ({ results: snapshotSearch(q) }),
+};
+
+export const api = exported ? { ...live, ...exported } : live;

@@ -7,6 +7,7 @@ import { onlineManager, useQueryClient } from '@tanstack/react-query';
 import { getToken } from '../../lib/token';
 import { useChatContext } from '../../lib/context';
 import { embedded } from '../../lib/embed';
+import { snapshot } from '../../lib/snapshot';
 import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
@@ -133,7 +134,8 @@ export default function TabsLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        tabBar={(props) => (embedded ? null : <Nav {...props} wide={wide} />)}
+        // The exported app is the Explorer alone: no tabs, nothing else to go to
+        tabBar={(props) => (embedded || snapshot ? null : <Nav {...props} wide={wide} />)}
         // Back from a screen another tab opened, such as an entity a chat links, returns to that tab, not to the feed
         backBehavior="history"
         // Every tab stays mounted: one shown again reloads what went stale while another was in front
@@ -148,7 +150,7 @@ export default function TabsLayout() {
           <Tabs.Screen key={t.name} name={t.name} />
         ))}
       </Tabs>
-      {wide || embedded ? null : <SettingsButton />}
+      {wide || embedded || snapshot ? null : <SettingsButton />}
     </View>
   );
 }
