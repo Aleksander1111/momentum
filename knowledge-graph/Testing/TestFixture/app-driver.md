@@ -18,11 +18,11 @@ artifacts:
 ---
 # End-to-end app driver
 
-How [the scenarios](Testing/TestSuite/end-to-end-scenarios) use the web app in the observer's frame, as the user would, each step paced.
+How [the scenarios](Testing/TestSuite/end-to-end-scenarios) use the web app in the observer's frame, as the user would, paced.
 
-- Signs in, opens tabs and routes; Settings toggles included projects
-- [Feed](Frontend/Screen/feed): swipes the top card to approve, send back, resolve or won't resolve; one not on top goes through the API, or fails when strict
-- Asks about a card in the chat below it, or on a selected text
-- [Chat](Frontend/Screen/chat): starts and replies, Ctrl+Enter; files attached first, picked via the paperclip or dropped, till uploaded
-- Typing sets the field's value plus an input event: Firefox's fill() leaves it empty to the app
+- Signs in, opens tabs and routes; in Settings toggles a project, opens its row on logo and graph build
+- [Feed](Frontend/Screen/feed): swipes the top card to approve, send back, resolve or won't resolve; one not on top goes via the API, or fails when strict
+- Asks about a card in the chat below it, or on selected text
+- [Chat](Frontend/Screen/chat): starts and replies, Ctrl+Enter; files attached first, via the paperclip or dropped, till uploaded
+- Typing sets the field's value plus an input event: Firefox's fill() leaves it empty
 - Holds the mic open for voice
