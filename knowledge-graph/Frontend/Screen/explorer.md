@@ -13,6 +13,8 @@ references:
     relation: opens
   - to: Harness/Automation/search
     relation: asks
+  - to: Architecture/Service/app
+    relation: exported_by
 artifacts:
   - apps/app/src/app/(tabs)/explorer/index.tsx
   - apps/app/src/app/(tabs)/explorer/entity.tsx
@@ -22,13 +24,14 @@ kind: page
 ---
 # Explorer screen
 
-Browse a workspace's entities by domain and type, search or ask them, or hand exploring to an agent.
+Browse a workspace's entities by domain and type, search or ask them, or hand over to an agent.
 
-- Picker of included projects, logos, entity total; a domain/type tree with counts; rows: domain, title, states
-- No project included: says no graph, links to Settings
-- Search, by words and meaning, replaces the tree; no match offers Enter to ask
-- A question, or Enter, is answered by [the search automation](Harness/Automation/search), linking its sources; unframed on phone
-- A mic: spoken words search, a question is asked
+- Project picker, logos, entity total; domain/type tree with counts; rows: domain, title, states
+- No project: says no graph, links to Settings
+- Search by words and meaning replaces the tree; no match offers Enter to ask
+- A question, or Enter, is answered by [search](Harness/Automation/search) with sources; unframed on phone
+- Mic: spoken words search, questions ask
 - "Explore through an agent" opens Chat, composer focused
-- A link opens the tree at one folder; empty says so
-- Wide: the entity beside the tree; narrow: pushed
+- A link opens one folder; empty says so
+- Wide: entity beside the tree; narrow: pushed
+- [Exported](Architecture/Service/app) with a graph: search only; no ask, mic, agent

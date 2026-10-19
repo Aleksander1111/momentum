@@ -15,12 +15,12 @@ kind: page
 ---
 # Entity screen
 
-One entity in full: its card with verification, sync and contradiction badges, then references and artifacts, folded till opened.
+One entity in full: card with verification, sync and contradiction badges; references and artifacts, folded till opened.
 
 - References both ways, each with its relation, opening its entity, unframed on phone; artifacts with their kind
-- Linked entities show their type's glyph and colour and open on a press; other links go to the web
-- Changed since verified: the diff, as in the feed; a wide table scrolls sideways
+- Linked entities show their type's glyph and colour, open on a press; other links go to the web
+- Changed since verified: the diff, as in the feed; wide tables scroll sideways
 - Selected text and diagram shapes go into the chat context
-- A mic: a spoken command changes the entity, a question asks about it, in its chat
-- A link to a retired or resolved entity says so and points to the timeline
-- Wide: beside the Explorer tree; else its own page
+- Mic (not when exported): a spoken command changes the entity, a question asks about it, in its chat
+- A link to a retired or resolved entity says so, points to the timeline
+- Wide: beside the Explorer tree; else own page
