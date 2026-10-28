@@ -49,6 +49,12 @@ export function useEntityTitle(workspace: string | null | undefined, path: strin
   return known || (data ? find(data.types, path) : null);
 }
 
+/** The titles of many entities named by their paths, from the same tree: each null when it is not in the tree */
+export function useEntityTitles(workspace: string | null | undefined): (path: string) => string | null {
+  const { data } = useQuery({ queryKey: ['types', workspace], queryFn: () => api.types(workspace as string), enabled: !!workspace });
+  return (path) => (data ? find(data.types, path) : null);
+}
+
 /** Where entity links open: the workspace they belong to and, on a screen that shows entities itself, how it opens one */
 interface Links {
   workspace: string | null;
@@ -137,6 +143,11 @@ export function EntityRefs({ workspace, items, size }: { workspace?: string | nu
 }
 
 /** Inline in running text: the glyph and the label in the type's colour, on a faint wash of it */
+/** An entity link's glyph at a text size, the padding around it and the weight of its label: a table measures links by them */
+export const linkGlyph = (size = 14) => Math.round(size * 0.95);
+export const LINK_GLYPH_PAD = 5;
+export const LINK_WEIGHT = '600';
+
 export function EntityLink({ path, children, size }: { path: string; children?: ReactNode; size?: number }) {
   const { scheme } = useTheme();
   const ctx = useContext(LinksContext);
@@ -145,17 +156,16 @@ export function EntityLink({ path, children, size }: { path: string; children?: 
   // A label given is the link's own; only a path alone is named by the entity's title
   const name = useEntityTitle(ctx.workspace, path, children ? fromPath : null) || fromPath;
   const colour = domainColour(type, scheme);
-  const glyph = Math.round((size ?? 14) * 0.95);
   return (
     <Text
       onPress={open ? () => open(path) : undefined}
       accessibilityRole={open ? 'link' : undefined}
       // The path on hover, on the web
       {...(Platform.OS === 'web' ? ({ title: path } as object) : {})}
-      style={{ color: colour, fontWeight: '600', backgroundColor: colour + '1a', borderRadius: 4 }}
+      style={{ color: colour, fontWeight: LINK_WEIGHT, backgroundColor: colour + '1a', borderRadius: 4 }}
     >
-      <View style={{ paddingLeft: 2, paddingRight: 3, transform: [{ translateY: 2 }] }}>
-        <DomainIcon type={type} size={glyph} color={colour} />
+      <View style={{ paddingLeft: 2, paddingRight: LINK_GLYPH_PAD - 2, transform: [{ translateY: 2 }] }}>
+        <DomainIcon type={type} size={linkGlyph(size)} color={colour} />
       </View>
       {children ?? name}
       {' '}

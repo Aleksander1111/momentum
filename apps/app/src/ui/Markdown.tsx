@@ -3,8 +3,8 @@ import { Linking, ScrollView, Text, View, type TextStyle } from 'react-native';
 import { entityLinkTarget } from '@momentum/contract';
 import { C, F } from './theme';
 import { H, T } from './Text';
-import { Table, TABLE_TEXT } from './Table';
-import { EntityLink, useLinksWorkspace } from './EntityRef';
+import { LINK, Table, TABLE_TEXT } from './Table';
+import { EntityLink, entityName, useEntityTitles, useLinksWorkspace } from './EntityRef';
 
 type Part =
   | { kind: 'p'; text: string }
@@ -142,13 +142,26 @@ function inline(text: string, entities: boolean): ReactNode[] {
   return out;
 }
 
-/** A cell's text as it reads, for measuring its width: the markup left out but the backticks around its code */
-const readable = (cell: string) => cell.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_]/g, '');
+/**
+ * A cell's text as it reads, for measuring its width: the markup left out but the backticks around its code, and an
+ * entity link's label, or the title of an entity named in code, between LINK marks
+ */
+function readable(cell: string, entities: boolean, title: (path: string) => string | null): string {
+  return cell
+    .replace(/\[([^\]]*)\]\(\s*<?([^)\s>]+)>?\s*\)|`([^`]+)`/g, (tok, label: string | undefined, href: string | undefined, code: string | undefined) => {
+      const entity = entities ? entityLinkTarget(href ?? code ?? '') : null;
+      if (!entity) return label ?? tok;
+      return `${LINK}${label ?? title(entity) ?? entityName(entity).name}${LINK}`;
+    })
+    .replace(/[*_]/g, '');
+}
 
 /** Assistant message markdown: paragraphs, headings, lists, tables, code blocks, quotes, links, inline code and emphasis. */
 export function Markdown({ text, style }: { text: string; style: TextStyle }) {
   const parts = parse(text);
-  const entities = !!useLinksWorkspace();
+  const workspace = useLinksWorkspace();
+  const entities = !!workspace;
+  const title = useEntityTitles(workspace);
   const size = style.fontSize ?? 14.5;
   const line = style.lineHeight ?? 20;
   return (
@@ -192,7 +205,7 @@ export function Markdown({ text, style }: { text: string; style: TextStyle }) {
             return (
               <Table
                 key={i}
-                texts={all.map((r) => r.map(readable))}
+                texts={all.map((r) => r.map((cell) => readable(cell, entities, title)))}
                 header
                 style={{ marginTop: gap ? 8 : 0, marginBottom: 0 }}
                 cell={(r, c) => <T style={[TABLE_TEXT, { fontWeight: r === 0 ? '700' : '400' }]}>{inline(all[r]?.[c] ?? '', entities)}</T>}

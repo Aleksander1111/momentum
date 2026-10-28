@@ -9,7 +9,7 @@ import { DiagramDiff, SpanText } from './DiagramDiff';
 import { TypePill } from './domains';
 import { EntityLink, EntityLinks } from './EntityRef';
 import { ProjectLogo } from './ProjectLogo';
-import { Table, TABLE_TEXT } from './Table';
+import { LINK, Table, TABLE_TEXT } from './Table';
 import { SelectionMenu } from './SelectionMenu';
 import { SelectionScope } from './SelectionScope';
 import { chatContext } from '../lib/context';
@@ -100,10 +100,25 @@ const rowWash = (m: Mark | null | undefined) => (m === 'ins' ? C.insRow : m === 
 /** A card that swipes keeps its tables in its width: it cannot also scroll sideways */
 const Fit = createContext(false);
 
-/** A cell's text for measuring: as it reads now, its code between backticks to be measured in the monospace font */
+/**
+ * A cell's text for measuring: as it reads now, its code between backticks to be measured in the monospace font and an
+ * entity link's label between LINK marks, measured as the link shows
+ */
 function measured(c: Inline[]): string {
   return c
-    .map((i) => (i.t === 'del' ? '' : i.t === 'code' ? '`' + i.v + '`' : 'v' in i ? i.v : 'c' in i ? measured(i.c) : ''))
+    .map((i) =>
+      i.t === 'del'
+        ? ''
+        : i.t === 'code'
+          ? '`' + i.v + '`'
+          : i.t === 'link' && entityLinkTarget(i.href)
+            ? LINK + measured(i.c) + LINK
+            : 'v' in i
+              ? i.v
+              : 'c' in i
+                ? measured(i.c)
+                : '',
+    )
     .join('')
     .trim();
 }
