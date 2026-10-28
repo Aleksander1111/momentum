@@ -218,9 +218,11 @@ function TopCard({
     };
   }, [wide, ...looks]);
 
+  // At its end the browser keeps only the finger moving down, which scrolls back up; where pan-up is unknown, pan-y stays
+  const touchAction = canPullUp ? 'pan-up' : 'pan-y';
+
   return (
-    // At its end the browser keeps only the finger moving down, which scrolls back up; where pan-up is unknown, pan-y stays
-    <GestureDetector gesture={pan} touchAction={canPullUp ? 'pan-up' : 'pan-y'}>
+    <GestureDetector gesture={pan} touchAction={touchAction}>
       <Animated.View
         style={[
           cardFrame(wide, chatOpen, flow),
@@ -232,9 +234,11 @@ function TopCard({
         ]}
       >
         {/* A card longer than the screen scrolls within it: nothing of it, an issue's options included, is out of reach.
-            On the chat's page it is as long as its content, and the page scrolls. */}
+            On the chat's page it is as long as its content, and the page scrolls. As a scroll container of its own it
+            takes the card's touch action too: Chromium lets a scroll container pan again whatever the card says, so a
+            finger moving up would be the browser's and the card would never pull up. */}
         <ScrollView
-          style={flow ? undefined : { flex: 1 }}
+          style={[flow ? undefined : { flex: 1 }, { touchAction }]}
           scrollEnabled={!flow}
           contentContainerStyle={{ paddingTop: wide ? 20 : 12, paddingHorizontal: wide ? 20 : 16, paddingBottom: 16 }}
           scrollEventThrottle={32}
