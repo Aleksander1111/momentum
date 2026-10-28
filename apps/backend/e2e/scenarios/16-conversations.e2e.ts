@@ -70,6 +70,7 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     }
     const worked = app.text(/^Worked \d+:\d\d · /, false).first();
     await expect(worked).toBeVisible({ timeout: 30_000 });
+    await expect(worked).not.toContainText('tokens');
     await expect(app.text(/RAG \d+%/, false).first()).toBeVisible({ timeout: 30_000 });
     await worked.click();
     await expect(app.text(/^Retrieval \d+% · precision/, false).first()).toBeVisible();
