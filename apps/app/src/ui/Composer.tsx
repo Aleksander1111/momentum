@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Platform, Pressable, View, type NativeSyntheticEvent, type TextInput, type TextInputKeyPressEventData } from 'react-native';
 import type { ContextItem, VoiceItem, VoiceOutcome, VoiceTarget } from '@momentum/contract';
 import { chatContext } from '../lib/context';
@@ -55,6 +55,9 @@ export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; on
     </View>
   );
 }
+
+/** The field's height for its content: one line to six */
+const fieldHeight = (content: number) => Math.min(120, Math.max(20, content));
 
 /** Spoken items from this composer's mic: where they go, and what the screen does with each outcome */
 export interface ComposerVoice {
@@ -123,12 +126,22 @@ export const Composer = forwardRef<
       setBusy(false);
     }
   };
-  // Enter starts a new line and the button sends; on a keyboard Ctrl+Enter (Cmd+Enter on a Mac) sends too
-  const onKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData & { ctrlKey?: boolean; metaKey?: boolean }>) => {
-    if (Platform.OS !== 'web' || e.nativeEvent.key !== 'Enter' || !(e.nativeEvent.ctrlKey || e.nativeEvent.metaKey)) return;
+  // On a keyboard Enter sends and Shift+Enter starts a new line; on a touch keyboard Enter starts a new line and the button sends
+  const onKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData & { shiftKey?: boolean; isComposing?: boolean }>) => {
+    if (Platform.OS !== 'web' || e.nativeEvent.key !== 'Enter' || e.nativeEvent.shiftKey || e.nativeEvent.isComposing) return;
     e.preventDefault();
     void send();
   };
+  const shown = heard ? (mic.partial ?? '') : text;
+  // On the web the field's scroll height never drops below its own height: measured collapsed, it shrinks as lines go
+  useLayoutEffect(() => {
+    const el = field.current as unknown as HTMLTextAreaElement | null;
+    if (Platform.OS !== 'web' || !el?.style) return;
+    el.style.height = '0px';
+    const h = el.scrollHeight;
+    el.style.height = `${fieldHeight(h)}px`;
+    setHeight(h);
+  }, [shown]);
   return (
     <View ref={area} style={{ gap: 8 }}>
       {context?.length || files.length ? (
@@ -156,18 +169,18 @@ export const Composer = forwardRef<
         <Field
           ref={field}
           placeholder={placeholder}
-          value={heard ? (mic.partial ?? '') : text}
+          value={shown}
           onChangeText={(v) => {
             setText(v);
             setFailed(null);
           }}
           multiline
           onKeyPress={onKeyPress}
-          onContentSizeChange={(e) => setHeight(e.nativeEvent.contentSize.height)}
+          onContentSizeChange={Platform.OS === 'web' ? undefined : (e) => setHeight(e.nativeEvent.contentSize.height)}
           autoFocus={autoFocus}
           editable={!heard}
           invalid={!!failed}
-          style={{ height: Math.min(120, Math.max(20, height)), lineHeight: 20 }}
+          style={{ height: fieldHeight(height), lineHeight: 20 }}
           containerStyle={{ flex: 1 }}
         />
         {voice ? (
