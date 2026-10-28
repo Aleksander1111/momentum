@@ -12,8 +12,7 @@ import { T } from '../../../ui/Text';
 import { Icon, Triangle } from '../../../ui/icons';
 import { Field } from '../../../ui/Field';
 import { MicButton } from '../../../ui/MicButton';
-import { useVoice } from '../../../lib/voice';
-import { openRun } from '../../../lib/runs';
+import { useDictation, withHeard } from '../../../lib/voice';
 import { Count, List, Pick, Row, RowText } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { EntityCard, EntityView } from '../../../ui/EntityView';
@@ -135,13 +134,8 @@ export default function Explorer() {
   const askNow = () => {
     if (!snapshot && q.trim()) setAsked(q.trim());
   };
-  // Spoken search words fill the search, and a spoken question is asked at once; an interview started by voice opens
-  const mic = useVoice(ws ? { kind: 'search', workspace: ws } : null, (o) => {
-    if (o.kind === 'search' && o.text) {
-      setQ(o.text);
-      if (isQuestion(o.text)) setAsked(o.text.trim());
-    } else if (o.runId) openRun(o.runId, wide);
-  });
+  // What is said is typed into the search, as keys would type it
+  const mic = useDictation((heard) => setQ((v) => withHeard(v, heard)));
   const [lastOpened, setLastOpened] = useState<string | null>(null);
 
   const types = useQuery({ queryKey: ['types', ws], queryFn: () => api.types(ws as string), enabled: !!ws });
@@ -215,7 +209,7 @@ export default function Explorer() {
       <Field
         icon="search"
         placeholder={snapshot ? 'Search' : 'Search or ask a question'}
-        value={mic.partial ?? q}
+        value={mic.listening ? withHeard(q, mic.partial) : q}
         onChangeText={setQ}
         onSubmitEditing={askNow}
         returnKeyType="search"

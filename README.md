@@ -146,14 +146,15 @@ A card that changed since you last verified it shows the diff. Counters above th
 
 The other tabs:
 
-- **Explorer**: pick a project, browse its domain and type tree, search or ask a question (also by microphone), or explore through an agent. An entity opened there is the same card as in the feed: swipe it to approve, resolve or ask for rework, or pull it up to chat about it.
+- **Explorer**: pick a project, browse its domain and type tree, search or ask a question, or explore through an agent. An entity opened there is the same card as in the feed: swipe it to approve, resolve or ask for rework, or pull it up to chat about it.
 - **Sessions**: your chats and interviews, and the automation runs, filtered by all, yours or automations.
 - **Timeline**: every run, reaction and harness event, newest first, plus the runs queued and running. A chat is one event, named after what was done in it, for the latest thing done in it, with everything it landed.
 - **Metrics**: usage of the rolling 5-hour and weekly limits, automations, trends over time, runs by parameter and retrieval quality.
 
 Beyond the feed:
 
-- **Chat** and **interview**, by text or by voice ("interview \<topic\>").
+- **Chat** and **interview**: a new chat that says "interview \<topic\>" starts an interview.
+- **Dictate** into the search and every chat field: its mic types what you say into the field as it is heard, and you edit and send it. Nothing said is sent by itself. The PC transcribes it with a separate speech-to-text service.
 - **Attach files** to a chat message: pick them with the paperclip, paste them into the field or drop them on it, up to 10 files of 10 MB each. They are kept on the PC, outside the project, and the agent reads them where they are.
 - **Stop a run** from its conversation: what it wrote still lands.
 - **Run an automation on demand**, through the `run_automation` tool.
@@ -584,8 +585,8 @@ MOMENTUM_HOST=127.0.0.1
 | `MOMENTUM_TICK_MS` | `30000` | How often the orchestrator checks triggers |
 | `MOMENTUM_MODELS` | `<root>\.momentum\models` | Embedding model cache |
 | `MOMENTUM_PLANTUML_URL` | `http://localhost:8080` | PlantUML server |
-| `MOMENTUM_COMMAND_STREAM` | `http://127.0.0.1:8780` | External speech-to-command service, for voice |
-| `MOMENTUM_VOICE_SOURCES` | `remote` | Audio sources acted on, comma-separated |
+| `MOMENTUM_COMMAND_STREAM` | `http://127.0.0.1:8780` | External speech-to-text service, for dictation |
+| `MOMENTUM_VOICE_SOURCES` | `remote` | Audio sources typed into the app, comma-separated |
 | `MOMENTUM_APP_DIST` | `apps/app/dist` | Web app build the back end serves |
 | `LOG_LEVEL` | `info` | Server log level |
 

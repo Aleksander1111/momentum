@@ -25,4 +25,4 @@ How [the scenarios](Testing/TestSuite/end-to-end-scenarios) use the web app in t
 - Asks about a card in the chat below it, or on selected text
 - [Chat](Frontend/Screen/chat): starts and replies, Enter; files attached first, via the paperclip or dropped, till uploaded
 - Typing sets the field's value plus an input event: Firefox's fill() leaves it empty
-- Holds the mic open for voice
+- Starts and stops a field's mic to dictate into it

@@ -3,8 +3,14 @@ import { requireOptionalNativeModule } from 'expo';
 import { openSocket } from './socket';
 
 export interface Mic {
-  /** Stops recording; the PC decodes the last words, then the socket closes */
+  /** Stops recording; the PC decodes the last words, ends the stream, then the socket closes */
   stop(): Promise<void>;
+}
+
+/** How the stream ended: why, unless it was stopped here, and the words heard after the last closed stretch */
+export interface MicEnd {
+  reason?: string;
+  text: string;
 }
 
 interface VoiceCapture {
@@ -28,9 +34,9 @@ function bytesOf(base64: string): ArrayBuffer {
 
 /**
  * Android: the microphone as recorded, streamed to the PC through the harness, which does every step after recording.
- * `onEnded` is called when the PC ends the stream (another device, idle, muted) or it fails.
+ * `onEnded` is called once, when the stream ends: stopped here, ended by the PC (another device, idle, muted) or failed.
  */
-export async function startMic(onEnded: (reason?: string) => void): Promise<Mic> {
+export async function startMic(onEnded: (end: MicEnd) => void): Promise<Mic> {
   if (!Native) throw new Error('this build has no voice capture');
   const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
   if (granted !== PermissionsAndroid.RESULTS.GRANTED) throw new Error('microphone permission denied');
@@ -41,19 +47,21 @@ export async function startMic(onEnded: (reason?: string) => void): Promise<Mic>
     socket.onerror = () => reject(new Error('no voice socket'));
   });
   let ended = false;
+  const finish = (end: MicEnd) => {
+    if (ended) return;
+    ended = true;
+    onEnded(end);
+  };
   const closed = new Promise<void>((resolve) => {
     socket.onclose = () => {
       release();
-      if (!ended) onEnded('the voice socket closed');
+      finish({ reason: 'the voice socket closed', text: '' });
       resolve();
     };
   });
   socket.onmessage = (m) => {
-    const msg = JSON.parse(String(m.data)) as { type: string; reason?: string };
-    if (msg.type === 'ended' && !ended) {
-      ended = true;
-      onEnded(msg.reason === 'stopped' ? undefined : msg.reason);
-    }
+    const msg = JSON.parse(String(m.data)) as { type: string; reason?: string; text?: string };
+    if (msg.type === 'ended') finish({ reason: msg.reason === 'stopped' ? undefined : msg.reason, text: msg.text ?? '' });
   };
   socket.send(JSON.stringify({ type: 'start', rate: RATE, channels: 1, format: 's16le', client: 'momentum android' }));
 
@@ -74,7 +82,6 @@ export async function startMic(onEnded: (reason?: string) => void): Promise<Mic>
     async stop() {
       release();
       if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'stop' }));
-      ended = true;
       await Promise.race([closed, new Promise((r) => setTimeout(r, 15_000))]);
       if (socket.readyState === WebSocket.OPEN) socket.close();
     },

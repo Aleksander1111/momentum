@@ -25,7 +25,6 @@ One entity in full, the feed's card in every part: card with verification, sync 
 - Linked entities show their type's glyph and colour, open on a press; other links go to the web
 - Changed since verified: the diff, as in the feed; wide tables scroll sideways
 - Selected text and diagram shapes go into the chat context
-- Mic (not when exported): a spoken command changes the entity, a question asks about it, in its chat
 - A link to a retired or resolved entity says so, points to the timeline
 - Wide: beside the Explorer tree; else own page
 - Exported: still, no reactions or chat

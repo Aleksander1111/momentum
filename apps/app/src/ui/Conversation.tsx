@@ -1,11 +1,10 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View, type ViewStyle } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { RunDetail, VoiceTarget } from '@momentum/contract';
+import type { RunDetail } from '@momentum/contract';
 import { api } from '../lib/api';
 import { automationLabel, duration, runStatus, usagePct } from '../lib/format';
-import { openRun } from '../lib/runs';
-import { C, runColour, useWide } from './theme';
+import { C, runColour } from './theme';
 import { T } from './Text';
 import { hasWideBlocks, Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
@@ -141,7 +140,6 @@ export function Conversation({
   column?: ViewStyle;
 }) {
   const qc = useQueryClient();
-  const wide = useWide();
   const scroll = useRef<ScrollView>(null);
   // What comes in follows the end while the reader is there; scrolled up to read, the page stays where it is
   const atEnd = useRef(true);
@@ -153,11 +151,6 @@ export function Conversation({
   const context = useChatContext(run?.workspace ?? null);
   const interview = run?.automation === 'interview';
   const files = attachmentIds(useChatFiles(run && !interview ? run.workspace : null));
-  const target: VoiceTarget | null = !run
-    ? null
-    : interview
-      ? { kind: 'interview', workspace: run.workspace, runId }
-      : { kind: 'chat', workspace: run.workspace, runId, context, attachments: files };
 
   const head =
     run && above ? (
@@ -258,18 +251,6 @@ export function Conversation({
         placeholder={interview ? 'Answer' : 'Message'}
         context={interview ? undefined : context}
         attachTo={run && !interview ? run.workspace : null}
-        voice={{
-          target,
-          onOutcome: (o) => {
-            if (!o.runId) return;
-            if (o.runId !== runId) return openRun(o.runId, wide);
-            if (run && !interview) {
-              chatContext.clear(run.workspace);
-              chatFiles.clear(run.workspace);
-            }
-            void qc.invalidateQueries({ queryKey: ['run', runId] });
-          },
-        }}
         // While the agent is answering, stop ends its turn; the next message resumes the chat
         onStop={
           run && ACTIVE.has(run.status)

@@ -37,6 +37,6 @@ export async function createMomentum(options: { orchestrate?: boolean } = {}) {
   const momentum = new Momentum(sql, workspaces, settings, approval, runner, orchestrator, automations, embed, timeline);
   const auth = new Auth(sql);
   // Followed only once the server starts it: the CLI never acts on what is said
-  const voice = new Voice(sql, momentum, config.commandStream, config.voiceSources);
+  const voice = new Voice(sql, config.commandStream, config.voiceSources);
   return { sql, settings, bus, timeline, workspaces, guard, automations, runner, approval, orchestrator, momentum, auth, voice };
 }

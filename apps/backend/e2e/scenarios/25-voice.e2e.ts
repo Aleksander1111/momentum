@@ -16,7 +16,16 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     await until('the mic to reach the command stream', async () => voice.opened > before);
   };
   const chats = () => api.runs(WS, 'chat');
-  const newest = async (since: Date) => until('a run started by voice', async () => (await api.runs(WS)).find((r) => r.created_at >= since), 60_000);
+  const newest = async (since: Date) => until('a run started from the field', async () => (await api.runs(WS)).find((r) => r.created_at >= since), 60_000);
+  const field = (placeholder: string) => app.frame().getByPlaceholder(placeholder, { exact: true });
+  /** Says the text into the empty field's mic, stops it and sends what the field holds, as the user does */
+  const dictate = async (placeholder: string, text: string, kind: 'command' | 'question' = 'command') => {
+    await listen();
+    voice.hear(text, kind);
+    await expect(field(placeholder)).toHaveValue(kind === 'question' ? `Question: ${text}` : text, { timeout: 15_000 });
+    await app.stopSpeaking();
+    await field(placeholder).press('Enter');
+  };
 
   model.on('chats answer', { automation: 'chat' }, (t) => (t.kind === 'prompt' || t.kind === 'message' ? [move.say(`Heard: ${t.input.split('\n').at(-1)}`)] : undefined));
 
@@ -51,24 +60,27 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
   });
 
   await step(0, async () => {
+    // The search types what is heard as it is heard; a stretch closed by "go" stays, one cancelled goes, and the words
+    // after the last stretch join it when the mic stops
     await app.go(`/explorer?ws=${WS}`);
+    const search = field('Search or ask a question');
     await listen();
+    voice.hear('books by');
+    await expect(search).toHaveValue('books by', { timeout: 15_000 });
+    await expect(search).not.toBeEditable();
     voice.say('books by author');
-    await expect(app.frame().getByPlaceholder('Search or ask a question')).toHaveValue('books by author', { timeout: 15_000 });
+    voice.say('delete everything', 'cancelled');
+    voice.hear('and year');
+    await expect(search).toHaveValue('books by author and year', { timeout: 15_000 });
+    const cleared = voice.cleared;
+    voice.hear('and year of publication');
+    await app.stopSpeaking();
+    await expect(search).toHaveValue('books by author and year of publication', { timeout: 15_000 });
+    // Taken off the command stream, so the PC's own microphone never sends them on
+    expect(voice.cleared).toBe(cleared + 1);
+    await expect(search).toBeEditable();
+    await search.fill('');
     expect(await chats()).toEqual([]);
-
-    await app.entity(WS, API);
-    await listen();
-    let since = new Date();
-    voice.say('which route creates a book', 'question');
-    const asked = await newest(since);
-    expect((await api.run(asked.id)).messages[0]!.context.map((c) => c.path)).toEqual([API]);
-    expect(asked.target_path).toBeNull();
-    since = new Date();
-    voice.say('say that unknown routes answer 404', 'command');
-    const told = await newest(since);
-    expect(told.target_path).toBe(API);
-    for (const r of [asked, told]) await api.runEnded(r.id, 2 * 60_000);
   });
 
   await step(1, async () => {
@@ -93,34 +105,48 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     });
     const sockets = () =>
       app.frame().evaluate(() => (window as unknown as { voiceControls?: WebSocket[] }).voiceControls?.map((s) => s.readyState === WebSocket.OPEN) ?? null);
-    // The wide explorer with an entity open shows two microphones at once: the search's and the entity's
+    // The wide explorer with an entity open shows the search's microphone, and none on the entity
     await app.go(`/explorer?ws=${WS}&path=${encodeURIComponent(API)}`);
     await expect(app.text(/Books API|books/i).first()).toBeVisible({ timeout: 30_000 });
     await new Promise((r) => setTimeout(r, 2000));
     expect(await sockets(), 'the control sockets the explorer opened, open or not').toEqual([true]);
     await app.go(`/chat?ws=${WS}&compose=1`);
     await listen();
+    await app.stopSpeaking();
     await new Promise((r) => setTimeout(r, 2000));
     expect(await sockets(), 'the control sockets the chat screen opened, open or not').toEqual([true]);
     expect(await app.frame().evaluate(() => (window as unknown as { refused?: string[] }).refused), 'what the page refused to load').toEqual([]);
-    const since = new Date();
-    voice.say('which routes are there', 'question');
+    // Nothing said goes anywhere by itself: the field holds it until it is sent
+    const ask = `Ask ${WS}`;
+    await listen();
+    voice.hear('which routes are there');
+    await expect(field(ask)).toHaveValue('which routes are there', { timeout: 15_000 });
+    await app.stopSpeaking();
+    await new Promise((r) => setTimeout(r, 3000));
+    expect(await chats()).toEqual([]);
+    // Edited after the mic stopped, then sent
+    await field(ask).pressSequentially('?');
+    let since = new Date();
+    await field(ask).press('Enter');
     const chat = await newest(since);
+    expect((await api.run(chat.id)).messages[0]!.text).toBe('which routes are there?');
     await api.runEnded(chat.id, 2 * 60_000);
-    voice.say('and which one deletes a book', 'question');
+    await app.go(`/chat/${chat.id}`);
+    since = new Date();
+    await dictate('Message', 'and which one deletes a book');
     await until('the follow-up in the same chat', async () => (await api.run(chat.id)).messages.filter((m) => m.role === 'user').length === 2, 60_000);
-    voice.say('stop interview');
-    await new Promise((r) => setTimeout(r, 6000));
-    expect((await chats()).filter((r) => r.created_at >= since)).toHaveLength(1);
-    expect((await api.run(chat.id)).messages.some((m) => /stop interview/i.test(m.text))).toBe(false);
+    expect((await api.run(chat.id)).messages.filter((m) => m.role === 'user').at(-1)!.text).toBe('and which one deletes a book');
+    expect((await chats()).filter((r) => r.created_at >= since)).toHaveLength(0);
   });
 
   const interview = await step(2, async () => {
+    // "Interview <topic>" sent as a new chat starts an interview
     await app.go(`/chat?ws=${WS}&compose=1`);
-    await listen();
     const since = new Date();
-    voice.say('interview reading habits');
+    const chatsBefore = (await chats()).length;
+    await dictate(`Ask ${WS}`, 'interview reading habits');
     const run = await until('the interview', async () => (await api.runs(WS, 'interview')).find((r) => r.created_at >= since), 60_000);
+    expect(await chats()).toHaveLength(chatsBefore);
     // A turn is over once the interviewer has answered the person's nth message with its next question
     const turn = async (n: number) => {
       const r = await api.answered(run.id, n, 10 * 60_000);
@@ -134,10 +160,9 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     expect(doc).toMatch(/^interviews\/.+\.md$/);
     const text = () => env.show(WS, doc) ?? '';
     await app.go(`/chat/${run.id}`);
-    await listen();
 
     // An answer is written into the document, and the next question moves on
-    voice.say('about two a month');
+    await dictate('Answer', 'about two a month');
     const second = await turn(2);
     expect(text()).toMatch(/\b(two|2)\b/i);
     expect(text()).toMatch(/month/i);
@@ -145,13 +170,13 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
 
     // A skip writes nothing and asks something else
     const kept = text();
-    voice.say('skip');
+    await dictate('Answer', 'skip');
     const third = await turn(3);
     expect(text()).toBe(kept);
     expect(third.question).not.toBe(second.question);
 
-    // A question back is answered, the document left as it was, and the interview asks again
-    voice.say('why do you ask', 'question');
+    // A question back, said after "question", is answered, the document left as it was, and the interview asks again
+    await dictate('Answer', 'why do you ask', 'question');
     await turn(4);
     const r = await api.run(run.id);
     expect(r.messages.some((m) => m.role === 'user' && m.text === 'Question: why do you ask')).toBe(true);
@@ -164,7 +189,7 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
   });
 
   await step(3, async () => {
-    voice.say('stop interview');
+    await dictate('Answer', 'stop interview');
     const r = await until('the interview done', async () => {
       const x = await api.run(interview.id);
       return x.interview?.done && x.status !== 'running' && x.status !== 'queued' ? x : null;

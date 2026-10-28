@@ -25,7 +25,7 @@ kind: page
 Ranked cards of included projects, one on top. Wide: framed, two behind. Phone: frameless, full width until moved.
 
 - Breadcrumb: logo, type, folders; state counters
-- The card is the entity's card: verification, sync and contradiction badges; references and artifacts, folded till opened; mic
+- The card is the entity's card: verification, sync and contradiction badges; references and artifacts, folded till opened
 - Diff since verified: words, marks, diagrams
 - Long cards scroll, fading till the end; tables keep width
 - Links open; a selection or shape opens its chat with it

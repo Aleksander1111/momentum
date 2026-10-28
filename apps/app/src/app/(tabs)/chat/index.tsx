@@ -152,18 +152,6 @@ export default function Sessions() {
           placeholder={`Ask ${target ?? ''}`.trim()}
           context={context}
           attachTo={target}
-          voice={{
-            target: target ? { kind: 'chat', workspace: target, context, attachments: files } : null,
-            onOutcome: (o) => {
-              if (!o.runId || !o.workspace) return;
-              if (o.created && o.workspace === target) {
-                chatContext.clear(target);
-                chatFiles.clear(target);
-              }
-              void qc.invalidateQueries({ queryKey: ['chats', o.workspace] });
-              openRun(o.runId);
-            },
-          }}
           onSend={async (text) => {
             if (!target) return;
             const { runId } = await api.createChat(target, { text, context, attachments: files });

@@ -1,16 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type { ReferenceView } from '@momentum/contract';
 import { api } from '../lib/api';
-import { useVoice } from '../lib/voice';
-import { snapshot } from '../lib/snapshot';
-import { openRun } from '../lib/runs';
-import { useWide } from './theme';
 import { H } from './Text';
 import { Chevron, Count, List, Row, RowText, useFrame } from './parts';
 import { EntityRefs } from './EntityRef';
-import { MicButton } from './MicButton';
 
 export function useEntity(ws: string | null | undefined, path: string | null | undefined) {
   return useQuery({
@@ -43,18 +38,10 @@ function Fold({ title, count, children }: { title: string; count: number; childr
 /** "depends_on" out → "depends on"; "implements" in → "implements this" */
 const relationNote = (r: ReferenceView) => `${r.relation.replace(/_/g, ' ')}${r.direction === 'in' ? ' this' : ''}`;
 
-/** What an entity has beyond its card: its references and artifacts, each folded until opened, and the mic */
+/** What an entity has beyond its card: its references and artifacts, each folded until opened */
 export function EntityMore({ ws, path }: { ws: string; path: string }) {
   const { data: e } = useEntity(ws, path);
-  const wide = useWide();
   const frame = useFrame();
-  const qc = useQueryClient();
-  // Said about this entity: a command changes it, a question asks about it; either opens its chat
-  const mic = useVoice({ kind: 'entity', workspace: ws, path }, (o) => {
-    if (!o.runId) return;
-    void qc.invalidateQueries({ queryKey: ['entity', ws, path] });
-    openRun(o.runId, wide);
-  });
   return (
     <>
       {e?.references.length ? (
@@ -78,11 +65,6 @@ export function EntityMore({ ws, path }: { ws: string; path: string }) {
           </List>
         </Fold>
       ) : null}
-      {snapshot ? null : (
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
-          <MicButton listening={mic.listening} available={mic.available} onPress={mic.listening ? mic.stop : mic.start} />
-        </View>
-      )}
     </>
   );
 }

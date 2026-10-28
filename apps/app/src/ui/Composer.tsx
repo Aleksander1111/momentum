@@ -1,12 +1,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Platform, Pressable, View, type NativeSyntheticEvent, type TextInput, type TextInputKeyPressEventData } from 'react-native';
-import type { ContextItem, VoiceItem, VoiceOutcome, VoiceTarget } from '@momentum/contract';
+import type { ContextItem } from '@momentum/contract';
 import { chatContext } from '../lib/context';
 import { HttpError, NetworkError } from '../lib/api';
 import { chatFiles, uploading, useChatFiles } from '../lib/attachments';
 import { listenForFiles, pickFiles } from '../lib/pickFiles';
 import { PendingFileChip } from './Attachments';
-import { useVoice } from '../lib/voice';
+import { snapshot } from '../lib/snapshot';
+import { useDictation, withHeard } from '../lib/voice';
 import { C, F, useTheme } from './theme';
 import { DomainIcon, domainColour } from './domains';
 import { entityName } from './EntityRef';
@@ -64,19 +65,14 @@ export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; on
 /** The field's height for its content: one line to six */
 const fieldHeight = (content: number) => Math.min(120, Math.max(20, content));
 
-/** Spoken items from this composer's mic: where they go, and what the screen does with each outcome */
-export interface ComposerVoice {
-  target: VoiceTarget | null;
-  onOutcome: (outcome: VoiceOutcome, item: VoiceItem) => void;
-}
-
 /**
  * One rounded box: the context items waiting for this chat as chips at its top, the field across its whole width, and a
  * row of buttons below the field, round accent send at its end, faint until there is something to send. With `attachTo`,
  * a paperclip at the row's start picks files for that project's next message, and on the web files pasted into the field
- * or dropped on the composer join them; they wait as chips beside the context and send waits for their upload. With
- * `voice`, a mic before send: while it listens the field shows the text as heard so far; an item that failed comes back to
- * the field. With `onStop`, a stop button before send ends the answer being written.
+ * or dropped on the composer join them; they wait as chips beside the context and send waits for their upload. A mic
+ * before send types what is said into the field, after what it holds: while it listens the field shows the text as
+ * heard so far, and once stopped it is the user's to edit and send. With `onStop`, a stop button before send ends the
+ * answer being written.
  */
 export const Composer = forwardRef<
   TextInput,
@@ -87,10 +83,9 @@ export const Composer = forwardRef<
     context?: ContextItem[];
     /** The project whose next message takes the files attached here */
     attachTo?: string | null;
-    voice?: ComposerVoice;
     onStop?: () => Promise<unknown>;
   }
->(function Composer({ placeholder, onSend, autoFocus, context, attachTo, voice, onStop }, ref) {
+>(function Composer({ placeholder, onSend, autoFocus, context, attachTo, onStop }, ref) {
   const field = useRef<TextInput>(null);
   const area = useRef<View>(null);
   useImperativeHandle(ref, () => field.current!, []);
@@ -106,11 +101,10 @@ export const Composer = forwardRef<
   const [failed, setFailed] = useState<string | null>(null);
   // The field grows with what is written, up to a few lines
   const [height, setHeight] = useState(20);
-  const mic = useVoice(voice?.target ?? null, (outcome, item) => {
-    if (outcome.kind === 'failed') setText(item.text);
-    voice?.onOutcome(outcome, item);
+  const mic = useDictation((heard) => {
+    setText((t) => withHeard(t, heard));
+    setFailed(null);
   });
-  const heard = mic.listening || mic.partial !== null;
   const send = async () => {
     const t = text.trim();
     if (!t || busy) return;
@@ -138,7 +132,7 @@ export const Composer = forwardRef<
     e.preventDefault();
     void send();
   };
-  const shown = heard ? (mic.partial ?? '') : text;
+  const shown = mic.listening ? withHeard(text, mic.partial) : text;
   // On the web the field's scroll height never drops below its own height: measured collapsed, it shrinks as lines go
   useLayoutEffect(() => {
     const el = field.current as unknown as HTMLTextAreaElement | null;
@@ -186,7 +180,7 @@ export const Composer = forwardRef<
           onKeyPress={onKeyPress}
           onContentSizeChange={Platform.OS === 'web' ? undefined : (e) => setHeight(e.nativeEvent.contentSize.height)}
           autoFocus={autoFocus}
-          editable={!heard}
+          editable={!mic.listening}
           style={{ height: fieldHeight(height), lineHeight: 20 }}
           containerStyle={{ borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 6, paddingVertical: 2 }}
         />
@@ -203,9 +197,7 @@ export const Composer = forwardRef<
             </Pressable>
           ) : null}
           <View style={{ flex: 1 }} />
-          {voice ? (
-            <MicButton small listening={mic.listening} available={mic.available && !!voice.target} onPress={mic.listening ? mic.stop : mic.start} />
-          ) : null}
+          {snapshot ? null : <MicButton small listening={mic.listening} available={mic.available} onPress={mic.listening ? mic.stop : mic.start} />}
           {onStop ? (
             <Pressable
               onPress={() => {
@@ -229,10 +221,10 @@ export const Composer = forwardRef<
               <Icon name="stop" size={12} color={C.ink} />
             </Pressable>
           ) : null}
-          {/* Faint until there is something to send */}
+          {/* Faint until there is something to send; while the mic listens what is heard is not in the field yet */}
           <Pressable
             onPress={send}
-            disabled={busy}
+            disabled={busy || mic.listening}
             accessibilityRole="button"
             accessibilityLabel="Send"
             style={{
@@ -242,7 +234,7 @@ export const Composer = forwardRef<
               backgroundColor: C.accent,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: busy ? 0.6 : empty ? 0.4 : 1,
+              opacity: busy ? 0.6 : empty || mic.listening ? 0.4 : 1,
             }}
           >
             <Icon name="send" size={15} color={C.surface} />

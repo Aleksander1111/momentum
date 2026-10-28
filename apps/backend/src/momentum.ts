@@ -46,6 +46,9 @@ const SETTING_LABEL = {
   models: 'the models',
 } satisfies Partial<Record<keyof Settings, string>>;
 
+/** "Interview reading habits.", as typed or as dictation writes it: the topic, without the closing punctuation */
+const INTERVIEW = /^interview[\s,:]+(.+?)[\s.!?]*$/is;
+
 /** Every capability of the harness, shared by the HTTP API and its MCP surface */
 export class Momentum {
   constructor(
@@ -221,6 +224,9 @@ export class Momentum {
   }
 
   async createChat(workspace: string, text: string, targetPath?: string, context: ContextItem[] = [], attached: string[] = []): Promise<{ runId: string }> {
+    // A new chat that says "interview <topic>", typed or dictated, is an interview
+    const interview = targetPath ? null : INTERVIEW.exec(text.trim());
+    if (interview) return this.startInterview(workspace, interview[1]!);
     const ws = await this.workspaces.get(workspace);
     const files = await attachments.of(workspace, attached);
     // Named after the first prompt until the harness names it after what was done in it
@@ -255,7 +261,7 @@ export class Momentum {
 
   /**
    * An interview: one question at a time, each answer written into a document, which becomes entities when it is done.
-   * Started by the user like a chat, so it runs at once.
+   * Started by the user from a new chat, "interview <topic>", so it runs at once.
    */
   async startInterview(workspace: string, topic: string): Promise<{ runId: string }> {
     await this.workspaces.get(workspace);

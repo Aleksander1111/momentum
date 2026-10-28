@@ -88,11 +88,11 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     expect(items.slice(CARDS.length).every((i) => i.rank <= items[CARDS.length - 1]!.rank)).toBe(true);
     await app.tab('Feed');
     await expect(app.text(HOLIDAYS.entity.title)).toBeVisible();
-    // The card is the entity's card, as the Explorer shows it too: its states as icons in its top right corner, named by their labels; the mic to speak about it below
+    // The card is the entity's card, as the Explorer shows it too: its states as icons in its top right corner, named by their labels; no mic, which belongs to the fields
     const shown = (label: string) => app.frame().getByLabel(label, { exact: true }).locator('visible=true').first();
     await expect(shown('Unverified')).toBeVisible();
     await expect(shown('Synced')).toBeVisible();
-    await expect(app.frame().getByLabel('Speak', { exact: true }).locator('visible=true').first()).toBeVisible();
+    await expect(app.frame().getByLabel('Speak', { exact: true }).locator('visible=true')).toHaveCount(0);
     // At rest on a phone the card is the screen, with no frame: it wears the screen of the scheme in effect, dark, as the
     // browser asks for here, and light once chosen
     const skin = () =>

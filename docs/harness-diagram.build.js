@@ -11,7 +11,7 @@ const OUT = process.argv[2] || 'harness-diagram.pptx';
 const HARNESS = [
   ['Feed', ['Ranked cards of all projects', 'Swipe right to approve', 'Swipe left to send back', 'Issues resolved by option'], 'FaLayerGroup'],
   ['Explorer', ['Domain and type tree', 'Search by words, meaning', 'Answers from the graph', 'Linked entities'], 'FaDiagramProject'],
-  ['Chat', ['Chats and interviews', 'Card parts as context', 'Spoken by the mic', 'Stop at any time'], 'FaComments'],
+  ['Chat', ['Chats and interviews', 'Card parts as context', 'Dictated by the mic', 'Stop at any time'], 'FaComments'],
   ['Timeline', ['What you did', 'One event per run', 'What runs removed', 'What the harness did'], 'FaClockRotateLeft'],
   ['Metrics', ['Share of the usage limits', 'Entities by state', 'Runs per automation', '24 h, 7 d or 30 d'], 'FaChartLine'],
   ['Settings', ['Projects and graph build', 'Feed size', 'Cards and lifetimes', 'Concurrent runs'], 'FaGear'],

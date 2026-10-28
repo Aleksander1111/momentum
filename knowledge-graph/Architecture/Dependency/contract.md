@@ -25,6 +25,6 @@ kind: internal library
 - Export: graph snapshot (workspace, types, entities)
 - Runs, chats: automations, status, usage, context, attachments, interview, turns, steps, ratings, state moves
 - Timeline: actor, kind, facts, state moves, page
-- Voice: screen, status, partials
+- Voice: status, the text as heard, closed stretches, the last words when a stream ends
 - Build, metrics: completeness, estimate; series; retrieval per automation, tool
 - Settings: projects, logo, feed, cards, lifetimes, models, limits

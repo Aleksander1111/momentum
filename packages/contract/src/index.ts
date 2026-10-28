@@ -546,40 +546,9 @@ export const CreateChatRequest = z.object({
 });
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 
-// Voice: speech from the user's devices, transcribed on the PC by the command stream
+// Voice: speech from the user's devices, transcribed on the PC by the command stream, typed into the field holding the mic
 
-/** Where the next spoken item goes: the screen the user is on, declared by the app */
-export const VoiceTarget = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('chat'),
-    workspace: z.string(),
-    runId: z.string().optional(),
-    context: z.array(ContextItem).default([]),
-    attachments: AttachmentIds.default([]),
-  }),
-  z.object({ kind: z.literal('search'), workspace: z.string() }),
-  z.object({ kind: z.literal('entity'), workspace: z.string(), path: z.string() }),
-  z.object({ kind: z.literal('interview'), workspace: z.string(), runId: z.string() }),
-]);
-export type VoiceTarget = z.infer<typeof VoiceTarget>;
-
-/** The app to the control socket */
-export const VoiceUp = z.object({ type: z.literal('target'), target: VoiceTarget.nullable() });
-export type VoiceUp = z.infer<typeof VoiceUp>;
-
-/** What became of a spoken item */
-export const VoiceOutcome = z.object({
-  kind: z.enum(['chat', 'search', 'ignored', 'failed']),
-  workspace: z.string().optional(),
-  runId: z.string().optional(),
-  /** A chat started by the item: the app clears the context it carried */
-  created: z.boolean().optional(),
-  /** The search words */
-  text: z.string().optional(),
-  detail: z.string().optional(),
-});
-export type VoiceOutcome = z.infer<typeof VoiceOutcome>;
-
+/** One stretch of speech the command stream closed with "go", "cancel" or a pause */
 export const VoiceItem = z.object({ id: z.number(), kind: z.string(), text: z.string() });
 export type VoiceItem = z.infer<typeof VoiceItem>;
 
@@ -594,11 +563,16 @@ export const VoiceDown = z.discriminatedUnion('type', [
     muted: z.boolean(),
     text: z.string(),
   }),
-  /** The text as heard so far, correcting itself until it is sent; only to the device streaming */
+  /** The text as heard so far, correcting itself until it is closed; only to the device streaming */
   z.object({ type: z.literal('partial'), text: z.string().nullable(), kind: z.string().nullable() }),
-  z.object({ type: z.literal('item'), item: VoiceItem, outcome: VoiceOutcome }),
+  /** A closed stretch, only to the device streaming: its text joins the field */
+  z.object({ type: z.literal('item'), item: VoiceItem }),
 ]);
 export type VoiceDown = z.infer<typeof VoiceDown>;
+
+/** The audio socket's last message: why the stream ended, and the words heard after the last closed stretch */
+export const VoiceEnded = z.object({ type: z.literal('ended'), reason: z.string(), text: z.string() });
+export type VoiceEnded = z.infer<typeof VoiceEnded>;
 
 // Graph build: the knowledge graph of a workspace built from its repository
 

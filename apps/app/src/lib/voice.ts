@@ -1,25 +1,26 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { VoiceDown, type VoiceItem, type VoiceOutcome, type VoiceTarget } from '@momentum/contract';
+import { VoiceDown } from '@momentum/contract';
 import { openSocket } from './socket';
-import { startMic, type Mic } from './mic';
+import { startMic, type Mic, type MicEnd } from './mic';
 import { snapshot } from './snapshot';
 
 /**
- * Voice: this device's microphone streams to the PC, which transcribes it; the harness acts on each spoken item where
- * the mic that was started sends it (its target) and tells this app what came of it. One control socket per app
- * carries the target up and the status, the text as heard so far and the outcomes down.
+ * Dictation: this device's microphone streams to the PC, which transcribes it, and the field whose mic was started takes
+ * the text; nothing is sent until the user sends it. One control socket per app carries the status, the text as heard
+ * so far and each closed stretch down; the audio socket ends with the words heard after the last stretch.
  */
 
 type Status = Extract<VoiceDown, { type: 'status' }>;
-type Handler = (outcome: VoiceOutcome, item: VoiceItem) => void;
+/** A field taking what was heard */
+type Handler = (text: string) => void;
 
 interface State {
   status: Status | null;
   /** The text as heard so far, for the owner of the mic */
   partial: string | null;
   listening: boolean;
-  /** Which mic was started last: its outcomes and partial text are its own */
+  /** Which mic was started last: what is heard is its own */
   owner: symbol | null;
 }
 
@@ -39,11 +40,12 @@ let retry: ReturnType<typeof setTimeout> | null = null;
 const FIRST_RETRY_MS = 3000;
 const LAST_RETRY_MS = 60_000;
 let retryMs = FIRST_RETRY_MS;
-let target: VoiceTarget | null = null;
 let mic: Mic | null = null;
 
-function sendTarget() {
-  if (control?.readyState === WebSocket.OPEN) control.send(JSON.stringify({ type: 'target', target }));
+/** What was heard goes to the field of the mic started last; a stretch cancelled by voice goes nowhere */
+function deliver(text: string) {
+  const t = text.trim();
+  if (t && state.owner) handlers.get(state.owner)?.(t);
 }
 
 function connect(): Promise<void> {
@@ -75,7 +77,6 @@ async function open() {
   control = socket;
   socket.onopen = () => {
     retryMs = FIRST_RETRY_MS;
-    sendTarget();
   };
   socket.onmessage = (m) => {
     const parsed = VoiceDown.safeParse(JSON.parse(String(m.data)));
@@ -85,7 +86,7 @@ async function open() {
     else if (msg.type === 'partial') set({ partial: msg.text });
     else {
       set({ partial: null });
-      if (state.owner) handlers.get(state.owner)?.(msg.outcome, msg.item);
+      if (msg.item.kind !== 'cancelled') deliver(msg.item.text);
     }
   };
   socket.onclose = (e) => {
@@ -111,33 +112,35 @@ function subscribe(l: () => void) {
   };
 }
 
+/** The stream ended: its last words go to the field, and the mic is off */
+function ended({ reason, text }: MicEnd) {
+  mic = null;
+  deliver(text);
+  set({ listening: false, partial: null });
+  if (reason) console.warn(`voice: ${reason}`);
+}
+
 async function stopMic() {
   const m = mic;
-  mic = null;
-  set({ listening: false });
-  await m?.stop();
+  if (!m) return set({ listening: false, partial: null });
+  await m.stop();
 }
 
 /**
- * One mic: started, it declares its target and owns what is heard until another mic starts. `target` is re-sent while
- * it owns the floor (a chat's context chips change, a run opens). Stops when its screen goes.
+ * One mic, typing into its field: started, it owns what is heard until another mic starts; `onText` adds each stretch
+ * heard to the field. While it listens `partial` is the text heard so far, after what the field holds. Stops when its
+ * screen goes.
  */
-export function useVoice(voiceTarget: VoiceTarget | null, onOutcome: Handler) {
+export function useDictation(onText: Handler) {
   const id = useRef(Symbol('mic')).current;
   const s = useSyncExternalStore(subscribe, () => state, () => state);
   const own = s.owner === id;
-  const key = JSON.stringify(voiceTarget);
 
   useEffect(() => {
-    handlers.set(id, onOutcome);
+    handlers.set(id, onText);
   });
   useEffect(() => () => void handlers.delete(id), [id]);
-  useEffect(() => {
-    if (state.owner !== id) return;
-    target = voiceTarget;
-    sendTarget();
-  }, [key]);
-  // The screen goes: its mic stops; items heard before still land where it sent them
+  // The screen goes: its mic stops; the words heard last still reach its field while it is mounted
   useFocusEffect(
     useCallback(
       () => () => {
@@ -148,21 +151,18 @@ export function useVoice(voiceTarget: VoiceTarget | null, onOutcome: Handler) {
   );
 
   const start = useCallback(async () => {
-    if (!voiceTarget) return;
     if (state.listening) await stopMic();
-    target = voiceTarget;
-    sendTarget();
     set({ owner: id, partial: null, listening: true });
     try {
-      mic = await startMic((reason) => {
-        if (mic) void stopMic();
-        if (reason) console.warn(`voice: ${reason}`);
-      });
+      const m = await startMic(ended);
+      mic = m;
+      // Stopped while the microphone was being opened
+      if (!state.listening || state.owner !== id) await m.stop();
     } catch (e) {
       set({ listening: false });
       console.warn('voice:', e);
     }
-  }, [key]);
+  }, [id]);
 
   const stop = useCallback(() => {
     if (state.owner === id) void stopMic();
@@ -171,8 +171,11 @@ export function useVoice(voiceTarget: VoiceTarget | null, onOutcome: Handler) {
   return {
     available: !!s.status?.connected && s.status.ready,
     listening: own && s.listening,
-    partial: own ? s.partial : null,
+    partial: own && s.listening ? s.partial : null,
     start,
     stop,
   };
 }
+
+/** What a field holds with what was heard after it, one space between */
+export const withHeard = (text: string, heard: string | null) => (!heard ? text : !text.trim() ? heard : `${text}${/\s$/.test(text) ? '' : ' '}${heard}`);

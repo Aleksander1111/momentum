@@ -13,18 +13,22 @@ scenario('interview', { enabled: [WS], voice: true }, async ({ env, api, app, vo
       return r.status !== 'running' && r.status !== 'queued' && r.messages.filter((m) => m.role === 'user').length >= n ? r : null;
     }, 15 * 60_000);
 
-  /** Starts the mic of the screen; what is said next goes where this screen sends it once its audio reaches the stream */
-  const listen = async () => {
+  /** Says the text into the empty field's mic, stops it and sends what the field holds, as the user does */
+  const dictate = async (placeholder: string, text: string, kind: 'command' | 'question' = 'command') => {
     const before = voice.opened;
     await app.speak();
     await until('the mic to reach the command stream', async () => voice.opened > before);
+    voice.hear(text, kind);
+    const field = app.frame().getByPlaceholder(placeholder, { exact: true });
+    await expect(field).toHaveValue(kind === 'question' ? `Question: ${text}` : text, { timeout: 15_000 });
+    await app.stopSpeaking();
+    await field.press('Enter');
   };
 
   const runId = await step(0, async () => {
     await app.go(`/chat?ws=${WS}&compose=1`);
-    await listen();
     const since = new Date();
-    voice.say('interview the reading list features');
+    await dictate(`Ask ${WS}`, 'interview the reading list features');
     const run = await until('the interview run', async () => (await api.runs(WS, 'interview')).find((r) => r.created_at >= since));
     const first = await turn(run.id, 1);
     expect(first.interview?.question).toBeTruthy();
@@ -33,15 +37,14 @@ scenario('interview', { enabled: [WS], voice: true }, async ({ env, api, app, vo
 
   await step(1, async () => {
     await app.go(`/chat/${runId}`);
-    await listen();
-    voice.say('I want to find books by author and by year, and mark books I have read');
+    await dictate('Answer', 'I want to find books by author and by year, and mark books I have read');
     let r = await turn(runId, 2);
     const doc = r.interview!.document;
     expect(doc).toMatch(/^interviews\//);
     await until('the answer on the main line', async () => /author/i.test(env.show(WS, doc) ?? ''));
-    voice.say('skip');
+    await dictate('Answer', 'skip');
     r = await turn(runId, 3);
-    voice.say('why do you ask that', 'question');
+    await dictate('Answer', 'why do you ask that', 'question');
     r = await turn(runId, 4);
     expect(r.messages.some((m) => m.role === 'user' && m.text.startsWith('Question: '))).toBe(true);
     expect(r.interview!.document).toBe(doc);
@@ -49,7 +52,7 @@ scenario('interview', { enabled: [WS], voice: true }, async ({ env, api, app, vo
   });
 
   await step(2, async () => {
-    voice.say('stop interview');
+    await dictate('Answer', 'stop interview');
     const r = await until('the interview done', async () => {
       const x = await api.run(runId);
       return x.interview?.done && x.status !== 'running' && x.status !== 'queued' ? x : null;

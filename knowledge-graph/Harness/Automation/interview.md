@@ -13,7 +13,7 @@ artifacts:
 ---
 # Interview
 
-An interview by voice: started by the user saying "interview" and its kind, like a chat.
+An interview: started by a new chat that says "interview" and its topic, typed or dictated.
 
 - One question at a time; each answer written into one document under `interviews/`
 - Skip, correct, or question back; "stop interview" or full coverage ends it

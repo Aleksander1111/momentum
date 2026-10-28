@@ -383,10 +383,17 @@ export class App {
     await this.text('Knowledge graph').waitFor();
   }
 
-  /** Holds the mic of the screen open, so what the command stream hears goes where this screen sends it */
+  /** Starts the mic of the field on screen, so what the command stream hears is typed into it */
   async speak(): Promise<void> {
     await pace('action', 'Tap the mic');
     await this.frame().getByLabel('Speak').first().click();
     await expect(this.frame().getByLabel('Stop listening').first()).toBeVisible({ timeout: 15_000 });
+  }
+
+  /** Stops the mic listening: the words heard last join its field, which is the user's to edit again */
+  async stopSpeaking(): Promise<void> {
+    await pace('action', 'Tap the mic again');
+    await this.frame().getByLabel('Stop listening').first().click();
+    await expect(this.frame().getByLabel('Speak').first()).toBeVisible({ timeout: 15_000 });
   }
 }

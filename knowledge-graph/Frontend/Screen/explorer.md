@@ -30,7 +30,7 @@ Browse a workspace's entities by domain and type, search or ask them, or hand ov
 - No project: says no graph, links to Settings
 - Search by words and meaning replaces the tree; no match offers Enter to ask
 - A question, or Enter, is answered by [search](Harness/Automation/search) with sources; unframed on phone
-- Mic: spoken words search, questions ask
+- Mic in the search: what is said is typed into it as heard; a question typed so asks
 - "Explore through an agent" opens Chat, composer focused
 - A link opens one folder; empty says so
 - Wide: entity beside the tree; narrow: pushed; either way the feed's card, swipes and chat included

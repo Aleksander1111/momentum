@@ -25,6 +25,6 @@ What needs the user, from every enabled project, in one ranked list: the harness
 
 - **Ranked** by product, timeline and unlock impact; the feed size bounds how much the loops may queue
 - **Reactions**: approve; send back with a comment, which starts or joins a chat; resolve an issue by an option or in words; won't resolve, with the reason
-- **Chat** on any entity, card parts added as context; by voice on a phone
+- **Chat** on any entity, card parts added as context; dictated with the mic on a phone
 - **Timeline** of every run and reaction; **metrics** of usage and consistency over time
 - **Patterns** proposed from ten alike reactions, in effect once approved

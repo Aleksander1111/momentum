@@ -1,15 +1,7 @@
-import type { ContextItem, VoiceDown, VoiceOutcome, VoiceTarget } from '@momentum/contract';
+import type { VoiceDown, VoiceEnded } from '@momentum/contract';
 import type { WebSocket as Socket } from '@fastify/websocket';
 import type { Sql } from '@momentum/kb';
 import { CommandFeed, type StreamEvent } from './feed.ts';
-
-/** What the voice router does with a spoken item: the harness's own handlers */
-export interface VoiceActions {
-  createChat(workspace: string, text: string, targetPath?: string, context?: ContextItem[], attachments?: string[]): Promise<{ runId: string }>;
-  postMessage(id: string, text: string, context?: ContextItem[], attachments?: string[]): Promise<void>;
-  startInterview(workspace: string, topic: string): Promise<{ runId: string }>;
-  entity(workspace: string, path: string): Promise<{ title: string }>;
-}
 
 interface StreamItem {
   id: number;
@@ -18,25 +10,15 @@ interface StreamItem {
   source?: string | null;
 }
 
-/** Lower case, no punctuation, single spaces, as the command stream's grammar normalises */
-export const normalise = (text: string) =>
-  text
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_]/gu, '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .join(' ');
-
-// The two shapes said anywhere, ported from markdown-voice; everything else goes where the screen sends it
-const INTERVIEW = /^interview (?<topic>.+)$/;
-const END_INTERVIEW = /^(stop|end|finish|close)( the)? interview$/;
+/** Words as the field takes them: a stretch begun with "question", which the command stream takes off, keeps it */
+const typed = (kind: string | null | undefined, text: string) => (kind === 'question' ? `Question: ${text}` : text);
 
 /**
- * Voice in Momentum: the user's devices stream their microphone through the harness to the command stream on this PC,
- * which transcribes it; the harness follows the stream and acts on each item once, in order, where the screen the
- * user is on sends it (its target). A cursor per sitting in the database makes "once" hold across restarts: a sitting
- * never seen before is followed from its end, so nothing said before the harness listened is acted on now.
+ * Voice in Momentum: dictation. The user's devices stream their microphone through the harness to the command stream on
+ * this PC, which transcribes it; the harness hands the text as heard so far and each closed stretch to the device
+ * streaming, whose field takes it, and when the device stops, the words after the last stretch. Nothing said is acted
+ * on: the user sends what the field holds. A cursor per sitting in the database hands each stretch on once, across
+ * restarts: a sitting never seen before is followed from its end.
  */
 export class Voice {
   private readonly feed: CommandFeed;
@@ -45,14 +27,11 @@ export class Voice {
   private status = { connected: false, ready: false, source: 'none', muted: false, text: '' };
   private partial: { text: string; kind: string | null } | null = null;
   private readonly clients = new Map<string, (m: VoiceDown) => void>();
-  /** The latest target of each client, kept after it disconnects so an item heard after that still lands */
-  private readonly targets = new Map<string, VoiceTarget | null>();
   /** The client whose device streams: the newest to open the audio socket, as on the command stream */
   private floor: string | null = null;
 
   constructor(
     private readonly sql: Sql,
-    private readonly actions: VoiceActions,
     private readonly base: string,
     private readonly sources: string[],
   ) {
@@ -67,18 +46,14 @@ export class Voice {
     this.feed.stop();
   }
 
-  /** A control socket: status to every client, the partial text and outcomes to the one streaming */
+  /** A control socket: status to every client, the text as heard and each closed stretch to the one streaming */
   connect(client: string, send: (m: VoiceDown) => void): () => void {
     this.clients.set(client, send);
     send({ type: 'status', ...this.status });
-    if (this.floor === client && this.status.source === 'remote') send({ type: 'partial', text: this.partial?.text ?? null, kind: this.partial?.kind ?? null });
+    if (this.floor === client && this.status.source === 'remote') send(this.partialDown());
     return () => {
       if (this.clients.get(client) === send) this.clients.delete(client);
     };
-  }
-
-  setTarget(client: string, target: VoiceTarget | null): void {
-    this.targets.set(client, target);
   }
 
   private broadcast(m: VoiceDown): void {
@@ -89,19 +64,30 @@ export class Voice {
     if (this.floor) this.clients.get(this.floor)?.(m);
   }
 
+  private partialDown(): VoiceDown {
+    return { type: 'partial', text: this.partial ? typed(this.partial.kind, this.partial.text) : null, kind: this.partial?.kind ?? null };
+  }
+
   /**
    * An audio socket: the device's header and sample frames passed through unchanged to the command stream's
-   * /ws/audio, which is loopback only; its replies (accepted, ended) come back the same way
+   * /ws/audio, which is loopback only; its replies come back the same way. Its `ended` carries the words heard after
+   * the last closed stretch, taken from the stream's state and cleared there, so the PC's own microphone never sends
+   * them on.
    */
   audio(client: string, socket: Socket): void {
     this.floor = client;
-    const upstream = new WebSocket(`${this.base.replace(/^http/, 'ws').replace(/\/$/, '')}/ws/audio`);
+    const upstream = new WebSocket(`${this.http}/ws/audio`.replace(/^http/, 'ws'));
     upstream.binaryType = 'arraybuffer';
     const pending: (string | Buffer)[] = [];
     let clientGone = false;
     const forward = (data: string | Buffer) => {
       if (upstream.readyState === WebSocket.OPEN) upstream.send(data);
       else if (upstream.readyState === WebSocket.CONNECTING) pending.push(data);
+    };
+    const end = (m: VoiceEnded) => {
+      if (clientGone) return;
+      socket.send(JSON.stringify(m));
+      socket.close();
     };
     socket.on('message', (data: Buffer, isBinary: boolean) => forward(isBinary ? data : data.toString('utf8')));
     socket.on('close', () => {
@@ -113,17 +99,38 @@ export class Voice {
     upstream.onopen = () => {
       for (const data of pending.splice(0)) upstream.send(data);
     };
+    let ended = false;
     upstream.onmessage = (m) => {
-      if (!clientGone) socket.send(String(m.data));
+      const msg = JSON.parse(String(m.data)) as { type: string; reason?: string };
+      if (msg.type !== 'ended') return void (clientGone || socket.send(String(m.data)));
+      ended = true;
+      const reason = msg.reason ?? 'stopped';
+      // Another device took the stream: what is pending is its own
+      if (reason === 'another source' || reason === 'not ready' || reason.startsWith('bad start')) return end({ type: 'ended', reason, text: '' });
+      void this.takePending().then((text) => end({ type: 'ended', reason, text }));
     };
     upstream.onclose = () => {
-      if (!clientGone) socket.close();
+      if (!ended) end({ type: 'ended', reason: 'the command stream closed', text: '' });
     };
     upstream.onerror = () => {
-      if (clientGone) return;
-      socket.send(JSON.stringify({ type: 'ended', reason: 'no command stream' }));
-      socket.close();
+      ended = true;
+      end({ type: 'ended', reason: 'no command stream', text: '' });
     };
+  }
+
+  /** The words after the last closed stretch, cleared on the command stream */
+  private async takePending(): Promise<string> {
+    try {
+      const state = (await (await fetch(`${this.http}/api/state`)).json()) as { partial?: { text?: string; kind?: string } | null };
+      await fetch(`${this.http}/api/clear`, { method: 'POST' });
+      return state.partial?.text ? typed(state.partial.kind, state.partial.text) : '';
+    } catch {
+      return '';
+    }
+  }
+
+  private get http(): string {
+    return this.base.replace(/\/$/, '');
   }
 
   async handle(e: StreamEvent): Promise<void> {
@@ -159,7 +166,7 @@ export class Voice {
     }
     if (e.type === 'partial') {
       this.partial = (e.partial as typeof this.partial) ?? null;
-      if (this.status.source === 'remote') this.toFloor({ type: 'partial', text: this.partial?.text ?? null, kind: this.partial?.kind ?? null });
+      if (this.status.source === 'remote') this.toFloor(this.partialDown());
       return;
     }
     if (e.type === 'item') await this.process(e.item as StreamItem);
@@ -183,57 +190,12 @@ export class Voice {
       on conflict (session) do update set last_item = excluded.last_item, at = now()`;
   }
 
-  /** Each item once, in order: the cursor moves before acting, so a crash never acts twice */
+  /** Each item once, in order: the cursor moves before handing it on, so a crash never hands it on twice */
   private async process(item: StreamItem): Promise<void> {
     if (item.id <= this.lastItem) return;
     this.lastItem = item.id;
     await this.saveCursor();
     if (!this.sources.includes(item.source ?? '')) return;
-    const outcome = await this.route(item).catch((e: Error): VoiceOutcome => ({ kind: 'failed', detail: e.message }));
-    this.toFloor({ type: 'item', item: { id: item.id, kind: item.kind, text: item.text }, outcome });
-  }
-
-  private async route(item: StreamItem): Promise<VoiceOutcome> {
-    if (item.kind !== 'command' && item.kind !== 'question') return { kind: 'ignored', detail: item.kind };
-    const target = this.floor ? (this.targets.get(this.floor) ?? null) : null;
-    const said = normalise(item.text);
-    const started = INTERVIEW.exec(said);
-    if (started && target) {
-      const workspace = target.workspace;
-      const { runId } = await this.actions.startInterview(workspace, started.groups!.topic!);
-      return { kind: 'chat', workspace, runId, created: true };
-    }
-    if (END_INTERVIEW.test(said) && target?.kind !== 'interview') return { kind: 'ignored', detail: 'no interview open' };
-    if (!target) return { kind: 'ignored', detail: 'nothing on screen takes voice' };
-    const workspace = target.workspace;
-    switch (target.kind) {
-      case 'search':
-        return { kind: 'search', workspace, text: item.text };
-      case 'chat': {
-        if (target.runId) {
-          await this.actions.postMessage(target.runId, item.text, target.context, target.attachments);
-          this.targets.set(this.floor!, { ...target, context: [], attachments: [] });
-          return { kind: 'chat', workspace, runId: target.runId };
-        }
-        const { runId } = await this.actions.createChat(workspace, item.text, undefined, target.context, target.attachments);
-        // The next item goes on in this chat, even before the app has opened it
-        this.targets.set(this.floor!, { ...target, runId, context: [], attachments: [] });
-        return { kind: 'chat', workspace, runId, created: true };
-      }
-      case 'entity': {
-        // A command changes the entity, as a send back does; a question asks about it with its card as context
-        if (item.kind === 'command') {
-          const { runId } = await this.actions.createChat(workspace, item.text, target.path);
-          return { kind: 'chat', workspace, runId, created: true };
-        }
-        const { title } = await this.actions.entity(workspace, target.path);
-        const { runId } = await this.actions.createChat(workspace, item.text, undefined, [{ workspace, path: target.path, title, heading: [] }]);
-        return { kind: 'chat', workspace, runId, created: true };
-      }
-      case 'interview': {
-        await this.actions.postMessage(target.runId, item.kind === 'question' ? `Question: ${item.text}` : item.text);
-        return { kind: 'chat', workspace, runId: target.runId };
-      }
-    }
+    this.toFloor({ type: 'item', item: { id: item.id, kind: item.kind, text: typed(item.kind, item.text) } });
   }
 }
