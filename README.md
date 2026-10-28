@@ -325,7 +325,7 @@ Automations are entities too, so they change through the feed like everything el
 - **Optimization** tracks each recurring pattern as a `Harness/Pattern` and proposes a change once it has seen it three times.
 - **Scope in the harness repository**: chat, interview and implementation may change anything; preparation only `plans/`; optimization only `automations/`; every other automation only `knowledge-graph/`. Changes outside the scope are put back.
 
-You can **stop a run** (what it wrote still lands; a queued run never starts), **steer a run** or resume an ended one with a message, pick **models** and set **concurrent runs in total**. An automation **runs on demand** through the `run_automation` MCP tool.
+You can **stop a run** (what it wrote still lands; a queued run never starts), **steer a run** with a message (one sent while it runs is taken in its next turn, as soon as this one ends) or resume an ended one, pick **models** and set **concurrent runs in total**. An automation **runs on demand** through the `run_automation` MCP tool.
 
 ## Agent tools
 

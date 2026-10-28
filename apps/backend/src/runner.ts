@@ -125,6 +125,8 @@ interface Active {
   /** Settles once the run's changes have landed on the main line and its status is recorded */
   finished?: Promise<void>;
   stoppedByUser?: boolean;
+  /** The user's messages sent while it runs: the run takes them in its next turn, once this one has ended */
+  waiting: string[];
   /** Sent on by the Stop hook to summarize or describe its changes: its text then is bookkeeping, kept out of the conversation */
   bookkeeping?: boolean;
   /** The turn this session answers: its tool calls and tokens, as they happen */
@@ -475,6 +477,7 @@ export class Runner {
       usage: { fiveHour: 0, week: 0 },
       interview: r.interview,
       activity: await Activity.begin(ws, r.id),
+      waiting: [],
     };
     const kb = createKbServer({
       index: ws.index,
@@ -640,8 +643,9 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
   }
 
   /**
-   * A message from the chat tool: steers the running process, or queues the run that has ended again, to resume its
-   * session in the working directory once no other run of the project works there. The user's runs start first.
+   * A message from the chat tool: it waits for a running turn to end, or queues the run that has ended again, to resume
+   * its session in the working directory once no other run of the project works there. The user's runs start first.
+   * Never written into a running process: Claude Code reads no message that arrives as its turn ends.
    */
   send(id: string, text: string, context: ContextItem[] = [], attached: Attachment[] = []): Promise<void> {
     return this.lifecycle.run(id, () => this.sendNow(id, text, context, attached));
@@ -652,12 +656,12 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
     await this.addMessage(ws, id, 'user', text, context, attached);
     const prompt = userPrompt(ws.name, context, attached, text);
     const entry = this.active.get(id);
-    if (entry?.handle.send(prompt)) {
-      // What it answers to the user's message is for the user again
-      entry.bookkeeping = false;
-      return;
-    }
-    await entry?.finished;
+    if (entry) return void entry.waiting.push(prompt);
+    await this.deliver(ws, id, prompt);
+  }
+
+  /** A message to a run that is not running: with the first prompt of one still queued, or the run queued again */
+  private async deliver(ws: Workspace, id: string, prompt: string): Promise<void> {
     const r = await this.row(ws, id);
     // A run still waiting to start takes the message with its first prompt, when the orchestrator starts it
     if (r.status === 'queued') {
@@ -801,9 +805,14 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
       const run = r ?? { id, automation: entry.ref.automation, targetPath: entry.ref.targetPath };
       await this.timeline.run(runEvent(ws.name, run, 'run_failed', { detail: (e as Error).message, facts: { status: 'failed' } })).catch(log('timeline'));
     } finally {
+      const waiting = entry.waiting.splice(0);
       this.active.delete(id);
       await this.guard.unwatch(id).catch(log('watcher'));
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
+      // Sent while it ran: its next turn takes them, unless the user stopped it
+      if (waiting.length && !entry.stoppedByUser) {
+        await this.lifecycle.run(id, () => this.deliver(ws, id, waiting.join('\n\n'))).catch(log('messages sent while it ran'));
+      }
       if (rate) void rateRetrieval(ws, { id, automation: entry.ref.automation }, entry.activity.turn).catch(log('retrieval rating'));
       // The harness names a chat after what was done in it, turn by turn: the agent spends nothing on it
       if (entry.ref.automation === 'chat') {

@@ -75,8 +75,6 @@ export interface SessionResult {
 }
 
 export interface SessionHandle {
-  /** Steer the run: a message from the chat tool */
-  send(text: string): boolean;
   interrupt(): Promise<void>;
   kill(): void;
   done: Promise<SessionResult>;
@@ -237,13 +235,11 @@ export async function ask(spec: AskSpec): Promise<string> {
 /** One Claude Code process per run, through the Agent SDK, with the project's working directory as cwd */
 export function startSession(spec: SessionSpec): SessionHandle {
   const abort = new AbortController();
-  /** What the run was told so far: a process started again is told all of it */
-  const told = [spec.prompt];
   let input: InputQueue;
   let q: Query;
   const begin = () => {
     input = new InputQueue();
-    for (const text of told) input.push(text);
+    input.push(spec.prompt);
     q = query({
       prompt: input,
       options: {
@@ -330,7 +326,6 @@ export function startSession(spec: SessionSpec): SessionHandle {
   }
 
   return {
-    send: (text) => input.push(text) && told.push(text) > 0,
     interrupt: async () => {
       await q.interrupt();
     },

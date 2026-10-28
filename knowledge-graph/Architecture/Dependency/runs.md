@@ -25,6 +25,6 @@ kind: internal library
 
 | Module | Provides |
 |---|---|
-| session | `startSession`: one steerable, resumable Claude Code process a run; one dead before its session starts is restarted, told all so far; 5h/weekly usage %; tool calls, results, tokens; `ask`: one tool-less turn |
+| session | `startSession`: one resumable Claude Code process a run, told its prompt; a message sent while it runs waits for its next turn; one dead before its session starts is restarted; 5h/weekly usage %; tool calls, results, tokens; `ask`: one tool-less turn |
 | process | `spawnLimited`: procgov CPU/memory limits; env without `DATABASE_URL`, `PG*`, `MOMENTUM_*` (`MOMENTUM_RUN_DATABASE_URL` as `DATABASE_URL`); `killTree` |
 | git | 5 s lock wait; changes read as stored (`autocrlf=input`); `land`: the run's changes only, one commit on main; reactions merged in; `nonLinear` (branches, worktrees, merges); `restorePath`; `fileHistory`; `lastCommitMessage` |
