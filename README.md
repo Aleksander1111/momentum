@@ -146,7 +146,7 @@ A card that changed since you last verified it shows the diff. Counters above th
 
 The other tabs:
 
-- **Explorer**: pick a project, browse its domain and type tree, search or ask a question (also by microphone), or explore through an agent.
+- **Explorer**: pick a project, browse its domain and type tree, search or ask a question (also by microphone), or explore through an agent. An entity opened there is the same card as in the feed: swipe it to approve, resolve or ask for rework, or pull it up to chat about it.
 - **Sessions**: your chats and interviews, and the automation runs, filtered by all, yours or automations.
 - **Timeline**: every run, reaction and harness event, newest first, plus the runs queued and running.
 - **Metrics**: usage of the rolling 5-hour and weekly limits, automations, trends over time, runs by parameter and retrieval quality.

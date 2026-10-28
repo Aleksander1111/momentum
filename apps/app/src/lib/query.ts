@@ -43,8 +43,12 @@ export type ResolveVars = ApproveVars & { option?: number; comment?: string };
 
 export const REACTIONS = ['approve', 'sendBack', 'resolve', 'wontResolve'] as const;
 
+/** The entity reacted to leaves the feed, and wherever else it shows, it shows as it now stands */
 function dropFromFeed(v: { workspace: string; path: string }) {
   queryClient.setQueryData<FeedResponse>(['feed'], (old) => (old ? withoutItem(old, v) : old));
+  void queryClient.invalidateQueries({ queryKey: ['entity', v.workspace, v.path] });
+  void queryClient.invalidateQueries({ queryKey: ['types', v.workspace] });
+  void queryClient.invalidateQueries({ queryKey: ['search', v.workspace] });
 }
 
 // Defaults by key so reactions queued offline (and persisted) can resume after a restart.

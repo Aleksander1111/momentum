@@ -81,6 +81,7 @@ export const FEATURES = {
   'feed.stale': 'A card that changed after the device showed it is not approved unseen',
   'feed.swipes': "Every reaction is made on the card in the app: a swipe right approves, a swipe left sends back with a comment, an issue's option is picked and swiped, the user's own resolution and won't resolve are written in the sheet",
   'feed.card-chat': 'A card pulled up opens a chat below it, the whole card in its context and the card as its target; the card waits on top, and the chat closes when the card changes or is reacted to; text selected or a shape picked on the card opens it with that part, with no button',
+  'feed.from-explorer': "An entity opened from the Explorer is the feed's card: swiped right it approves, or resolves an issue with the option picked; left it is sent back with a comment; pulled up it opens the chat on it; reacted to, the page goes back",
   'feed.once': 'The same reaction from two devices, a second tap or a replayed offline swipe acts once; a send back never starts a second chat',
 
   // Knowledge base

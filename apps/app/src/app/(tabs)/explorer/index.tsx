@@ -16,7 +16,7 @@ import { useVoice } from '../../../lib/voice';
 import { openRun } from '../../../lib/runs';
 import { Count, List, Pick, Row, RowText } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
-import { EntityView } from '../../../ui/EntityView';
+import { EntityCard, EntityView } from '../../../ui/EntityView';
 import { DomainBadge } from '../../../ui/domains';
 import { Answer, isQuestion } from '../../../ui/Answer';
 import { EntityLinks } from '../../../ui/EntityRef';
@@ -271,9 +271,18 @@ export default function Explorer() {
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
       {tree}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 28, paddingHorizontal: 40 }}>
-        {ws && selected ? <EntityView ws={ws} path={selected} onOpen={onOpen} /> : null}
-      </ScrollView>
+      {snapshot ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 28, paddingHorizontal: 40 }}>
+          {ws && selected ? <EntityView ws={ws} path={selected} onOpen={onOpen} /> : null}
+        </ScrollView>
+      ) : (
+        // The entity as a card to react to, as in the feed; once reacted to, it leaves the pane
+        <View style={{ flex: 1 }}>
+          {ws && selected ? (
+            <EntityCard key={`${ws}:${selected}`} ws={ws} path={selected} onOpen={onOpen} onReacted={() => router.setParams({ path: undefined })} />
+          ) : null}
+        </View>
+      )}
     </View>
   );
 }

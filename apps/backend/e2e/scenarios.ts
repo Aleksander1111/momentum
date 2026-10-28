@@ -956,6 +956,27 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    id: 'cards-from-the-explorer',
+    title: 'Cards reached through the Explorer, reacted to as in the feed',
+    projects: ['todo-cli'],
+    real: false,
+    scripted: true,
+    covers: ['feed.from-explorer', 'feed.swipes', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.card-chat', 'automation.chat'],
+    steps: [
+      'An entity opened from the Explorer and swiped right is approved in one commit, and the page goes back',
+      'Swiped left with a comment, an entity opened from the Explorer is sent back to a chat on it',
+      "An issue opened from the Explorer resolves with the option picked on its card and swiped right",
+      'Pulled up, an entity opened from the Explorer opens a chat below it on the whole card; the answer shows while the card stays',
+    ],
+    // The features each step checks, step by step
+    checks: [
+      ['feed.from-explorer', 'feed.swipes', 'feed.approve'],
+      ['feed.from-explorer', 'feed.swipes', 'feed.send-back'],
+      ['feed.from-explorer', 'feed.swipes', 'feed.issue-options', 'automation.chat'],
+      ['feed.from-explorer', 'feed.card-chat'],
+    ],
+  },
+  {
     id: 'linear-work',
     title: 'One straight line, enforced',
     projects: ['todo-cli'],

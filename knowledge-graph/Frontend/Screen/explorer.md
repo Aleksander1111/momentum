@@ -33,5 +33,5 @@ Browse a workspace's entities by domain and type, search or ask them, or hand ov
 - Mic: spoken words search, questions ask
 - "Explore through an agent" opens Chat, composer focused
 - A link opens one folder; empty says so
-- Wide: entity beside the tree; narrow: pushed
+- Wide: entity beside the tree; narrow: pushed; either way the feed's card, swipes and chat included
 - [Exported](Architecture/Service/app) with a graph: search only; no ask, mic, agent

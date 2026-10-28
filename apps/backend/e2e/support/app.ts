@@ -140,6 +140,11 @@ export class App {
     await m.up();
   }
 
+  /** Swipes the card shown with this title, however it was reached: right, left, or up to open the chat on it */
+  async swipeCard(title: string, way: 'right' | 'left' | 'up'): Promise<void> {
+    await this.swipe(title, way === 'right' ? 320 : way === 'left' ? -320 : 0, way === 'up' ? -180 : 0);
+  }
+
   /** Swipes the card on top of the feed as the phone shows it, whether or not the back-end hears of it now */
   async swipeTop(title: string, approve: boolean): Promise<void> {
     await this.swipe(title, approve ? 320 : -320);
@@ -205,7 +210,8 @@ export class App {
     return (await until('the resolving chat', async () => (await this.api.runs(ws, 'chat')).find((r) => r.created_at >= since))).id;
   }
 
-  private async sheet(heading: string, text: string, button: string): Promise<void> {
+  /** Writes in the sheet a swipe left opened, under its heading, and sends it with its button */
+  async sheet(heading: string, text: string, button: string): Promise<void> {
     const f = this.frame();
     await f.getByText(heading, { exact: true }).waitFor();
     await pace('action', `Write "${text}"`);

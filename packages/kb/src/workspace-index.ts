@@ -2,6 +2,7 @@ import type {
   ArtifactView,
   Card,
   CardDiff,
+  CardIssue,
   EntityDetail,
   EntityFrontmatter,
   EntityListItem,
@@ -210,6 +211,9 @@ export class WorkspaceIndex {
         where x.to_path = ${path}`;
     const artifacts = await this.sql<{ artifact_path: string }[]>`
       select artifact_path from ${this.t('entity_artifact')} where entity_path = ${path} order by artifact_path`;
+    // An issue names the entities it concerns by their titles, as in the feed
+    const concerns = refs.filter((x) => x.direction === 'out' && x.relation === 'concerns');
+    const titles = Object.fromEntries(concerns.flatMap((x) => (x.title === null ? [] : [[x.path, x.title]])));
     return {
       workspace: this.workspace,
       path: r.path,
@@ -221,6 +225,8 @@ export class WorkspaceIndex {
       origin: r.origin,
       card: r.card_blocks,
       diff: r.card_diff ?? null,
+      version: (await this.version(path)) ?? '',
+      issue: issueOf(r.type, r.frontmatter, titles),
       markdown: r.card,
       references: refs.map((x) => ({ ...x }) satisfies ReferenceView),
       artifacts: artifacts.map((a) => ({ path: a.artifact_path, kind: artifactKind(a.artifact_path) }) satisfies ArtifactView),
@@ -385,7 +391,7 @@ export async function crossProjectFeed(sql: Sql, workspaces: string[], limit: nu
 }
 
 /** The options of an issue the user resolves from the feed; null for any other entity or an issue without options */
-function issueOf(type: string, frontmatter: EntityFrontmatter, titles: Record<string, string>): FeedItem['issue'] {
+function issueOf(type: string, frontmatter: EntityFrontmatter, titles: Record<string, string>): CardIssue {
   if (type !== 'Harness/Issue') return null;
   const f = IssueFields.safeParse(frontmatter);
   if (!f.success || f.data.options.length === 0) return null;

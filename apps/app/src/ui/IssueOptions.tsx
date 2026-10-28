@@ -1,10 +1,10 @@
 import { Pressable, View } from 'react-native';
-import type { FeedItem, Severity } from '@momentum/contract';
+import type { CardIssue, Severity } from '@momentum/contract';
 import { C, F } from './theme';
 import { T } from './Text';
 import { EntityRef } from './EntityRef';
 
-type Issue = NonNullable<FeedItem['issue']>;
+type Issue = NonNullable<CardIssue>;
 
 const SEVERITY: Record<Severity, { label: string; colour: () => string }> = {
   high: { label: 'High', colour: () => C.no },

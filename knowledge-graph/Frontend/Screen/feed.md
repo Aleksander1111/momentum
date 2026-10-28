@@ -11,6 +11,7 @@ references:
     relation: resolves_issues_of
 artifacts:
   - apps/app/src/app/(tabs)/feed.tsx
+  - apps/app/src/ui/CardScreen.tsx
   - apps/app/src/lib/feed.ts
   - apps/app/src/lib/query.ts
   - apps/app/src/ui/CardView.tsx
@@ -32,3 +33,4 @@ Ranked cards of included projects, one on top. Wide: framed, two behind. Phone: 
 - Issues: severity, concerns, options; right takes the recommended, left another or a reason not to
 - Reactions approve/resolve the version; polls 15 s, queues offline
 - Top card stays till reacted to; empty: why
+- The same card screen opens an entity from the Explorer

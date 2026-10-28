@@ -2513,6 +2513,74 @@
                       ],
                       "additionalProperties": false
                     },
+                    "version": {
+                      "default": "",
+                      "type": "string"
+                    },
+                    "issue": {
+                      "default": null,
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "category": {
+                          "type": "string"
+                        },
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "high",
+                            "medium",
+                            "low"
+                          ]
+                        },
+                        "options": {
+                          "default": [],
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "change": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "label",
+                              "change"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "recommended": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "concerns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "titles": {
+                          "default": {},
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "options",
+                        "concerns",
+                        "titles"
+                      ],
+                      "additionalProperties": false
+                    },
                     "markdown": {
                       "type": "string"
                     },
@@ -2584,6 +2652,8 @@
                     "origin",
                     "card",
                     "diff",
+                    "version",
+                    "issue",
                     "markdown",
                     "references",
                     "artifacts"
@@ -7866,6 +7936,13 @@
                                 "items": {
                                   "type": "string"
                                 }
+                              },
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "paced",
+                                  "full"
+                                ]
                               },
                               "runTitle": {
                                 "type": "string"

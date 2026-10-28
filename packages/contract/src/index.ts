@@ -200,10 +200,20 @@ export const ArtifactView = z.object({
 });
 export type ArtifactView = z.infer<typeof ArtifactView>;
 
+/** An issue with options to resolve it; the entities it concerns, the one at fault first, and their titles by path */
+export const CardIssue = IssueFields.pick({ category: true, severity: true, options: true, recommended: true })
+  .extend({ concerns: z.array(z.string()), titles: z.record(z.string(), z.string()).default({}) })
+  .nullable()
+  .default(null);
+export type CardIssue = z.infer<typeof CardIssue>;
+
 export const EntityDetail = EntityListItem.extend({
   origin: Origin,
   card: Card,
   diff: CardDiff.nullable().default(null),
+  /** The card as shown: a reaction carrying it is refused once the card has changed since */
+  version: z.string().default(''),
+  issue: CardIssue,
   markdown: z.string(),
   references: z.array(ReferenceView),
   artifacts: z.array(ArtifactView),
@@ -276,11 +286,7 @@ export const FeedItem = z.object({
   rank: z.number(),
   /** The card as shown: a reaction carrying it is refused once the card has changed since */
   version: z.string().default(''),
-  /** An issue with options to resolve it; the entities it concerns, the one at fault first, and their titles by path */
-  issue: IssueFields.pick({ category: true, severity: true, options: true, recommended: true })
-    .extend({ concerns: z.array(z.string()), titles: z.record(z.string(), z.string()).default({}) })
-    .nullable()
-    .default(null),
+  issue: CardIssue,
 });
 export type FeedItem = z.infer<typeof FeedItem>;
 
