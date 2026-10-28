@@ -30,6 +30,7 @@ import { Btn, useCloseOnBack } from './parts';
 import { States } from './StateBadge';
 import { EntityMore } from './EntityParts';
 import { MicButton } from './MicButton';
+import { useGrowingField } from './Field';
 
 /** A card to react to, as the feed brings it or as it is opened from anywhere else */
 export type ReviewItem = Pick<
@@ -330,6 +331,10 @@ function Sheet({
   const [comment, setComment] = useState('');
   const mic = useDictation((heard) => setComment((c) => withHeard(c, heard)));
   const ready = !!comment.trim() && !mic.listening;
+  const field = useRef<TextInput>(null);
+  const shown = mic.listening ? withHeard(comment, mic.partial) : comment;
+  // Three lines to ten, then it scrolls; it follows what the mic types
+  const { height, ...grow } = useGrowingField(field, shown, 60, 200, mic.listening);
   useCloseOnBack(true, onCancel);
   return (
     <>
@@ -383,8 +388,10 @@ function Sheet({
             }}
           >
             <TextInput
-              value={mic.listening ? withHeard(comment, mic.partial) : comment}
+              ref={field}
+              value={shown}
               onChangeText={setComment}
+              {...grow}
               placeholder={issue ? 'How should it be resolved, or why not?' : 'What should change?'}
               placeholderTextColor={C.muted}
               multiline
@@ -395,7 +402,7 @@ function Sheet({
                   padding: 0,
                   fontSize: 14.5,
                   lineHeight: 20,
-                  minHeight: 60,
+                  height,
                   color: C.ink,
                   fontFamily: F.body,
                   textAlignVertical: 'top',

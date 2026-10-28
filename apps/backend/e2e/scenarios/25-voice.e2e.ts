@@ -8,6 +8,8 @@ const WS = 'bookshelf-api';
 const API = 'Architecture/Api/books-api';
 const DOC = 'interviews/reading-habits.md';
 const SUMMARY = 'Knowledge/MeetingNote/reading-habits';
+/** A rework comment said at length: more than the ten lines the box grows to */
+const LONG = Array.from({ length: 14 }, (_, i) => `say how many books a month are read, point ${i + 1}`).join(' ');
 
 scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice, model, step }) => {
   const listen = async () => {
@@ -215,13 +217,21 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
     await listen();
     voice.hear('say how many books a month');
     await expect(comment).toHaveValue('say how many books a month', { timeout: 15_000 });
+    // Said at length, the box grows to ten lines, then scrolls, its last line in view as the words come
+    const box = () => comment.evaluate((el) => ({ height: el.clientHeight, end: el.scrollHeight - el.scrollTop - el.clientHeight }));
+    const small = (await box()).height;
+    voice.hear(LONG);
+    await expect(comment).toHaveValue(LONG, { timeout: 15_000 });
+    await expect.poll(async () => (await box()).height).toBe(200);
+    expect(small).toBeLessThan(200);
+    await expect.poll(async () => (await box()).end).toBeLessThanOrEqual(1);
     await app.stopSpeaking();
     await expect(comment).toBeEditable();
     const since = new Date();
     await app.frame().getByText('Send back', { exact: true }).click();
     const back = await newest(since);
     expect(back.target_path).toBe(SUMMARY);
-    expect((await api.run(back.id)).messages[0]!.text).toContain('say how many books a month');
+    expect((await api.run(back.id)).messages[0]!.text).toContain(LONG);
     await api.runEnded(back.id, 2 * 60_000);
     // A rule in Settings takes what is said after what it holds, and keeps it with no editing to end
     // Opened afresh, Settings is the only screen: none behind it holds a mic

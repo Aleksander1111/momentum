@@ -31,7 +31,7 @@ User chats and interviews beside automation runs.
 
 - By workspace under its logo, polled 15 s; rows: starter, title (a chat's name, after what was done in it; an interview's topic; a run's outcome), kind, state, age, and what the run and the reactions in it did to the entities by state, as the timeline shows it
 - Filter All, Yours, Automations, kept on device; shared project picker
-- Composer: one box, chips at its top, field across its width, paperclip then mic, Stop and send in a row below; the mic types what is said into the field, sent only by send; send faint till there is text; Enter sends, Shift+Enter breaks; context and [file](Product/Feature/chat-attachments) chips; unsent says why; bubbles show files and whole quotes
+- Composer: one box, chips at its top, field across its width, paperclip then mic, Stop and send in a row below; the mic types what is said into the field, sent only by send; the field grows to six lines, then scrolls, its last line in view while the mic types; send faint till there is text; Enter sends, Shift+Enter breaks; context and [file](Product/Feature/chat-attachments) chips; unsent says why; bubbles show files and whole quotes
 - State in its [colour](Frontend/UiComponent/theme), bold running or failed
 - Head: state dot (amber stopping, red ring failed), automation, 5-h usage, entity, Stop
 - Per turn: time, tools, live call, RAG; opens to calls, ratings; polled 2 s while active

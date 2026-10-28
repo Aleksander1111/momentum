@@ -14,6 +14,7 @@ import { T } from '../../ui/Text';
 import { DomainBadge } from '../../ui/domains';
 import { useOpenEntity } from '../../ui/EntityRef';
 import { MicButton } from '../../ui/MicButton';
+import { useGrowingField } from '../../ui/Field';
 import { useDictation, withHeard } from '../../lib/voice';
 
 const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null;
@@ -111,6 +112,10 @@ function TextRow({
     setText(next);
     if (next !== value) onSave(next);
   });
+  const field = useRef<TextInput>(null);
+  const shown = mic.listening ? withHeard(text, mic.partial) : text;
+  // Five lines to ten, then it scrolls; it follows what the mic types
+  const { height, ...grow } = useGrowingField(field, shown, 105, 210, mic.listening);
   return (
     <>
       <Row first={first} onPress={() => setOpen((o) => !o)}>
@@ -121,8 +126,10 @@ function TextRow({
         <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
           <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingTop: 11, paddingBottom: 9, paddingHorizontal: 14, gap: 6 }}>
             <TextInput
-              value={mic.listening ? withHeard(text, mic.partial) : text}
+              ref={field}
+              value={shown}
               onChangeText={setText}
+              {...grow}
               onBlur={commit}
               multiline
               autoFocus
@@ -132,7 +139,7 @@ function TextRow({
                   padding: 0,
                   fontSize: 15,
                   lineHeight: 21,
-                  minHeight: 96,
+                  height,
                   color: C.ink,
                   fontFamily: F.body,
                   textAlignVertical: 'top',

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Platform, Pressable, View, type NativeSyntheticEvent, type TextInput, type TextInputKeyPressEventData } from 'react-native';
 import type { ContextItem } from '@momentum/contract';
 import { chatContext } from '../lib/context';
@@ -11,7 +11,7 @@ import { useDictation, withHeard } from '../lib/voice';
 import { C, F, useTheme } from './theme';
 import { DomainIcon, domainColour } from './domains';
 import { entityName } from './EntityRef';
-import { Field } from './Field';
+import { Field, useGrowingField } from './Field';
 import { Icon } from './icons';
 import { MicButton } from './MicButton';
 import { T } from './Text';
@@ -62,9 +62,6 @@ export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; on
   );
 }
 
-/** The field's height for its content: one line to six */
-const fieldHeight = (content: number) => Math.min(120, Math.max(20, content));
-
 /**
  * One rounded box: the context items waiting for this chat as chips at its top, the field across its whole width, and a
  * row of buttons below the field, round accent send at its end, faint until there is something to send. With `attachTo`,
@@ -99,8 +96,6 @@ export const Composer = forwardRef<
   const [busy, setBusy] = useState(false);
   // Why the last message did not go, until the text changes
   const [failed, setFailed] = useState<string | null>(null);
-  // The field grows with what is written, up to a few lines
-  const [height, setHeight] = useState(20);
   const mic = useDictation((heard) => {
     setText((t) => withHeard(t, heard));
     setFailed(null);
@@ -133,15 +128,8 @@ export const Composer = forwardRef<
     void send();
   };
   const shown = mic.listening ? withHeard(text, mic.partial) : text;
-  // On the web the field's scroll height never drops below its own height: measured collapsed, it shrinks as lines go
-  useLayoutEffect(() => {
-    const el = field.current as unknown as HTMLTextAreaElement | null;
-    if (Platform.OS !== 'web' || !el?.style) return;
-    el.style.height = '0px';
-    const h = el.scrollHeight;
-    el.style.height = `${fieldHeight(h)}px`;
-    setHeight(h);
-  }, [shown]);
+  // The field grows with what is written, one line to six, and follows what the mic types
+  const { height, ...grow } = useGrowingField(field, shown, 20, 120, mic.listening);
   const empty = !shown.trim();
   return (
     <View ref={area} style={{ gap: 8 }}>
@@ -178,10 +166,10 @@ export const Composer = forwardRef<
           }}
           multiline
           onKeyPress={onKeyPress}
-          onContentSizeChange={Platform.OS === 'web' ? undefined : (e) => setHeight(e.nativeEvent.contentSize.height)}
+          {...grow}
           autoFocus={autoFocus}
           editable={!mic.listening}
-          style={{ height: fieldHeight(height), lineHeight: 20 }}
+          style={{ height, lineHeight: 20 }}
           containerStyle={{ borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 6, paddingVertical: 2 }}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
