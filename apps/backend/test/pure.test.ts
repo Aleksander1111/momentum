@@ -4,6 +4,7 @@ import { safeName, typeOf } from '../src/attachments.ts';
 import { config } from '../src/config.ts';
 import { measureCompleteness } from '../src/completeness.ts';
 import { graphBuildPrompt } from '../src/graph-build.ts';
+import { namingQuestion, parseName } from '../src/naming.ts';
 import { userPrompt, withAttachments, withContext } from '../src/runner.ts';
 import { SequenceTracker } from '../src/voice/feed.ts';
 
@@ -97,5 +98,21 @@ describe('files attached to a message', () => {
     expect(typeOf('Shot.PNG')).toBe('image/png');
     expect(typeOf('report.pdf')).toBe('application/pdf');
     expect(typeOf('data.bin')).toBe('application/octet-stream');
+  });
+});
+
+describe('naming a chat', () => {
+  it('asks for a name after what was done, from what was asked, answered and changed', () => {
+    const q = namingQuestion(['what does it mean?'], ['Level 0 nodes are the consensus layer; the card says so now.'], ['Architecture/Component/level-0']);
+    expect(q.system).toMatch(/never the question as the user asked it/);
+    expect(q.prompt).toContain('# The user asked\n\nwhat does it mean?');
+    expect(q.prompt).toContain('- Architecture/Component/level-0');
+    expect(namingQuestion(['Hi'], ['Hello'], []).prompt).not.toContain('Entities it changed');
+  });
+
+  it('takes the first line of the answer, without quotes or a closing full stop', () => {
+    expect(parseName('\n"Make level 0 nodes the consensus layer."\nBecause…')).toBe('Make level 0 nodes the consensus layer');
+    expect(parseName('  ')).toBeNull();
+    expect(parseName('x'.repeat(120))).toHaveLength(80);
   });
 });

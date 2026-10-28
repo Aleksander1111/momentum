@@ -223,7 +223,7 @@ export class Momentum {
   async createChat(workspace: string, text: string, targetPath?: string, context: ContextItem[] = [], attached: string[] = []): Promise<{ runId: string }> {
     const ws = await this.workspaces.get(workspace);
     const files = await attachments.of(workspace, attached);
-    // Named after the first prompt until the chat names itself after what was done in it
+    // Named after the first prompt until the harness names it after what was done in it
     const title = text.split('\n')[0]!.slice(0, 80);
     // A chat on an entity marks it updating
     const [runId, states] = await measured(ws.index, () =>

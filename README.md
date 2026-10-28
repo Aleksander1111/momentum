@@ -343,14 +343,14 @@ What a run's agent can use:
   | `write` | Writes an entity, validated on write |
   | `record_agent_metric` | Records misalignments and recurring issues |
 
-- **`momentum-run`** (in-process MCP), what the run reports to the harness: `report_graph_build` (progress, next, documents), `report_interview` (interview runs only), `name_chat` (chat runs only: the chat's name, after what was done in it, every turn) and `retrieval_ratings` (optimization only).
+- **`momentum-run`** (in-process MCP), what the run reports to the harness: `report_graph_build` (progress, next, documents), `report_interview` (interview runs only) and `retrieval_ratings` (optimization only).
 - **The `momentum-summarization` sub-agent**, the one sub-agent the harness provides.
 - **Hooks** that put the consistency guard inside the run:
   - `PostToolUse` checks every `Write`, `Edit`, `MultiEdit`, `NotebookEdit` and `momentum-kb` write, and tells the agent what the guard will not accept.
   - `Stop` asks for summarization, then for fixes to the guard's issues (at most twice), then for the commit message.
   - `SubagentStop` records that summarization ran.
 
-Each run is held by Process Governor to 4 GB of memory and 4 CPU cores by default, and cannot see the harness's database credentials. After a run, its retrieval calls are rated for relevance by Haiku, and optimization reads the ratings.
+Each run is held by Process Governor to 4 GB of memory and 4 CPU cores by default, and cannot see the harness's database credentials. After every turn of a chat, Haiku names the chat after what was done in it, so the agent spends nothing on naming. After a run, its retrieval calls are rated for relevance by Haiku, and optimization reads the ratings.
 
 **Your voice tools** are separate: the **`momentum`** MCP server over HTTP at `/mcp`, behind your session. It is the API without the UI: feed, approve, send back, resolve issues, entities, search, ask, chats, runs, graph build, metrics, timeline and settings. Runs do not get it.
 

@@ -13,8 +13,8 @@ const ANSWER = 'GET /books lists every book, GET /books/:id reads one, POST /boo
 const ROUTES = [/GET\W+\/books\b/, /\/books\/:id/, /POST\W+\/books\b/];
 const UNKNOWN = 'Say on the card that any other route answers 404 with the error "not found".';
 const MISSING = 'Also say that a missing book answers 404 with the error "book not found".';
-/** What the scripted chat names itself after changing the card, as the agent names a chat after what was done in it */
-const NAMED = 'Say what other routes answer';
+/** The name the stand-in namer gives the chat that changes the card, after what it did */
+const NAMED = 'The card now says what other routes answer';
 const LOG = { name: 'server.log', mimeType: 'text/plain', buffer: Buffer.from('12:04:31 GET /books/7 failed: ECONNRESET from the book store\n') };
 /** A one-pixel PNG, as a screenshot stands in */
 const SHOT = {
@@ -114,7 +114,7 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     await until('the transcript on the main line', async () => env.show(WS, `chats/${runId}.jsonl`) !== null, 2 * 60_000);
     expect(model.turns(runId).some((t) => t.kind === 'summarize')).toBe(false);
     expect(await api.entities(WS, 'Harness/Chat')).toEqual([]);
-    // Live, the agent names the chat after what was done in it
+    // The harness names the chat after what was done in it
     const name = (await api.call<ChatsResponse>('GET', `/workspaces/${WS}/chats`)).chats.find((c) => c.runId === runId)!.title;
     await app.tab('Sessions');
     await expect(app.text(name, false)).toBeVisible();
@@ -151,7 +151,6 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
       });
     model.on('changes the card', (t) => t.automation === 'chat' && t.kind === 'prompt' && /other route/.test(t.input), (t) => [
       move.write(t, `knowledge-graph/${API}.md`, card(['Any other route answers 404 with the error "not found".'])),
-      move.nameChat(NAMED),
       move.say('The card now says what other routes answer.'),
     ]);
     model.on('changes the card from its page', (t) => t.automation === 'chat' && t.kind === 'prompt' && t.target === API, (t) => [
@@ -168,11 +167,18 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     const listed = (await api.call<ChatsResponse>('GET', `/workspaces/${WS}/chats`)).chats;
     expect(listed.find((c) => c.runId === chat)!.states).toEqual(moved);
     expect(listed.find((c) => c.runId === runId)!.states).toEqual({});
-    // Named after what was done in it, not after what was asked: in Sessions and on its one event on the timeline
-    const named = listed.find((c) => c.runId === chat)!.title;
+    // The harness names it after what was done in it, not after what was asked: in Sessions and on its one event on the
+    // timeline; the agent spends no call on it
+    const named = await until('the chat named', async () => {
+      const title = (await api.call<ChatsResponse>('GET', `/workspaces/${WS}/chats`)).chats.find((c) => c.runId === chat)!.title;
+      return title !== UNKNOWN ? title : null;
+    });
     if (!model.live) expect(named).toBe(NAMED);
     expect(named).not.toBe(UNKNOWN);
-    const events = (await api.timeline({ workspace: WS })).events.filter((e) => e.runId === chat);
+    const events = await until('the timeline event named', async () => {
+      const of = (await api.timeline({ workspace: WS })).events.filter((e) => e.runId === chat);
+      return of.some((e) => e.title === named) ? of : null;
+    });
     expect(events.map((e) => [e.actor, e.kind, e.title])).toEqual([['user', 'chat_started', named]]);
     await app.tab('Sessions');
     await expect(app.text(named, false).first()).toBeVisible({ timeout: 30_000 });

@@ -15,6 +15,7 @@ import type { Bus } from './events.ts';
 import type { Guard, RunRef } from './guard.ts';
 import type { HarnessSettings } from './harness.ts';
 import { bookkeeping, guardHooks } from './hooks.ts';
+import { nameChat } from './naming.ts';
 import { awaitRating, rateRetrieval, retrievalOverview } from './retrieval.ts';
 import { endKind, measured, runEvent, type Timeline } from './timeline.ts';
 import { merge, rise, type Rise } from './usage.ts';
@@ -509,22 +510,6 @@ export class Runner {
             return { content: [{ type: 'text', text: 'Recorded' }] };
           },
         ),
-        ...(r.automation === 'chat'
-          ? [
-              tool(
-                'name_chat',
-                'Name this chat after what was done in it so far: a few words, like the subject of a commit, saying what was changed, answered or decided, never the question as it was asked. The app and the timeline show the chat by this name. Call it once every turn, before you stop.',
-                { title: z.string().min(1) },
-                async ({ title }) => {
-                  const name = (title.split('\n').find((l) => l.trim()) ?? '').trim().slice(0, 80);
-                  if (!name) return { content: [{ type: 'text', text: 'The name is empty' }], isError: true };
-                  await ws.index.sql`update ${this.t(ws, 'run')} set title = ${name} where id = ${r.id}`;
-                  await this.timeline.rename(r.id, name);
-                  return { content: [{ type: 'text', text: 'Named' }] };
-                },
-              ),
-            ]
-          : []),
         ...(HARNESS_ONLY.includes(r.automation)
           ? [
               tool(
@@ -820,6 +805,12 @@ ${runLine({ id: r.id, automation: r.automation, trigger: r.trigger, targetPath: 
       await this.guard.unwatch(id).catch(log('watcher'));
       this.bus.emit('run_ended', { workspace: ws.name, runId: id });
       if (rate) void rateRetrieval(ws, { id, automation: entry.ref.automation }, entry.activity.turn).catch(log('retrieval rating'));
+      // The harness names a chat after what was done in it, turn by turn: the agent spends nothing on it
+      if (entry.ref.automation === 'chat') {
+        void nameChat(ws, id)
+          .then((name) => (name ? this.timeline.rename(id, name) : undefined))
+          .catch(log('chat name'));
+      }
     }
   }
 

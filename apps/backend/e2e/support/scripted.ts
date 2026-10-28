@@ -111,8 +111,6 @@ export const move = {
     input: v,
   }),
   interview: (v: { question: string; done: boolean; document: string }): Move => ({ tool: 'mcp__momentum-run__report_interview', input: v }),
-  /** A chat named after what was done in it */
-  nameChat: (title: string): Move => ({ tool: 'mcp__momentum-run__name_chat', input: { title } }),
   metric: (misalignments: number, recurring_issues: number): Move => ({ tool: 'mcp__momentum-kb__record_agent_metric', input: { misalignments, recurring_issues } }),
   /** The summarization sub-agent started, as the harness asks a run to before it stops */
   summarize: (): Move => ({
@@ -186,6 +184,12 @@ function said(m: Message): string | null {
   if (m.role !== 'user' || isToolResult(m)) return null;
   const parts = textsOf(m).filter(own);
   return parts.length ? parts.join('\n\n') : null;
+}
+
+/** The stand-in namer: a chat is named after the first thing the agent answered, as the namer sums up what was done */
+function named(prompt: string): string {
+  const answered = prompt.split('# The agent answered\n\n')[1] ?? '';
+  return (answered.split('\n').find((l) => l.trim()) ?? 'Chat').trim().replace(/\.$/, '');
 }
 
 /** The stand-in rater: every call useful, the first one most, and everything the answer needed retrieved */
@@ -432,7 +436,13 @@ export class ScriptedModel {
       const prompt = body.messages.flatMap(textsOf).filter(own).join('\n');
       this.side.push({ system, prompt });
       if (this.live) return void (await this.forward(req, raw, res));
-      const answer = system.includes(SAY.riskEstimate) ? this.risk(prompt) : system.includes(SAY.rateRetrieval) ? rating(prompt) : 'OK';
+      const answer = system.includes(SAY.riskEstimate)
+        ? this.risk(prompt)
+        : system.includes(SAY.rateRetrieval)
+          ? rating(prompt)
+          : system.includes(SAY.nameChat)
+            ? named(prompt)
+            : 'OK';
       return this.reply(res, body, id, [{ text: answer }]);
     }
     const dir = WORKING_DIR.exec(system)?.[1] ?? '';
