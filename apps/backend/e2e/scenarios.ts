@@ -917,7 +917,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: ['feed.swipes', 'feed.rank', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.wont-resolve', 'feed.card-chat', 'app.pages', 'app.appearance', 'automation.chat'],
     steps: [
-      'The feed orders the cards of both projects by their summed impact; equal ranks keep the order they came in; the card follows the appearance chosen',
+      'The feed orders the cards of both projects by their summed impact; equal ranks keep the order they came in; the card shows its states and the mic, and follows the appearance chosen',
       'Swiped right, the top card is approved in one commit; refused, the swipe says why and the card stays',
       "An issue's recommended option is picked on the card and swiped right; a chat resolves it with that option",
       "Swiped left, an issue is resolved in the user's own words, and another closed as won't resolve with the reason",
@@ -963,7 +963,7 @@ export const SCENARIOS: Scenario[] = [
     scripted: true,
     covers: ['feed.from-explorer', 'feed.swipes', 'feed.approve', 'feed.send-back', 'feed.issue-options', 'feed.card-chat', 'automation.chat'],
     steps: [
-      'An entity opened from the Explorer and swiped right is approved in one commit, and the page goes back',
+      'An entity opened from the Explorer is the feed\'s card, its states and mic included; swiped right it is approved in one commit, and the page goes back',
       'Swiped left with a comment, an entity opened from the Explorer is sent back to a chat on it',
       "An issue opened from the Explorer resolves with the option picked on its card and swiped right",
       'Pulled up, an entity opened from the Explorer opens a chat below it on the whole card; the answer shows while the card stays',

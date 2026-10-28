@@ -26,9 +26,14 @@ import { Composer } from './Composer';
 import { Conversation } from './Conversation';
 import { IssueHead, IssueOptions } from './IssueOptions';
 import { Btn, useCloseOnBack } from './parts';
+import { States } from './StateBadge';
+import { EntityMore } from './EntityParts';
 
 /** A card to react to, as the feed brings it or as it is opened from anywhere else */
-export type ReviewItem = Pick<FeedItem, 'workspace' | 'path' | 'type' | 'title' | 'card' | 'diff' | 'version' | 'issue'>;
+export type ReviewItem = Pick<
+  FeedItem,
+  'workspace' | 'path' | 'type' | 'title' | 'card' | 'diff' | 'verification' | 'sync' | 'contradictions' | 'version' | 'issue'
+>;
 
 const THRESHOLD = 110;
 const FLING = 800;
@@ -98,8 +103,6 @@ function TopCard({
   chatOpen,
   flow,
   picked,
-  aside,
-  below,
   onPickOption,
   onApprove,
   onResolve,
@@ -116,8 +119,6 @@ function TopCard({
   flow: boolean;
   /** The option of an issue picked to resolve it with: kept by the feed, as the card moves onto the chat's page */
   picked: number | null;
-  aside?: ReactNode;
-  below?: ReactNode;
   onPickOption: (option: number) => void;
   onApprove: () => void;
   onResolve: (option: number) => void;
@@ -248,14 +249,24 @@ function TopCard({
             measure();
           }}
         >
-          <CardView type={item.type} workspace={item.workspace} path={item.path} title={item.title} card={item.card} diff={item.diff} aside={aside} swipe onPick={onPick} />
+          <CardView
+            type={item.type}
+            workspace={item.workspace}
+            path={item.path}
+            title={item.title}
+            card={item.card}
+            diff={item.diff}
+            aside={<States verification={item.verification} sync={item.sync} contradictions={item.contradictions} labels />}
+            swipe
+            onPick={onPick}
+          />
           {issue ? (
             <>
               <IssueHead issue={issue} workspace={item.workspace} />
               <IssueOptions issue={issue} picked={picked} onPick={onPickOption} />
             </>
           ) : null}
-          {below}
+          <EntityMore ws={item.workspace} path={item.path} />
         </ScrollView>
         {/* A card that goes on below fades out at its bottom edge, so it reads as one to scroll, not one cut off */}
         {atEnd || flow ? null : <Fade colour={wide ? C.surface : C.screen} />}
@@ -495,24 +506,20 @@ function CardChat({
 /**
  * One card to react to, however it was reached: swiped right it approves, or resolves an issue with the option picked;
  * left it asks for rework with a comment; pulled up at its end it opens the chat on it. `head` sits above it, such as
- * the feed's counters or a way back; `behind`, the cards under it; `empty`, what shows without one. `aside` goes beside
- * the card's states, `below` under its content. `onReacted` follows each reaction sent.
+ * the feed's counters or a way back; `behind`, the cards under it; `empty`, what shows without one. `onReacted` follows
+ * each reaction sent.
  */
 export function CardScreen({
   item,
   head,
   behind,
   empty,
-  aside,
-  below,
   onReacted,
 }: {
   item: ReviewItem | null | undefined;
   head?: ReactNode;
   behind?: ReactNode;
   empty?: ReactNode;
-  aside?: ReactNode;
-  below?: ReactNode;
   onReacted?: () => void;
 }) {
   const wide = useWide();
@@ -566,8 +573,6 @@ export function CardScreen({
       chatOpen={!!chat}
       flow={flow}
       picked={picked}
-      aside={aside}
-      below={below}
       onPickOption={(option) => setPick({ key: key!, option })}
       onApprove={() => {
         approve.mutate({ workspace: item.workspace, path: item.path, timeSpentMs: spent(), version: item.version });
