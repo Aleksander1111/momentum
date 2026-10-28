@@ -157,7 +157,7 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     expect((await api.runEnded(chat, 5 * 60_000)).status).toBe('finished');
     expect(env.show(WS, `knowledge-graph/${API}.md`)).toMatch(/not found/);
     // Its row in Sessions shows what it did to the entities by state, as its event on the timeline does; a chat that only answered shows nothing
-    const moved = await until('the chat's state moves on the timeline', async () =>
+    const moved = await until("the chat's state moves on the timeline", async () =>
       (await api.timeline({ workspace: WS })).events.find((e) => e.runId === chat && e.actor === 'automation')?.facts.states ?? null,
     );
     const listed = (await api.call<ChatsResponse>('GET', `/workspaces/${WS}/chats`)).chats;
