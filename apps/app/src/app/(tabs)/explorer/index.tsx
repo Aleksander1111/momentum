@@ -31,24 +31,22 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 const indent = (depth: number) => 14 + depth * 10;
-// An entity row has no triangle: it takes the triangle's width and the row's gap as extra inset, so its badge sits one level right of its type's badge.
-const TRIANGLE = 10 + 12;
 
 function EntityRow({
   e,
-  inset,
+  depth,
   first,
   selected,
   onOpen,
 }: {
   e: EntityListItem;
-  inset: number;
+  depth: number;
   first: boolean;
   selected: boolean;
   onOpen: (path: string) => void;
 }) {
   return (
-    <Row first={first} selected={selected} onPress={() => onOpen(e.path)} style={{ paddingLeft: inset }}>
+    <Row first={first} selected={selected} onPress={() => onOpen(e.path)} style={{ paddingLeft: indent(depth) }}>
       <DomainBadge type={e.type} />
       <RowText title={e.title} size={14.5} />
       <States verification={e.verification} sync={e.sync} contradictions={e.contradictions} />
@@ -74,9 +72,9 @@ function treeRows(
         onPress={() => toggle(n.path)}
         style={{ paddingLeft: indent(depth) }}
       >
-        <Triangle open={isOpen} />
         <DomainBadge type={n.path} />
         <RowText title={n.name} />
+        <Triangle open={isOpen} />
         <Count>{n.count}</Count>
       </Row>,
     );
@@ -87,7 +85,7 @@ function treeRows(
         <EntityRow
           key={`e:${e.path}`}
           e={e}
-          inset={indent(depth + 1) + TRIANGLE}
+          depth={depth + 1}
           first={out.length === 0}
           selected={e.path === selected}
           onOpen={onOpen}
@@ -179,7 +177,7 @@ export default function Explorer() {
   if (dq) {
     (search.data?.results ?? []).forEach((e, i) =>
       rows.push(
-        <EntityRow key={e.path} e={e} inset={indent(0)} first={i === 0} selected={e.path === selected} onOpen={onOpen} />,
+        <EntityRow key={e.path} e={e} depth={0} first={i === 0} selected={e.path === selected} onOpen={onOpen} />,
       ),
     );
   } else {
