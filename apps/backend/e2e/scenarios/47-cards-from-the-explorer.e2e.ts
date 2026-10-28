@@ -52,8 +52,8 @@ scenario('cards-from-the-explorer', { enabled: [WS] }, async ({ env, api, app, m
     }
     // Swiped right it approves, and the page goes back to where it was opened from
     await open(APPROVE);
-    // The same card as in the feed: its states beside it, the mic below it
-    const shown = (text: string) => app.frame().getByText(text, { exact: true }).locator('visible=true').first();
+    // The same card as in the feed: its states as icons in its top right corner, named by their labels; the mic below it
+    const shown = (label: string) => app.frame().getByLabel(label, { exact: true }).locator('visible=true').first();
     await expect(shown('Unverified')).toBeVisible();
     await expect(shown('Synced')).toBeVisible();
     await expect(app.frame().getByLabel('Speak', { exact: true }).locator('visible=true').first()).toBeVisible();

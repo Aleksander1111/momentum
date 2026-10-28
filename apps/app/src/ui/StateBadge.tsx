@@ -101,56 +101,41 @@ export function Tip({
   );
 }
 
-export function StateBadge({ state, label }: { state: State; label?: boolean }) {
-  if (!label) {
-    return (
-      <Tip text={STATE[state].label} side="left">
-        <StateIcon state={state} />
-      </Tip>
-    );
-  }
+export function StateBadge({ state }: { state: State }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+    <Tip text={STATE[state].label} side="left">
       <StateIcon state={state} />
-      <H style={{ color: stateColour(state), fontSize: 14 }}>{STATE[state].label}</H>
-    </View>
-  );
-}
-
-/** The contradictions the consistency check holds open over an entity, shown only when there are any */
-function Contradictions({ count, label }: { count: number; label?: boolean }) {
-  const text = `${count} ${count === 1 ? 'contradiction' : 'contradictions'}`;
-  const badge = (
-    <View style={{ borderRadius: 9, paddingHorizontal: 6, paddingVertical: 1, backgroundColor: C.washNo }}>
-      <H style={{ color: C.no, fontSize: label ? 14 : 12 }}>{label ? text : String(count)}</H>
-    </View>
-  );
-  return label ? (
-    badge
-  ) : (
-    <Tip text={text} side="left">
-      {badge}
     </Tip>
   );
 }
 
+/** The contradictions the consistency check holds open over an entity, shown only when there are any */
+function Contradictions({ count }: { count: number }) {
+  return (
+    <Tip text={`${count} ${count === 1 ? 'contradiction' : 'contradictions'}`} side="left">
+      <View style={{ borderRadius: 9, paddingHorizontal: 6, paddingVertical: 1, backgroundColor: C.washNo }}>
+        <H style={{ color: C.no, fontSize: 12 }}>{String(count)}</H>
+      </View>
+    </Tip>
+  );
+}
+
+/** An entity's states as icons, each named on hover */
 export function States({
   verification,
   sync,
   contradictions,
-  labels,
 }: {
   verification: Verification | null;
   sync: Sync | null;
   contradictions?: number;
-  labels?: boolean;
 }) {
   if (!verification && !sync) return null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 'auto' }}>
-      {verification ? <StateBadge state={verification} label={labels} /> : null}
-      {sync ? <StateBadge state={sync} label={labels} /> : null}
-      {contradictions ? <Contradictions count={contradictions} label={labels} /> : null}
+      {verification ? <StateBadge state={verification} /> : null}
+      {sync ? <StateBadge state={sync} /> : null}
+      {contradictions ? <Contradictions count={contradictions} /> : null}
     </View>
   );
 }

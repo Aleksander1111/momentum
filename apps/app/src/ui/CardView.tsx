@@ -318,19 +318,11 @@ export function CardView({
     <AddsAtOnce.Provider value={!!onPick}>
     <Fit.Provider value={!!swipe}>
     <EntityLinks workspace={workspace}>
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          rowGap: 6,
-          columnGap: 12,
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
+      {/* The breadcrumb wraps on its own; the diff's counts and the states stay in the top right corner, on the logo's line */}
+      <View style={{ flexDirection: 'row', columnGap: 12, justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Crumbs workspace={workspace} type={type} path={path} onProject={onProject} />
         {diff || aside ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 32, flexShrink: 0 }}>
             {diff ? (
               <T style={{ fontSize: 13, fontWeight: '700' }}>
                 <Text style={{ color: C.no }}>{`−${diff.removed}`}</Text> <Text style={{ color: C.ok }}>{`+${diff.added}`}</Text>

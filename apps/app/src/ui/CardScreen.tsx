@@ -258,7 +258,7 @@ function TopCard({
             title={item.title}
             card={item.card}
             diff={item.diff}
-            aside={<States verification={item.verification} sync={item.sync} contradictions={item.contradictions} labels />}
+            aside={<States verification={item.verification} sync={item.sync} contradictions={item.contradictions} />}
             swipe
             onPick={onPick}
             onProject={onProject}

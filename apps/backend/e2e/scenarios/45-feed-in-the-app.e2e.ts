@@ -88,8 +88,8 @@ scenario('feed-in-the-app', { enabled: [HANDBOOK, TODO] }, async ({ env, api, ap
     expect(items.slice(CARDS.length).every((i) => i.rank <= items[CARDS.length - 1]!.rank)).toBe(true);
     await app.tab('Feed');
     await expect(app.text(HOLIDAYS.entity.title)).toBeVisible();
-    // The card is the entity's card, as the Explorer shows it too: its states beside it, the mic to speak about it below
-    const shown = (text: string) => app.frame().getByText(text, { exact: true }).locator('visible=true').first();
+    // The card is the entity's card, as the Explorer shows it too: its states as icons in its top right corner, named by their labels; the mic to speak about it below
+    const shown = (label: string) => app.frame().getByLabel(label, { exact: true }).locator('visible=true').first();
     await expect(shown('Unverified')).toBeVisible();
     await expect(shown('Synced')).toBeVisible();
     await expect(app.frame().getByLabel('Speak', { exact: true }).locator('visible=true').first()).toBeVisible();

@@ -44,7 +44,7 @@ export function EntityView({
         title={e.title}
         card={e.card}
         diff={e.diff}
-        aside={<States verification={e.verification} sync={e.sync} contradictions={e.contradictions} labels />}
+        aside={<States verification={e.verification} sync={e.sync} contradictions={e.contradictions} />}
         onProject={onProject}
       />
       <EntityMore ws={e.workspace} path={e.path} />
