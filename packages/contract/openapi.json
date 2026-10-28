@@ -3418,25 +3418,13 @@
                             "nullable": true,
                             "type": "string"
                           },
-                          "verification": {
-                            "nullable": true,
-                            "type": "string",
-                            "enum": [
-                              "unverified",
-                              "verified",
-                              null
-                            ]
-                          },
-                          "sync": {
-                            "nullable": true,
-                            "type": "string",
-                            "enum": [
-                              "synced",
-                              "entity_ahead",
-                              "artifact_ahead",
-                              "updating",
-                              null
-                            ]
+                          "states": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
                           }
                         },
                         "required": [
@@ -3447,8 +3435,7 @@
                           "status",
                           "updatedAt",
                           "entityPath",
-                          "verification",
-                          "sync"
+                          "states"
                         ],
                         "additionalProperties": false
                       }

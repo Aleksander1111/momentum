@@ -23,7 +23,7 @@ kind: internal library
 - Feed: items, versions, diffs, issue options, counts; reactions
 - Search: results, ask, sources
 - Export: graph snapshot (workspace, types, entities)
-- Runs, chats: automations, status, usage, context, attachments, interview, turns, steps, ratings
+- Runs, chats: automations, status, usage, context, attachments, interview, turns, steps, ratings, state moves
 - Timeline: actor, kind, facts, state moves, page
 - Voice: screen, status, partials
 - Build, metrics: completeness, estimate; series; retrieval per automation, tool

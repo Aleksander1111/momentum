@@ -13,7 +13,7 @@ import { C, runColour, useTheme, useWide } from '../../../ui/theme';
 import { T } from '../../../ui/Text';
 import { Icon } from '../../../ui/icons';
 import { List, Pick, Row, RowText, Sect, Segmented, useCloseOnBack } from '../../../ui/parts';
-import { States } from '../../../ui/StateBadge';
+import { Moves } from '../../../ui/StateBadge';
 import { Composer } from '../../../ui/Composer';
 import { Conversation } from '../../../ui/Conversation';
 
@@ -135,7 +135,7 @@ export default function Sessions() {
                         </>
                       }
                     />
-                    <States verification={c.verification} sync={c.sync} />
+                    <Moves states={c.states} />
                   </Row>
                 ))}
               </List>

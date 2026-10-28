@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import type { ActiveRun, AutomationName, EntityState, TimelineActor, TimelineEvent } from '@momentum/contract';
+import type { ActiveRun, AutomationName, TimelineActor, TimelineEvent } from '@momentum/contract';
 import { api } from '../../lib/api';
 import { embedded } from '../../lib/embed';
 import { automationLabel, durationMs, usagePct } from '../../lib/format';
@@ -13,7 +13,7 @@ import { T } from '../../ui/Text';
 import { Icon, type PATHS } from '../../ui/icons';
 import { EntityRefs, useOpenEntity } from '../../ui/EntityRef';
 import { ProjectLogo, ProjectName } from '../../ui/ProjectLogo';
-import { STATE_LABEL, StateIcon, Tip } from '../../ui/StateBadge';
+import { Moves } from '../../ui/StateBadge';
 import { Btn, List, Pick, Row, Sect, Segmented } from '../../ui/parts';
 
 const ALL = 'All projects';
@@ -117,27 +117,6 @@ function glyph(e: TimelineEvent): keyof typeof PATHS {
       return 'commit';
   }
   return 'timeline';
-}
-
-/** The feed's counters in their order */
-const STATES: EntityState[] = ['unverified', 'verified', 'synced', 'entity_ahead', 'artifact_ahead', 'updating'];
-
-/** What the event did to the feed's counts of entities by state: each state that moved, by how much */
-function Moves({ e }: { e: TimelineEvent }) {
-  const moved = STATES.flatMap((s) => (e.facts.states?.[s] ? [[s, e.facts.states[s]!] as const] : []));
-  if (moved.length === 0) return null;
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-      {moved.map(([s, n]) => (
-        <Tip key={s} text={`${n > 0 ? '+' : '−'}${Math.abs(n)} ${STATE_LABEL[s].toLowerCase()}`} side="left">
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-            <StateIcon state={s} size={14} />
-            <T style={{ color: C.muted, fontSize: 12, fontWeight: '700' }}>{`${n > 0 ? '+' : '−'}${Math.abs(n)}`}</T>
-          </View>
-        </Tip>
-      ))}
-    </View>
-  );
 }
 
 const STARTED_BY: Record<string, string> = { schedule: 'Schedule', event: 'An event', on_demand: 'You' };
@@ -256,7 +235,7 @@ function Event({ e, first, showProject }: { e: TimelineEvent; first: boolean; sh
           <T numberOfLines={open ? undefined : 1} style={{ fontSize: 14, fontWeight: open ? '700' : '400', flexShrink: 1 }}>
             {headline(e)}
           </T>
-          <Moves e={e} />
+          <Moves states={e.facts.states} />
         </View>
         {open ? <Details e={e} /> : null}
       </View>

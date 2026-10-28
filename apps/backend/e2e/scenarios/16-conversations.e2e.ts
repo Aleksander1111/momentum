@@ -1,4 +1,4 @@
-import type { Attachment, MetricsResponse, RunDetail, TimelineResponse } from '@momentum/contract';
+import type { Attachment, ChatsResponse, MetricsResponse, RunDetail, TimelineResponse } from '@momentum/contract';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { until } from '../support/api.ts';
@@ -156,6 +156,18 @@ scenario('conversations', { enabled: [WS] }, async ({ env, api, app, model, step
     const chat = await app.chat(WS, UNKNOWN);
     expect((await api.runEnded(chat, 5 * 60_000)).status).toBe('finished');
     expect(env.show(WS, `knowledge-graph/${API}.md`)).toMatch(/not found/);
+    // Its row in Sessions shows what it did to the entities by state, as its event on the timeline does; a chat that only answered shows nothing
+    const moved = await until('the chat's state moves on the timeline', async () =>
+      (await api.timeline({ workspace: WS })).events.find((e) => e.runId === chat && e.actor === 'automation')?.facts.states ?? null,
+    );
+    const listed = (await api.call<ChatsResponse>('GET', `/workspaces/${WS}/chats`)).chats;
+    expect(listed.find((c) => c.runId === chat)!.states).toEqual(moved);
+    expect(listed.find((c) => c.runId === runId)!.states).toEqual({});
+    await app.tab('Sessions');
+    for (const [state, n] of Object.entries(moved)) {
+      const label = `${n > 0 ? '+' : '−'}${Math.abs(n)} ${state.replace('_', ' ')}`;
+      await expect(app.frame().getByLabel(label, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+    }
     // Started from the entity, as the entity page's composer does
     const { runId: onEntity } = await api.chat(WS, MISSING, API);
     const second = await api.runEnded(onEntity, 5 * 60_000);

@@ -5,6 +5,7 @@ import type {
   ChatsResponse,
   ContextItem,
   EntityDetail,
+  EntityStates,
   FeedResponse,
   GraphBuildStatus,
   PutGraphBuild,
@@ -186,15 +187,16 @@ export class Momentum {
         status: ChatsResponse['chats'][number]['status'];
         updated_at: Date;
         entity_path: string | null;
-        verification: ChatsResponse['chats'][number]['verification'];
-        sync: ChatsResponse['chats'][number]['sync'];
+        moves: EntityStates[];
       }[]
     >(
       `select r.id as run_id, r.title, r.automation, r.status,
          (select text from ${s}.run_message m where m.run_id = r.id and m.role = 'user' order by seq limit 1) as first,
          (select t.title from harness.timeline_event t where t.run_id = r.id and t.actor = 'automation') as outcome,
          greatest(r.created_at, r.ended_at, (select max(at) from ${s}.run_message m where m.run_id = r.id)) as updated_at,
-         e.path as entity_path, e.verification, e.sync
+         e.path as entity_path,
+         (select coalesce(jsonb_agg(t.facts->'states'), '[]') from harness.timeline_event t
+           where t.run_id = r.id and t.facts->'states' is not null) as moves
        from ${s}.run r
        left join ${s}.chat c on c.run_id = r.id
        left join ${s}.entity e on e.path = coalesce(c.entity_path, r.target_path)
@@ -211,8 +213,8 @@ export class Momentum {
         status: r.status,
         updatedAt: r.updated_at.toISOString(),
         entityPath: r.entity_path,
-        verification: r.verification ?? null,
-        sync: r.sync ?? null,
+        // The run's own event and every reaction made in it, summed as the timeline shows each
+        states: r.moves.reduce<EntityStates>((sum, m) => addStates(sum, m), {}),
       })),
     };
   }

@@ -29,7 +29,7 @@ artifacts:
 
 User chats and interviews beside automation runs.
 
-- By workspace under its logo, polled 15 s; rows: starter, title, kind, state, age
+- By workspace under its logo, polled 15 s; rows: starter, title, kind, state, age, and what the run and the reactions in it did to the entities by state, as the timeline shows it
 - Filter All, Yours, Automations, kept on device; shared project picker
 - Composer: Enter sends, Shift+Enter breaks; context and [file](Product/Feature/chat-attachments) chips; unsent says why; mic; bubbles show files and whole quotes
 - State in its [colour](Frontend/UiComponent/theme), bold running or failed

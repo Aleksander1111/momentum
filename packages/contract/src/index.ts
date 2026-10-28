@@ -12,6 +12,14 @@ export type Verification = z.infer<typeof Verification>;
 export const Sync = z.enum(['synced', 'entity_ahead', 'artifact_ahead', 'updating']);
 export type Sync = z.infer<typeof Sync>;
 
+/** A state an entity stands in, by verification or by sync: what the feed counts */
+export const EntityState = z.enum([...Verification.options, ...Sync.options]);
+export type EntityState = z.infer<typeof EntityState>;
+
+/** How the count of entities in each state moved; a state that did not move is absent */
+export const EntityStates = z.partialRecord(EntityState, z.number().int());
+export type EntityStates = z.infer<typeof EntityStates>;
+
 export const Origin = z.enum(['user', 'requested', 'automation']);
 export type Origin = z.infer<typeof Origin>;
 
@@ -522,8 +530,8 @@ export const ChatListItem = z.object({
   status: RunStatus,
   updatedAt: z.string(),
   entityPath: z.string().nullable(),
-  verification: Verification.nullable(),
-  sync: Sync.nullable(),
+  /** What the run's changes and the reactions made in it did to the entities by state, as the timeline shows them */
+  states: EntityStates,
 });
 export type ChatListItem = z.infer<typeof ChatListItem>;
 
@@ -865,14 +873,6 @@ export const TimelineKind = z.enum([
   'definition_overridden',
 ]);
 export type TimelineKind = z.infer<typeof TimelineKind>;
-
-/** A state an entity stands in, by verification or by sync: what the feed counts */
-export const EntityState = z.enum([...Verification.options, ...Sync.options]);
-export type EntityState = z.infer<typeof EntityState>;
-
-/** How the count of entities in each state moved; a state that did not move is absent */
-export const EntityStates = z.partialRecord(EntityState, z.number().int());
-export type EntityStates = z.infer<typeof EntityStates>;
 
 /** What an event carries beyond its title, each where it applies */
 export const TimelineFacts = z

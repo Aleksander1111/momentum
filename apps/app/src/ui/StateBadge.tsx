@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, View, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import type { Sync, Verification } from '@momentum/contract';
+import type { EntityState, EntityStates, Sync, Verification } from '@momentum/contract';
 import { C } from './theme';
 import { H, T } from './Text';
 
@@ -151,6 +151,27 @@ export function States({
       {verification ? <StateBadge state={verification} label={labels} /> : null}
       {sync ? <StateBadge state={sync} label={labels} /> : null}
       {contradictions ? <Contradictions count={contradictions} label={labels} /> : null}
+    </View>
+  );
+}
+
+/** The feed's counters in their order */
+const STATES: EntityState[] = ['unverified', 'verified', 'synced', 'entity_ahead', 'artifact_ahead', 'updating'];
+
+/** How the counts of entities by state moved: each state that moved, by how much */
+export function Moves({ states }: { states: EntityStates | undefined }) {
+  const moved = STATES.flatMap((s) => (states?.[s] ? [[s, states[s]!] as const] : []));
+  if (moved.length === 0) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+      {moved.map(([s, n]) => (
+        <Tip key={s} text={`${n > 0 ? '+' : '−'}${Math.abs(n)} ${STATE[s].label.toLowerCase()}`} side="left">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <StateIcon state={s} size={14} />
+            <T style={{ color: C.muted, fontSize: 12, fontWeight: '700' }}>{`${n > 0 ? '+' : '−'}${Math.abs(n)}`}</T>
+          </View>
+        </Tip>
+      ))}
     </View>
   );
 }
