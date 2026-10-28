@@ -28,6 +28,7 @@ Ranked cards of included projects, one on top. Wide: framed, two behind. Phone: 
 - Links open; a selection or shape opens its chat with it
 - Right approves; left asks rework, commented
 - Pulled up at its end, opens its chat below (phone: top rule), files attachable; closed on change/reaction
+- Once the chat has messages, card and conversation scroll as one page, composer pinned at the foot
 - Issues: severity, concerns, options; right takes the recommended, left another or a reason not to
 - Reactions approve/resolve the version; polls 15 s, queues offline
 - Top card stays till reacted to; empty: why

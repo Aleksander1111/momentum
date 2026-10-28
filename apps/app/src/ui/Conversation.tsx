@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, View, type ViewStyle } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RunDetail, VoiceTarget } from '@momentum/contract';
 import { api } from '../lib/api';
@@ -124,11 +124,17 @@ function Turns({ run, at }: { run: RunDetail; at: number }) {
   );
 }
 
-/** Run header, messages and the message composer; polls the run while it is active. `compact` keeps the header to a line. */
-export function Conversation({ runId, compact }: { runId: string; compact?: boolean }) {
+/**
+ * Run header, messages and the message composer; polls the run while it is active. `compact` keeps the header to a line.
+ * With `above`, what it shows first, the header after it, and the messages scroll as one page over the composer; `column`
+ * lays out the header, messages and composer on that page.
+ */
+export function Conversation({ runId, compact, above, column }: { runId: string; compact?: boolean; above?: ReactNode; column?: ViewStyle }) {
   const qc = useQueryClient();
   const wide = useWide();
   const scroll = useRef<ScrollView>(null);
+  // What comes in follows the end while the reader is there; scrolled up to read, the page stays where it is
+  const atEnd = useRef(true);
   const { data: run } = useQuery({
     queryKey: ['run', runId],
     queryFn: () => api.run(runId),
@@ -143,26 +149,38 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
       ? { kind: 'interview', workspace: run.workspace, runId }
       : { kind: 'chat', workspace: run.workspace, runId, context, attachments: files };
 
+  const head = run ? (
+    <RunHead
+      run={run}
+      compact={compact}
+      onStop={async () => {
+        await api.killRun(runId);
+        await qc.invalidateQueries({ queryKey: ['run', runId] });
+      }}
+    />
+  ) : null;
+
   return (
     // Entities the messages name open from them
     <EntityLinks workspace={run?.workspace ?? null}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      {run ? (
-        <RunHead
-          run={run}
-          compact={compact}
-          onStop={async () => {
-            await api.killRun(runId);
-            await qc.invalidateQueries({ queryKey: ['run', runId] });
-          }}
-        />
-      ) : null}
+      {above ? null : head}
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
         contentContainerStyle={{ gap: 10, paddingVertical: 12 }}
-        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}
+        scrollEventThrottle={32}
+        onScroll={(e) => {
+          const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+          atEnd.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 40;
+        }}
+        onContentSizeChange={() => {
+          if (atEnd.current) scroll.current?.scrollToEnd({ animated: false });
+        }}
       >
+        {above}
+        <View style={[{ gap: 10 }, column]}>
+        {above ? head : null}
         {run && interview ? <InterviewDocument run={run} /> : null}
         {run ? <Turns run={run} at={0} /> : null}
         {(run?.messages ?? []).map((m) =>
@@ -216,7 +234,10 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
             </View>
           ),
         )}
+        </View>
       </ScrollView>
+      {/* On a page, the composer keeps off the bottom edge */}
+      <View style={[column, above ? { paddingBottom: 14 } : null]}>
       <Composer
         placeholder={interview ? 'Answer' : 'Message'}
         context={interview ? undefined : context}
@@ -244,6 +265,8 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
         }
         onSend={async (text) => {
           await api.postMessage(runId, { text, context: interview ? [] : context, attachments: interview ? [] : files });
+          // What was sent, and the answer to it, show
+          atEnd.current = true;
           if (run && !interview) {
             chatContext.clear(run.workspace);
             chatFiles.clear(run.workspace);
@@ -251,6 +274,7 @@ export function Conversation({ runId, compact }: { runId: string; compact?: bool
           await qc.invalidateQueries({ queryKey: ['run', runId] });
         }}
       />
+      </View>
     </KeyboardAvoidingView>
     </EntityLinks>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -39,9 +39,11 @@ const UP = 70;
 
 /**
  * With the chat on the card open, the card leaves room below it for the chat; above it, room for the cards behind.
- * On a phone the card takes the whole screen below the counters, with nothing behind it.
+ * On a phone the card takes the whole screen below the counters, with nothing behind it. Once the chat has messages,
+ * the card is the top of one page with the conversation (`flow`): it takes the height of its content.
  */
-function cardFrame(wide: boolean, chat = false): ViewStyle {
+function cardFrame(wide: boolean, chat = false, flow = false): ViewStyle {
+  if (flow) return wide ? { alignSelf: 'center', width: 560, marginTop: 16 } : {};
   return wide
     ? { position: 'absolute', left: '50%', marginLeft: -280, width: 560, top: 40, bottom: chat ? 12 : 40 }
     : { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 };
@@ -134,6 +136,9 @@ function TopCard({
   wash,
   sheetOpen,
   chatOpen,
+  flow,
+  picked,
+  onPickOption,
   onApprove,
   onResolve,
   onDisapprove,
@@ -145,6 +150,11 @@ function TopCard({
   wash: SharedValue<number>;
   sheetOpen: boolean;
   chatOpen: boolean;
+  /** The top of one page with the chat's conversation, scrolled with it */
+  flow: boolean;
+  /** The option of an issue picked to resolve it with: kept by the feed, as the card moves onto the chat's page */
+  picked: number | null;
+  onPickOption: (option: number) => void;
   onApprove: () => void;
   onResolve: (option: number) => void;
   onDisapprove: () => void;
@@ -163,9 +173,8 @@ function TopCard({
     setAtEnd(s.y + s.view >= s.content - 2);
   };
   const canPullUp = atEnd && !chatOpen;
-  // An issue with options resolves with the picked one; the recommended one starts picked
+  // An issue with options resolves with the picked one
   const issue = item.issue;
-  const [picked, setPicked] = useState<number | null>(issue?.recommended ?? null);
   const canSwipeRight = useSharedValue(issue && picked === null ? 0 : 1);
   useEffect(() => {
     canSwipeRight.value = issue && picked === null ? 0 : 1;
@@ -247,7 +256,7 @@ function TopCard({
     <GestureDetector gesture={pan} touchAction={canPullUp ? 'pan-up' : 'pan-y'}>
       <Animated.View
         style={[
-          cardFrame(wide, chatOpen),
+          cardFrame(wide, chatOpen, flow),
           cardSkin(wide),
           { paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0 },
           wide ? { boxShadow: '0 2px 8px rgba(30,41,59,.14)' } : null,
@@ -255,9 +264,11 @@ function TopCard({
           moving,
         ]}
       >
-        {/* A card longer than the screen scrolls within it: nothing of it, an issue's options included, is out of reach */}
+        {/* A card longer than the screen scrolls within it: nothing of it, an issue's options included, is out of reach.
+            On the chat's page it is as long as its content, and the page scrolls. */}
         <ScrollView
-          style={{ flex: 1 }}
+          style={flow ? undefined : { flex: 1 }}
+          scrollEnabled={!flow}
           contentContainerStyle={{ paddingTop: wide ? 20 : 12, paddingHorizontal: wide ? 20 : 16, paddingBottom: 16 }}
           scrollEventThrottle={32}
           onScroll={(e) => {
@@ -277,12 +288,12 @@ function TopCard({
           {issue ? (
             <>
               <IssueHead issue={issue} workspace={item.workspace} />
-              <IssueOptions issue={issue} picked={picked} onPick={setPicked} />
+              <IssueOptions issue={issue} picked={picked} onPick={onPickOption} />
             </>
           ) : null}
         </ScrollView>
         {/* A card that goes on below fades out at its bottom edge, so it reads as one to scroll, not one cut off */}
-        {atEnd ? null : <Fade colour={wide ? C.surface : C.screen} />}
+        {atEnd || flow ? null : <Fade colour={wide ? C.surface : C.screen} />}
         {/* Each stamp sits on the edge the card trails, so it stays on screen as the card leaves */}
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 22, top: issue ? 150 : 210 }, okStamp]}>
           <Stamp kind="ok" label={issue ? 'RESOLVE' : 'APPROVE'} />
@@ -425,25 +436,41 @@ function wholeCard(item: FeedItem): ContextItem {
   return { workspace: item.workspace, path: item.path, title: item.title, heading: [] };
 }
 
+function ChatHead({ onClose }: { onClose: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <T numberOfLines={1} style={{ flex: 1, fontSize: 13, fontWeight: '700', color: C.muted }}>
+        Chat on this card
+      </T>
+      <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close chat" hitSlop={10}>
+        <T style={{ fontSize: 20, lineHeight: 22, color: C.muted, fontFamily: F.body }}>×</T>
+      </Pressable>
+    </View>
+  );
+}
+
 /**
  * The chat on the card on top, below it: the composer with the whole card in its context, then the conversation the
  * first message starts, on the card as its target. Parts of the card selected, which open it too, join the context.
+ * Once started, the card and the conversation are one page that scrolls as a whole, the composer at its foot.
  */
 function CardChat({
   item,
   runId,
   wide,
+  card,
   onStarted,
   onClose,
 }: {
   item: FeedItem;
   runId: string | null;
   wide: boolean;
+  /** The card on top, at the top of the page once the conversation started */
+  card: ReactNode;
   onStarted: (runId: string) => void;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const { height } = useWindowDimensions();
   const context = useChatContext(item.workspace);
   const files = attachmentIds(useChatFiles(item.workspace));
   useCloseOnBack(true, onClose);
@@ -454,41 +481,48 @@ function CardChat({
     if (context.length > parts.current) field.current?.focus();
     parts.current = context.length;
   }, [context.length]);
+  if (runId) {
+    const column: ViewStyle = wide ? { alignSelf: 'center', width: 560 } : { paddingHorizontal: 16 };
+    return (
+      <Conversation
+        key={runId}
+        runId={runId}
+        compact
+        column={column}
+        above={
+          <>
+            {card}
+            <View style={[column, { paddingTop: 6 }]}>
+              <ChatHead onClose={onClose} />
+            </View>
+          </>
+        }
+      />
+    );
+  }
   return (
     <View
       style={[
         wide ? { alignSelf: 'center', width: 560, marginBottom: 40 } : { borderTopWidth: 1, borderTopColor: C.line },
         cardSkin(wide),
         { paddingTop: 10, paddingBottom: 14, paddingHorizontal: wide ? 14 : 16, gap: 8 },
-        runId ? { height: Math.round(height * (wide ? 0.4 : 0.45)) } : null,
       ]}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <T numberOfLines={1} style={{ flex: 1, fontSize: 13, fontWeight: '700', color: C.muted }}>
-          Chat on this card
-        </T>
-        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close chat" hitSlop={10}>
-          <T style={{ fontSize: 20, lineHeight: 22, color: C.muted, fontFamily: F.body }}>×</T>
-        </Pressable>
-      </View>
-      {runId ? (
-        <Conversation key={runId} runId={runId} compact />
-      ) : (
-        <Composer
-          ref={field}
-          placeholder="Ask about this card"
-          autoFocus
-          context={context}
-          attachTo={item.workspace}
-          onSend={async (text) => {
-            const { runId: started } = await api.createChat(item.workspace, { text, targetPath: item.path, context, attachments: files });
-            chatContext.clear(item.workspace);
-            chatFiles.clear(item.workspace);
-            void qc.invalidateQueries({ queryKey: ['chats', item.workspace] });
-            onStarted(started);
-          }}
-        />
-      )}
+      <ChatHead onClose={onClose} />
+      <Composer
+        ref={field}
+        placeholder="Ask about this card"
+        autoFocus
+        context={context}
+        attachTo={item.workspace}
+        onSend={async (text) => {
+          const { runId: started } = await api.createChat(item.workspace, { text, targetPath: item.path, context, attachments: files });
+          chatContext.clear(item.workspace);
+          chatFiles.clear(item.workspace);
+          void qc.invalidateQueries({ queryKey: ['chats', item.workspace] });
+          onStarted(started);
+        }}
+      />
     </View>
   );
 }
@@ -611,70 +645,89 @@ export default function Feed() {
     if (chat && (topKey !== entityKey(chat.item) || top?.version !== chat.item.version)) closeChat();
   }, [chat, topKey, top?.version, closeChat]);
 
+  // The option picked on the card on top; the recommended one until the user picks another
+  const [pick, setPick] = useState<{ key: string; option: number } | null>(null);
+  const picked = pick && pick.key === topKey ? pick.option : (top?.issue?.recommended ?? null);
+  // Once the chat on the card has a conversation, the card is the top of its page
+  const flow = !!chat?.runId;
+
+  const card = top ? (
+    <TopCard
+      key={topKey}
+      item={top}
+      wide={wide}
+      wash={wash}
+      sheetOpen={!!sheetFor}
+      chatOpen={!!chat}
+      flow={flow}
+      picked={picked}
+      onPickOption={(option) => setPick({ key: topKey!, option })}
+      onApprove={() => {
+        approve.mutate({ workspace: top.workspace, path: top.path, timeSpentMs: spent(), version: top.version });
+      }}
+      onResolve={(option) => {
+        resolve.mutate({ workspace: top.workspace, path: top.path, option, timeSpentMs: spent(), version: top.version });
+      }}
+      onDisapprove={() => setSheetFor({ item: top })}
+      onChat={() => {
+        const runId = chats.current.get(topKey!) ?? null;
+        if (!runId) chatContext.add(wholeCard(top));
+        setChat({ item: top, runId });
+      }}
+      onPick={(part) => {
+        // A part of the card selected opens the chat on it, with the part in its context instead of the whole card
+        chatContext.add(part);
+        if (!chat) setChat({ item: top, runId: chats.current.get(topKey!) ?? null });
+      }}
+    />
+  ) : null;
+  const cardChat = chat ? (
+    <CardChat
+      item={chat.item}
+      runId={chat.runId}
+      wide={wide}
+      card={card}
+      onStarted={(runId) => {
+        chats.current.set(entityKey(chat.item), runId);
+        setChat({ item: chat.item, runId });
+      }}
+      onClose={closeChat}
+    />
+  ) : null;
+
   return (
     <Animated.View style={[{ flex: 1 }, washStyle]}>
       {view ? <Counters counts={view.counts} wide={wide} /> : null}
-      <View style={{ flex: 1 }}>
-        {wide && items.length > 2 ? (
-          <View
-            style={[
-              cardFrame(wide),
-              cardSkin(wide),
-              // Scaled from its top edge, so that edge shows above the card in front
-              { backgroundColor: C.behind2, transformOrigin: 'top', transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
-            ]}
-          />
-        ) : null}
-        {wide && items.length > 1 ? (
-          <View
-            style={[
-              cardFrame(wide),
-              cardSkin(wide),
-              { backgroundColor: C.behind1, transformOrigin: 'top', transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
-            ]}
-          />
-        ) : null}
-        {top ? (
-          <TopCard
-            key={topKey}
-            item={top}
-            wide={wide}
-            wash={wash}
-            sheetOpen={!!sheetFor}
-            onApprove={() => {
-              approve.mutate({ workspace: top.workspace, path: top.path, timeSpentMs: spent(), version: top.version });
-            }}
-            onResolve={(option) => {
-              resolve.mutate({ workspace: top.workspace, path: top.path, option, timeSpentMs: spent(), version: top.version });
-            }}
-            onDisapprove={() => setSheetFor({ item: top })}
-            chatOpen={!!chat}
-            onChat={() => {
-              const runId = chats.current.get(topKey!) ?? null;
-              if (!runId) chatContext.add(wholeCard(top));
-              setChat({ item: top, runId });
-            }}
-            onPick={(part) => {
-              // A part of the card selected opens the chat on it, with the part in its context instead of the whole card
-              chatContext.add(part);
-              if (!chat) setChat({ item: top, runId: chats.current.get(topKey!) ?? null });
-            }}
-          />
-        ) : null}
-        {view && !top && workspaces.data ? <Empty included={included} /> : null}
-      </View>
-      {chat ? (
-        <CardChat
-          item={chat.item}
-          runId={chat.runId}
-          wide={wide}
-          onStarted={(runId) => {
-            chats.current.set(entityKey(chat.item), runId);
-            setChat({ item: chat.item, runId });
-          }}
-          onClose={closeChat}
-        />
-      ) : null}
+      {flow ? (
+        cardChat
+      ) : (
+        <>
+        <View style={{ flex: 1 }}>
+          {wide && items.length > 2 ? (
+            <View
+              style={[
+                cardFrame(wide),
+                cardSkin(wide),
+                // Scaled from its top edge, so that edge shows above the card in front
+                { backgroundColor: C.behind2, transformOrigin: 'top', transform: [{ translateY: wide ? -20 : -16 }, { scale: 0.93 }] },
+              ]}
+            />
+          ) : null}
+          {wide && items.length > 1 ? (
+            <View
+              style={[
+                cardFrame(wide),
+                cardSkin(wide),
+                { backgroundColor: C.behind1, transformOrigin: 'top', transform: [{ translateY: wide ? -10 : -8 }, { scale: 0.965 }] },
+              ]}
+            />
+          ) : null}
+          {card}
+          {view && !top && workspaces.data ? <Empty included={included} /> : null}
+        </View>
+        {cardChat}
+        </>
+      )}
       {sheetFor ? (
         <Sheet
           wide={wide}
