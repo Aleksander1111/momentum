@@ -30,7 +30,7 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-const indent = (depth: number) => 14 + depth * 16;
+const indent = (depth: number) => 14 + depth * 10;
 // An entity row has no triangle: it takes the triangle's width and the row's gap as extra inset, so its badge sits one level right of its type's badge.
 const TRIANGLE = 10 + 12;
 
