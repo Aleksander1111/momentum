@@ -31,7 +31,7 @@ User chats and interviews beside automation runs.
 
 - By workspace under its logo, polled 15 s; rows: starter, title, kind, state, age
 - Filter All, Yours, Automations, kept on device; shared project picker
-- Composer: Enter sends, Shift+Enter breaks; context and [file](Product/Feature/chat-attachments) chips; unsent says why; mic; bubbles show files
+- Composer: Enter sends, Shift+Enter breaks; context and [file](Product/Feature/chat-attachments) chips; unsent says why; mic; bubbles show files and whole quotes
 - State in its [colour](Frontend/UiComponent/theme), bold running or failed
 - Head: state dot (amber stopping, red ring failed), automation, 5-h usage, entity, Stop
 - Per turn: time, tools, tokens, live call, RAG; opens to calls, ratings; polled 2 s while active

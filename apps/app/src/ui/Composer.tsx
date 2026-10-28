@@ -21,7 +21,10 @@ export function contextLabel(c: ContextItem): string {
   return c.quote !== undefined ? `${c.title} › “${c.quote}”` : c.title;
 }
 
-/** One part of a card added to the context; × takes it out */
+/**
+ * One part of a card added to the context; × takes it out. Waiting in the composer it keeps to one line; in the sent
+ * message's bubble (`inverse`) it wraps and shows the whole quote.
+ */
 export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; onRemove?: () => void; inverse?: boolean }) {
   // The entity reads as entities do everywhere: its type's glyph and colour; on the inverted bubble, the other scheme's
   const { scheme } = useTheme();
@@ -32,7 +35,7 @@ export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; on
     <View
       style={{
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: inverse ? 'flex-start' : 'center',
         gap: 6,
         maxWidth: '100%',
         backgroundColor: inverse ? 'rgba(255,255,255,.14)' : C.card,
@@ -42,8 +45,10 @@ export function ContextChip({ item, onRemove, inverse }: { item: ContextItem; on
         paddingRight: onRemove ? 4 : 8,
       }}
     >
-      <DomainIcon type={type} size={13} color={colour} />
-      <T numberOfLines={1} style={{ flexShrink: 1, fontSize: 12.5, color: inverse ? C.surface : C.ink }}>
+      <View style={{ height: 17, justifyContent: 'center' }}>
+        <DomainIcon type={type} size={13} color={colour} />
+      </View>
+      <T numberOfLines={inverse ? undefined : 1} style={{ flexShrink: 1, fontSize: 12.5, lineHeight: 17, color: inverse ? C.surface : C.ink }}>
         <T style={{ fontSize: 12.5, color: colour, fontWeight: '600' }}>{item.title}</T>
         {part}
       </T>
