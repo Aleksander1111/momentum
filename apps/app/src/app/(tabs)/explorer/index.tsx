@@ -73,8 +73,10 @@ function treeRows(
         style={{ paddingLeft: indent(depth) }}
       >
         <DomainBadge type={n.path} />
-        <RowText title={n.name} />
-        <Triangle open={isOpen} />
+        <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <T style={{ fontSize: 15, flexShrink: 1 }}>{n.name}</T>
+          <Triangle open={isOpen} />
+        </View>
         <Count>{n.count}</Count>
       </Row>,
     );
