@@ -513,6 +513,8 @@ export default function Settings() {
   const wide = useWide();
   const qc = useQueryClient();
   const { data: s, refetch } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  // The project list stays folded under its heading until tapped open
+  const [projectsShown, setProjectsShown] = useState(false);
   // The projects whose rows are open on their logo and knowledge graph build; opening one is separate from enabling it
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const toggleOpen = (name: string) =>
@@ -561,28 +563,41 @@ export default function Settings() {
         </Row>
       </List>
 
-      <Sect>Included projects</Sect>
-      <List>
-        {s.projects.map((p, i) => (
-          <View key={p.name}>
-            <Row first={i === 0} onPress={() => toggleOpen(p.name)}>
-              <ProjectLogo name={p.name} size={32} />
-              <RowText title={p.name} sub={p.path} breakAnywhere />
-              <Chevron open={opened.has(p.name)} />
-              <Switch
-                on={p.enabled}
-                onToggle={() => {
-                  const projects = s.projects.map((x) => (x.name === p.name ? { ...x, enabled: !x.enabled } : x));
-                  put({ projects: projects.map(({ name, enabled }) => ({ name, enabled })) }, { projects });
-                  void qc.invalidateQueries({ queryKey: ['graph-build', p.name] });
-                }}
-              />
-            </Row>
-            {opened.has(p.name) ? <LogoRow name={p.name} logo={p.logo} /> : null}
-            {opened.has(p.name) ? <GraphBuildRow name={p.name} /> : null}
-          </View>
-        ))}
-      </List>
+      <Pressable
+        onPress={() => setProjectsShown((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: projectsShown }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
+      >
+        <Sect>Included projects</Sect>
+        <T style={{ fontSize: 13, color: C.muted, marginTop: 14, flex: 1 }}>
+          {s.projects.filter((p) => p.enabled).length} of {s.projects.length} enabled
+        </T>
+        <Chevron open={projectsShown} style={{ marginTop: 14, marginRight: 8 }} />
+      </Pressable>
+      {projectsShown ? (
+        <List>
+          {s.projects.map((p, i) => (
+            <View key={p.name}>
+              <Row first={i === 0} onPress={() => toggleOpen(p.name)}>
+                <ProjectLogo name={p.name} size={32} />
+                <RowText title={p.name} sub={p.path} breakAnywhere />
+                <Chevron open={opened.has(p.name)} />
+                <Switch
+                  on={p.enabled}
+                  onToggle={() => {
+                    const projects = s.projects.map((x) => (x.name === p.name ? { ...x, enabled: !x.enabled } : x));
+                    put({ projects: projects.map(({ name, enabled }) => ({ name, enabled })) }, { projects });
+                    void qc.invalidateQueries({ queryKey: ['graph-build', p.name] });
+                  }}
+                />
+              </Row>
+              {opened.has(p.name) ? <LogoRow name={p.name} logo={p.logo} /> : null}
+              {opened.has(p.name) ? <GraphBuildRow name={p.name} /> : null}
+            </View>
+          ))}
+        </List>
+      ) : null}
 
       <Sect>Feed size</Sect>
       <List>

@@ -357,9 +357,16 @@ export class App {
 
   // Settings
 
-  async setProject(name: string, enabled: boolean): Promise<void> {
+  /** Unfolds the project list under Included projects, folded until its heading is tapped */
+  private async showProjects(): Promise<void> {
     await this.tab('Settings');
-    await this.text('Included projects').waitFor();
+    const heading = this.frame().getByRole('button', { name: /Included projects/ }).first();
+    await heading.waitFor();
+    if ((await heading.getAttribute('aria-expanded')) !== 'true') await heading.click();
+  }
+
+  async setProject(name: string, enabled: boolean): Promise<void> {
+    await this.showProjects();
     const row = this.frame().locator('div', { has: this.frame().getByText(name, { exact: true }) }).filter({ has: this.frame().getByRole('switch') }).last();
     const toggle = row.getByRole('switch').first();
     await pace('action', `${enabled ? 'Enable' : 'Disable'} ${name}`);
@@ -369,8 +376,7 @@ export class App {
 
   /** Opens a project's row in Settings on its logo and knowledge graph build, which the row's chevron shows */
   async openProject(name: string): Promise<void> {
-    await this.tab('Settings');
-    await this.text('Included projects').waitFor();
+    await this.showProjects();
     const row = this.frame().locator('div', { has: this.frame().getByText(name, { exact: true }) }).filter({ has: this.frame().getByRole('switch') }).last();
     await pace('action', `Open ${name}`);
     await row.getByText(name, { exact: true }).click();

@@ -25,7 +25,7 @@ Saves when editing ends; projects reload on open.
 | Section | Controls |
 |---|---|
 | Appearance | System, light, dark |
-| Included projects | Switch enables; chevron opens logo, build rows |
+| Included projects | Folded; heading counts enabled, opens list; switch enables; chevron opens logo, build rows |
 | Graph build | State, mode, runs, entities, usage; completeness, estimate; Stop/Resume; In full/Pace; Reset |
 | Feed size | Items before loops pause |
 | Cards | Limit, presentation rules |

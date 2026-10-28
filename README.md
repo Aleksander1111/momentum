@@ -520,7 +520,7 @@ The **Metrics** tab shows one project at a time over the last **24 h, 7 d or 30 
 | Section | Setting | Default |
 |---|---|---|
 | **Appearance** | Theme: System, Light or Dark, on this device | System |
-| **Included projects** | Enable a project to start its loops; its row opens on a logo and the knowledge graph build: stop, resume, paced by the feed or in full, reset | |
+| **Included projects** | Folded under its heading, which counts the enabled; enable a project to start its loops; its row opens on a logo and the knowledge graph build: stop, resume, paced by the feed or in full, reset | |
 | **Feed size** | Items before loops pause | 40 |
 | **Cards** | Character limit, sized so a card fits on a phone | 700 |
 | | Presentation rules | empty |
