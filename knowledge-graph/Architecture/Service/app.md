@@ -25,6 +25,7 @@ One Expo (React Native) app, `apps/app`, for web and mobile.
 - Six tabs: Feed, Explorer, Sessions, Timeline, Metrics, Settings; bottom bar of icons alone when narrow, left rail with names under the icons when wide
 - The Sessions tab badges waiting context parts
 - Tabs stay mounted; Back walks the history
+- A tab pressed again while deeper than its first screen returns to it: a chat open as a page goes back to the Sessions list
 - Light or dark as chosen in Settings, kept on the device; System follows it
 - Web served same-origin by the back-end; native calls `EXPO_PUBLIC_API_URL`
 - Out of reach: queries pause, reactions queue, a 5 s probe restores them, a refusal says why; a phone shows a bar above the tabs

@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { Redirect } from 'expo-router';
+import { Redirect, router, usePathname } from 'expo-router';
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { onlineManager, useQueryClient } from '@tanstack/react-query';
@@ -26,6 +26,7 @@ const TABS = [
 
 function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean }) {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   // Parts of cards waiting to go with the next chat message
   const waiting = useChatContext().length;
   const online = useSyncExternalStore((l) => onlineManager.subscribe(l), () => onlineManager.isOnline(), () => true);
@@ -63,7 +64,10 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
         const color = on ? C.accent : C.muted;
         const onPress = () => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!on && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+          if (event.defaultPrevented) return;
+          if (!on) return navigation.navigate(route.name, route.params);
+          // Pressed again, a tab shown deeper than its first screen goes back to it, as on a phone: a chat open as a page returns to the list
+          if (pathname.startsWith(`/${route.name}/`)) router.replace(`/${route.name}`);
         };
         return (
           <Pressable
