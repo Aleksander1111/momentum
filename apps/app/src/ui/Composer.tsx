@@ -71,11 +71,12 @@ export interface ComposerVoice {
 }
 
 /**
- * Field plus round accent send button; the context items waiting for this chat as chips above them. With `attachTo`, a
- * paperclip before the field picks files for that project's next message, and on the web files pasted into the field or
- * dropped on the composer join them; they wait as chips beside the context and send waits for their upload. With `voice`,
- * a mic beside send: while it listens the field shows the text as heard so far; an item that failed comes back to the field.
- * With `onStop`, a stop button beside send ends the answer being written.
+ * One rounded box: the context items waiting for this chat as chips at its top, the field across its whole width, and a
+ * row of buttons below the field, round accent send at its end, faint until there is something to send. With `attachTo`,
+ * a paperclip at the row's start picks files for that project's next message, and on the web files pasted into the field
+ * or dropped on the composer join them; they wait as chips beside the context and send waits for their upload. With
+ * `voice`, a mic before send: while it listens the field shows the text as heard so far; an item that failed comes back to
+ * the field. With `onStop`, a stop button before send ends the answer being written.
  */
 export const Composer = forwardRef<
   TextInput,
@@ -147,29 +148,31 @@ export const Composer = forwardRef<
     el.style.height = `${fieldHeight(h)}px`;
     setHeight(h);
   }, [shown]);
+  const empty = !shown.trim();
   return (
     <View ref={area} style={{ gap: 8 }}>
-      {context?.length || files.length ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {(context ?? []).map((c, i) => (
-            <ContextChip key={i} item={c} onRemove={() => chatContext.remove(c)} />
-          ))}
-          {files.map((f) => (
-            <PendingFileChip key={f.key} file={f} />
-          ))}
-        </View>
-      ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
-        {attachTo ? (
-          <Pressable
-            onPress={() => pickFiles((picked) => chatFiles.add(attachTo, picked), () => setFailed('The files could not be read.'))}
-            accessibilityRole="button"
-            accessibilityLabel="Attach files"
-            hitSlop={6}
-            style={{ height: 40, justifyContent: 'center' }}
-          >
-            <Icon name="attach" size={21} color={C.muted} />
-          </Pressable>
+      {/* One box: what waits to go, the field across its whole width, and the buttons in a row below it */}
+      <View
+        style={{
+          gap: 8,
+          backgroundColor: C.surface,
+          borderWidth: 1,
+          borderColor: failed ? C.no : C.line,
+          borderRadius: 16,
+          paddingTop: 10,
+          paddingBottom: 8,
+          paddingHorizontal: 8,
+        }}
+      >
+        {context?.length || files.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 4 }}>
+            {(context ?? []).map((c, i) => (
+              <ContextChip key={i} item={c} onRemove={() => chatContext.remove(c)} />
+            ))}
+            {files.map((f) => (
+              <PendingFileChip key={f.key} file={f} />
+            ))}
+          </View>
         ) : null}
         <Field
           ref={field}
@@ -184,53 +187,67 @@ export const Composer = forwardRef<
           onContentSizeChange={Platform.OS === 'web' ? undefined : (e) => setHeight(e.nativeEvent.contentSize.height)}
           autoFocus={autoFocus}
           editable={!heard}
-          invalid={!!failed}
           style={{ height: fieldHeight(height), lineHeight: 20 }}
-          containerStyle={{ flex: 1 }}
+          containerStyle={{ borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 6, paddingVertical: 2 }}
         />
-        {voice ? (
-          <MicButton listening={mic.listening} available={mic.available && !!voice.target} onPress={mic.listening ? mic.stop : mic.start} />
-        ) : null}
-        {onStop ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {attachTo ? (
+            <Pressable
+              onPress={() => pickFiles((picked) => chatFiles.add(attachTo, picked), () => setFailed('The files could not be read.'))}
+              accessibilityRole="button"
+              accessibilityLabel="Attach files"
+              hitSlop={6}
+              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="attach" size={19} color={C.muted} />
+            </Pressable>
+          ) : null}
+          <View style={{ flex: 1 }} />
+          {voice ? (
+            <MicButton small listening={mic.listening} available={mic.available && !!voice.target} onPress={mic.listening ? mic.stop : mic.start} />
+          ) : null}
+          {onStop ? (
+            <Pressable
+              onPress={() => {
+                setStopping(true);
+                onStop().finally(() => setStopping(false));
+              }}
+              disabled={stopping}
+              accessibilityRole="button"
+              accessibilityLabel="Stop answering"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                borderWidth: 1.5,
+                borderColor: C.ink,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: stopping ? 0.6 : 1,
+              }}
+            >
+              <Icon name="stop" size={12} color={C.ink} />
+            </Pressable>
+          ) : null}
+          {/* Faint until there is something to send */}
           <Pressable
-            onPress={() => {
-              setStopping(true);
-              onStop().finally(() => setStopping(false));
-            }}
-            disabled={stopping}
+            onPress={send}
+            disabled={busy}
             accessibilityRole="button"
-            accessibilityLabel="Stop answering"
+            accessibilityLabel="Send"
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              borderWidth: 1.5,
-              borderColor: C.ink,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: C.accent,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: stopping ? 0.6 : 1,
+              opacity: busy ? 0.6 : empty ? 0.4 : 1,
             }}
           >
-            <Icon name="stop" size={14} color={C.ink} />
+            <Icon name="send" size={15} color={C.surface} />
           </Pressable>
-        ) : null}
-        <Pressable
-          onPress={send}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel="Send"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: C.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: busy ? 0.6 : 1,
-          }}
-        >
-          <Icon name="send" size={18} color={C.surface} />
-        </Pressable>
+        </View>
       </View>
       {failed ? (
         <T accessibilityRole="alert" style={{ color: C.no, fontSize: 13 }}>

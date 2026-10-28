@@ -3,21 +3,24 @@ import { C } from './theme';
 import { Icon } from './icons';
 
 /**
- * Starts and stops this device's microphone. Round and outlined beside a send button, filled while listening; `bare`
- * is the glyph alone, inside a field. Dimmed while the PC cannot transcribe.
+ * Starts and stops this device's microphone. Round and outlined beside a send button, filled while listening; `small`
+ * fits a composer's button row; `bare` is the glyph alone, inside a field. Dimmed while the PC cannot transcribe.
  */
 export function MicButton({
   listening,
   available,
   onPress,
   bare,
+  small,
 }: {
   listening: boolean;
   available: boolean;
   onPress: () => void;
   bare?: boolean;
+  small?: boolean;
 }) {
   const enabled = available || listening;
+  const size = small ? 32 : 40;
   if (bare) {
     return (
       <Pressable
@@ -42,9 +45,9 @@ export function MicButton({
     >
       <View
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 20,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: listening ? C.accent : C.surface,
@@ -52,7 +55,7 @@ export function MicButton({
           borderColor: C.line,
         }}
       >
-        <Icon name="mic" size={19} color={listening ? C.surface : C.ink} />
+        <Icon name="mic" size={small ? 16 : 19} color={listening ? C.surface : C.ink} />
       </View>
     </Pressable>
   );
