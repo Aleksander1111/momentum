@@ -131,7 +131,7 @@ export function Back({ label, onPress }: { label: string; onPress: () => void })
     <Pressable
       onPress={onPress}
       accessibilityRole="link"
-      // As tall as the Settings button beside it, so what comes under it starts below the button
+      // As tall as a line of controls, so what sits beside it lines up and what comes under it starts below
       style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34, marginBottom: 10, alignSelf: 'flex-start' }}
     >
       <View

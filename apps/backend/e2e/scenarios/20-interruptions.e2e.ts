@@ -168,7 +168,7 @@ scenario('interruptions', { enabled: [WS] }, async ({ env, api, app, model, step
     const chat = await app.chat(WS, 'Write a Product/Feature entity for notes: a to-do can carry a free-text note, shown by `list --long`. Then keep researching what else the CLI needs.');
     await until('the chat to be busy after writing', async () => cutOff(chat), 10 * 60_000);
     await app.go(`/chat/${chat}`);
-    await app.text('Stop').click();
+    await app.frame().getByLabel('Stop answering', { exact: true }).click();
     expect((await api.runEnded(chat, 60_000)).status).toBe('killed');
     // What it wrote so far landed
     const written = (await entitiesOf(env, WS, chat)).filter((p) => p.startsWith('Product/Feature/'));

@@ -5,16 +5,15 @@ import type { RunDetail, VoiceTarget } from '@momentum/contract';
 import { api } from '../lib/api';
 import { automationLabel, duration, runStatus, usagePct } from '../lib/format';
 import { openRun } from '../lib/runs';
-import { C, F, runColour, useWide } from './theme';
+import { C, runColour, useWide } from './theme';
 import { T } from './Text';
 import { hasWideBlocks, Markdown } from './Markdown';
 import { Composer, ContextChip } from './Composer';
 import { chatContext, useChatContext } from '../lib/context';
 import { attachmentIds, chatFiles, useChatFiles } from '../lib/attachments';
 import { MessageAttachment } from './Attachments';
-import { Btn, useFrame } from './parts';
-import { EntityLinks, EntityRef } from './EntityRef';
-import { useEntity } from './EntityView';
+import { Back, Btn, useFrame } from './parts';
+import { EntityLinks } from './EntityRef';
 import { TurnActivity } from './Activity';
 
 const ACTIVE = new Set(['queued', 'running']);
@@ -27,12 +26,8 @@ function changing(run: RunDetail): boolean {
   return run.turns.some((t) => t.retrievalState === 'pending' && t.endedAt && Date.now() - new Date(t.endedAt).getTime() < RATING_WAIT_MS);
 }
 
-/**
- * Automation, state, what the run has used so far, the card it is about, and Stop while it is active; `compact` leaves
- * out the run's id and the card, for a chat shown below its card
- */
-function RunHead({ run, onStop, compact }: { run: RunDetail; onStop: () => Promise<void>; compact?: boolean }) {
-  const [stopping, setStopping] = useState(false);
+/** The run's automation, state and what it has used so far, after a dot in the state's colour */
+function RunState({ run, stopping, size = 13.5 }: { run: RunDetail; stopping?: boolean; size?: number }) {
   // The time it has been running goes on while nothing else about the run changes
   const [, tick] = useState(0);
   useEffect(() => {
@@ -40,10 +35,29 @@ function RunHead({ run, onStop, compact }: { run: RunDetail; onStop: () => Promi
     const t = setInterval(() => tick((n) => n + 1), 15_000);
     return () => clearInterval(t);
   }, [run.status]);
-  const target = useEntity(run.workspace, run.targetPath);
   const running = run.status === 'running';
-  const state = stopping && ACTIVE.has(run.status) ? 'stopping' : running && run.startedAt ? `running ${duration(run.startedAt)}` : runStatus(run.status);
+  const halting = !!stopping && ACTIVE.has(run.status);
+  const state = halting ? 'stopping' : running && run.startedAt ? `running ${duration(run.startedAt)}` : runStatus(run.status);
   const usage = run.usage.fiveHour !== null ? ` \u00b7 ${usagePct(run.usage.fiveHour)} of 5 h` : '';
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>
+      <View
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: 5,
+          backgroundColor: halting ? C.warn : runColour(run.status),
+          boxShadow: running ? `0 0 0 3px ${C.washOk}` : run.status === 'failed' ? `0 0 0 3px ${C.washNo}` : undefined,
+        }}
+      />
+      <T style={{ fontSize: size, flexShrink: 1 }}>{`${automationLabel(run.automation)} · ${state}${usage}`}</T>
+    </View>
+  );
+}
+
+/** The run's state on a tile, with Stop while it is active, for a chat shown below its card */
+function RunHead({ run, onStop }: { run: RunDetail; onStop: () => Promise<void> }) {
+  const [stopping, setStopping] = useState(false);
   return (
     <View
       style={{
@@ -56,23 +70,8 @@ function RunHead({ run, onStop, compact }: { run: RunDetail; onStop: () => Promi
         paddingHorizontal: 14,
       }}
     >
-      <View
-        style={{
-          width: 9,
-          height: 9,
-          borderRadius: 5,
-          backgroundColor: stopping && ACTIVE.has(run.status) ? C.warn : runColour(run.status),
-          boxShadow: running ? `0 0 0 3px ${C.washOk}` : run.status === 'failed' ? `0 0 0 3px ${C.washNo}` : undefined,
-        }}
-      />
       <View style={{ flex: 1 }}>
-        <T style={{ fontSize: 13.5 }}>{`${automationLabel(run.automation)} · ${state}${usage}`}</T>
-        {compact ? null : <T style={{ fontFamily: F.mono, fontSize: 12.5, color: C.muted, marginTop: 2 }}>{run.id}</T>}
-        {run.targetPath && !compact ? (
-          <View style={{ marginTop: 4 }}>
-            <EntityRef workspace={run.workspace} path={run.targetPath} title={target.data?.title} size={13} />
-          </View>
-        ) : null}
+        <RunState run={run} stopping={stopping} />
       </View>
       {ACTIVE.has(run.status) ? (
         <Btn
@@ -125,11 +124,22 @@ function Turns({ run, at }: { run: RunDetail; at: number }) {
 }
 
 /**
- * Run header, messages and the message composer; polls the run while it is active. `compact` keeps the header to a line.
- * With `above`, what it shows first, the header after it, and the messages scroll as one page over the composer; `column`
- * lays out the header, messages and composer on that page.
+ * The run's state, messages and the message composer; polls the run while it is active. On its own the state is a line in
+ * the top-right corner, level with `back` when there is one, and the composer's Stop ends an answer. With `above`, what
+ * it shows first, the state on a tile with Stop after it, and the messages scroll as one page over the composer;
+ * `column` lays out the state, messages and composer on that page.
  */
-export function Conversation({ runId, compact, above, column }: { runId: string; compact?: boolean; above?: ReactNode; column?: ViewStyle }) {
+export function Conversation({
+  runId,
+  back,
+  above,
+  column,
+}: {
+  runId: string;
+  back?: { label: string; onPress: () => void };
+  above?: ReactNode;
+  column?: ViewStyle;
+}) {
   const qc = useQueryClient();
   const wide = useWide();
   const scroll = useRef<ScrollView>(null);
@@ -149,22 +159,28 @@ export function Conversation({ runId, compact, above, column }: { runId: string;
       ? { kind: 'interview', workspace: run.workspace, runId }
       : { kind: 'chat', workspace: run.workspace, runId, context, attachments: files };
 
-  const head = run ? (
-    <RunHead
-      run={run}
-      compact={compact}
-      onStop={async () => {
-        await api.killRun(runId);
-        await qc.invalidateQueries({ queryKey: ['run', runId] });
-      }}
-    />
-  ) : null;
+  const head =
+    run && above ? (
+      <RunHead
+        run={run}
+        onStop={async () => {
+          await api.killRun(runId);
+          await qc.invalidateQueries({ queryKey: ['run', runId] });
+        }}
+      />
+    ) : null;
 
   return (
     // Entities the messages name open from them
     <EntityLinks workspace={run?.workspace ?? null}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      {above ? null : head}
+      {above ? null : (
+        <View style={{ flexDirection: 'row', justifyContent: back ? 'space-between' : 'flex-end', gap: 12 }}>
+          {back ? <Back {...back} /> : null}
+          {/* Level with Back: as tall, and centred the same */}
+          <View style={{ minHeight: 34, justifyContent: 'center', alignSelf: 'flex-start', flexShrink: 1 }}>{run ? <RunState run={run} size={13} /> : null}</View>
+        </View>
+      )}
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
@@ -236,8 +252,8 @@ export function Conversation({ runId, compact, above, column }: { runId: string;
         )}
         </View>
       </ScrollView>
-      {/* On a page, the composer keeps off the bottom edge */}
-      <View style={[column, above ? { paddingBottom: 14 } : null]}>
+      {/* As far from the messages as from the edge below; on a page, the composer keeps off the bottom edge */}
+      <View style={[column, { paddingTop: 12 }, above ? { paddingBottom: 14 } : null]}>
       <Composer
         placeholder={interview ? 'Answer' : 'Message'}
         context={interview ? undefined : context}

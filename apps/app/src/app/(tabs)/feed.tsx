@@ -485,7 +485,6 @@ function CardChat({
       <Conversation
         key={runId}
         runId={runId}
-        compact
         column={column}
         above={
           <>
