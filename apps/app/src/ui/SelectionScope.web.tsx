@@ -5,7 +5,7 @@ import { AddsAtOnce, AddToContext } from './AddToContext';
 
 type Caret = { node: Node; offset: number };
 
-/** How long a selection rests before it counts as made, where nothing else says it is done (touch, the keyboard) */
+/** How long a selection rests before it counts as made, where nothing else says it is done (the keyboard) */
 const SETTLE_MS = 500;
 
 function caretAt(x: number, y: number): Caret | null {
@@ -23,7 +23,8 @@ function caretAt(x: number, y: number): Caret | null {
  * Web: text selected inside a card offers "Add to context" under the selection. The right mouse button drags a
  * selection anywhere on the card; on a card that swipes (`swipe`) the left button only swipes, elsewhere it selects as
  * usual. Touch keeps the browser's own long-press selection. Where selections go at once (AddsAtOnce), there is no
- * button: a selection is added once the drag ends, or once it rests.
+ * button: a selection is added once the drag ends, or once it rests. A touch selection always offers the button, as its
+ * handles are dragged after it is made and nothing says when that is done.
  */
 export function SelectionScope({
   onAdd,
@@ -45,6 +46,7 @@ export function SelectionScope({
     if (!host) return;
     let anchor: Caret | null = null;
     let leftDown = false;
+    let touched = false;
     let settle: ReturnType<typeof setTimeout> | undefined;
 
     const selected = () => {
@@ -65,14 +67,15 @@ export function SelectionScope({
       if (s) add.current(s.quote, s.block);
     };
     const update = () => {
-      if (!atOnce) return setAt(selected());
+      if (!atOnce || touched) return setAt(selected());
       // A drag in progress is added as it ends
       clearTimeout(settle);
       if (!anchor) settle = setTimeout(made, SETTLE_MS);
     };
 
     const down = (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse') return;
+      touched = e.pointerType !== 'mouse';
+      if (touched) return;
       leftDown = e.button === 0;
       if (e.button !== 2) return;
       e.preventDefault();
@@ -131,6 +134,7 @@ export function SelectionScope({
         ? createPortal(
             <Floating x={at.x} y={at.y}>
               <AddToContext
+                label={atOnce ? 'Ask about this' : undefined}
                 onPress={() => {
                   onAdd(at.quote, at.block);
                   window.getSelection()?.removeAllRanges();

@@ -6,12 +6,20 @@ import { T } from './Text';
 
 /**
  * Whether what the user selects or picks goes to the chat at once, with no button: on the feed's card, whose chat opens
- * below it
+ * below it. A touch selection on the web still offers the button, labelled "Ask about this".
  */
 export const AddsAtOnce = createContext(false);
 
 /** The button that adds the selected text or the picked diagram element to the chat's context; the exported app has no chat */
-export function AddToContext({ onPress, style }: { onPress: () => void; style?: StyleProp<ViewStyle> }) {
+export function AddToContext({
+  label = 'Add to context',
+  onPress,
+  style,
+}: {
+  label?: string;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
   if (snapshot) return null;
   return (
     <Pressable
@@ -28,7 +36,7 @@ export function AddToContext({ onPress, style }: { onPress: () => void; style?: 
         style,
       ]}
     >
-      <T style={{ color: C.surface, fontSize: 13, fontWeight: '700' }}>Add to context</T>
+      <T style={{ color: C.surface, fontSize: 13, fontWeight: '700' }}>{label}</T>
     </Pressable>
   );
 }
