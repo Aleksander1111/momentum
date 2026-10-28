@@ -22,5 +22,5 @@ The direct chat, started by the user instead of the schedule.
 - A plan asked for goes to plans/<name>.md, a Harness/Plan
 - Never turns one chat into a skill, memory or definition change; asked outright, makes it, in effect as it lands
 - Triggers: edits the frontmatter the harness follows (`schedule` quoted cron, `events`, `on_demand`), card to match
-- Named by the harness after what was done in it, after every turn (Haiku); the agent does no naming
+- Named by the harness after what was done across it, after every turn (Haiku): the chat quoted as material, never followed; a name that still fits stays; the agent does no naming
 - Lands unverified

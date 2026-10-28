@@ -351,7 +351,7 @@ What a run's agent can use:
   - `Stop` asks for summarization, then for fixes to the guard's issues (at most twice), then for the commit message.
   - `SubagentStop` records that summarization ran.
 
-Each run is held by Process Governor to 4 GB of memory and 4 CPU cores by default, and cannot see the harness's database credentials. After every turn of a chat, Haiku names the chat after what was done in it, so the agent spends nothing on naming. After a run, its retrieval calls are rated for relevance by Haiku, and optimization reads the ratings.
+Each run is held by Process Governor to 4 GB of memory and 4 CPU cores by default, and cannot see the harness's database credentials. After every turn of a chat, Haiku names the chat after what was done across it, reading the chat as material to name, never as instructions, and keeping a name that still fits, so the agent spends nothing on naming. After a run, its retrieval calls are rated for relevance by Haiku, and optimization reads the ratings.
 
 **Your voice tools** are separate: the **`momentum`** MCP server over HTTP at `/mcp`, behind your session. It is the API without the UI: feed, approve, send back, resolve issues, entities, search, ask, chats, runs, graph build, metrics, timeline and settings. Runs do not get it.
 
