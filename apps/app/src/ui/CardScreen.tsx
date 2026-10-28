@@ -469,7 +469,7 @@ function CardChat({
       style={[
         wide ? { ...COLUMN, marginBottom: 40 } : { borderTopWidth: 1, borderTopColor: C.line },
         cardSkin(wide),
-        { paddingTop: 10, paddingBottom: 14, paddingHorizontal: wide ? 14 : 16, gap: 8 },
+        { paddingTop: 10, paddingBottom: 12, paddingHorizontal: wide ? 14 : 16, gap: 8 },
       ]}
     >
       <ChatHead onClose={onClose} />

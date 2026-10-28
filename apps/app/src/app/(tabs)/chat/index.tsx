@@ -88,8 +88,8 @@ export default function Sessions() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={
         wide
-          ? { flexGrow: 0, flexShrink: 0, flexBasis: 380, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }
-          : { flex: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }
+          ? { flexGrow: 0, flexShrink: 0, flexBasis: 380, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 12 }
+          : { flex: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 12 }
       }
     >
       <View style={{ marginBottom: 18 }}>
@@ -182,7 +182,7 @@ export default function Sessions() {
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
       {list}
-      <View style={{ flex: 1, paddingTop: 20, paddingHorizontal: 40, paddingBottom: 24 }}>
+      <View style={{ flex: 1, paddingTop: 20, paddingHorizontal: 40 }}>
         {params.run ? <Conversation key={params.run} runId={params.run} /> : null}
       </View>
     </View>

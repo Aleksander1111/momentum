@@ -9,7 +9,7 @@ export default function Chat() {
   const { runId } = useLocalSearchParams<{ runId: string }>();
   const back = useBack('Sessions', '/chat');
   return (
-    <View style={{ flex: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
+    <View style={{ flex: 1, paddingTop: 12, paddingHorizontal: 16 }}>
       {runId ? <Conversation key={runId} runId={runId} back={back} /> : null}
     </View>
   );

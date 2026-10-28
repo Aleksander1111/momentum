@@ -252,8 +252,8 @@ export function Conversation({
         )}
         </View>
       </ScrollView>
-      {/* As far from the messages as from the edge below; on a page, the composer keeps off the bottom edge */}
-      <View style={[column, { paddingTop: 12 }, above ? { paddingBottom: 14 } : null]}>
+      {/* The composer: as far from the messages as from the edge below */}
+      <View style={[column, { paddingVertical: 12 }]}>
       <Composer
         placeholder={interview ? 'Answer' : 'Message'}
         context={interview ? undefined : context}
