@@ -34,6 +34,6 @@ User chats and interviews beside automation runs.
 - Composer: Enter sends, Shift+Enter breaks; context and [file](Product/Feature/chat-attachments) chips; unsent says why; mic; bubbles show files and whole quotes
 - State in its [colour](Frontend/UiComponent/theme), bold running or failed
 - Head: state dot (amber stopping, red ring failed), automation, 5-h usage, entity, Stop
-- Per turn: time, tools, tokens, live call, RAG; opens to calls, ratings; polled 2 s while active
+- Per turn: time, tools, live call, RAG; opens to calls, ratings; polled 2 s while active
 - New messages follow the end only while the reader is at it; sending goes back there
 - Wide: beside the list, back closes it; else a page

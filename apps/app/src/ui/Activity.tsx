@@ -15,12 +15,6 @@ export function clock(ms: number): string {
   return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
 }
 
-/** "840", "2.1k", "38k" */
-export function tokens(n: number): string {
-  if (n < 1000) return String(n);
-  return n < 10_000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n / 1000)}k`;
-}
-
 /** A step's time: "0.4 s", "12 s", "1:05" */
 function stepTime(s: RunStep, now: number): string {
   const ms = (s.endedAt ? new Date(s.endedAt).getTime() : now) - new Date(s.startedAt).getTime();
@@ -108,7 +102,7 @@ function Retrieval({ r }: { r: RetrievalRating }) {
 }
 
 /**
- * What the agent did for one turn, as Claude Code shows it while it works: the time, the tool calls and the tokens,
+ * What the agent did for one turn, as Claude Code shows it while it works: the time and the tool calls,
  * collapsed to one line with the call under way; once the turn is rated, how well each retrieval tool served it
  */
 export function TurnActivity({ turn, live }: { turn: RunTurn; live: boolean }) {
@@ -123,12 +117,11 @@ export function TurnActivity({ turn, live }: { turn: RunTurn; live: boolean }) {
   const running = turn.steps.filter((s) => !s.endedAt);
   const current = running[running.length - 1] ?? null;
   const tools = work.length === 1 ? '1 tool' : `${work.length} tools`;
-  const out = turn.outputTokens ? ` · ↓ ${tokens(turn.outputTokens)} tokens` : '';
 
   let head: string;
-  if (live && answered === null) head = `Working · ${clock(now - started)} · ${tools}${out}`;
-  else if (live) head = `Answered in ${clock(answered! - started)} · wrapping up ${clock(now - answered!)} · ${tools}${out}`;
-  else head = `Worked ${clock((answered ?? ended ?? now) - started)} · ${tools}${out}`;
+  if (live && answered === null) head = `Working · ${clock(now - started)} · ${tools}`;
+  else if (live) head = `Answered in ${clock(answered! - started)} · wrapping up ${clock(now - answered!)} · ${tools}`;
+  else head = `Worked ${clock((answered ?? ended ?? now) - started)} · ${tools}`;
   const rag =
     turn.retrievalState === 'rated' && turn.retrieval
       ? `RAG ${pctOf(turn.retrieval.score)}`
@@ -166,9 +159,6 @@ export function TurnActivity({ turn, live }: { turn: RunTurn; live: boolean }) {
               <T style={{ fontSize: 11.5, color: C.muted }}>After the answer: summarizing and the commit message</T>
               <StepTree steps={after} now={now} />
             </View>
-          ) : null}
-          {turn.contextTokens ? (
-            <T style={{ fontSize: 11.5, color: C.muted }}>{`Context ${tokens(turn.contextTokens)} tokens · wrote ${tokens(turn.outputTokens)}`}</T>
           ) : null}
           {turn.retrievalState === 'rated' && turn.retrieval ? <Retrieval r={turn.retrieval} /> : null}
         </View>
