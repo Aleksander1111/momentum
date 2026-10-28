@@ -51,9 +51,9 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
               backgroundColor: C.surface,
               borderTopWidth: 1,
               borderTopColor: C.line,
-              paddingTop: 10,
+              paddingTop: 13,
               paddingHorizontal: 6,
-              paddingBottom: 16 + (androidBrowser ? 0 : insets.bottom),
+              paddingBottom: 13 + (androidBrowser ? 0 : insets.bottom),
             }
       }
     >
