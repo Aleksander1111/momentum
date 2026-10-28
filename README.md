@@ -154,7 +154,7 @@ The other tabs:
 Beyond the feed:
 
 - **Chat** and **interview**: a new chat that says "interview \<topic\>" starts an interview.
-- **Dictate** into the search and every chat field: its mic types what you say into the field as it is heard, and you edit and send it. Nothing said is sent by itself. The PC transcribes it with a separate speech-to-text service.
+- **Dictate** into every field that takes words: the search, every chat, the rework and resolution sheet, and the rules in Settings. Its mic types what you say into the field as it is heard, and you edit and send it; a rule in Settings is saved as it is said. Nothing said is sent by itself. The PC transcribes it with a separate speech-to-text service.
 - **Attach files** to a chat message: pick them with the paperclip, paste them into the field or drop them on it, up to 10 files of 10 MB each. They are kept on the PC, outside the project, and the agent reads them where they are.
 - **Stop a run** from its conversation: what it wrote still lands.
 - **Run an automation on demand**, through the `run_automation` tool.

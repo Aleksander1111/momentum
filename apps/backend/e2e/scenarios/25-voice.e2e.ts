@@ -207,6 +207,35 @@ scenario('voice', { enabled: [WS], voice: true }, async ({ env, api, app, voice,
   });
 
   await step(4, async () => {
+    // The rework sheet's box types what is said; sent back, the comment is what was said
+    await app.entity(WS, SUMMARY);
+    await app.swipeCard('Reading habits', 'left');
+    const comment = field('What should change?');
+    await expect(comment).toBeVisible({ timeout: 15_000 });
+    await listen();
+    voice.hear('say how many books a month');
+    await expect(comment).toHaveValue('say how many books a month', { timeout: 15_000 });
+    await app.stopSpeaking();
+    await expect(comment).toBeEditable();
+    const since = new Date();
+    await app.frame().getByText('Send back', { exact: true }).click();
+    const back = await newest(since);
+    expect(back.target_path).toBe(SUMMARY);
+    expect((await api.run(back.id)).messages[0]!.text).toContain('say how many books a month');
+    await api.runEnded(back.id, 2 * 60_000);
+    // A rule in Settings takes what is said after what it holds, and keeps it with no editing to end
+    // Opened afresh, Settings is the only screen: none behind it holds a mic
+    await app.go('/settings');
+    await app.text('Presentation rules').click();
+    await listen();
+    voice.hear('lead with the outcome');
+    await app.stopSpeaking();
+    await until('the dictated rule saved', async () =>
+      (await api.call<{ cards: { presentationRules: string } }>('GET', '/settings')).cards.presentationRules.endsWith('lead with the outcome'),
+    );
+  });
+
+  await step(5, async () => {
     const before = (await api.runs(WS)).length;
     env.stop();
     await env.start();

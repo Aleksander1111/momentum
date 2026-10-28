@@ -108,7 +108,7 @@ export const FEATURES = {
 
   // Voice
   'voice.stream': 'The voice stream delivers in order, skips what was seen and resyncs on a hole',
-  'voice.dictation': 'The mic of a search or chat field types what is said into it; nothing said is sent until the user sends it',
+  'voice.dictation': 'The mic of a field that takes words (search, chat, rework, a rule in Settings) types what is said into it; nothing said is sent until the user sends it',
   'voice.auth': 'Only a signed-in app opens the voice sockets',
 
   // Metrics

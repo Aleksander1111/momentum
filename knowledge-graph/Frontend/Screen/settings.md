@@ -20,7 +20,7 @@ artifacts:
 ---
 # Settings
 
-Saves when editing ends; projects reload on open.
+Saves when editing ends; projects reload on open. The text rules (presentation, excluded paths, lifetimes) have a mic that types what is said after what they hold, saved as it lands.
 
 | Section | Controls |
 |---|---|

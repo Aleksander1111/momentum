@@ -19,6 +19,7 @@ import { chatContext, useChatContext } from '../lib/context';
 import { attachmentIds, chatFiles, useChatFiles } from '../lib/attachments';
 import type { ApproveVars, ResolveVars, SendBackVars } from '../lib/query';
 import { entityKey } from '../lib/format';
+import { useDictation, withHeard } from '../lib/voice';
 import { C, F, useWide } from './theme';
 import { H, T } from './Text';
 import { CardView } from './CardView';
@@ -28,6 +29,7 @@ import { IssueHead, IssueOptions } from './IssueOptions';
 import { Btn, useCloseOnBack } from './parts';
 import { States } from './StateBadge';
 import { EntityMore } from './EntityParts';
+import { MicButton } from './MicButton';
 
 /** A card to react to, as the feed brings it or as it is opened from anywhere else */
 export type ReviewItem = Pick<
@@ -308,7 +310,10 @@ function Fade({ colour }: { colour: string }) {
   );
 }
 
-/** Disapprove with a comment; for an issue, the user's own resolution or the reason it won't be resolved */
+/**
+ * Disapprove with a comment; for an issue, the user's own resolution or the reason it won't be resolved. The mic in the
+ * comment's box types what is said into it; while it listens nothing is sent.
+ */
 function Sheet({
   wide,
   issue,
@@ -323,6 +328,8 @@ function Sheet({
   onWontResolve: (reason: string) => void;
 }) {
   const [comment, setComment] = useState('');
+  const mic = useDictation((heard) => setComment((c) => withHeard(c, heard)));
+  const ready = !!comment.trim() && !mic.listening;
   useCloseOnBack(true, onCancel);
   return (
     <>
@@ -362,38 +369,50 @@ function Sheet({
             }}
           />
           <H style={{ fontSize: 22, marginBottom: 12 }}>{issue ? 'Your resolution' : 'Rework'}</H>
-          <TextInput
-            value={comment}
-            onChangeText={setComment}
-            placeholder={issue ? 'How should it be resolved, or why not?' : 'What should change?'}
-            placeholderTextColor={C.muted}
-            multiline
-            autoFocus
-            style={[
-              {
-                borderWidth: 1.5,
-                borderColor: C.accent,
-                borderRadius: 12,
-                backgroundColor: C.commentBg,
-                paddingVertical: 12,
-                paddingHorizontal: 14,
-                fontSize: 14.5,
-                lineHeight: 20,
-                minHeight: 88,
-                marginBottom: 14,
-                color: C.ink,
-                fontFamily: F.body,
-                textAlignVertical: 'top',
-              },
-              Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,
-            ]}
-          />
+          <View
+            style={{
+              borderWidth: 1.5,
+              borderColor: C.accent,
+              borderRadius: 12,
+              backgroundColor: C.commentBg,
+              paddingTop: 12,
+              paddingBottom: 10,
+              paddingHorizontal: 14,
+              marginBottom: 14,
+              gap: 6,
+            }}
+          >
+            <TextInput
+              value={mic.listening ? withHeard(comment, mic.partial) : comment}
+              onChangeText={setComment}
+              placeholder={issue ? 'How should it be resolved, or why not?' : 'What should change?'}
+              placeholderTextColor={C.muted}
+              multiline
+              autoFocus
+              editable={!mic.listening}
+              style={[
+                {
+                  padding: 0,
+                  fontSize: 14.5,
+                  lineHeight: 20,
+                  minHeight: 60,
+                  color: C.ink,
+                  fontFamily: F.body,
+                  textAlignVertical: 'top',
+                },
+                Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,
+              ]}
+            />
+            <View style={{ alignSelf: 'flex-end' }}>
+              <MicButton bare listening={mic.listening} available={mic.available} onPress={mic.listening ? mic.stop : mic.start} />
+            </View>
+          </View>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             {issue ? (
               <Btn
                 label="Won't resolve"
                 kind="ghost"
-                disabled={!comment.trim()}
+                disabled={!ready}
                 onPress={() => onWontResolve(comment.trim())}
                 style={{ flex: 1 }}
               />
@@ -403,7 +422,7 @@ function Sheet({
             <Btn
               label={issue ? 'Send' : 'Send back'}
               kind="primary"
-              disabled={!comment.trim()}
+              disabled={!ready}
               onPress={() => onSend(comment.trim())}
               style={{ flex: 1 }}
             />

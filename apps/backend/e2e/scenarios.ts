@@ -543,7 +543,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'voice',
-    title: 'Dictating into the search and the chats',
+    title: 'Dictating into every field that takes words',
     projects: ['bookshelf-api'],
     real: false,
     scripted: true,
@@ -553,6 +553,7 @@ export const SCENARIOS: Scenario[] = [
       'Said into a new chat, the text waits in the field to be edited and sent; what is said next in the chat goes on in it once sent',
       '"Interview <topic>" sent as a new chat starts an interview that asks one question at a time and writes the dictated answers into one document; a skip writes nothing and a question back is answered',
       '"Stop interview" ends it and its document is summarized into an entity once',
+      'Said into the rework sheet, the comment is typed and sent back as said; said into a rule in Settings, it is saved after what the rule held',
       'After a restart nothing said before is acted on again',
     ],
     // The features each step checks, step by step
@@ -561,6 +562,7 @@ export const SCENARIOS: Scenario[] = [
       ['voice.dictation', 'automation.chat'],
       ['automation.interview', 'voice.dictation'],
       ['automation.interview', 'automation.summarization'],
+      ['voice.dictation', 'feed.send-back', 'settings.persist'],
       ['voice.stream'],
     ],
   },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View, type TextStyle } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
@@ -13,6 +13,8 @@ import { ProjectLogo } from '../../ui/ProjectLogo';
 import { T } from '../../ui/Text';
 import { DomainBadge } from '../../ui/domains';
 import { useOpenEntity } from '../../ui/EntityRef';
+import { MicButton } from '../../ui/MicButton';
+import { useDictation, withHeard } from '../../lib/voice';
 
 const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null;
 
@@ -76,7 +78,10 @@ function Num({ value, onSave }: { value: number; onSave: (n: number) => void }) 
   );
 }
 
-/** Row with a chevron that opens a text editor for its value beneath it; saves when editing ends. */
+/**
+ * Row with a chevron that opens a text editor for its value beneath it; saves when editing ends. The mic in the editor
+ * types what is said into it, saved as each stretch arrives.
+ */
 function TextRow({
   first,
   title,
@@ -97,6 +102,15 @@ function TextRow({
     if (text.trim() && text !== value) onSave(text);
     else setText(value);
   };
+  // What is said arrives with the field not focused, so nothing ends the editing: each stretch saves as it lands
+  const current = useRef(text);
+  current.current = text;
+  const mic = useDictation((heard) => {
+    const next = withHeard(current.current, heard);
+    current.current = next;
+    setText(next);
+    if (next !== value) onSave(next);
+  });
   return (
     <>
       <Row first={first} onPress={() => setOpen((o) => !o)}>
@@ -105,29 +119,31 @@ function TextRow({
       </Row>
       {open ? (
         <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            onBlur={commit}
-            multiline
-            autoFocus
-            style={[
-              {
-                borderWidth: 1,
-                borderColor: C.line,
-                borderRadius: 12,
-                paddingVertical: 11,
-                paddingHorizontal: 14,
-                fontSize: 15,
-                lineHeight: 21,
-                minHeight: 120,
-                color: C.ink,
-                fontFamily: F.body,
-                textAlignVertical: 'top',
-              },
-              noOutline,
-            ]}
-          />
+          <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingTop: 11, paddingBottom: 9, paddingHorizontal: 14, gap: 6 }}>
+            <TextInput
+              value={mic.listening ? withHeard(text, mic.partial) : text}
+              onChangeText={setText}
+              onBlur={commit}
+              multiline
+              autoFocus
+              editable={!mic.listening}
+              style={[
+                {
+                  padding: 0,
+                  fontSize: 15,
+                  lineHeight: 21,
+                  minHeight: 96,
+                  color: C.ink,
+                  fontFamily: F.body,
+                  textAlignVertical: 'top',
+                },
+                noOutline,
+              ]}
+            />
+            <View style={{ alignSelf: 'flex-end' }}>
+              <MicButton bare listening={mic.listening} available={mic.available} onPress={mic.listening ? mic.stop : mic.start} />
+            </View>
+          </View>
         </View>
       ) : null}
     </>
