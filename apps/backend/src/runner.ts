@@ -509,6 +509,22 @@ export class Runner {
             return { content: [{ type: 'text', text: 'Recorded' }] };
           },
         ),
+        ...(r.automation === 'chat'
+          ? [
+              tool(
+                'name_chat',
+                'Name this chat after what was done in it so far: a few words, like the subject of a commit, saying what was changed, answered or decided, never the question as it was asked. The app and the timeline show the chat by this name. Call it once every turn, before you stop.',
+                { title: z.string().min(1) },
+                async ({ title }) => {
+                  const name = (title.split('\n').find((l) => l.trim()) ?? '').trim().slice(0, 80);
+                  if (!name) return { content: [{ type: 'text', text: 'The name is empty' }], isError: true };
+                  await ws.index.sql`update ${this.t(ws, 'run')} set title = ${name} where id = ${r.id}`;
+                  await this.timeline.rename(r.id, name);
+                  return { content: [{ type: 'text', text: 'Named' }] };
+                },
+              ),
+            ]
+          : []),
         ...(HARNESS_ONLY.includes(r.automation)
           ? [
               tool(

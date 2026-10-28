@@ -157,7 +157,8 @@ export class Approval {
         prompt: `The user sent back the entity ${path} ("${row.title}") from the attention feed with this comment:\n\n${comment}\n\nAct on the comment. It decides what happens to the entity: change it, split it, replace it, add entities alongside it, or retire it.`,
       });
     });
-    await this.timeline.record(reactionEvent(workspace, row, 'sent_back', { detail: comment, runId, timeSpentMs, states }));
+    // A chat it starts is named as the entity, until it names itself
+    await this.timeline.record(reactionEvent(workspace, row, 'sent_back', { detail: comment, runId, runTitle: open ? undefined : row.title, timeSpentMs, states }));
     return runId;
   }
 
@@ -214,7 +215,7 @@ export class Approval {
         ].join('\n'),
       });
     });
-    await this.timeline.record(reactionEvent(workspace, row, 'resolved', { detail: resolution, runId, timeSpentMs, states }));
+    await this.timeline.record(reactionEvent(workspace, row, 'resolved', { detail: resolution, runId, runTitle: open ? undefined : row.title, timeSpentMs, states }));
     return runId;
   }
 

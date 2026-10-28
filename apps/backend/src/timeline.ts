@@ -86,7 +86,13 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const quoted = (title: string) => `“${title}”`;
 
 /** Chats and interviews: the user talks to them turn by turn, and their turns are the user's own events */
-export const conversational = (automation: string) => automation === 'chat' || automation === 'interview';
+export const conversational = (automation: string | null | undefined) => automation === 'chat' || automation === 'interview';
+
+/**
+ * The events kept one per run: an automation run's, and a chat's or an interview's, which is the user's. In SQL, the
+ * predicate of the unique index that keeps them so.
+ */
+const ONE_PER_RUN = `actor = 'automation' or automation in ('chat', 'interview')`;
 
 const RUN_KIND: Record<'finished' | 'failed' | 'killed', TimelineKind> = { finished: 'run_finished', failed: 'run_failed', killed: 'run_killed' };
 
@@ -163,7 +169,7 @@ export function reactionEvent(
   workspace: string,
   item: { path: string; type: string; title: string },
   reaction: 'approved' | 'sent_back' | 'resolved' | 'wont_resolve',
-  extra: { detail?: string | null; runId?: string | null; timeSpentMs?: number; states?: EntityStates; at?: Date } = {},
+  extra: { detail?: string | null; runId?: string | null; runTitle?: string; timeSpentMs?: number; states?: EntityStates; at?: Date } = {},
 ): NewEvent {
   const verb = { approved: 'Approved', sent_back: 'Sent back', resolved: 'Resolved', wont_resolve: "Won't resolve" }[reaction];
   return {
@@ -175,7 +181,10 @@ export function reactionEvent(
     runId: extra.runId ?? null,
     automation: extra.runId ? 'chat' : null,
     path: item.path,
-    facts: withStates(extra.timeSpentMs ? { timeSpentMs: extra.timeSpentMs } : {}, extra.states),
+    facts: withStates(
+      { ...(extra.timeSpentMs ? { timeSpentMs: extra.timeSpentMs } : {}), ...(extra.runTitle ? { runTitle: extra.runTitle } : {}) },
+      extra.states,
+    ),
     at: extra.at,
   };
 }
@@ -194,20 +203,68 @@ interface Landed {
   at?: Date;
 }
 
-/** What one or more landings of a run add to its event */
-const landedFacts = (l: Pick<Landed, 'paths' | 'removed' | 'issues' | 'commit' | 'message'>): TimelineFacts => ({
-  paths: l.paths,
-  ...(l.removed?.length ? { removed: l.removed } : {}),
-  issues: l.issues,
-  ...(l.commit ? { commit: l.commit } : {}),
-  ...(subjectOf(l.message) ? { subject: subjectOf(l.message)! } : {}),
+/** What one or more landings of a run add to its event; a chat lands once a turn, and its event holds every landing */
+const landedFacts = (l: Pick<Landed, 'paths' | 'removed' | 'issues' | 'commit' | 'message'>, before: TimelineFacts = {}): TimelineFacts => {
+  const removed = [...(before.removed ?? []), ...(l.removed ?? [])];
+  return {
+    paths: [...new Set([...(before.paths ?? []), ...l.paths])],
+    ...(removed.length ? { removed } : {}),
+    issues: (before.issues ?? 0) + l.issues,
+    ...(l.commit ? { commit: l.commit } : {}),
+    ...(subjectOf(l.message) ? { subject: subjectOf(l.message)! } : {}),
+  };
+};
+
+/** The name of a chat or an interview: the one it was given, or the one its event has */
+const nameOf = (facts: TimelineFacts | undefined, old: Row | undefined, otherwise: string) => facts?.runTitle ?? old?.title ?? otherwise;
+
+/** A stored event, to write again */
+const eventOf = (r: Row): NewEvent => ({
+  workspace: r.workspace,
+  actor: r.actor,
+  kind: r.kind,
+  title: r.title,
+  detail: r.detail,
+  runId: r.run_id,
+  automation: r.automation,
+  path: r.path,
+  facts: r.facts,
+  at: r.at,
 });
+
+/**
+ * The stored events of one chat or interview, oldest first, as its one event: the user's, named as the chat is, for the
+ * latest thing done in it, with the latest message, every landing and every state move summed
+ */
+function fold(rows: Row[]): NewEvent {
+  const last = rows.at(-1)!;
+  const done = rows.filter((r) => r.kind !== 'changes_landed').at(-1) ?? last;
+  const message = rows.filter((r) => r.actor === 'user' && r.detail).at(-1) ?? done;
+  const named = rows.map((r) => r.facts.runTitle ?? /^Wrote in “(.*)”$/.exec(r.title)?.[1]).filter(Boolean).at(-1);
+  const started = rows.find((r) => r.kind === 'chat_started' || r.kind === 'interview_started');
+  let facts: TimelineFacts = {};
+  for (const r of rows) {
+    const { states, paths, removed, issues, ...rest } = r.facts;
+    const landed = paths ? landedFacts({ paths, removed, issues: issues ?? 0, commit: null, message: null }, facts) : {};
+    facts = withStates({ ...facts, ...rest, ...landed }, states);
+  }
+  return {
+    ...eventOf(last),
+    actor: 'user',
+    kind: done.kind,
+    title: named ?? firstLine(started?.detail)?.slice(0, 80) ?? done.title,
+    detail: message.detail,
+    path: rows.map((r) => r.path).filter(Boolean).at(-1) ?? null,
+    facts,
+  };
+}
 
 
 /**
- * Everything that happened in the harness: one event per thing the user did, and one per automation run for what came
- * of it, added once the run lands its changes or ends and moved to the time of its latest change. Kept across project
- * resets, so the history of a project outlives its index.
+ * Everything that happened in the harness: one event per thing the user did, one per chat or interview, and one per
+ * automation run for what came of it, added once the run lands its changes or ends and moved to the time of its latest
+ * change. A chat's event is named as the chat is, says the latest thing done in it and holds everything it landed. Kept
+ * across project resets, so the history of a project outlives its index.
  */
 export class Timeline {
   constructor(private readonly sql: Sql) {}
@@ -228,7 +285,20 @@ export class Timeline {
     )`;
     await this.sql`create index if not exists timeline_event_at on harness.timeline_event (at desc, id desc)`;
     await this.sql`create index if not exists timeline_event_workspace on harness.timeline_event (workspace, at desc, id desc)`;
-    await this.sql`create unique index if not exists timeline_event_run on harness.timeline_event (run_id) where actor = 'automation'`;
+    // A chat's or an interview's events were once one per thing done in it: they are one
+    const talks = await this.sql<Row[]>`select * from harness.timeline_event e where automation in ('chat', 'interview') and run_id is not null
+      and exists (select 1 from harness.timeline_event n where n.run_id = e.run_id and n.automation = e.automation and n.id <> e.id)
+      order by run_id, at, id`;
+    const byRun = new Map<string, Row[]>();
+    for (const r of talks) byRun.set(r.run_id!, [...(byRun.get(r.run_id!) ?? []), r]);
+    for (const rows of byRun.values()) {
+      await this.sql.begin(async (tx) => {
+        await tx`delete from harness.timeline_event where id in ${tx(rows.map((r) => r.id) as never)}`;
+        await tx`insert into harness.timeline_event ${tx(this.row(fold(rows)) as never)}`;
+      });
+    }
+    await this.sql`drop index if exists harness.timeline_event_run`;
+    await this.sql.unsafe(`create unique index if not exists timeline_event_run_once on harness.timeline_event (run_id) where ${ONE_PER_RUN}`);
     // Runs were once shown while they waited and ran; only what came of them is shown now
     await this.sql`delete from harness.timeline_event where kind in ('run_queued', 'run_requeued', 'run_started', 'run_resumed')`;
     // Every write in a chat was once an event of its own: only the most recent of each run is kept
@@ -241,8 +311,20 @@ export class Timeline {
     await this.write(e).catch((err) => console.error(`timeline ${e.kind}:`, err));
   }
 
-  /** The writes in one run are one event, for the most recent of them: a new one replaces the one before */
+  /**
+   * Whatever the user does in a chat or an interview goes on its one event, moved to now. The writes steering an
+   * automation run are one event, for the most recent of them: a new one replaces the one before.
+   */
   private async write(e: NewEvent): Promise<void> {
+    if (e.runId && conversational(e.automation)) {
+      return this.update(e.runId, (old) => ({
+        ...e,
+        title: nameOf(e.facts, old, e.title),
+        detail: e.detail ?? old?.detail ?? null,
+        path: e.path ?? old?.path ?? null,
+        facts: withStates({ ...old?.facts, ...e.facts, states: old?.facts.states }, e.facts?.states),
+      }));
+    }
     if (e.kind !== 'message_sent' || !e.runId) return this.insert([e]);
     await this.sql.begin(async (tx) => {
       await tx`delete from harness.timeline_event where kind = 'message_sent' and run_id = ${e.runId!}`;
@@ -250,50 +332,65 @@ export class Timeline {
     });
   }
 
-  /** The event of a run, as it came out: the first adds it, every later one replaces it and moves it to now */
+  /**
+   * The event of a run, as it came out: the first adds it, every later one replaces it and moves it to now. How a chat or
+   * an interview ended goes on its one event, which keeps its name.
+   */
   run(e: RunEvent): Promise<void> {
     return this.update(e.runId, (old) => {
       const facts = withStates({ ...old?.facts, ...e.facts, states: old?.facts.states }, e.facts?.states);
       const detail = e.detail ?? old?.detail ?? null;
-      return { ...e, path: e.path ?? old?.path ?? null, facts, detail, title: describeRun(e.automation!, e.kind, facts, detail) };
+      const described = describeRun(e.automation!, e.kind, facts, detail);
+      const path = e.path ?? old?.path ?? null;
+      if (conversational(e.automation)) return { ...e, actor: 'user', path, facts, detail, title: nameOf(e.facts, old, described) };
+      return { ...e, path, facts, detail, title: described };
     });
   }
 
   /**
-   * What a run landed goes on its event without changing its state or moving it; a chat or an interview, whose turns are
-   * the user's, gets an event of its own for it
+   * What a run landed goes on its event without changing its state or moving it; a chat's or an interview's moves to now,
+   * as what the user asked for in it lands
    */
   private landed(l: Landed): Promise<void> {
     return this.update(l.runId, (old) => {
-      const facts = withStates({ ...old?.facts, ...landedFacts(l) }, l.states);
+      const facts = withStates({ ...old?.facts, ...landedFacts(l, old?.facts) }, l.states);
       const kind = old?.kind ?? 'changes_landed';
       const detail = old?.detail ?? l.message;
+      const described = describeRun(l.automation, kind, facts, detail);
+      const talk = conversational(l.automation);
       return {
         workspace: l.workspace,
-        actor: 'automation',
+        actor: talk ? 'user' : 'automation',
         kind,
-        title: describeRun(l.automation, kind, facts, detail),
+        title: talk ? nameOf(undefined, old, described) : described,
         detail,
         runId: l.runId,
         automation: l.automation,
         path: old?.path ?? null,
         facts,
-        at: old?.at,
+        at: talk ? undefined : old?.at,
       };
     });
+  }
+
+  /** A chat named after what was done in it: its event takes the name, where it stands */
+  rename(runId: string, title: string): Promise<void> {
+    return this.update(runId, (old) => (old ? { ...eventOf(old), title, facts: { ...old.facts, runTitle: title } } : null));
   }
 
   /** The changes to one run's event, one after another, so none is lost */
   private chains = new Map<string, Promise<void>>();
 
-  private update(runId: string, next: (old: Row | undefined) => NewEvent): Promise<void> {
+  private update(runId: string, next: (old: Row | undefined) => NewEvent | null): Promise<void> {
     const done: Promise<void> = (this.chains.get(runId) ?? Promise.resolve())
       .then(async () => {
-        const [old] = await this.sql<Row[]>`select * from harness.timeline_event where run_id = ${runId} and actor = 'automation'`;
-        const r = this.row(next(old));
-        await this.sql`insert into harness.timeline_event ${this.sql(r as never)}
-          on conflict (run_id) where actor = 'automation' do update set
-            at = excluded.at, kind = excluded.kind, title = excluded.title, path = excluded.path, detail = excluded.detail, facts = excluded.facts`;
+        const one = this.sql.unsafe(ONE_PER_RUN);
+        const [old] = await this.sql<Row[]>`select * from harness.timeline_event where run_id = ${runId} and (${one})`;
+        const e = next(old);
+        if (!e) return;
+        await this.sql`insert into harness.timeline_event ${this.sql(this.row(e) as never)}
+          on conflict (run_id) where ${one} do update set at = excluded.at, actor = excluded.actor, kind = excluded.kind,
+            title = excluded.title, path = excluded.path, detail = excluded.detail, facts = excluded.facts`;
       })
       .catch((err) => console.error(`timeline event of run ${runId}:`, err))
       .finally(() => {

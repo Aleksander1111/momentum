@@ -77,28 +77,70 @@ describe('timeline', () => {
     expect(left).toHaveLength(0);
   });
 
-  it('gives a chat an event only for what it lands, and skips a run that changed nothing', async () => {
+  it('gives a chat one event, the user\'s, for what it lands, and skips a run that changed nothing', async () => {
     const bus = createBus();
     timeline.listen(bus);
     const base = { workspace: 'shop', automation: 'chat', message: 'Rename the goal', valid: true, issues: 0, removed: [], states: {} };
     bus.emit('transaction', { ...base, runId: 'c0', commit: null, paths: [] });
     bus.emit('transaction', { ...base, runId: 'c3', commit: 'fed', paths: ['Product/Goal/a'] });
     await new Promise((r) => setTimeout(r, 200));
-    const { events } = await timeline.list({ workspace: 'shop', actor: 'automation', limit: 10 });
+    const { events } = await timeline.list({ workspace: 'shop', actor: 'user', limit: 10 });
     expect(events.map((e) => e.runId)).not.toContain('c0');
     expect(events[0]).toMatchObject({ runId: 'c3', kind: 'changes_landed', title: 'Rename the goal' });
   });
 
-  it('keeps one event per chat for the writes in it, the most recent', async () => {
-    const write = (runId: string, detail: string) =>
-      timeline.record({ workspace: 'shop', actor: 'user', kind: 'message_sent', title: 'Wrote in “Rename”', detail, runId, automation: 'chat' });
-    await write('c4', 'First');
-    await write('c5', 'Elsewhere');
-    await write('c4', 'Second');
-    await write('c4', 'Third');
-    const { events } = await timeline.list({ workspace: 'shop', actor: 'user', limit: 100 });
-    const writes = events.filter((e) => e.kind === 'message_sent');
-    expect(writes.map((e) => [e.runId, e.detail])).toEqual([['c4', 'Third'], ['c5', 'Elsewhere']]);
+  it('keeps one event per chat: named as the chat is, for the latest thing done in it, with all it landed', async () => {
+    const bus = createBus();
+    timeline.listen(bus);
+    const chat = { workspace: 'shop', actor: 'user' as const, runId: 'c4', automation: 'chat' };
+    await timeline.record({ ...chat, kind: 'chat_started', title: 'Started a chat', detail: 'what does it mean?', facts: { runTitle: 'what does it mean?', states: { synced: -1, updating: 1 } } });
+    const landing = { workspace: 'shop', runId: 'c4', automation: 'chat', valid: true, issues: 0, removed: [] };
+    bus.emit('transaction', { ...landing, commit: 'abc', message: 'Explain level 0', paths: ['Product/Goal/a'], states: { updating: -1, synced: 1 } });
+    await timeline.rename('c4', 'Make level 0 nodes the consensus layer');
+    await timeline.record({ ...chat, kind: 'message_sent', title: 'what does it mean?', detail: 'And level 1?', facts: { runTitle: 'what does it mean?' } });
+    bus.emit('transaction', { ...landing, commit: 'def', message: 'Explain level 1', paths: ['Product/Goal/b'], issues: 1, states: {} });
+    await timeline.rename('c4', 'Explain levels 0 and 1');
+    // Steering an automation run stays the user's own event, the latest of them
+    await timeline.record({ workspace: 'shop', actor: 'user', kind: 'message_sent', title: 'Steered Exploration', detail: 'First', runId: 'e1', automation: 'exploration' });
+    await timeline.record({ workspace: 'shop', actor: 'user', kind: 'message_sent', title: 'Steered Exploration', detail: 'Second', runId: 'e1', automation: 'exploration' });
+
+    const { events } = await timeline.list({ workspace: 'shop', limit: 100 });
+    const of = events.filter((e) => e.runId === 'c4');
+    expect(of).toHaveLength(1);
+    expect(of[0]).toMatchObject({
+      actor: 'user',
+      kind: 'message_sent',
+      title: 'Explain levels 0 and 1',
+      detail: 'And level 1?',
+      facts: { runTitle: 'Explain levels 0 and 1', commit: 'def', subject: 'Explain level 1', issues: 1, paths: ['Product/Goal/a', 'Product/Goal/b'] },
+    });
+    // Started and landed: the entity went to updating and back, and nothing is left to show
+    expect(of[0]!.facts.states).toBeUndefined();
+    expect(events.filter((e) => e.runId === 'e1').map((e) => e.detail)).toEqual(['Second']);
+  });
+
+  it('keeps a stopped chat its name and says who stopped it', async () => {
+    await timeline.record({ workspace: 'shop', actor: 'user', kind: 'chat_started', title: 'Started a chat', detail: 'Ask', runId: 'c6', automation: 'chat', facts: { runTitle: 'Ask' } });
+    await timeline.run(runEvent('shop', { id: 'c6', automation: 'chat', title: 'Ask' }, 'run_killed', { byUser: true, facts: { status: 'killed' } }));
+    const { events } = await timeline.list({ workspace: 'shop', limit: 100 });
+    expect(events.filter((e) => e.runId === 'c6')).toEqual([expect.objectContaining({ actor: 'user', kind: 'run_killed', title: 'Ask', facts: expect.objectContaining({ byUser: true }) })]);
+  });
+
+  it('folds the events a chat once had, one per thing done in it, into one', async () => {
+    const row = (actor: string, kind: string, title: string, detail: string | null, facts: object, at: string) =>
+      sql`insert into harness.timeline_event (actor, kind, title, detail, run_id, automation, workspace, facts, at)
+        values (${actor}, ${kind}, ${title}, ${detail}, 'c7', 'chat', 'shop', ${sql.json(facts as never)}, ${at})`;
+    await sql`drop index harness.timeline_event_run_once`;
+    await row('user', 'chat_started', 'Started a chat', 'what does it mean?', { states: { synced: -1, updating: 1 } }, '2026-10-01T10:00:00Z');
+    await row('automation', 'changes_landed', 'Make level 0 nodes the consensus layer', 'Make level 0 nodes the consensus layer', { paths: ['Product/Goal/a'], issues: 0, commit: 'abc', states: { updating: -1, synced: 1 } }, '2026-10-01T10:05:00Z');
+    await row('user', 'message_sent', 'Wrote in “what does it mean?”', 'Thanks', {}, '2026-10-01T10:06:00Z');
+    await timeline.migrate();
+    const rows = await sql<{ actor: string; kind: string; title: string; detail: string; facts: Record<string, unknown> }[]>`
+      select actor, kind, title, detail, facts from harness.timeline_event where run_id = 'c7'`;
+    expect(rows).toEqual([
+      expect.objectContaining({ actor: 'user', kind: 'message_sent', title: 'what does it mean?', detail: 'Thanks', facts: expect.objectContaining({ commit: 'abc', paths: ['Product/Goal/a'] }) }),
+    ]);
+    expect(rows[0]!.facts.states).toBeUndefined();
   });
 
 });

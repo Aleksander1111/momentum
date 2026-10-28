@@ -26,4 +26,4 @@ Postgres with pgvector, the queryable side of the knowledge base, migrated on st
 - Status columns checked against the contract's enums
 - Indexed for metrics, the run queue, chats
 - Pruned: sessions, readings past 35 days
-- timeline_event: one message_sent per chat run, the latest
+- timeline_event: one per automation run and one per chat or interview, unique on run; one message_sent per steered run, the latest

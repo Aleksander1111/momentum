@@ -111,6 +111,8 @@ export const move = {
     input: v,
   }),
   interview: (v: { question: string; done: boolean; document: string }): Move => ({ tool: 'mcp__momentum-run__report_interview', input: v }),
+  /** A chat named after what was done in it */
+  nameChat: (title: string): Move => ({ tool: 'mcp__momentum-run__name_chat', input: { title } }),
   metric: (misalignments: number, recurring_issues: number): Move => ({ tool: 'mcp__momentum-kb__record_agent_metric', input: { misalignments, recurring_issues } }),
   /** The summarization sub-agent started, as the harness asks a run to before it stops */
   summarize: (): Move => ({

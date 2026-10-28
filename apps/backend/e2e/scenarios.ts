@@ -295,7 +295,7 @@ export const SCENARIOS: Scenario[] = [
       'Every momentum MCP tool works against the project',
       'Voice sockets refuse an app that is not signed in',
       'Every app page loads and approves, sends back and chats against the backend',
-      'The timeline lists the sign-ins, settings, reactions, chats and one event per run newest first, and shows the next one live beside the app; past a page, older events come when asked for while new ones keep arriving',
+      'The timeline lists the sign-ins, settings, reactions, one event per chat and one event per run newest first, and shows the next one live beside the app; past a page, older events come when asked for while new ones keep arriving',
     ],
     // The features each step checks, step by step
     checks: [
@@ -319,7 +319,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       'A question asked in the Chat tab is answered in the conversation, with the card parts added as context reaching the agent',
       'A follow-up continues the same chat; its transcript is summarized into a chat entity the chat list links to',
-      'A chat asked to change an entity lands it unverified; the card shows a diff against the verified version until approved',
+      'A chat asked to change an entity lands it unverified and is named after what it did, in Sessions and on its one timeline event; the card shows a diff against the verified version until approved',
       'A chat the API fails for ends failed with the reason; the next message resumes it and gets an answer',
       'Approving or sending back one item from two devices at once acts once',
       'A log picked with the paperclip and a screenshot dropped on the composer reach the agent, which reads them; the bubbles show them; a file over 10 MB is refused',

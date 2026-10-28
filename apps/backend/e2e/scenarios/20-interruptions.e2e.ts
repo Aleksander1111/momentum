@@ -174,6 +174,6 @@ scenario('interruptions', { enabled: [WS] }, async ({ env, api, app, model, step
     const written = (await entitiesOf(env, WS, chat)).filter((p) => p.startsWith('Product/Feature/'));
     expect(written.some((p) => /list --long/.test(env.show(WS, `knowledge-graph/${p}.md`)!))).toBe(true);
     const { events } = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&limit=100`);
-    expect(events.find((e) => e.runId === chat && e.kind === 'run_killed')?.title).toMatch(/^Stopped by you/);
+    expect(events.find((e) => e.runId === chat && e.kind === 'run_killed')?.facts.byUser).toBe(true);
   });
 });

@@ -101,14 +101,15 @@ scenario('access', { enabled: [WS] }, async ({ env, api, app, step }) => {
   await step(4, async () => {
     const { events } = await api.call<TimelineResponse>('GET', '/timeline?limit=500');
     const kinds = events.map((e) => e.kind);
-    for (const kind of ['sign_in_failed', 'signed_in', 'settings_changed', 'chat_started', 'message_sent', 'run_killed', 'approved', 'sent_back'] as const) {
+    for (const kind of ['sign_in_failed', 'signed_in', 'settings_changed', 'chat_started', 'run_killed', 'approved', 'sent_back'] as const) {
       expect(kinds, kind).toContain(kind);
     }
     expect(events.map((e) => e.at)).toEqual(events.map((e) => e.at).sort().reverse());
-    // One event per run: the chat stopped through MCP is one event, and says who stopped it
-    const stopped = events.filter((e) => e.kind === 'run_killed');
-    expect(new Set(stopped.map((e) => e.runId)).size).toBe(stopped.length);
-    expect(stopped.some((e) => e.automation === 'chat' && e.title.startsWith('Stopped by you'))).toBe(true);
+    // One event per run and per chat: the chat started, written to and stopped through MCP is one event, the user's, and
+    // says who stopped it
+    const runs = events.filter((e) => e.runId && (e.actor === 'automation' || e.automation === 'chat'));
+    expect(new Set(runs.map((e) => e.runId)).size).toBe(runs.length);
+    expect(events.some((e) => e.kind === 'run_killed' && e.automation === 'chat' && e.actor === 'user' && e.facts.byUser)).toBe(true);
     const mine = await api.call<TimelineResponse>('GET', `/timeline?workspace=${WS}&actor=user`);
     expect(mine.events.length).toBeGreaterThan(0);
     expect(mine.events.every((e) => e.workspace === WS && e.actor === 'user')).toBe(true);

@@ -148,7 +148,7 @@ The other tabs:
 
 - **Explorer**: pick a project, browse its domain and type tree, search or ask a question (also by microphone), or explore through an agent. An entity opened there is the same card as in the feed: swipe it to approve, resolve or ask for rework, or pull it up to chat about it.
 - **Sessions**: your chats and interviews, and the automation runs, filtered by all, yours or automations.
-- **Timeline**: every run, reaction and harness event, newest first, plus the runs queued and running.
+- **Timeline**: every run, reaction and harness event, newest first, plus the runs queued and running. A chat is one event, named after what was done in it, for the latest thing done in it, with everything it landed.
 - **Metrics**: usage of the rolling 5-hour and weekly limits, automations, trends over time, runs by parameter and retrieval quality.
 
 Beyond the feed:
@@ -343,7 +343,7 @@ What a run's agent can use:
   | `write` | Writes an entity, validated on write |
   | `record_agent_metric` | Records misalignments and recurring issues |
 
-- **`momentum-run`** (in-process MCP), what the run reports to the harness: `report_graph_build` (progress, next, documents), `report_interview` (interview runs only) and `retrieval_ratings` (optimization only).
+- **`momentum-run`** (in-process MCP), what the run reports to the harness: `report_graph_build` (progress, next, documents), `report_interview` (interview runs only), `name_chat` (chat runs only: the chat's name, after what was done in it, every turn) and `retrieval_ratings` (optimization only).
 - **The `momentum-summarization` sub-agent**, the one sub-agent the harness provides.
 - **Hooks** that put the consistency guard inside the run:
   - `PostToolUse` checks every `Write`, `Edit`, `MultiEdit`, `NotebookEdit` and `momentum-kb` write, and tells the agent what the guard will not accept.

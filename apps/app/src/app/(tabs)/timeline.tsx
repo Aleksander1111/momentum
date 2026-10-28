@@ -131,6 +131,7 @@ function factRows(e: TimelineEvent): [string, string][] {
     ['By', who(e)],
     ['Project', e.workspace],
     ['Started by', f.trigger ? STARTED_BY[f.trigger]! : null],
+    ['Stopped by', f.byUser ? 'You' : null],
     ['Took', f.durationMs !== undefined ? took(f.durationMs) : null],
     ['Usage', usage || null],
     ['Model', f.model ? `${f.model}${f.risk ? ` · ${f.risk} risk` : ''}` : null],

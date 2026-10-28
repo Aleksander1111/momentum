@@ -26,6 +26,7 @@ const NOT_RETRIEVAL = new Set([
   'mcp__momentum-kb__record_agent_metric',
   'mcp__momentum-run__report_graph_build',
   'mcp__momentum-run__report_interview',
+  'mcp__momentum-run__name_chat',
 ]);
 
 export const retrieves = (name: string) => !NOT_RETRIEVAL.has(name);

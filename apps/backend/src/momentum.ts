@@ -33,7 +33,7 @@ import { graphBuildStatus } from './graph-build.ts';
 import { acceptPattern, detectPatterns, PATTERN_TYPE, workspaceMetrics } from './metrics.ts';
 import type { Orchestrator } from './orchestrator.ts';
 import type { Runner } from './runner.ts';
-import { addStates, automationLabel, measured, stateCounts, type Timeline } from './timeline.ts';
+import { addStates, automationLabel, conversational, measured, stateCounts, type Timeline } from './timeline.ts';
 import { NotFound, type Workspaces } from './workspaces.ts';
 
 /** Settings as the timeline names them when the user changes them */
@@ -207,8 +207,9 @@ export class Momentum {
       chats: rows.map((r) => ({
         workspace,
         runId: r.run_id,
-        // A chat reads by what the user asked; an automation's run by what came of it, as the timeline says
-        title: (r.automation === 'chat' ? r.title : r.outcome || r.title) || (r.first ?? '').split('\n')[0]!.slice(0, 80),
+        // A chat reads by its name, what was done in it, and an interview by its topic; an automation's run by what came
+        // of it, as the timeline says
+        title: (conversational(r.automation) ? r.title : r.outcome || r.title) || (r.first ?? '').split('\n')[0]!.slice(0, 80),
         automation: r.automation,
         status: r.status,
         updatedAt: r.updated_at.toISOString(),
@@ -222,6 +223,8 @@ export class Momentum {
   async createChat(workspace: string, text: string, targetPath?: string, context: ContextItem[] = [], attached: string[] = []): Promise<{ runId: string }> {
     const ws = await this.workspaces.get(workspace);
     const files = await attachments.of(workspace, attached);
+    // Named after the first prompt until the chat names itself after what was done in it
+    const title = text.split('\n')[0]!.slice(0, 80);
     // A chat on an entity marks it updating
     const [runId, states] = await measured(ws.index, () =>
       this.runner.create({
@@ -229,7 +232,7 @@ export class Momentum {
         automation: 'chat',
         trigger: 'on_demand',
         prompt: text,
-        title: text.split('\n')[0]!.slice(0, 80),
+        title,
         targetPath: targetPath ?? null,
         context,
         attachments: files,
@@ -244,7 +247,7 @@ export class Momentum {
       runId,
       automation: 'chat',
       path: targetPath ?? null,
-      facts: Object.keys(states).length ? { states } : {},
+      facts: { runTitle: title, ...(Object.keys(states).length ? { states } : {}) },
     });
     void this.orchestrator.tick();
     return { runId };
@@ -258,7 +261,16 @@ export class Momentum {
     await this.workspaces.get(workspace);
     const prompt = `Interview: ${topic}`;
     const runId = await this.runner.create({ workspace, automation: 'interview', trigger: 'on_demand', prompt, title: prompt.slice(0, 80) });
-    await this.timeline.record({ workspace, actor: 'user', kind: 'interview_started', title: 'Started an interview', detail: topic, runId, automation: 'interview' });
+    await this.timeline.record({
+      workspace,
+      actor: 'user',
+      kind: 'interview_started',
+      title: 'Started an interview',
+      detail: topic,
+      runId,
+      automation: 'interview',
+      facts: { runTitle: prompt.slice(0, 80) },
+    });
     void this.orchestrator.tick();
     return { runId };
   }
@@ -313,10 +325,12 @@ export class Momentum {
       workspace: run.workspace,
       actor: 'user',
       kind: 'message_sent',
-      title: run.automation === 'chat' || run.automation === 'interview' ? `Wrote in ${run.title ? `“${run.title}”` : `the ${run.automation}`}` : `Steered ${automationLabel(run.automation)}`,
+      // A chat's or an interview's event is named as it is
+      title: conversational(run.automation) ? run.title || automationLabel(run.automation) : `Steered ${automationLabel(run.automation)}`,
       detail: text,
       runId: id,
       automation: run.automation,
+      facts: conversational(run.automation) && run.title ? { runTitle: run.title } : {},
     });
     await this.runner.send(id, text, context, files);
   }

@@ -22,4 +22,5 @@ The direct chat, started by the user instead of the schedule.
 - A plan asked for goes to plans/<name>.md, a Harness/Plan
 - Never turns one chat into a skill, memory or definition change; asked outright, makes it, in effect as it lands
 - Triggers: edits the frontmatter the harness follows (`schedule` quoted cron, `events`, `on_demand`), card to match
+- Names the chat after what was done in it, every turn (name_chat), never after the question
 - Lands unverified

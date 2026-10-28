@@ -895,7 +895,7 @@ export const TimelineFacts = z
     changed: z.array(z.string()),
     /** How a project's knowledge graph build is paced from now on */
     mode: GraphBuildMode,
-    /** A run's own title, such as a chat's question */
+    /** A run's own title, such as the name of a chat: what was done in it */
     runTitle: z.string(),
     /** The first line of the commit message of what a run landed: what it did */
     subject: z.string(),

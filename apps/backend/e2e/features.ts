@@ -127,7 +127,7 @@ export const FEATURES = {
   'app.entity-folds': "An entity's references and artifacts are folded until opened",
   'app.appearance': 'The app takes the light or dark palette chosen in Settings, or the system one, on every screen at once, the feed card included',
   'app.offline': 'Swipes made while the back-end is unreachable wait on the device and land once it is back',
-  'app.timeline': "The timeline lists the user's actions and one event per run, kept up to date as it runs and lands, newest first, by project and actor, live beside the app in the observer",
+  'app.timeline': "The timeline lists the user's actions, one event per chat named after what was done in it, and one event per run, kept up to date as it runs and lands, newest first, by project and actor, live beside the app in the observer",
   'settings.graph-config': 'Settings lead to the configuration kept in the knowledge graph: automations, entity types, risk rules, triggers and patterns',
   'settings.persist': 'Settings persist: feed size, card limit and rules, exclusions, lifetimes, total runs, models',
 } as const;
