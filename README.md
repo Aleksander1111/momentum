@@ -132,7 +132,7 @@ The dashed line on the slide is the border between **unverified** and **verified
 
 ![User actions](docs/slide-images/02-user-actions.png)
 
-One Expo (React Native) app for web and mobile. On a phone the tabs sit in a bottom bar and Settings is an icon in the corner; on a wide screen all six tabs sit in a left rail.
+One Expo (React Native) app for web and mobile. On a phone all six tabs sit in a bottom bar as icons alone; on a wide screen they sit in a left rail, each icon named under it.
 
 On a **Feed** card:
 

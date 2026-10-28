@@ -22,7 +22,7 @@ artifacts:
 
 One Expo (React Native) app, `apps/app`, for web and mobile.
 
-- Six tabs: Feed, Explorer, Sessions, Timeline, Metrics, Settings; bottom bar when narrow, left rail when wide; Settings a corner icon on a phone
+- Six tabs: Feed, Explorer, Sessions, Timeline, Metrics, Settings; bottom bar of icons alone when narrow, left rail with names under the icons when wide
 - The Sessions tab badges waiting context parts
 - Tabs stay mounted; Back walks the history
 - Light or dark as chosen in Settings, kept on the device; System follows it

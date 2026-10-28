@@ -10,7 +10,6 @@ import { C, F, useTheme, useWide } from '../../ui/theme';
 import { H, T } from '../../ui/Text';
 import { Pick, Segmented, useFrame } from '../../ui/parts';
 import { ProjectLogo } from '../../ui/ProjectLogo';
-import { useCornerRoom } from '../../ui/SettingsButton';
 import { STATE_LABEL } from '../../ui/StateBadge';
 import { Chart, TimeChart, timeTicks, when, type ChartAxis, type ChartLayer, type ChartSeries } from '../../ui/TimeChart';
 import { automationSeries, UsageLegend, UsageMeter, useAutomationColor, useSegments, type Segment } from '../../ui/UsageMeter';
@@ -507,7 +506,6 @@ function RetrievalPanel({ r, range }: { r: MetricsResponse['retrieval']; range: 
 export default function Metrics() {
   useTheme();
   const wide = useWide();
-  const corner = useCornerRoom();
   const [ws, setWs, names] = useCurrentWorkspace();
   const [range, setRange] = useState<MetricsRange>('30d');
   const { data: m } = useQuery({
@@ -533,7 +531,7 @@ export default function Metrics() {
       }
     >
       <View
-        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, paddingRight: corner, zIndex: 10 }}
+        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, zIndex: 10 }}
       >
         <Pick value={ws} options={names} onChange={setWs} icon={(o, size) => <ProjectLogo name={o} size={size} />} />
         <Segmented value={range} options={RANGES} onChange={setRange} />

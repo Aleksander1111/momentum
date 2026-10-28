@@ -11,7 +11,6 @@ import { snapshot } from '../../lib/snapshot';
 import { C, useTheme, useWide } from '../../ui/theme';
 import { T } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
-import { SettingsButton } from '../../ui/SettingsButton';
 
 // Android browsers keep the page above the system bar themselves, yet Firefox reports a tall bottom inset that left empty space below the tabs
 const androidBrowser = Platform.OS === 'web' && /Android/i.test(globalThis.navigator?.userAgent ?? '');
@@ -59,8 +58,7 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
     >
       {state.routes.map((route, index) => {
         const tab = TABS.find((t) => t.name === route.name);
-        // On a phone Settings is the icon in the top-right corner
-        if (!tab || (!wide && tab.name === 'settings')) return null;
+        if (!tab) return null;
         const on = state.index === index;
         const color = on ? C.accent : C.muted;
         const onPress = () => {
@@ -72,6 +70,7 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
             key={route.key}
             onPress={onPress}
             accessibilityRole="tab"
+            accessibilityLabel={tab.label}
             accessibilityState={{ selected: on }}
             style={{ alignItems: 'center', gap: 4 }}
           >
@@ -96,7 +95,8 @@ function Nav({ state, navigation, wide }: BottomTabBarProps & { wide: boolean })
                 </View>
               ) : null}
             </View>
-            <T style={{ color, fontSize: wide ? 12 : 11.5, fontWeight: on ? '700' : '400' }}>{tab.label}</T>
+            {/* The rail names its tabs; the bottom bar is icons alone */}
+            {wide ? <T style={{ color, fontSize: 12, fontWeight: on ? '700' : '400' }}>{tab.label}</T> : null}
           </Pressable>
         );
       })}
@@ -132,25 +132,22 @@ export default function TabsLayout() {
   if (auth === 'no') return <Redirect href="/session" />;
 
   return (
-    <View style={{ flex: 1 }}>
-      <Tabs
-        // The exported app is the Explorer alone: no tabs, nothing else to go to
-        tabBar={(props) => (embedded || snapshot ? null : <Nav {...props} wide={wide} />)}
-        // Back from a screen another tab opened, such as an entity a chat links, returns to that tab, not to the feed
-        backBehavior="history"
-        // Every tab stays mounted: one shown again reloads what went stale while another was in front
-        screenListeners={{ focus: () => void qc.refetchQueries({ type: 'active', stale: true }) }}
-        screenOptions={{
-          headerShown: false,
-          tabBarPosition: wide ? 'left' : 'bottom',
-          sceneStyle: { backgroundColor: C.screen, paddingTop: wide ? 0 : insets.top },
-        }}
-      >
-        {TABS.map((t) => (
-          <Tabs.Screen key={t.name} name={t.name} />
-        ))}
-      </Tabs>
-      {wide || embedded || snapshot ? null : <SettingsButton />}
-    </View>
+    <Tabs
+      // The exported app is the Explorer alone: no tabs, nothing else to go to
+      tabBar={(props) => (embedded || snapshot ? null : <Nav {...props} wide={wide} />)}
+      // Back from a screen another tab opened, such as an entity a chat links, returns to that tab, not to the feed
+      backBehavior="history"
+      // Every tab stays mounted: one shown again reloads what went stale while another was in front
+      screenListeners={{ focus: () => void qc.refetchQueries({ type: 'active', stale: true }) }}
+      screenOptions={{
+        headerShown: false,
+        tabBarPosition: wide ? 'left' : 'bottom',
+        sceneStyle: { backgroundColor: C.screen, paddingTop: wide ? 0 : insets.top },
+      }}
+    >
+      {TABS.map((t) => (
+        <Tabs.Screen key={t.name} name={t.name} />
+      ))}
+    </Tabs>
   );
 }

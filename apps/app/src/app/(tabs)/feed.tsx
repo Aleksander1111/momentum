@@ -28,7 +28,6 @@ import { Conversation } from '../../ui/Conversation';
 import { IssueHead, IssueOptions } from '../../ui/IssueOptions';
 import { Btn, useCloseOnBack } from '../../ui/parts';
 import { STATE_LABEL, StateIcon, Tip, type State } from '../../ui/StateBadge';
-import { useCornerRoom } from '../../ui/SettingsButton';
 import { useWorkspaces } from '../../lib/workspace';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 
@@ -71,7 +70,6 @@ const SYNC: Sync[] = ['synced', 'entity_ahead', 'artifact_ahead', 'updating'];
 
 /** Entities of the enabled projects by state, verification and sync in one segment each; each state is named on hover or long-press. */
 function Counters({ counts, wide }: { counts: FeedCounts; wide: boolean }) {
-  const corner = useCornerRoom();
   const item = (state: State, n: number) => (
     <Tip key={state} text={`${n} ${STATE_LABEL[state].toLowerCase()}`} touch>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: n ? 1 : 0.35 }}>
@@ -100,7 +98,7 @@ function Counters({ counts, wide }: { counts: FeedCounts; wide: boolean }) {
       style={
         wide
           ? { alignSelf: 'center', width: 560, paddingTop: 22, flexDirection: 'row', gap: 8 }
-          : { paddingLeft: 16, paddingRight: 16 + corner, paddingTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }
+          : { paddingLeft: 16, paddingRight: 16, paddingTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }
       }
     >
       {segment(VERIFICATION.map((v) => [v, counts.verification[v]]))}

@@ -96,11 +96,8 @@ export class App {
 
   async tab(name: 'Feed' | 'Explorer' | 'Sessions' | 'Timeline' | 'Metrics' | 'Settings'): Promise<void> {
     await pace('action', `Open the ${name} tab`);
-    // On a phone Settings has no button on Settings itself: there already, nothing is to press
-    if (name === 'Settings' && new URL(this.frame().url()).pathname.startsWith('/settings')) return;
-    // On a phone Settings is the icon in the top-right corner
-    const target = name === 'Settings' ? this.frame().getByLabel('Settings', { exact: true }).or(this.text(name)).first() : this.text(name);
-    await target.click();
+    // On a phone the bottom bar shows icons alone: a tab goes by its accessible name
+    await this.frame().getByRole('tab', { name, exact: true }).click();
     // The Sessions tab keeps the route it had as Chat
     await this.frame().waitForURL(new RegExp(`/${name === 'Sessions' ? 'chat' : name.toLowerCase()}`));
   }
@@ -246,7 +243,7 @@ export class App {
     // The app holds the card it showed first, from before its feed came in: the Feed tab pressed again shows the top-ranked
     await until('the card on top in the app', async () => {
       if (await this.text(item.title).isVisible()) return true;
-      await this.text('Feed').click({ timeout: 5_000 }).catch(() => {});
+      await this.frame().getByRole('tab', { name: 'Feed', exact: true }).click({ timeout: 5_000 }).catch(() => {});
       return this.text(item.title).isVisible();
     }, 30_000, 1000);
     return item.title;

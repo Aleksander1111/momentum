@@ -18,7 +18,6 @@ import { Count, List, Pick, Row, RowText } from '../../../ui/parts';
 import { States } from '../../../ui/StateBadge';
 import { EntityView } from '../../../ui/EntityView';
 import { DomainBadge } from '../../../ui/domains';
-import { useCornerRoom } from '../../../ui/SettingsButton';
 import { Answer, isQuestion } from '../../../ui/Answer';
 import { EntityLinks } from '../../../ui/EntityRef';
 
@@ -101,7 +100,6 @@ const holds = (nodes: TypeNode[], path: string): boolean => nodes.some((n) => n.
 export default function Explorer() {
   useTheme();
   const wide = useWide();
-  const corner = useCornerRoom();
   const params = useLocalSearchParams<{ ws?: string; path?: string; folder?: string }>();
   const [ws, setWs, names] = useCurrentWorkspace();
   const noneIncluded = !!useWorkspaces().data && !ws;
@@ -198,7 +196,6 @@ export default function Explorer() {
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 12,
-          paddingRight: corner,
           zIndex: 10,
         }}
       >

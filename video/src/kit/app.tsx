@@ -208,15 +208,10 @@ function TabBar({ active }: { active: Tab | null }) {
         boxSizing: 'border-box',
       }}
     >
-      {TABS.map(([name, label]) => {
-        const color = name === active ? C.accent : C.muted;
-        return (
-          <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <Glyph path={ICONS[name]} size={24} color={color} />
-            <span style={{ fontFamily: F.body, fontSize: 11, color }}>{label}</span>
-          </div>
-        );
-      })}
+      {/* Icons alone, Settings last */}
+      {[...TABS.map(([name]) => name), 'settings' as const].map((name) => (
+        <Glyph key={name} path={ICONS[name]} size={24} color={name === active ? C.accent : C.muted} />
+      ))}
     </div>
   );
 }
@@ -238,9 +233,6 @@ export function Phone({ children, style, tab = 'feed', screen, bar = 1 }: { chil
       <div style={{ position: 'absolute', left: BEZEL, top: BEZEL, width: SCREEN.w, height: SCREEN.h, borderRadius: 44, background: C.screen, overflow: 'hidden' }}>
         {screen}
         <div style={{ position: 'absolute', left: SCREEN.w / 2 - 60, top: 12, width: 120, height: 32, borderRadius: 16, background: C.ink }} />
-        <div style={{ position: 'absolute', right: 18, top: 54, opacity: 0.9 }}>
-          <Glyph path={ICONS.settings} size={22} color={C.muted} />
-        </div>
         {bar > 0 ? (
           <div style={{ opacity: bar }}>
             <TabBar active={tab} />

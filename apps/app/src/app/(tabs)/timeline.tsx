@@ -14,7 +14,6 @@ import { Icon, type PATHS } from '../../ui/icons';
 import { EntityRefs, useOpenEntity } from '../../ui/EntityRef';
 import { ProjectLogo, ProjectName } from '../../ui/ProjectLogo';
 import { STATE_LABEL, StateIcon, Tip } from '../../ui/StateBadge';
-import { useCornerRoom } from '../../ui/SettingsButton';
 import { Btn, List, Pick, Row, Sect, Segmented } from '../../ui/parts';
 
 const ALL = 'All projects';
@@ -334,7 +333,6 @@ function UnderWay({ runs, showProject }: { runs: ActiveRun[]; showProject: boole
 export default function Timeline() {
   useTheme();
   const wide = useWide();
-  const corner = useCornerRoom();
   const workspaces = useEnabledWorkspaces();
   const [workspace, setWorkspace] = useState<string | null>(null);
   const [actor, setActor] = useState<ActorFilter>('all');
@@ -386,7 +384,7 @@ export default function Timeline() {
         wide ? { maxWidth: 860, paddingVertical: 28, paddingHorizontal: 40 } : { paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }
       }
     >
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, paddingRight: corner, zIndex: 10 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, zIndex: 10 }}>
         <Pick
           value={workspace ?? ALL}
           options={[ALL, ...workspaces]}
