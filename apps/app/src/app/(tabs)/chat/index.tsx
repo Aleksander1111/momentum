@@ -92,7 +92,7 @@ export default function Sessions() {
           : { flex: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }
       }
     >
-      <View style={{ marginBottom: 6 }}>
+      <View style={{ marginBottom: 18 }}>
         <Segmented value={filter} options={FILTERS} onChange={setFilter} />
       </View>
       <ScrollView style={{ flex: 1 }}>
