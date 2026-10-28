@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { HttpError } from '../lib/api';
 import { C, useWide } from './theme';
@@ -18,8 +17,21 @@ function Gone({ ws, path }: { ws: string; path: string }) {
   );
 }
 
-/** One entity in full and still, as the exported app shows it: breadcrumb, states, card, then what it has beyond it. */
-export function EntityView({ ws, path, onOpen }: { ws: string; path: string; onOpen: (path: string) => void }) {
+/**
+ * One entity in full and still, as the exported app shows it: breadcrumb, states, card, then what it has beyond it.
+ * `onProject`, when given, is what the project logo does in place of opening the explorer.
+ */
+export function EntityView({
+  ws,
+  path,
+  onOpen,
+  onProject,
+}: {
+  ws: string;
+  path: string;
+  onOpen: (path: string) => void;
+  onProject?: () => void;
+}) {
   const { data: e, error } = useEntity(ws, path);
   if (error instanceof HttpError && error.status === 404) return <Gone ws={ws} path={path} />;
   if (!e) return null;
@@ -33,6 +45,7 @@ export function EntityView({ ws, path, onOpen }: { ws: string; path: string; onO
         card={e.card}
         diff={e.diff}
         aside={<States verification={e.verification} sync={e.sync} contradictions={e.contradictions} labels />}
+        onProject={onProject}
       />
       <EntityMore ws={e.workspace} path={e.path} />
     </EntityLinks>
@@ -41,20 +54,21 @@ export function EntityView({ ws, path, onOpen }: { ws: string; path: string; onO
 
 /**
  * One entity as the feed's card, the same in every part: swiped right it approves or resolves, left it asks for rework,
- * pulled up it opens its chat. `head` sits above it, such as a way back; `onReacted` follows each reaction sent.
+ * pulled up it opens its chat. `onReacted` follows each reaction sent; `onProject`, when given, is what the project logo
+ * does in place of opening the explorer.
  */
 export function EntityCard({
   ws,
   path,
-  head,
   onOpen,
   onReacted,
+  onProject,
 }: {
   ws: string;
   path: string;
-  head?: ReactNode;
   onOpen: (path: string) => void;
   onReacted: () => void;
+  onProject?: () => void;
 }) {
   const { data: e, error } = useEntity(ws, path);
   const wide = useWide();
@@ -63,9 +77,9 @@ export function EntityCard({
     <EntityLinks workspace={ws} open={onOpen}>
       <CardScreen
         item={e}
-        head={head}
         empty={gone ? <View style={{ paddingHorizontal: wide ? 40 : 16 }}><Gone ws={ws} path={path} /></View> : null}
         onReacted={onReacted}
+        onProject={onProject}
       />
     </EntityLinks>
   );

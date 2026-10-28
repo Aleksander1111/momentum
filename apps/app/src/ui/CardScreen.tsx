@@ -109,6 +109,7 @@ function TopCard({
   onDisapprove,
   onChat,
   onPick,
+  onProject,
 }: {
   item: ReviewItem;
   wide: boolean;
@@ -125,6 +126,7 @@ function TopCard({
   onDisapprove: () => void;
   onChat: () => void;
   onPick: (item: ContextItem) => void;
+  onProject?: () => void;
 }) {
   const { width } = useWindowDimensions();
   const tx = useSharedValue(0);
@@ -259,6 +261,7 @@ function TopCard({
             aside={<States verification={item.verification} sync={item.sync} contradictions={item.contradictions} labels />}
             swipe
             onPick={onPick}
+            onProject={onProject}
           />
           {issue ? (
             <>
@@ -506,8 +509,8 @@ function CardChat({
 /**
  * One card to react to, however it was reached: swiped right it approves, or resolves an issue with the option picked;
  * left it asks for rework with a comment; pulled up at its end it opens the chat on it. `head` sits above it, such as
- * the feed's counters or a way back; `behind`, the cards under it; `empty`, what shows without one. `onReacted` follows
- * each reaction sent.
+ * the feed's counters; `behind`, the cards under it; `empty`, what shows without one. `onReacted` follows each reaction
+ * sent; `onProject`, when given, is what the card's project logo does in place of opening the explorer.
  */
 export function CardScreen({
   item,
@@ -515,12 +518,14 @@ export function CardScreen({
   behind,
   empty,
   onReacted,
+  onProject,
 }: {
   item: ReviewItem | null | undefined;
   head?: ReactNode;
   behind?: ReactNode;
   empty?: ReactNode;
   onReacted?: () => void;
+  onProject?: () => void;
 }) {
   const wide = useWide();
   const approve = useMutation<void, Error, ApproveVars>({ mutationKey: ['approve'] });
@@ -593,6 +598,7 @@ export function CardScreen({
         chatContext.add(part);
         if (!chat) setChat({ item, runId: chats.current.get(key!) ?? null });
       }}
+      onProject={onProject}
     />
   ) : null;
   const cardChat = chat ? (

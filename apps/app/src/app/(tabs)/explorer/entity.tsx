@@ -1,11 +1,14 @@
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme, useWide } from '../../../ui/theme';
-import { Back, useBack } from '../../../ui/parts';
+import { useBack } from '../../../ui/parts';
 import { EntityCard, EntityView } from '../../../ui/EntityView';
 import { snapshot } from '../../../lib/snapshot';
 
-/** One entity opened from the Explorer: the card as the feed shows it, with a way back above it; still in an export */
+/**
+ * One entity opened from the Explorer: the card as the feed shows it, its project logo the way back to where it was
+ * opened from; still in an export
+ */
 export default function Entity() {
   useTheme();
   const wide = useWide();
@@ -21,8 +24,7 @@ export default function Entity() {
             : { paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }
         }
       >
-        <Back {...back} />
-        {ws && path ? <EntityView ws={ws} path={path} onOpen={open} /> : null}
+        {ws && path ? <EntityView ws={ws} path={path} onOpen={open} onProject={back.onPress} /> : null}
       </ScrollView>
     );
   return ws && path ? (
@@ -30,14 +32,10 @@ export default function Entity() {
       key={`${ws}:${path}`}
       ws={ws}
       path={path}
-      head={
-        <View style={wide ? { alignSelf: 'center', width: 560, paddingTop: 22 } : { paddingTop: 12, paddingHorizontal: 16 }}>
-          <Back {...back} />
-        </View>
-      }
       onOpen={open}
       // The card reacted to has left: back to where it was opened from
       onReacted={back.onPress}
+      onProject={back.onPress}
     />
   ) : null;
 }

@@ -252,14 +252,17 @@ function Crumb({ label, onPress }: { label: string; onPress: () => void }) {
 
 const Sep = () => <T style={{ fontSize: 13, color: C.faint }}>›</T>;
 
-/** Breadcrumb: project logo, type in a pill coloured by its main type, then the folders below the type. */
-function Crumbs({ workspace, type, path }: { workspace: string; type: string; path: string }) {
+/**
+ * Breadcrumb: project logo, type in a pill coloured by its main type, then the folders below the type. The logo opens
+ * the explorer on the project, or calls `onProject` when given.
+ */
+function Crumbs({ workspace, type, path, onProject }: { workspace: string; type: string; path: string; onProject?: () => void }) {
   const typeSegs = type.split('/');
   const segs = pathSegments(path);
   const folders = typeSegs.every((t, i) => segs[i] === t) ? segs.slice(typeSegs.length, -1) : [];
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 6, rowGap: 4, flexShrink: 1 }}>
-      <Pressable onPress={() => openInExplorer(workspace)} accessibilityRole="link" accessibilityLabel={workspace}>
+      <Pressable onPress={onProject ?? (() => openInExplorer(workspace))} accessibilityRole="link" accessibilityLabel={workspace}>
         {({ hovered }) => <ProjectLogo name={workspace} size={32} style={{ opacity: hovered ? 0.8 : 1 }} />}
       </Pressable>
       <Sep />
@@ -278,7 +281,7 @@ function Crumbs({ workspace, type, path }: { workspace: string; type: string; pa
  * Card heading (breadcrumb, `aside` at its right, serif title) followed by the card blocks. A card that changed since the
  * user last verified it shows the diff instead, with the words removed and added. Selected text and picked diagram
  * shapes can be added to the chat's context; with `onPick` they go to it at once, with no button. `swipe` marks a card
- * the left mouse button swipes.
+ * the left mouse button swipes. `onProject`, when given, is what the project logo does in place of opening the explorer.
  */
 export function CardView({
   type,
@@ -290,6 +293,7 @@ export function CardView({
   aside,
   swipe,
   onPick,
+  onProject,
 }: {
   type: string;
   workspace: string;
@@ -300,6 +304,7 @@ export function CardView({
   aside?: ReactNode;
   swipe?: boolean;
   onPick?: (item: ContextItem) => void;
+  onProject?: () => void;
 }) {
   const shown = diff?.card ?? card;
   // The title is shown once; a leading heading repeating it is dropped.
@@ -323,7 +328,7 @@ export function CardView({
           alignItems: 'center',
         }}
       >
-        <Crumbs workspace={workspace} type={type} path={path} />
+        <Crumbs workspace={workspace} type={type} path={path} onProject={onProject} />
         {diff || aside ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             {diff ? (
