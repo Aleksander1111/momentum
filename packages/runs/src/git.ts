@@ -371,14 +371,20 @@ export function land(repo: string, main: string, message: string, since: string 
   });
 }
 
-/** Commits these paths of the working directory as they stand, and nothing else; null when they hold no change */
+/**
+ * Commits these paths of the working directory as they stand, and nothing else; null when they hold no change. A path
+ * gone from the disk and the index alike (a run's `git rm`) is already staged: git add would not match it, so only
+ * the paths still on the disk or in the index are added, and the commit takes the staged ones.
+ */
 async function commitPaths(cwd: string, paths: string[], message: string): Promise<string | null> {
   if (paths.length === 0) return null;
-  const list = `${paths.join('\n')}\n`;
-  await git(cwd, [...AS_STORED, 'add', '-A', '--pathspec-from-file=-'], list);
+  const indexed = new Set((await git(cwd, ['ls-files', '-z', '--cached'])).split('\0').filter(Boolean));
+  const present = paths.filter((p) => indexed.has(p) || existsSync(join(cwd, p)));
+  if (present.length) await git(cwd, [...AS_STORED, 'add', '-A', '--pathspec-from-file=-'], `${present.join('\n')}\n`);
   const staged = new Set((await git(cwd, ['diff', '--cached', '--name-only', '--no-renames'])).split('\n').filter(Boolean));
-  if (!paths.some((p) => staged.has(p))) return null;
-  await git(cwd, [...IDENTITY, 'commit', '-q', '-m', message, '--pathspec-from-file=-'], list);
+  const commit = paths.filter((p) => staged.has(p));
+  if (commit.length === 0) return null;
+  await git(cwd, [...IDENTITY, 'commit', '-q', '-m', message, '--pathspec-from-file=-'], `${commit.join('\n')}\n`);
   return head(cwd);
 }
 

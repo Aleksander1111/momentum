@@ -129,6 +129,20 @@ describe('landing in the working directory', () => {
     expect(await land(root, 'main', 'Again', since)).toBeNull();
   });
 
+  it('lands a file the run removed with git rm, gone from the index and the disk alike', async () => {
+    const root = repository('git-rm', { 'a.txt': 'a\n', 'kg/card.md': 'card\n', 'kg/other.md': 'other\n' });
+    const since = await workingTree(root);
+    // The run removes one card through git and edits another
+    git(root, 'rm', '-q', 'kg/card.md');
+    write(root, 'kg/other.md', 'edited\n');
+
+    const landed = await land(root, 'main', 'The run', since);
+    expect(landed?.changed.sort()).toEqual(['kg/card.md', 'kg/other.md']);
+    expect(await show(root, 'refs/heads/main', 'kg/card.md')).toBeNull();
+    expect(await show(root, 'refs/heads/main', 'kg/other.md')).toBe('edited\n');
+    expect(git(root, 'status', '--porcelain')).toBe('');
+  });
+
   it('refuses a working directory that does not have the main line checked out', async () => {
     const root = repository('off-line', { 'a.txt': 'a\n' });
     git(root, 'checkout', '-q', '--detach');
